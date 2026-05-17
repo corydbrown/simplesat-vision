@@ -1,6 +1,7 @@
 import "server-only";
 import { asc, desc, eq, sql } from "drizzle-orm";
 import { db, schema } from "../client";
+import { ticketsViewWhere } from "@/lib/view-predicates";
 import type { Ticket } from "../schema";
 
 export type TicketSortKey =
@@ -42,58 +43,61 @@ export async function listTickets({
   pageSize,
   sort,
   dir,
+  view,
 }: {
   page: number;
   pageSize: number;
   sort: TicketSortKey;
   dir: SortDir;
+  view?: string;
 }): Promise<{ rows: TicketsRow[]; total: number }> {
   const sortCol = SORT_COLUMN_MAP[sort];
   const orderBy = dir === "asc" ? asc(sortCol) : desc(sortCol);
+  const where = view ? ticketsViewWhere(view) : undefined;
 
   const offset = (page - 1) * pageSize;
 
-  const [rawRows, totalRow] = await Promise.all([
-    db
-      .select({
-        ticket: schema.tickets,
-        customer: {
-          id: schema.customers.id,
-          name: schema.customers.name,
-          company: schema.customers.company,
-        },
-        assignee: {
-          id: schema.teamMembers.id,
-          name: schema.teamMembers.name,
-          avatarColor: schema.teamMembers.avatarColor,
-          team: schema.teamMembers.team,
-        },
-        response: {
-          id: schema.responses.id,
-          rating: schema.responses.rating,
-          scale: schema.responses.scale,
-          comment: schema.responses.comment,
-        },
-      })
-      .from(schema.tickets)
-      .leftJoin(
-        schema.customers,
-        eq(schema.customers.id, schema.tickets.customerId),
-      )
-      .leftJoin(
-        schema.teamMembers,
-        eq(schema.teamMembers.id, schema.tickets.assignedTeamMemberId),
-      )
-      .leftJoin(
-        schema.responses,
-        eq(schema.responses.ticketId, schema.tickets.id),
-      )
+  const baseQuery = db
+    .select({
+      ticket: schema.tickets,
+      customer: {
+        id: schema.customers.id,
+        name: schema.customers.name,
+        company: schema.customers.company,
+      },
+      assignee: {
+        id: schema.teamMembers.id,
+        name: schema.teamMembers.name,
+        avatarColor: schema.teamMembers.avatarColor,
+        team: schema.teamMembers.team,
+      },
+      response: {
+        id: schema.responses.id,
+        rating: schema.responses.rating,
+        scale: schema.responses.scale,
+        comment: schema.responses.comment,
+      },
+    })
+    .from(schema.tickets)
+    .leftJoin(
+      schema.customers,
+      eq(schema.customers.id, schema.tickets.customerId),
+    )
+    .leftJoin(
+      schema.teamMembers,
+      eq(schema.teamMembers.id, schema.tickets.assignedTeamMemberId),
+    )
+    .leftJoin(
+      schema.responses,
+      eq(schema.responses.ticketId, schema.tickets.id),
+    );
+
+  const [rawRows, total] = await Promise.all([
+    (where ? baseQuery.where(where) : baseQuery)
       .orderBy(orderBy)
       .limit(pageSize)
       .offset(offset),
-    db
-      .select({ count: sql<number>`count(*)`.as("count") })
-      .from(schema.tickets),
+    db.$count(schema.tickets, where),
   ]);
 
   const rows: TicketsRow[] = rawRows.map((r) => ({
@@ -103,7 +107,7 @@ export async function listTickets({
     response: r.response?.id ? r.response : null,
   }));
 
-  return { rows, total: Number(totalRow[0]?.count ?? 0) };
+  return { rows, total };
 }
 
 export type TicketDetail = TicketsRow;

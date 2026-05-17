@@ -2,12 +2,12 @@ import { Topbar } from "@/components/shell/topbar";
 import { ticketColumns } from "@/components/tickets/columns";
 import { TicketsTable } from "@/components/tickets/tickets-table";
 import { TicketsToolbar } from "@/components/tickets/toolbar";
-import { ViewTabs } from "@/components/tickets/view-tabs";
 import {
   listTickets,
   type SortDir,
   type TicketSortKey,
 } from "@/db/queries/tickets";
+import { TICKET_VIEWS } from "@/lib/views";
 
 const PAGE_SIZE = 50;
 
@@ -40,24 +40,26 @@ export default async function TicketsPage(props: PageProps<"/tickets">) {
   const sort = parseSort(typeof sp.sort === "string" ? sp.sort : undefined);
   const dir = parseDir(typeof sp.dir === "string" ? sp.dir : undefined);
   const page = parsePage(typeof sp.page === "string" ? sp.page : undefined);
+  const view = typeof sp.view === "string" ? sp.view : undefined;
 
   const { rows, total } = await listTickets({
     page,
     pageSize: PAGE_SIZE,
     sort,
     dir,
+    view,
   });
+
+  const activeView = TICKET_VIEWS.find((v) => v.id === (view ?? "all"));
 
   return (
     <>
-      <Topbar crumbs={[{ label: "Tickets" }]} />
-      <div className="px-5 pt-5 pb-3">
-        <h1 className="text-xl font-semibold tracking-tight">Tickets</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          All conversations ingested from your helpdesks.
-        </p>
-      </div>
-      <ViewTabs active="all" />
+      <Topbar
+        crumbs={[
+          { label: "Tickets", href: "/tickets" },
+          { label: activeView?.label ?? "All tickets" },
+        ]}
+      />
       <TicketsToolbar />
       <TicketsTable
         rows={rows}

@@ -39,3 +39,8 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# local sqlite database (regenerate with `npm run db:reset`)
+/db/*.db
+/db/*.db-shm
+/db/*.db-wal

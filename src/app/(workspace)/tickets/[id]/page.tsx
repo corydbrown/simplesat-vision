@@ -1,10 +1,13 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Star } from "lucide-react";
 import { Topbar } from "@/components/shell/topbar";
 import { ChannelPill } from "@/components/tickets/channel-pill";
-import { RelationPill } from "@/components/tickets/relation-pill";
 import { StatusPill } from "@/components/tickets/status-pill";
+import {
+  CompanyPill,
+  CustomerPill,
+  ResponsePill,
+  TeamMemberPill,
+} from "@/components/shared/entity-pill";
 import { getTicketById } from "@/db/queries/tickets";
 import { formatDateTime, formatDuration } from "@/lib/format";
 
@@ -60,20 +63,29 @@ export default async function TicketDetailPage(
             </PropertyRow>
             <PropertyRow label="Customer">
               {ticket.customer ? (
-                <RelationPill
-                  label={ticket.customer.name}
-                  sublabel={ticket.customer.company}
+                <CustomerPill
+                  id={ticket.customer.id}
+                  name={ticket.customer.name}
+                  size="md"
                 />
+              ) : (
+                <span className="text-muted-foreground">-</span>
+              )}
+            </PropertyRow>
+            <PropertyRow label="Company">
+              {ticket.customer?.company ? (
+                <CompanyPill name={ticket.customer.company} size="md" />
               ) : (
                 <span className="text-muted-foreground">-</span>
               )}
             </PropertyRow>
             <PropertyRow label="Assigned to">
               {ticket.assignee ? (
-                <RelationPill
-                  label={ticket.assignee.name}
-                  sublabel={ticket.assignee.team}
-                  color={ticket.assignee.avatarColor}
+                <TeamMemberPill
+                  id={ticket.assignee.id}
+                  name={ticket.assignee.name}
+                  avatarColor={ticket.assignee.avatarColor}
+                  size="md"
                 />
               ) : (
                 <span className="text-muted-foreground">Unassigned</span>
@@ -166,20 +178,15 @@ export default async function TicketDetailPage(
           </h2>
           {ticket.response ? (
             <div className="mt-3 rounded-md border border-border bg-background px-5 py-4">
-              <div className="flex items-center gap-2 text-sm">
-                <Star
-                  size={16}
-                  className="fill-amber-400 text-amber-400"
+              <div className="flex items-center gap-3">
+                <ResponsePill
+                  rating={ticket.response.rating}
+                  scale={ticket.response.scale}
+                  size="md"
                 />
-                <span className="font-medium tabular-nums">
-                  {ticket.response.rating}/{ticket.response.scale}
-                </span>
-                <Link
-                  href="#"
-                  className="ml-2 font-mono text-[11px] text-muted-foreground hover:text-foreground"
-                >
+                <span className="font-mono text-[11px] text-muted-foreground">
                   {ticket.response.id}
-                </Link>
+                </span>
               </div>
               {ticket.response.comment && (
                 <p className="mt-2 text-sm text-muted-foreground">

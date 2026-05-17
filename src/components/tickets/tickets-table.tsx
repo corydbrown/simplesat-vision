@@ -33,9 +33,13 @@ const SORTABLE: Record<string, TicketSortKey> = {
   subject: "subject",
   status: "status",
   channel: "channel",
+  createdAt: "createdAt",
   solvedAt: "solvedAt",
   closedAt: "closedAt",
 };
+
+const STICKY_COLS = new Set(["id", "subject"]);
+const STICKY_OFFSETS: Record<string, number> = { id: 0, subject: 156 };
 
 export function TicketsTable({
   rows,
@@ -133,17 +137,32 @@ export function TicketsTable({
       </div>
 
       <div className="flex-1 overflow-auto">
-        <table className="w-full text-sm">
-          <thead className="sticky top-0 z-10 bg-background">
+        <table className="text-sm border-separate border-spacing-0">
+          <thead>
             {headerGroups.map((hg) => (
-              <tr key={hg.id} className="border-b border-border">
+              <tr key={hg.id}>
                 {hg.headers.map((header) => {
                   const sortKey = SORTABLE[header.column.id];
                   const isActive = sortKey === sort;
+                  const meta = header.column.columnDef.meta as
+                    | { width?: number }
+                    | undefined;
+                  const sticky = STICKY_COLS.has(header.column.id);
                   return (
                     <th
                       key={header.id}
-                      className="px-3 py-2 text-left font-medium text-xs text-muted-foreground border-r border-border last:border-r-0"
+                      style={{
+                        width: meta?.width,
+                        minWidth: meta?.width,
+                        left: sticky ? STICKY_OFFSETS[header.column.id] : undefined,
+                      }}
+                      className={`px-3 py-2 text-left font-medium text-xs text-muted-foreground border-b border-r border-border bg-background ${
+                        sticky ? "sticky z-20" : "sticky top-0 z-10"
+                      } ${
+                        header.column.id === "subject"
+                          ? "shadow-[1px_0_0_0_var(--color-border)]"
+                          : ""
+                      }`}
                     >
                       {sortKey ? (
                         <button
@@ -180,17 +199,40 @@ export function TicketsTable({
             {table.getRowModel().rows.map((row) => (
               <tr
                 key={row.id}
-                className="border-b border-border last:border-b-0 hover:bg-accent/40 cursor-pointer"
-                onClick={() => router.push(`/tickets/${row.original.id}`)}
+                className="group cursor-pointer"
+                onClick={(e) => {
+                  if ((e.target as HTMLElement).closest("a")) return;
+                  router.push(`/tickets/${row.original.id}`);
+                }}
               >
-                {row.getVisibleCells().map((cell) => (
-                  <td
-                    key={cell.id}
-                    className="px-3 py-1.5 border-r border-border last:border-r-0 align-middle"
-                  >
-                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                  </td>
-                ))}
+                {row.getVisibleCells().map((cell) => {
+                  const meta = cell.column.columnDef.meta as
+                    | { width?: number }
+                    | undefined;
+                  const sticky = STICKY_COLS.has(cell.column.id);
+                  return (
+                    <td
+                      key={cell.id}
+                      style={{
+                        width: meta?.width,
+                        minWidth: meta?.width,
+                        left: sticky ? STICKY_OFFSETS[cell.column.id] : undefined,
+                      }}
+                      className={`px-3 py-1.5 border-b border-r border-border align-middle bg-background group-hover:bg-accent/40 ${
+                        sticky ? "sticky z-10" : ""
+                      } ${
+                        cell.column.id === "subject"
+                          ? "shadow-[1px_0_0_0_var(--color-border)]"
+                          : ""
+                      }`}
+                    >
+                      {flexRender(
+                        cell.column.columnDef.cell,
+                        cell.getContext(),
+                      )}
+                    </td>
+                  );
+                })}
               </tr>
             ))}
           </tbody>

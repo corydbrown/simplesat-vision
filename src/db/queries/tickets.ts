@@ -1,5 +1,5 @@
 import "server-only";
-import { asc, desc, eq, sql } from "drizzle-orm";
+import { asc, desc, eq } from "drizzle-orm";
 import { db, schema } from "../client";
 import { ticketsViewWhere } from "@/lib/view-predicates";
 import type { Ticket } from "../schema";

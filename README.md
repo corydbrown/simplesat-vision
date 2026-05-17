@@ -14,11 +14,15 @@ High-fidelity prototype of where Simplesat is headed - the future product, runni
 ## Quickstart
 
 ```bash
-nvm use            # node 20+
+nvm use
 npm install
-npm run db:reset   # generate, migrate, seed (~50k tickets, deterministic)
-npm run dev        # http://localhost:3000
+npm run db:reset
+npm run dev
 ```
+
+Then open http://localhost:3000.
+
+`db:reset` generates the Drizzle migration, applies it, and seeds ~50k tickets. The seed is deterministic.
 
 The seed is deterministic (`faker.seed(42)`) so re-running `db:reset` produces identical data.
 

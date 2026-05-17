@@ -1,36 +1,95 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Simplesat Vision
 
-## Getting Started
+High-fidelity prototype of where Simplesat is headed - the future product, running on real seeded data. Intended as an internal reference for the team to align on direction. Not connected to production.
 
-First, run the development server:
+## Stack
+
+- Next.js 16 (App Router) + React 19.2 + TypeScript strict
+- Tailwind CSS v4 + shadcn/ui (radix-nova preset, Lucide icons, Geist font)
+- TanStack Table v8 for the tickets grid
+- Drizzle ORM + better-sqlite3 (local file at `db/simplesat.db`)
+- Faker for seed data
+- dnd-kit, Recharts available (used in phase 2)
+
+## Quickstart
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+nvm use            # node 20+
+npm install
+npm run db:reset   # generate, migrate, seed (~50k tickets, deterministic)
+npm run dev        # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+The seed is deterministic (`faker.seed(42)`) so re-running `db:reset` produces identical data.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Scripts
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+| Script | What it does |
+|---|---|
+| `dev` | Run the Turbopack dev server |
+| `build` | Production build |
+| `start` | Serve the production build |
+| `lint` | Run ESLint |
+| `db:generate` | Generate a new Drizzle migration from the schema |
+| `db:migrate` | Apply pending migrations to `db/simplesat.db` |
+| `db:seed` | Run the seed script |
+| `db:studio` | Open Drizzle Studio against the local db |
+| `db:reset` | Wipe the db file and re-run migrate + seed |
 
-## Learn More
+## What's mocked vs. real
 
-To learn more about Next.js, take a look at the following resources:
+**Real**:
+- 500 customers, 25 team members, 50,000 tickets, ~14,000 responses, 50 tickets with real conversation threads. Stored in a local SQLite file. Queried server-side with Drizzle. All joins on the Tickets page are live.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+**Mocked / cosmetic**:
+- View tabs on the Tickets page (only "All tickets" is active)
+- Toolbar buttons (Filter, Group by, Sort, Properties, Export, New) are visual only
+- QA Evaluations: schema exists but no seed data or UI beyond the "Soon" cards
+- Stub pages for Responses, Customers, Team members, Reports
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Project layout
 
-## Deploy on Vercel
+```
+src/
+  app/
+    (workspace)/      # routes that share the sidebar layout
+      page.tsx        # home
+      tickets/        # tickets list + detail
+      responses/      # stub
+      customers/      # stub
+      team-members/   # stub
+      reports/        # stub
+    layout.tsx        # root layout (font, tooltip provider)
+    globals.css       # tailwind + shadcn theme
+  components/
+    shell/            # sidebar, topbar, coming-soon
+    tickets/          # table, columns, pills, toolbar, view tabs
+    ui/               # shadcn components
+  db/
+    client.ts         # better-sqlite3 + drizzle singleton
+    schema.ts         # all 5 tables
+    seed.ts           # faker seed
+    queries/          # typed query helpers
+  lib/
+    ids.ts            # prefixedId() using nanoid
+    format.ts         # date/number/duration formatters
+db/
+  simplesat.db        # gitignored, regenerate with db:reset
+drizzle/
+  *.sql               # checked-in migrations
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Deployment notes
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+The SQLite file is local-only for phase 1. To deploy to Vercel, swap better-sqlite3 for Turso (libSQL) and update `src/db/client.ts` to use the libSQL driver. The Drizzle schema and queries do not need to change.
+
+## Conventions
+
+- No `any`. Strict TypeScript.
+- Server Components by default; client only when interactivity is needed.
+- URL `searchParams` for table sort/pagination - no client state library.
+- No em dashes in user-facing copy.
+
+## Decisions log
+
+See `DECISIONS.md` for explicit assumptions made during the build that are open to discussion.

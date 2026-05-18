@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { ArrowUpRight, Star } from "lucide-react";
+import { HoverCard, HoverCardTrigger } from "@/components/ui/hover-card";
 import { colorFromName, initialsFromName } from "@/lib/color-from-name";
+import { EntityPopoverContent } from "./entity-popover";
 
 type CommonProps = {
   size?: "sm" | "md";
@@ -15,15 +17,20 @@ export function CustomerPill({
 }: CommonProps & { id: string; name: string }) {
   const color = colorFromName(name);
   return (
-    <BasePill
-      href={`/customers/${id}`}
-      avatar={
-        <Avatar bg={color} initials={initialsFromName(name)} size={size} />
-      }
-      label={name}
-      size={size}
-      className={className}
-    />
+    <HoverCard openDelay={200} closeDelay={80}>
+      <HoverCardTrigger asChild>
+        <BasePill
+          href={`/customers/${id}`}
+          avatar={
+            <Avatar bg={color} initials={initialsFromName(name)} size={size} />
+          }
+          label={name}
+          size={size}
+          className={className}
+        />
+      </HoverCardTrigger>
+      <EntityPopoverContent entity="customer" id={id} />
+    </HoverCard>
   );
 }
 
@@ -57,19 +64,24 @@ export function TeamMemberPill({
   className,
 }: CommonProps & { id: string; name: string; avatarColor: string }) {
   return (
-    <BasePill
-      href={`/team-members/${id}`}
-      avatar={
-        <Avatar
-          bg={avatarColor}
-          initials={initialsFromName(name)}
+    <HoverCard openDelay={200} closeDelay={80}>
+      <HoverCardTrigger asChild>
+        <BasePill
+          href={`/team-members/${id}`}
+          avatar={
+            <Avatar
+              bg={avatarColor}
+              initials={initialsFromName(name)}
+              size={size}
+            />
+          }
+          label={name}
           size={size}
+          className={className}
         />
-      }
-      label={name}
-      size={size}
-      className={className}
-    />
+      </HoverCardTrigger>
+      <EntityPopoverContent entity="team-member" id={id} />
+    </HoverCard>
   );
 }
 
@@ -82,23 +94,30 @@ export function TicketPill({
 }: CommonProps & { id: string; externalId?: string | null; subject?: string }) {
   const displayId = externalId ?? id;
   return (
-    <Link
-      href={`/tickets/${id}`}
-      className={`group inline-flex items-center gap-1.5 rounded px-1 py-0.5 ${
-        size === "md" ? "text-sm" : "text-xs"
-      } font-mono text-muted-foreground hover:bg-accent hover:text-foreground ${
-        className ?? ""
-      }`}
-    >
-      <span>{displayId}</span>
-      {subject && (
-        <span className="font-sans text-foreground/80 truncate">{subject}</span>
-      )}
-      <ArrowUpRight
-        size={11}
-        className="opacity-0 group-hover:opacity-100 transition-opacity"
-      />
-    </Link>
+    <HoverCard openDelay={200} closeDelay={80}>
+      <HoverCardTrigger asChild>
+        <Link
+          href={`/tickets/${id}`}
+          className={`group inline-flex items-center gap-1.5 rounded px-1 py-0.5 ${
+            size === "md" ? "text-sm" : "text-xs"
+          } font-mono text-muted-foreground hover:bg-accent hover:text-foreground ${
+            className ?? ""
+          }`}
+        >
+          <span>{displayId}</span>
+          {subject && (
+            <span className="font-sans text-foreground/80 truncate">
+              {subject}
+            </span>
+          )}
+          <ArrowUpRight
+            size={11}
+            className="opacity-0 group-hover:opacity-100 transition-opacity"
+          />
+        </Link>
+      </HoverCardTrigger>
+      <EntityPopoverContent entity="ticket" id={id} />
+    </HoverCard>
   );
 }
 

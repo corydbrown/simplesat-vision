@@ -71,7 +71,6 @@ export default async function ResponsesPage(props: PageProps<"/responses">) {
           idField="id"
           rowHrefField="responseId"
           properties={ANSWER_PROPERTIES}
-          stickyId="question"
           page={1}
           pageSize={Math.max(answerRows.length, 1)}
           total={answerRows.length}
@@ -99,7 +98,6 @@ export default async function ResponsesPage(props: PageProps<"/responses">) {
         rows={rows}
         idField="id"
         properties={RESPONSE_PROPERTIES}
-        stickyId="comment"
         page={1}
         pageSize={Math.max(rows.length, 1)}
         total={total}

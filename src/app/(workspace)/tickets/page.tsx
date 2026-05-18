@@ -69,7 +69,6 @@ export default async function TicketsPage(props: PageProps<"/tickets">) {
         rows={rows}
         idField="id"
         properties={TICKET_PROPERTIES}
-        stickyId="subject"
         page={page}
         pageSize={PAGE_SIZE}
         total={total}

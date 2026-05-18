@@ -28,7 +28,6 @@ export type EntityTableProps<T> = {
   rows: T[];
   idField: keyof T & string;
   properties: Property<T>[];
-  stickyId?: string;
   page: number;
   pageSize: number;
   total: number;
@@ -47,7 +46,6 @@ export function EntityTable<T>({
   rows,
   idField,
   properties,
-  stickyId,
   page,
   pageSize,
   total,
@@ -129,13 +127,11 @@ export function EntityTable<T>({
                 <tr>
                   {visibleOrdered.map((p) => {
                     const width = state.widths[p.id] ?? p.width;
-                    const sticky = p.id === stickyId;
                     return (
                       <HeaderCell
                         key={p.id}
                         property={p}
                         width={width}
-                        sticky={sticky}
                         sortActive={sort === (p.sortKey ?? p.id)}
                         onSort={
                           p.sortable && (p.sortKey ?? p.id)
@@ -183,7 +179,6 @@ export function EntityTable<T>({
                   >
                     {visibleOrdered.map((p) => {
                       const width = state.widths[p.id] ?? p.width;
-                      const sticky = p.id === stickyId;
                       return (
                         <td
                           key={p.id}
@@ -191,14 +186,9 @@ export function EntityTable<T>({
                             width,
                             minWidth: width,
                             maxWidth: width,
-                            left: sticky ? 0 : undefined,
                           }}
                           className={`px-3 py-2 border-b border-r border-border align-middle bg-background group-hover:bg-accent/50 ${
                             p.truncate !== false ? "truncate" : ""
-                          } ${
-                            sticky
-                              ? "sticky z-10 shadow-[1px_0_0_0_var(--color-border)]"
-                              : ""
                           } ${p.align === "right" ? "text-right" : ""}`}
                         >
                           {p.cell(row)}
@@ -253,14 +243,12 @@ export function EntityTable<T>({
 function HeaderCell<T>({
   property,
   width,
-  sticky,
   sortActive,
   onSort,
   onResize,
 }: {
   property: Property<T>;
   width: number;
-  sticky: boolean;
   sortActive: boolean;
   onSort?: () => void;
   onResize: (width: number) => void;
@@ -301,15 +289,14 @@ function HeaderCell<T>({
         width,
         minWidth: width,
         maxWidth: width,
-        left: sticky ? 0 : undefined,
         transform: CSS.Transform.toString(transform),
         transition,
         opacity: isDragging ? 0.5 : 1,
-        zIndex: sticky ? 30 : isDragging ? 25 : 20,
+        zIndex: isDragging ? 25 : 20,
       }}
       className={`px-3 py-2 text-left font-medium text-xs text-muted-foreground border-b border-r border-border bg-background sticky top-0 ${
-        sticky ? "shadow-[1px_0_0_0_var(--color-border)]" : ""
-      } ${property.align === "right" ? "text-right" : ""}`}
+        property.align === "right" ? "text-right" : ""
+      }`}
     >
       <div className="flex items-center gap-1 relative">
         <span

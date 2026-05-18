@@ -28,7 +28,6 @@ export default async function CustomersPage(props: PageProps<"/customers">) {
         rows={rows}
         idField="id"
         properties={CUSTOMER_PROPERTIES}
-        stickyId="name"
         page={1}
         pageSize={total || 1}
         total={total}

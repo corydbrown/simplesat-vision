@@ -16,9 +16,9 @@ export type TeamMemberListRow = {
   totalResponses: number;
 };
 
-const totalTicketsExpr = sql<number>`(SELECT COUNT(*) FROM tickets WHERE tickets.assigned_team_member_id = ${schema.teamMembers.id})`;
-const avgRatingExpr = sql<number | null>`(SELECT AVG(CAST(rating as REAL)) FROM responses WHERE responses.team_member_id = ${schema.teamMembers.id})`;
-const totalResponsesExpr = sql<number>`(SELECT COUNT(*) FROM responses WHERE responses.team_member_id = ${schema.teamMembers.id})`;
+const totalTicketsExpr = sql<number>`(SELECT COUNT(*) FROM tickets WHERE tickets.assigned_team_member_id = team_members.id)`;
+const avgRatingExpr = sql<number | null>`(SELECT AVG(CAST(rating as REAL)) FROM responses WHERE responses.team_member_id = team_members.id)`;
+const totalResponsesExpr = sql<number>`(SELECT COUNT(*) FROM responses WHERE responses.team_member_id = team_members.id)`;
 
 export async function listTeamMembers({
   view,
@@ -29,7 +29,7 @@ export async function listTeamMembers({
   const teamWhere = view ? teamMembersViewWhere(view) : undefined;
   const lowPerfWhere =
     view === "low-performers"
-      ? sql`(SELECT COUNT(*) FROM responses WHERE responses.team_member_id = ${schema.teamMembers.id}) >= 20 AND (SELECT AVG(CAST(rating as REAL)) FROM responses WHERE responses.team_member_id = ${schema.teamMembers.id}) < 3.5`
+      ? sql`(SELECT COUNT(*) FROM responses WHERE responses.team_member_id = team_members.id) >= 20 AND (SELECT AVG(CAST(rating as REAL)) FROM responses WHERE responses.team_member_id = team_members.id) < 3.5`
       : undefined;
 
   const conditions = [teamWhere, lowPerfWhere].filter(

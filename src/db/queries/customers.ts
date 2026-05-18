@@ -15,9 +15,9 @@ export type CustomerListRow = {
   lastSeen: Date | null;
 };
 
-const totalTicketsExpr = sql<number>`(SELECT COUNT(*) FROM tickets WHERE tickets.customer_id = ${schema.customers.id})`;
-const avgRatingExpr = sql<number | null>`(SELECT AVG(CAST(rating as REAL)) FROM responses WHERE responses.customer_id = ${schema.customers.id})`;
-const lastSeenExpr = sql<number | null>`(SELECT MAX(created_at) FROM tickets WHERE tickets.customer_id = ${schema.customers.id})`;
+const totalTicketsExpr = sql<number>`(SELECT COUNT(*) FROM tickets WHERE tickets.customer_id = customers.id)`;
+const avgRatingExpr = sql<number | null>`(SELECT AVG(CAST(rating as REAL)) FROM responses WHERE responses.customer_id = customers.id)`;
+const lastSeenExpr = sql<number | null>`(SELECT MAX(tickets.created_at) FROM tickets WHERE tickets.customer_id = customers.id)`;
 
 export async function listCustomers({
   view,
@@ -27,7 +27,7 @@ export async function listCustomers({
   const tierWhere = view ? customersViewWhere(view) : undefined;
   const atRiskWhere =
     view === "at-risk"
-      ? sql`(SELECT COUNT(*) FROM responses WHERE responses.customer_id = ${schema.customers.id}) >= 3 AND (SELECT AVG(CAST(rating as REAL)) FROM responses WHERE responses.customer_id = ${schema.customers.id}) < 3`
+      ? sql`(SELECT COUNT(*) FROM responses WHERE responses.customer_id = customers.id) >= 3 AND (SELECT AVG(CAST(rating as REAL)) FROM responses WHERE responses.customer_id = customers.id) < 3`
       : undefined;
 
   const conditions = [tierWhere, atRiskWhere].filter(

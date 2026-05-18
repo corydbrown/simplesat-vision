@@ -33,7 +33,6 @@ export default async function TeamMembersPage(
         rows={rows}
         idField="id"
         properties={TEAM_MEMBER_PROPERTIES}
-        stickyId="name"
         page={1}
         pageSize={total || 1}
         total={total}

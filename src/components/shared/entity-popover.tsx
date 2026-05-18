@@ -2,10 +2,10 @@
 
 import { Star } from "lucide-react";
 import { useEffect, useState } from "react";
-import { HoverCardContent } from "@/components/ui/hover-card";
-import { Skeleton } from "@/components/ui/skeleton";
 import { ChannelPill } from "@/components/tickets/channel-pill";
 import { StatusPill } from "@/components/tickets/status-pill";
+import { Avatar } from "@/components/shared/avatar";
+import { Skeleton } from "@/components/ui/skeleton";
 import { colorFromName, initialsFromName } from "@/lib/color-from-name";
 import { formatDate, formatDuration, formatNumber } from "@/lib/format";
 
@@ -49,23 +49,50 @@ type TicketData = {
   solvedAt: string | null;
 };
 
-export function EntityPopoverContent({
+const cache = new Map<string, unknown>();
+const inflight = new Map<string, Promise<unknown>>();
+
+function fetchEntity(entity: Entity, id: string): Promise<unknown> {
+  const key = `${entity}:${id}`;
+  if (cache.has(key)) return Promise.resolve(cache.get(key));
+  const existing = inflight.get(key);
+  if (existing) return existing;
+  const p = fetch(`/api/popover/${entity}/${id}`)
+    .then((r) => {
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      return r.json();
+    })
+    .then((data) => {
+      cache.set(key, data);
+      inflight.delete(key);
+      return data;
+    })
+    .catch((err) => {
+      inflight.delete(key);
+      throw err;
+    });
+  inflight.set(key, p);
+  return p;
+}
+
+// Body component only mounts when HoverCardContent is open (Radix unmounts
+// children on close), so the fetch fires lazily.
+export function EntityPopoverBody({
   entity,
   id,
 }: {
   entity: Entity;
   id: string;
 }) {
-  const [data, setData] = useState<unknown>(null);
+  const [data, setData] = useState<unknown>(() =>
+    cache.get(`${entity}:${id}`) ?? null,
+  );
   const [error, setError] = useState(false);
 
   useEffect(() => {
+    if (data != null) return;
     let cancelled = false;
-    fetch(`/api/popover/${entity}/${id}`)
-      .then((r) => {
-        if (!r.ok) throw new Error(`HTTP ${r.status}`);
-        return r.json();
-      })
+    fetchEntity(entity, id)
       .then((d) => {
         if (!cancelled) setData(d);
       })
@@ -75,46 +102,28 @@ export function EntityPopoverContent({
     return () => {
       cancelled = true;
     };
-  }, [entity, id]);
+  }, [entity, id, data]);
 
-  return (
-    <HoverCardContent className="w-80 p-0 overflow-hidden" sideOffset={4}>
-      {error ? (
-        <div className="px-4 py-3 text-sm text-muted-foreground">
-          Failed to load.
-        </div>
-      ) : data == null ? (
-        <div className="px-4 py-3 space-y-2">
-          <Skeleton className="h-4 w-32" />
-          <Skeleton className="h-3 w-48" />
-          <Skeleton className="h-3 w-40" />
-        </div>
-      ) : entity === "customer" ? (
-        <CustomerPopover data={data as CustomerData} />
-      ) : entity === "team-member" ? (
-        <TeamMemberPopover data={data as TeamMemberData} />
-      ) : (
-        <TicketPopover data={data as TicketData} />
-      )}
-    </HoverCardContent>
-  );
-}
-
-function Avatar({
-  name,
-  bg,
-}: {
-  name: string;
-  bg: string;
-}) {
-  return (
-    <span
-      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-semibold text-white"
-      style={{ backgroundColor: bg }}
-    >
-      {initialsFromName(name)}
-    </span>
-  );
+  if (error) {
+    return (
+      <div className="px-4 py-3 text-sm text-muted-foreground">
+        Failed to load.
+      </div>
+    );
+  }
+  if (data == null) {
+    return (
+      <div className="px-4 py-3 space-y-2">
+        <Skeleton className="h-4 w-32" />
+        <Skeleton className="h-3 w-48" />
+        <Skeleton className="h-3 w-40" />
+      </div>
+    );
+  }
+  if (entity === "customer") return <CustomerPopover data={data as CustomerData} />;
+  if (entity === "team-member")
+    return <TeamMemberPopover data={data as TeamMemberData} />;
+  return <TicketPopover data={data as TicketData} />;
 }
 
 function StatBlock({
@@ -150,17 +159,13 @@ function CustomerPopover({ data }: { data: CustomerData }) {
   return (
     <div>
       <div className="px-4 py-3 flex items-start gap-3">
-        <Avatar name={data.name} bg={colorFromName(data.name)} />
+        <Avatar bg={colorFromName(data.name)} initials={initialsFromName(data.name)} size="lg" />
         <div className="min-w-0 flex-1">
           <div className="font-medium truncate">{data.name}</div>
           <div className="text-xs text-muted-foreground truncate">
             {data.email}
           </div>
           <div className="mt-1 flex items-center gap-1.5 text-xs">
-            <span
-              className="h-1.5 w-1.5 rounded-sm"
-              style={{ backgroundColor: colorFromName(data.company) }}
-            />
             <span className="text-muted-foreground truncate">
               {data.company}
             </span>
@@ -208,7 +213,7 @@ function TeamMemberPopover({ data }: { data: TeamMemberData }) {
   return (
     <div>
       <div className="px-4 py-3 flex items-start gap-3">
-        <Avatar name={data.name} bg={data.avatarColor} />
+        <Avatar bg={data.avatarColor} initials={initialsFromName(data.name)} size="lg" />
         <div className="min-w-0 flex-1">
           <div className="font-medium truncate">{data.name}</div>
           <div className="text-xs text-muted-foreground truncate">

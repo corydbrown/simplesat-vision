@@ -1,13 +1,23 @@
 import Link from "next/link";
 import { ArrowUpRight, Star } from "lucide-react";
-import { HoverCard, HoverCardTrigger } from "@/components/ui/hover-card";
+import {
+  HoverCard,
+  HoverCardContent,
+  HoverCardTrigger,
+} from "@/components/ui/hover-card";
+import { Avatar } from "@/components/shared/avatar";
+import { EntityPopoverBody } from "./entity-popover";
 import { colorFromName, initialsFromName } from "@/lib/color-from-name";
-import { EntityPopoverContent } from "./entity-popover";
 
 type CommonProps = {
   size?: "sm" | "md";
   className?: string;
 };
+
+const POPOVER_PROPS = {
+  className: "w-80 p-0 overflow-hidden",
+  sideOffset: 4,
+} as const;
 
 export function CustomerPill({
   id,
@@ -15,21 +25,26 @@ export function CustomerPill({
   size = "sm",
   className,
 }: CommonProps & { id: string; name: string }) {
-  const color = colorFromName(name);
   return (
     <HoverCard openDelay={200} closeDelay={80}>
       <HoverCardTrigger asChild>
         <BasePill
           href={`/customers/${id}`}
           avatar={
-            <Avatar bg={color} initials={initialsFromName(name)} size={size} />
+            <Avatar
+              bg={colorFromName(name)}
+              initials={initialsFromName(name)}
+              size={size === "md" ? "md" : "sm"}
+            />
           }
           label={name}
           size={size}
           className={className}
         />
       </HoverCardTrigger>
-      <EntityPopoverContent entity="customer" id={id} />
+      <HoverCardContent {...POPOVER_PROPS}>
+        <EntityPopoverBody entity="customer" id={id} />
+      </HoverCardContent>
     </HoverCard>
   );
 }
@@ -40,17 +55,12 @@ export function CompanyPill({
   className,
 }: CommonProps & { name: string }) {
   if (!name) return <span className="text-muted-foreground">-</span>;
-  const color = colorFromName(name);
   return (
     <span
-      className={`inline-flex items-center gap-1.5 rounded px-1 py-0.5 ${
+      className={`inline-flex items-center rounded px-1 py-0.5 ${
         size === "md" ? "text-base" : "text-sm"
       } text-foreground ${className ?? ""}`}
     >
-      <span
-        className="h-2 w-2 shrink-0 rounded-sm"
-        style={{ backgroundColor: color }}
-      />
       <span className="truncate">{name}</span>
     </span>
   );
@@ -72,7 +82,7 @@ export function TeamMemberPill({
             <Avatar
               bg={avatarColor}
               initials={initialsFromName(name)}
-              size={size}
+              size={size === "md" ? "md" : "sm"}
             />
           }
           label={name}
@@ -80,7 +90,9 @@ export function TeamMemberPill({
           className={className}
         />
       </HoverCardTrigger>
-      <EntityPopoverContent entity="team-member" id={id} />
+      <HoverCardContent {...POPOVER_PROPS}>
+        <EntityPopoverBody entity="team-member" id={id} />
+      </HoverCardContent>
     </HoverCard>
   );
 }
@@ -116,7 +128,9 @@ export function TicketPill({
           />
         </Link>
       </HoverCardTrigger>
-      <EntityPopoverContent entity="ticket" id={id} />
+      <HoverCardContent {...POPOVER_PROPS}>
+        <EntityPopoverBody entity="ticket" id={id} />
+      </HoverCardContent>
     </HoverCard>
   );
 }
@@ -143,26 +157,6 @@ export function ResponsePill({
       <span className="tabular-nums font-medium">
         {rating}/{scale}
       </span>
-    </span>
-  );
-}
-
-function Avatar({
-  bg,
-  initials,
-  size,
-}: {
-  bg: string;
-  initials: string;
-  size: "sm" | "md";
-}) {
-  const dim = size === "md" ? "h-6 w-6 text-[11px]" : "h-5 w-5 text-[10px]";
-  return (
-    <span
-      className={`flex shrink-0 items-center justify-center rounded-full font-semibold text-white ${dim}`}
-      style={{ backgroundColor: bg }}
-    >
-      {initials || "?"}
     </span>
   );
 }

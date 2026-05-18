@@ -1,7 +1,8 @@
 import { Topbar } from "@/components/shell/topbar";
-import { ticketColumns } from "@/components/tickets/columns";
-import { TicketsTable } from "@/components/tickets/tickets-table";
-import { TicketsToolbar } from "@/components/tickets/toolbar";
+import { EntityTable } from "@/components/shared/entity-table";
+import { EntityToolbar } from "@/components/shared/entity-toolbar";
+import { ColumnStateProvider } from "@/lib/column-prefs";
+import { TICKET_PROPERTIES } from "@/lib/properties/tickets";
 import {
   listTickets,
   type SortDir,
@@ -53,23 +54,30 @@ export default async function TicketsPage(props: PageProps<"/tickets">) {
   const activeView = TICKET_VIEWS.find((v) => v.id === (view ?? "all"));
 
   return (
-    <>
+    <ColumnStateProvider tableId="tickets" properties={TICKET_PROPERTIES}>
       <Topbar
         crumbs={[
           { label: "Tickets", href: "/tickets" },
           { label: activeView?.label ?? "All tickets" },
         ]}
       />
-      <TicketsToolbar />
-      <TicketsTable
+      <EntityToolbar
+        properties={TICKET_PROPERTIES}
+        searchPlaceholder="Search tickets..."
+      />
+      <EntityTable
         rows={rows}
-        total={total}
+        idField="id"
+        properties={TICKET_PROPERTIES}
+        stickyId="subject"
         page={page}
         pageSize={PAGE_SIZE}
+        total={total}
         sort={sort}
         dir={dir}
-        columns={ticketColumns}
+        basePath="/tickets"
+        rowHrefBase="/tickets"
       />
-    </>
+    </ColumnStateProvider>
   );
 }

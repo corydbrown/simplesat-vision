@@ -9,6 +9,7 @@ import {
   ResponsePill,
   TeamMemberPill,
 } from "@/components/shared/entity-pill";
+import { TagList } from "@/components/shared/tag";
 import type { TicketsRow } from "@/db/queries/tickets";
 import { formatDate, formatDuration } from "@/lib/format";
 import type { Property } from "./types";
@@ -103,21 +104,7 @@ export const TICKET_PROPERTIES: Property<TicketsRow>[] = [
     width: 200,
     group: "Metadata",
     defaultVisible: true,
-    cell: (t) =>
-      t.tags.length === 0 ? (
-        <span className="text-muted-foreground">-</span>
-      ) : (
-        <div className="flex gap-1 truncate">
-          {t.tags.map((tag) => (
-            <span
-              key={tag}
-              className="rounded bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground"
-            >
-              {tag}
-            </span>
-          ))}
-        </div>
-      ),
+    cell: (t) => <TagList tags={t.tags} />,
   },
   {
     id: "resolution_time",

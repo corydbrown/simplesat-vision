@@ -1,51 +1,14 @@
 "use client";
 
-import { Star } from "lucide-react";
 import {
   CompanyPill,
   CustomerPill,
 } from "@/components/shared/entity-pill";
+import { AvgRating } from "@/components/shared/avg-rating";
+import { TierPill } from "@/components/shared/tier-pill";
 import type { CustomerListRow } from "@/db/queries/customers";
 import { formatDate, formatNumber } from "@/lib/format";
 import type { Property } from "./types";
-
-const TIER_TONE: Record<string, string> = {
-  starter: "bg-zinc-100 text-zinc-700 ring-zinc-200",
-  pro: "bg-blue-50 text-blue-700 ring-blue-200",
-  enterprise: "bg-purple-50 text-purple-700 ring-purple-200",
-};
-
-const TIER_LABEL: Record<string, string> = {
-  starter: "Starter",
-  pro: "Pro",
-  enterprise: "Enterprise",
-};
-
-function TierPill({ tier }: { tier: string }) {
-  return (
-    <span
-      className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${TIER_TONE[tier] ?? ""}`}
-    >
-      {TIER_LABEL[tier] ?? tier}
-    </span>
-  );
-}
-
-function AvgRating({ value }: { value: number | null }) {
-  if (value == null) return <span className="text-muted-foreground">-</span>;
-  const tone =
-    value < 3
-      ? "text-red-600"
-      : value < 4
-        ? "text-amber-600"
-        : "text-emerald-600";
-  return (
-    <span className={`inline-flex items-center gap-1 ${tone}`}>
-      <Star size={11} className="fill-current" />
-      <span className="tabular-nums font-medium">{value.toFixed(2)}</span>
-    </span>
-  );
-}
 
 export const CUSTOMER_PROPERTIES: Property<CustomerListRow>[] = [
   {
@@ -97,7 +60,7 @@ export const CUSTOMER_PROPERTIES: Property<CustomerListRow>[] = [
     width: 130,
     group: "Activity",
     defaultVisible: true,
-    cell: (c) => <AvgRating value={c.avgRating} />,
+    cell: (c) => <AvgRating value={c.avgRating} threshold="customer" />,
   },
   {
     id: "last_seen",

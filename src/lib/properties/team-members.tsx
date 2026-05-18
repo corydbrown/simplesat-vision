@@ -1,40 +1,11 @@
 "use client";
 
-import { Star } from "lucide-react";
 import { TeamMemberPill } from "@/components/shared/entity-pill";
+import { AvgRating } from "@/components/shared/avg-rating";
+import { TeamPill } from "@/components/shared/team-pill";
 import type { TeamMemberListRow } from "@/db/queries/team-members";
 import { formatNumber } from "@/lib/format";
 import type { Property } from "./types";
-
-function AvgRating({ value }: { value: number | null }) {
-  if (value == null) return <span className="text-muted-foreground">-</span>;
-  const tone =
-    value < 3.5
-      ? "text-red-600"
-      : value < 4
-        ? "text-amber-600"
-        : "text-emerald-600";
-  return (
-    <span className={`inline-flex items-center gap-1 ${tone}`}>
-      <Star size={11} className="fill-current" />
-      <span className="tabular-nums font-medium">{value.toFixed(2)}</span>
-    </span>
-  );
-}
-
-function TeamPill({ team }: { team: string }) {
-  const tone =
-    team === "Tier 1"
-      ? "bg-blue-50 text-blue-700 ring-blue-200"
-      : "bg-violet-50 text-violet-700 ring-violet-200";
-  return (
-    <span
-      className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${tone}`}
-    >
-      {team}
-    </span>
-  );
-}
 
 export const TEAM_MEMBER_PROPERTIES: Property<TeamMemberListRow>[] = [
   {
@@ -101,7 +72,7 @@ export const TEAM_MEMBER_PROPERTIES: Property<TeamMemberListRow>[] = [
     width: 130,
     group: "Activity",
     defaultVisible: true,
-    cell: (m) => <AvgRating value={m.avgRating} />,
+    cell: (m) => <AvgRating value={m.avgRating} threshold="team-member" />,
   },
   {
     id: "id",

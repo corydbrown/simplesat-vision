@@ -97,3 +97,7 @@ The SQLite file is local-only for phase 1. To deploy to Vercel, swap better-sqli
 ## Decisions log
 
 See `DECISIONS.md` for explicit assumptions made during the build that are open to discussion.
+
+## Planning docs
+
+- `REPORTS.md` — phase 4 plan for the Reports / pivot table feature.

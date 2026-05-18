@@ -9,6 +9,7 @@ import type {
   NewResponse,
   NewTeamMember,
   NewTicket,
+  SurveyAnswer,
   SurveyNotSentReason,
   TicketStatus,
 } from "./schema";
@@ -151,6 +152,93 @@ function randomTags(): string[] {
   const set = new Set<string>();
   while (set.size < count) set.add(pickFrom(TAG_POOL));
   return [...set];
+}
+
+const RESOLVED_OPTIONS = ["Yes", "Partially", "No"] as const;
+const POSITIVES = [
+  "Response speed",
+  "Expertise",
+  "Communication",
+  "Follow-through",
+  "Friendliness",
+] as const;
+const NEGATIVES = [
+  "Took too long",
+  "Did not understand my issue",
+  "Hard to reach a human",
+  "Issue still not resolved",
+  "Felt impersonal",
+] as const;
+
+function buildSurveyAnswers(
+  rating: number,
+  comment: string | null,
+): SurveyAnswer[] {
+  const answers: SurveyAnswer[] = [];
+
+  // Q1: rating (mirrors responses.rating)
+  answers.push({
+    type: "rating",
+    question: "How satisfied are you with this support experience?",
+    value: rating,
+    scale: 5,
+  });
+
+  // Q2: multi-choice resolution
+  const resolvedValue =
+    rating >= 4
+      ? RESOLVED_OPTIONS[0]
+      : rating === 3
+        ? faker.helpers.weightedArrayElement([
+            { value: RESOLVED_OPTIONS[0], weight: 30 },
+            { value: RESOLVED_OPTIONS[1], weight: 60 },
+            { value: RESOLVED_OPTIONS[2], weight: 10 },
+          ])
+        : rating === 2
+          ? faker.helpers.weightedArrayElement([
+              { value: RESOLVED_OPTIONS[1], weight: 50 },
+              { value: RESOLVED_OPTIONS[2], weight: 50 },
+            ])
+          : RESOLVED_OPTIONS[2];
+  answers.push({
+    type: "multi-choice",
+    question: "Was your issue resolved?",
+    options: [...RESOLVED_OPTIONS],
+    value: resolvedValue,
+  });
+
+  // Q3: multi-select on positives or negatives (depending on rating)
+  if (rating >= 4) {
+    const count = faker.number.int({ min: 1, max: 3 });
+    const picks = faker.helpers.arrayElements([...POSITIVES], count);
+    answers.push({
+      type: "multi-select",
+      question: "What did we do well?",
+      options: [...POSITIVES],
+      value: picks,
+    });
+  } else {
+    const count = faker.number.int({ min: 0, max: 3 });
+    const picks =
+      count === 0 ? [] : faker.helpers.arrayElements([...NEGATIVES], count);
+    answers.push({
+      type: "multi-select",
+      question: "Where could we improve?",
+      options: [...NEGATIVES],
+      value: picks,
+    });
+  }
+
+  // Q4: comment (mirrors responses.comment)
+  if (comment) {
+    answers.push({
+      type: "comment",
+      question: "Anything else we should know?",
+      value: comment,
+    });
+  }
+
+  return answers;
 }
 
 function adjustRatingForResolution(
@@ -411,6 +499,16 @@ async function seed() {
       }
       const respondedAt =
         surveySentAt! + faker.number.int({ min: 5, max: 60 * 48 }) * 60 * 1000;
+
+      const comment =
+        baseRating <= 3 && faker.number.int({ min: 0, max: 99 }) < 70
+          ? faker.lorem.sentence({ min: 6, max: 18 })
+          : baseRating === 5 && faker.number.int({ min: 0, max: 99 }) < 30
+            ? faker.lorem.sentence({ min: 4, max: 10 })
+            : null;
+
+      const answers = buildSurveyAnswers(baseRating, comment);
+
       responses.push({
         id: prefixedId("rsp"),
         ticketId,
@@ -419,13 +517,9 @@ async function seed() {
         surveyType: "csat",
         rating: baseRating,
         scale: 5,
-        comment:
-          baseRating <= 3 && faker.number.int({ min: 0, max: 99 }) < 70
-            ? faker.lorem.sentence({ min: 6, max: 18 })
-            : baseRating === 5 && faker.number.int({ min: 0, max: 99 }) < 30
-              ? faker.lorem.sentence({ min: 4, max: 10 })
-              : null,
+        comment,
         respondedAt: new Date(respondedAt),
+        answers,
       });
     }
   }

@@ -25,6 +25,31 @@ export type ConversationMessage = {
   body: string;
 };
 
+export type SurveyAnswer =
+  | {
+      type: "rating";
+      question: string;
+      value: number;
+      scale: number;
+    }
+  | {
+      type: "multi-choice";
+      question: string;
+      options: string[];
+      value: string;
+    }
+  | {
+      type: "multi-select";
+      question: string;
+      options: string[];
+      value: string[];
+    }
+  | {
+      type: "comment";
+      question: string;
+      value: string;
+    };
+
 export const customers = sqliteTable(
   "customers",
   {
@@ -150,6 +175,10 @@ export const responses = sqliteTable(
     scale: integer("scale").notNull(),
     comment: text("comment"),
     respondedAt: integer("responded_at", { mode: "timestamp_ms" }).notNull(),
+    answers: text("answers", { mode: "json" })
+      .$type<SurveyAnswer[]>()
+      .notNull()
+      .default(sql`'[]'`),
   },
   (t) => [
     index("responses_ticket_id_idx").on(t.ticketId),

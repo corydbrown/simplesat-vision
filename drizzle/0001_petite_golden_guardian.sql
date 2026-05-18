@@ -1,0 +1,1 @@
+ALTER TABLE `responses` ADD `answers` text DEFAULT '[]' NOT NULL;

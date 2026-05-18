@@ -44,7 +44,7 @@ export function CompanyPill({
   return (
     <span
       className={`inline-flex items-center gap-1.5 rounded px-1 py-0.5 ${
-        size === "md" ? "text-sm" : "text-xs"
+        size === "md" ? "text-base" : "text-sm"
       } text-foreground ${className ?? ""}`}
     >
       <span
@@ -99,7 +99,7 @@ export function TicketPill({
         <Link
           href={`/tickets/${id}`}
           className={`group inline-flex items-center gap-1.5 rounded px-1 py-0.5 ${
-            size === "md" ? "text-sm" : "text-xs"
+            size === "md" ? "text-base" : "text-sm"
           } font-mono text-muted-foreground hover:bg-accent hover:text-foreground ${
             className ?? ""
           }`}
@@ -136,7 +136,7 @@ export function ResponsePill({
   return (
     <span
       className={`inline-flex items-center gap-1 ${
-        size === "md" ? "text-sm" : "text-xs"
+        size === "md" ? "text-base" : "text-sm"
       } ${tone} ${className ?? ""}`}
     >
       <Star size={11} className="fill-current" />
@@ -156,7 +156,7 @@ function Avatar({
   initials: string;
   size: "sm" | "md";
 }) {
-  const dim = size === "md" ? "h-5 w-5 text-[10px]" : "h-4 w-4 text-[9px]";
+  const dim = size === "md" ? "h-6 w-6 text-[11px]" : "h-5 w-5 text-[10px]";
   return (
     <span
       className={`flex shrink-0 items-center justify-center rounded-full font-semibold text-white ${dim}`}
@@ -184,7 +184,7 @@ function BasePill({
     <Link
       href={href}
       className={`group inline-flex items-center gap-1.5 rounded px-1 py-0.5 ${
-        size === "md" ? "text-sm" : "text-xs"
+        size === "md" ? "text-base" : "text-sm"
       } text-foreground hover:bg-accent ${className ?? ""}`}
     >
       {avatar}

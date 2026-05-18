@@ -30,8 +30,8 @@ export function SurveyStateCell({ ticket }: { ticket: TicketsRow }) {
   const m = META[state];
   return (
     <span className={`inline-flex items-center gap-1.5 ${m.color}`}>
-      <span className="text-sm leading-none">{m.glyph}</span>
-      <span className="text-xs text-muted-foreground">{m.label}</span>
+      <span className="text-base leading-none">{m.glyph}</span>
+      <span className="text-sm text-muted-foreground">{m.label}</span>
     </span>
   );
 }

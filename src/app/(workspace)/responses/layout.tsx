@@ -12,8 +12,10 @@ import { responsesViewCounts } from "@/lib/view-predicates";
 
 export default async function ResponsesLayout({
   children,
+  drawer,
 }: {
   children: React.ReactNode;
+  drawer: React.ReactNode;
 }) {
   const [total, counts] = await Promise.all([
     db.$count(schema.responses),
@@ -35,6 +37,7 @@ export default async function ResponsesLayout({
         </ViewsGroup>
       </SecondaryNav>
       <div className="flex flex-1 flex-col min-w-0">{children}</div>
+      {drawer}
     </div>
   );
 }

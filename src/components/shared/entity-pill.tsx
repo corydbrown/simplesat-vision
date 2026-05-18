@@ -75,10 +75,12 @@ export function TeamMemberPill({
 
 export function TicketPill({
   id,
+  externalId,
   subject,
   size = "sm",
   className,
-}: CommonProps & { id: string; subject?: string }) {
+}: CommonProps & { id: string; externalId?: string | null; subject?: string }) {
+  const displayId = externalId ?? id;
   return (
     <Link
       href={`/tickets/${id}`}
@@ -88,7 +90,7 @@ export function TicketPill({
         className ?? ""
       }`}
     >
-      <span>{id}</span>
+      <span>{displayId}</span>
       {subject && (
         <span className="font-sans text-foreground/80 truncate">{subject}</span>
       )}

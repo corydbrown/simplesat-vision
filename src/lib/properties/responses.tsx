@@ -42,6 +42,7 @@ export const RESPONSE_PROPERTIES: Property<ResponseListRow>[] = [
       r.ticketId ? (
         <TicketPill
           id={r.ticketId}
+          externalId={r.ticketExternalId}
           subject={r.ticketSubject ?? undefined}
         />
       ) : (

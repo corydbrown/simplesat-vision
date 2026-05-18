@@ -36,6 +36,7 @@ export type EntityTableProps<T> = {
   dir?: "asc" | "desc";
   basePath: string;
   rowHrefBase?: string;
+  rowHrefField?: keyof T & string;
   emptyMessage?: string;
 };
 
@@ -54,6 +55,7 @@ export function EntityTable<T>({
   dir,
   basePath,
   rowHrefBase,
+  rowHrefField,
   emptyMessage = "No rows.",
 }: EntityTableProps<T>) {
   const router = useRouter();
@@ -163,7 +165,10 @@ export function EntityTable<T>({
             ) : (
               rows.map((row) => {
                 const id = row[idField] as unknown as string;
-                const href = rowHrefBase ? `${rowHrefBase}/${id}` : undefined;
+                const hrefId = rowHrefField
+                  ? (row[rowHrefField] as unknown as string)
+                  : id;
+                const href = rowHrefBase ? `${rowHrefBase}/${hrefId}` : undefined;
                 const handleClick = href
                   ? (e: React.MouseEvent) => {
                       if ((e.target as HTMLElement).closest("a, button")) return;

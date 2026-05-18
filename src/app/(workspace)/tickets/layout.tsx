@@ -12,8 +12,10 @@ import { ticketsViewCounts } from "@/lib/view-predicates";
 
 export default async function TicketsLayout({
   children,
+  drawer,
 }: {
   children: React.ReactNode;
+  drawer: React.ReactNode;
 }) {
   const [total, counts] = await Promise.all([
     db.$count(schema.tickets),
@@ -35,6 +37,7 @@ export default async function TicketsLayout({
         </ViewsGroup>
       </SecondaryNav>
       <div className="flex flex-1 flex-col min-w-0">{children}</div>
+      {drawer}
     </div>
   );
 }

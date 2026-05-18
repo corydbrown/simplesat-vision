@@ -1,9 +1,9 @@
 import { notFound } from "next/navigation";
-import { Topbar } from "@/components/shell/topbar";
+import { DetailDrawer } from "@/components/shared/detail-drawer";
 import { TicketDetailBody } from "@/components/tickets/ticket-detail";
 import { getTicketById } from "@/db/queries/tickets";
 
-export default async function TicketDetailPage(
+export default async function TicketDrawer(
   props: PageProps<"/tickets/[id]">,
 ) {
   const { id } = await props.params;
@@ -11,14 +11,8 @@ export default async function TicketDetailPage(
   if (!ticket) notFound();
 
   return (
-    <>
-      <Topbar
-        crumbs={[
-          { label: "Tickets", href: "/tickets" },
-          { label: ticket.helpdeskExternalId ?? ticket.id },
-        ]}
-      />
+    <DetailDrawer closeHref="/tickets">
       <TicketDetailBody ticket={ticket} />
-    </>
+    </DetailDrawer>
   );
 }

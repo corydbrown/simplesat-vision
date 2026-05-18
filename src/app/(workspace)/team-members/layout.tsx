@@ -12,8 +12,10 @@ import { teamMembersViewCounts } from "@/lib/view-predicates";
 
 export default async function TeamMembersLayout({
   children,
+  drawer,
 }: {
   children: React.ReactNode;
+  drawer: React.ReactNode;
 }) {
   const [total, counts] = await Promise.all([
     db.$count(schema.teamMembers),
@@ -37,6 +39,7 @@ export default async function TeamMembersLayout({
         </ViewsGroup>
       </SecondaryNav>
       <div className="flex flex-1 flex-col min-w-0">{children}</div>
+      {drawer}
     </div>
   );
 }

@@ -42,8 +42,9 @@ export function DetailDrawer({
   const [width, setWidth] = useState(DEFAULT_WIDTH);
   const [resizing, setResizing] = useState(false);
 
-  // Hydrate persisted width
+  // Hydrate persisted width after mount to avoid SSR/CSR mismatch.
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setWidth(loadWidth());
   }, []);
 

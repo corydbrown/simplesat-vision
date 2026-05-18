@@ -56,6 +56,9 @@ export function ColumnStateProvider<T>({
   const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
+    // Hydrate from localStorage after mount to avoid SSR/CSR mismatch.
+    // setState in effect is the React-recommended pattern for this
+    // (see react.dev "Synchronizing with effects").
     const stored = load(tableId);
     if (stored) {
       const knownIds = new Set(properties.map((p) => p.id));
@@ -63,6 +66,7 @@ export function ColumnStateProvider<T>({
       const newIds = properties
         .map((p) => p.id)
         .filter((id) => !orderFiltered.includes(id));
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setState({
         visibility: { ...initial.visibility, ...stored.visibility },
         order: [...orderFiltered, ...newIds],

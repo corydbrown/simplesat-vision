@@ -33,3 +33,22 @@ Assumptions and judgment calls made during the build. Items here were not explic
 - Customers / Team members / Responses / Reports pages are placeholder stubs.
 - QA Evaluations: schema only; no seed data, no UI beyond the dashed "Coming Soon" card.
 - No auth, no multi-tenant, no tests, no Storybook.
+
+## Phase 3 decisions
+
+- **Property registry**: each entity gets a single `properties.tsx` registry that powers both the list table AND the detail PropertiesPanel. Same source of truth; separate visibility persistence per `tableId`.
+- **Properties visibility**: list view (`tableId="<entity>"`), detail panel (`tableId="<entity>-detail"`), and embedded tabs (`tableId="<entity>-tickets"`, etc.) each have separate column state in localStorage. User can show/hide independently per context (Notion-like).
+- **Drawer architecture**: Next.js parallel intercepting routes (`@drawer/(.)[id]`). Same `<EntityDetailBody>` powers both the standalone `/<entity>/[id]` page (direct nav) and the drawer (intercepted from list). No backdrop; left-side resize handle; close via X / Esc / outside click (outside-click ignores clicks on links/buttons so opening another entity's drawer from inside the current one works).
+- **No sticky columns**: removed for now per Cory's feedback. To be reintroduced as user-configurable, not registry-hardcoded.
+- **CompanyPill**: text only, no colored dot, no popover. Company is a string on Customer, not a first-class entity (yet).
+- **Hover popover lifecycle**: lazy-mount only when `HoverCardContent` opens (Radix unmounts content on close by default). Module-level cache means each entity is fetched at most once per session. Critical for not firing 100+ fetches on every list page load.
+- **Aggregate subqueries**: use literal `"<table>.<column>"` SQL inside `sql\`\`` correlated subqueries. `${schema.table.column}` interpolates as a parameter placeholder bound to nothing → NULL rows. (Bit me hard on listCustomers / listTeamMembers in phase 2.)
+- **Multi-question survey schema**: `responses.answers` JSON column with `SurveyAnswer` discriminated union. `responses.rating` and `responses.comment` stay denormalized for fast indexed filtering used by Views and insights.
+
+## Phase 3 scope cuts
+
+- Reports / pivot table: planning doc only (`REPORTS.md`); execution deferred.
+- Search wired to DB: search input is visual-only.
+- Filter chip builder: visual-only (Views cover most cases).
+- Saved-view creation: still curated in `src/lib/views.ts`, not user-editable.
+- QA Evaluations full mockup: still a "Soon" card.

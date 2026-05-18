@@ -110,50 +110,91 @@ export async function getCustomerById(
   };
 }
 
-export type CustomerTicketRow = {
-  id: string;
-  subject: string;
-  status: string;
-  channel: string;
-  createdAt: Date;
-  solvedAt: Date | null;
-  rating: number | null;
-  scale: number | null;
-  assigneeId: string | null;
-  assigneeName: string | null;
-  assigneeAvatarColor: string | null;
-};
-
 export async function getCustomerTickets(
   customerId: string,
   limit = 50,
-): Promise<CustomerTicketRow[]> {
-  const rows = await db
+): Promise<import("./tickets").TicketsRow[]> {
+  const rawRows = await db
     .select({
-      id: schema.tickets.id,
-      subject: schema.tickets.subject,
-      status: schema.tickets.status,
-      channel: schema.tickets.channel,
-      createdAt: schema.tickets.createdAt,
-      solvedAt: schema.tickets.solvedAt,
-      rating: schema.responses.rating,
-      scale: schema.responses.scale,
-      assigneeId: schema.teamMembers.id,
-      assigneeName: schema.teamMembers.name,
-      assigneeAvatarColor: schema.teamMembers.avatarColor,
+      ticket: schema.tickets,
+      customer: {
+        id: schema.customers.id,
+        name: schema.customers.name,
+        company: schema.customers.company,
+      },
+      assignee: {
+        id: schema.teamMembers.id,
+        name: schema.teamMembers.name,
+        avatarColor: schema.teamMembers.avatarColor,
+        team: schema.teamMembers.team,
+      },
+      response: {
+        id: schema.responses.id,
+        rating: schema.responses.rating,
+        scale: schema.responses.scale,
+        comment: schema.responses.comment,
+      },
     })
     .from(schema.tickets)
     .leftJoin(
-      schema.responses,
-      eq(schema.responses.ticketId, schema.tickets.id),
+      schema.customers,
+      eq(schema.customers.id, schema.tickets.customerId),
     )
     .leftJoin(
       schema.teamMembers,
       eq(schema.teamMembers.id, schema.tickets.assignedTeamMemberId),
     )
+    .leftJoin(
+      schema.responses,
+      eq(schema.responses.ticketId, schema.tickets.id),
+    )
     .where(eq(schema.tickets.customerId, customerId))
     .orderBy(desc(schema.tickets.createdAt))
     .limit(limit);
 
-  return rows;
+  return rawRows.map((r) => ({
+    ...r.ticket,
+    customer: r.customer?.id ? r.customer : null,
+    assignee: r.assignee?.id ? r.assignee : null,
+    response: r.response?.id ? r.response : null,
+  }));
+}
+
+export async function getCustomerResponses(
+  customerId: string,
+  limit = 50,
+): Promise<import("./responses").ResponseListRow[]> {
+  return db
+    .select({
+      id: schema.responses.id,
+      rating: schema.responses.rating,
+      scale: schema.responses.scale,
+      comment: schema.responses.comment,
+      respondedAt: schema.responses.respondedAt,
+      answers: schema.responses.answers,
+      ticketId: schema.tickets.id,
+      ticketSubject: schema.tickets.subject,
+      ticketExternalId: schema.tickets.helpdeskExternalId,
+      customerId: schema.customers.id,
+      customerName: schema.customers.name,
+      teamMemberId: schema.teamMembers.id,
+      teamMemberName: schema.teamMembers.name,
+      teamMemberAvatarColor: schema.teamMembers.avatarColor,
+    })
+    .from(schema.responses)
+    .leftJoin(
+      schema.tickets,
+      eq(schema.tickets.id, schema.responses.ticketId),
+    )
+    .leftJoin(
+      schema.customers,
+      eq(schema.customers.id, schema.responses.customerId),
+    )
+    .leftJoin(
+      schema.teamMembers,
+      eq(schema.teamMembers.id, schema.responses.teamMemberId),
+    )
+    .where(eq(schema.responses.customerId, customerId))
+    .orderBy(desc(schema.responses.respondedAt))
+    .limit(limit);
 }

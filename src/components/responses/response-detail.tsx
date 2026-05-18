@@ -1,57 +1,16 @@
-import { Check, Star } from "lucide-react";
-import { ChannelPill } from "@/components/tickets/channel-pill";
-import { StatusPill } from "@/components/tickets/status-pill";
+import { Check } from "lucide-react";
+import { ColumnStateProvider } from "@/lib/column-prefs";
+import { RESPONSE_PROPERTIES } from "@/lib/properties/responses";
+import { PropertiesPanel } from "@/components/shared/properties-panel";
 import {
-  CustomerPill,
-  TeamMemberPill,
-  TicketPill,
-} from "@/components/shared/entity-pill";
+  DetailSection,
+  PropertiesHeader,
+} from "@/components/shared/detail-section";
+import { StarRating } from "@/components/shared/star-rating";
 import type { ResponseDetail } from "@/db/queries/responses";
+import type { ResponseListRow } from "@/db/queries/responses";
 import { formatDateTime } from "@/lib/format";
-import type {
-  Channel,
-  SurveyAnswer,
-  TicketStatus,
-} from "@/db/schema";
-
-function PropertyRow({
-  label,
-  children,
-}: {
-  label: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="grid grid-cols-[160px_1fr] items-center gap-4 py-1.5 text-sm">
-      <div className="text-xs uppercase tracking-wide text-muted-foreground">
-        {label}
-      </div>
-      <div>{children}</div>
-    </div>
-  );
-}
-
-function StarRating({ value, scale }: { value: number; scale: number }) {
-  const stars = Array.from({ length: scale }, (_, i) => i + 1);
-  return (
-    <div className="inline-flex items-center gap-0.5">
-      {stars.map((n) => (
-        <Star
-          key={n}
-          size={18}
-          className={
-            n <= value
-              ? "fill-amber-400 text-amber-400"
-              : "fill-zinc-200 text-zinc-200"
-          }
-        />
-      ))}
-      <span className="ml-2 text-sm tabular-nums text-muted-foreground">
-        {value}/{scale}
-      </span>
-    </div>
-  );
-}
+import type { SurveyAnswer } from "@/db/schema";
 
 function AnswerBlock({ answer }: { answer: SurveyAnswer }) {
   return (
@@ -117,8 +76,10 @@ function AnswerBlock({ answer }: { answer: SurveyAnswer }) {
 
 export function ResponseDetailBody({
   response,
+  responseRow,
 }: {
   response: ResponseDetail;
+  responseRow: ResponseListRow;
 }) {
   const tone =
     response.rating <= 2
@@ -145,76 +106,20 @@ export function ResponseDetailBody({
         </span>
       </div>
 
-      <div className="mt-6 divide-y divide-border rounded-md border border-border bg-background">
-        <div className="px-5 py-3">
-          <h2 className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-            Properties
-          </h2>
-        </div>
-        <div className="px-5 py-2">
-          <PropertyRow label="Ticket">
-            {response.ticket ? (
-              <TicketPill
-                id={response.ticket.id}
-                subject={response.ticket.subject}
-                size="md"
-              />
-            ) : (
-              <span className="text-muted-foreground">-</span>
-            )}
-          </PropertyRow>
-          <PropertyRow label="Customer">
-            {response.customer ? (
-              <CustomerPill
-                id={response.customer.id}
-                name={response.customer.name}
-                size="md"
-              />
-            ) : (
-              <span className="text-muted-foreground">-</span>
-            )}
-          </PropertyRow>
-          <PropertyRow label="Agent">
-            {response.agent ? (
-              <TeamMemberPill
-                id={response.agent.id}
-                name={response.agent.name}
-                avatarColor={response.agent.avatarColor}
-                size="md"
-              />
-            ) : (
-              <span className="text-muted-foreground">-</span>
-            )}
-          </PropertyRow>
-          {response.ticket && (
-            <>
-              <PropertyRow label="Ticket status">
-                <StatusPill status={response.ticket.status as TicketStatus} />
-              </PropertyRow>
-              <PropertyRow label="Channel">
-                <ChannelPill channel={response.ticket.channel as Channel} />
-              </PropertyRow>
-            </>
-          )}
-          <PropertyRow label="Survey type">
-            <span className="text-sm uppercase">{response.surveyType}</span>
-          </PropertyRow>
-          <PropertyRow label="Scale">
-            <span className="text-sm tabular-nums">1 - {response.scale}</span>
-          </PropertyRow>
-          <PropertyRow label="Responded">
-            <span className="text-sm tabular-nums">
-              {formatDateTime(response.respondedAt)}
-            </span>
-          </PropertyRow>
-        </div>
-      </div>
+      <ColumnStateProvider
+        tableId="response-detail"
+        properties={RESPONSE_PROPERTIES}
+      >
+        <DetailSection
+          title="Properties"
+          trailing={<PropertiesHeader properties={RESPONSE_PROPERTIES} />}
+        >
+          <PropertiesPanel row={responseRow} properties={RESPONSE_PROPERTIES} />
+        </DetailSection>
+      </ColumnStateProvider>
 
-      <section className="mt-6">
-        <h2 className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-          Survey answers
-        </h2>
-        <div className="mt-3 space-y-3">
+      <DetailSection title="Survey answers">
+        <div className="space-y-3">
           {response.answers.length === 0 ? (
             <div className="rounded-md border border-dashed border-border px-5 py-4 text-sm text-muted-foreground">
               No structured answers.
@@ -223,7 +128,7 @@ export function ResponseDetailBody({
             response.answers.map((a, i) => <AnswerBlock key={i} answer={a} />)
           )}
         </div>
-      </section>
+      </DetailSection>
     </main>
   );
 }

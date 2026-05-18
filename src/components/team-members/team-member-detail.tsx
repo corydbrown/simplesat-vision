@@ -1,45 +1,24 @@
 import { Star } from "lucide-react";
-import { ChannelPill } from "@/components/tickets/channel-pill";
-import { StatusPill } from "@/components/tickets/status-pill";
+import { Avatar } from "@/components/shared/avatar";
+import { ColumnStateProvider } from "@/lib/column-prefs";
+import { TEAM_MEMBER_PROPERTIES } from "@/lib/properties/team-members";
+import { TICKET_PROPERTIES } from "@/lib/properties/tickets";
+import { RESPONSE_PROPERTIES } from "@/lib/properties/responses";
+import { PropertiesPanel } from "@/components/shared/properties-panel";
 import {
-  CustomerPill,
-  ResponsePill,
-  TicketPill,
-} from "@/components/shared/entity-pill";
+  DetailSection,
+  PropertiesHeader,
+} from "@/components/shared/detail-section";
+import { EntityTable } from "@/components/shared/entity-table";
+import { RelationTabs } from "@/components/shared/relation-tabs";
+import { initialsFromName } from "@/lib/color-from-name";
+import { formatNumber } from "@/lib/format";
 import type {
   TeamMemberDetail,
-  TeamMemberTicketRow,
+  TeamMemberListRow,
 } from "@/db/queries/team-members";
-import {
-  formatDateTime,
-  formatDuration,
-  formatNumber,
-} from "@/lib/format";
-import { initialsFromName } from "@/lib/color-from-name";
-import type { Channel, TicketStatus } from "@/db/schema";
-
-function StatCard({
-  label,
-  value,
-  tone,
-}: {
-  label: string;
-  value: React.ReactNode;
-  tone?: string;
-}) {
-  return (
-    <div className="rounded-md border border-border bg-background px-4 py-3">
-      <div className="text-xs uppercase tracking-wide text-muted-foreground">
-        {label}
-      </div>
-      <div
-        className={`mt-1 text-2xl font-semibold tabular-nums ${tone ?? "text-foreground"}`}
-      >
-        {value}
-      </div>
-    </div>
-  );
-}
+import type { TicketsRow } from "@/db/queries/tickets";
+import type { ResponseListRow } from "@/db/queries/responses";
 
 function RatingHistogram({
   data,
@@ -76,22 +55,20 @@ function RatingHistogram({
 
 export function TeamMemberDetailBody({
   member,
+  memberRow,
   tickets,
+  responses,
   histogram,
+  tab,
 }: {
   member: TeamMemberDetail;
-  tickets: TeamMemberTicketRow[];
+  memberRow: TeamMemberListRow;
+  tickets: TicketsRow[];
+  responses: ResponseListRow[];
   histogram: { rating: number; count: number }[];
+  tab: "tickets" | "responses";
 }) {
   const avgRating = member.stats.avgRating;
-  const avgTone =
-    avgRating == null
-      ? undefined
-      : avgRating < 3.5
-        ? "text-red-600"
-        : avgRating < 4
-          ? "text-amber-600"
-          : "text-emerald-600";
   const isLowPerformer =
     avgRating != null &&
     avgRating < 3.5 &&
@@ -103,12 +80,11 @@ export function TeamMemberDetailBody({
         {member.id}
       </div>
       <div className="flex items-center gap-3">
-        <span
-          className="flex h-10 w-10 items-center justify-center rounded-full text-base font-semibold text-white"
-          style={{ backgroundColor: member.avatarColor }}
-        >
-          {initialsFromName(member.name)}
-        </span>
+        <Avatar
+          bg={member.avatarColor}
+          initials={initialsFromName(member.name)}
+          size="xl"
+        />
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">
             {member.name}
@@ -128,118 +104,79 @@ export function TeamMemberDetailBody({
         )}
       </div>
 
-      <section className="mt-6 grid grid-cols-3 gap-3 max-w-2xl">
-        <StatCard
-          label="Tickets handled"
-          value={formatNumber(member.stats.totalTickets)}
-        />
-        <StatCard
-          label="Responses"
-          value={formatNumber(member.stats.totalResponses)}
-        />
-        <StatCard
-          label="Avg rating"
-          tone={avgTone}
-          value={
-            avgRating != null ? (
-              <span className="inline-flex items-baseline gap-1">
-                <Star size={16} className="fill-current self-center" />
-                {avgRating.toFixed(2)}
-              </span>
-            ) : (
-              <span className="text-muted-foreground">-</span>
-            )
-          }
-        />
-      </section>
+      <ColumnStateProvider
+        tableId="team-member-detail"
+        properties={TEAM_MEMBER_PROPERTIES}
+      >
+        <DetailSection
+          title="Properties"
+          trailing={<PropertiesHeader properties={TEAM_MEMBER_PROPERTIES} />}
+        >
+          <PropertiesPanel
+            row={memberRow}
+            properties={TEAM_MEMBER_PROPERTIES}
+          />
+        </DetailSection>
+      </ColumnStateProvider>
 
-      <section className="mt-8 max-w-2xl">
-        <h2 className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-          Rating distribution
-        </h2>
-        <div className="mt-3 rounded-md border border-border bg-background px-5 py-4">
+      <DetailSection title="Rating distribution">
+        <div className="rounded-md border border-border bg-background px-5 py-4 max-w-2xl">
           <RatingHistogram data={histogram} />
         </div>
-      </section>
+      </DetailSection>
 
-      <section className="mt-8">
-        <h2 className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-          Recent tickets
-        </h2>
-        <div className="mt-3 overflow-hidden rounded-md border border-border bg-background">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-border">
-                {[
-                  "ID",
-                  "Subject",
-                  "Status",
-                  "Channel",
-                  "Customer",
-                  "Resolution",
-                  "Rating",
-                  "Created",
-                ].map((h) => (
-                  <th
-                    key={h}
-                    className="px-3 py-2 text-left font-medium text-xs text-muted-foreground"
-                  >
-                    {h}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {tickets.length === 0 ? (
-                <tr>
-                  <td
-                    colSpan={8}
-                    className="px-3 py-6 text-center text-sm text-muted-foreground"
-                  >
-                    No tickets yet.
-                  </td>
-                </tr>
-              ) : (
-                tickets.map((t) => (
-                  <tr
-                    key={t.id}
-                    className="border-b border-border last:border-b-0 hover:bg-accent/40"
-                  >
-                    <td className="px-3 py-1.5">
-                      <TicketPill id={t.id} />
-                    </td>
-                    <td className="px-3 py-1.5">{t.subject}</td>
-                    <td className="px-3 py-1.5">
-                      <StatusPill status={t.status as TicketStatus} />
-                    </td>
-                    <td className="px-3 py-1.5">
-                      <ChannelPill channel={t.channel as Channel} />
-                    </td>
-                    <td className="px-3 py-1.5">
-                      {t.customerId && t.customerName ? (
-                        <CustomerPill id={t.customerId} name={t.customerName} />
-                      ) : (
-                        <span className="text-muted-foreground">-</span>
-                      )}
-                    </td>
-                    <td className="px-3 py-1.5 tabular-nums text-muted-foreground">
-                      {formatDuration(t.createdAt, t.solvedAt)}
-                    </td>
-                    <td className="px-3 py-1.5">
-                      {t.rating != null && t.scale != null ? (
-                        <ResponsePill rating={t.rating} scale={t.scale} />
-                      ) : (
-                        <span className="text-muted-foreground">-</span>
-                      )}
-                    </td>
-                    <td className="px-3 py-1.5 tabular-nums text-muted-foreground">
-                      {formatDateTime(t.createdAt)}
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+      <section className="mt-6">
+        <RelationTabs
+          tabs={[
+            {
+              id: "tickets",
+              label: "Tickets",
+              count: member.stats.totalTickets,
+            },
+            {
+              id: "responses",
+              label: "Responses",
+              count: member.stats.totalResponses,
+            },
+          ]}
+        />
+
+        <div className="border border-t-0 border-border bg-background">
+          {tab === "tickets" ? (
+            <ColumnStateProvider
+              tableId="team-member-tickets"
+              properties={TICKET_PROPERTIES}
+            >
+              <EntityTable
+                rows={tickets}
+                idField="id"
+                properties={TICKET_PROPERTIES}
+                page={1}
+                pageSize={Math.max(tickets.length, 1)}
+                total={tickets.length}
+                basePath={`/team-members/${member.id}`}
+                rowHrefBase="/tickets"
+                emptyMessage="No tickets handled yet."
+              />
+            </ColumnStateProvider>
+          ) : (
+            <ColumnStateProvider
+              tableId="team-member-responses"
+              properties={RESPONSE_PROPERTIES}
+            >
+              <EntityTable
+                rows={responses}
+                idField="id"
+                properties={RESPONSE_PROPERTIES}
+                page={1}
+                pageSize={Math.max(responses.length, 1)}
+                total={responses.length}
+                basePath={`/team-members/${member.id}`}
+                rowHrefBase="/responses"
+                emptyMessage="No responses yet."
+              />
+            </ColumnStateProvider>
+          )}
         </div>
       </section>
     </main>

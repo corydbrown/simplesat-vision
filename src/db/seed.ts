@@ -761,13 +761,13 @@ function adjustRatingForResolution(
 
 async function seed() {
   console.log("Resetting tables...");
-  db.delete(schema.qaEvaluations).run();
-  db.delete(schema.responses).run();
-  db.delete(schema.tickets).run();
-  db.delete(schema.customers).run();
-  db.delete(schema.teamMembers).run();
-  db.delete(schema.teamMemberGroups).run();
-  db.delete(schema.surveys).run();
+  await db.delete(schema.qaEvaluations);
+  await db.delete(schema.responses);
+  await db.delete(schema.tickets);
+  await db.delete(schema.customers);
+  await db.delete(schema.teamMembers);
+  await db.delete(schema.teamMemberGroups);
+  await db.delete(schema.surveys);
 
   console.log("Generating team member groups...");
   const teamMemberGroups: NewTeamMemberGroup[] = TEAM_MEMBER_GROUP_SPECS.map(
@@ -779,7 +779,7 @@ async function seed() {
       updatedAt: new Date(NOW),
     }),
   );
-  db.insert(schema.teamMemberGroups).values(teamMemberGroups).run();
+  await db.insert(schema.teamMemberGroups).values(teamMemberGroups);
   const groupIdByName = new Map(
     teamMemberGroups.map((g) => [g.name, g.id!] as const),
   );
@@ -796,7 +796,7 @@ async function seed() {
     createdAt: new Date(NOW - faker.number.int({ min: 90, max: 540 }) * ONE_DAY),
     updatedAt: new Date(NOW),
   }));
-  db.insert(schema.surveys).values(surveys).run();
+  await db.insert(schema.surveys).values(surveys);
 
   // Maps survey.id -> SurveySpec for response generation
   const surveyById = new Map(surveys.map((s, i) => [s.id!, SURVEY_SPECS[i]]));
@@ -908,14 +908,14 @@ async function seed() {
   );
 
   console.log("Inserting customers and team members...");
-  db.transaction((tx) => {
+  await db.transaction(async (tx) => {
     const customerChunkSize = 200;
     for (let i = 0; i < customers.length; i += customerChunkSize) {
-      tx.insert(schema.customers)
-        .values(customers.slice(i, i + customerChunkSize))
-        .run();
+      await tx
+        .insert(schema.customers)
+        .values(customers.slice(i, i + customerChunkSize));
     }
-    tx.insert(schema.teamMembers).values(teamMembers).run();
+    await tx.insert(schema.teamMembers).values(teamMembers);
   });
 
   console.log("Generating 50,000 tickets + responses...");
@@ -1102,17 +1102,17 @@ async function seed() {
   console.log(
     `Inserting ${tickets.length} tickets + ${responses.length} responses...`,
   );
-  db.transaction((tx) => {
+  await db.transaction(async (tx) => {
     const chunk = 1000;
     for (let i = 0; i < tickets.length; i += chunk) {
-      tx.insert(schema.tickets)
-        .values(tickets.slice(i, i + chunk))
-        .run();
+      await tx
+        .insert(schema.tickets)
+        .values(tickets.slice(i, i + chunk));
     }
     for (let i = 0; i < responses.length; i += chunk) {
-      tx.insert(schema.responses)
-        .values(responses.slice(i, i + chunk))
-        .run();
+      await tx
+        .insert(schema.responses)
+        .values(responses.slice(i, i + chunk));
     }
   });
 

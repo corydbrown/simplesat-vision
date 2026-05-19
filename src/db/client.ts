@@ -1,23 +1,21 @@
-import Database from "better-sqlite3";
-import { drizzle } from "drizzle-orm/better-sqlite3";
-import path from "node:path";
+import { createClient } from "@libsql/client";
+import { drizzle } from "drizzle-orm/libsql";
 import * as schema from "./schema";
 
+type DrizzleDb = ReturnType<typeof drizzle<typeof schema>>;
+
 declare global {
-  var __simplesatDb: Database.Database | undefined;
+  var __simplesatDb: DrizzleDb | undefined;
 }
 
-const dbPath = path.join(process.cwd(), "db", "simplesat.db");
+const url = process.env.TURSO_DATABASE_URL ?? "file:db/simplesat.db";
+const authToken = process.env.TURSO_AUTH_TOKEN;
 
-function createSqliteConnection() {
-  const sqlite = new Database(dbPath);
-  sqlite.pragma("journal_mode = WAL");
-  sqlite.pragma("foreign_keys = ON");
-  return sqlite;
+function createDb(): DrizzleDb {
+  const client = createClient({ url, authToken });
+  return drizzle(client, { schema });
 }
 
-const sqlite =
-  globalThis.__simplesatDb ?? (globalThis.__simplesatDb = createSqliteConnection());
-
-export const db = drizzle(sqlite, { schema });
+export const db: DrizzleDb =
+  globalThis.__simplesatDb ?? (globalThis.__simplesatDb = createDb());
 export { schema };

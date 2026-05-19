@@ -17,12 +17,13 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { ChevronLeft, ChevronRight, ChevronsUpDown } from "lucide-react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useColumnState } from "@/lib/column-prefs";
 import { formatNumber } from "@/lib/format";
 import type { Property } from "@/lib/properties/types";
+import type { DrawerEntity } from "./global-drawer";
 
 export type EntityTableProps<T> = {
   rows: T[];
@@ -33,9 +34,23 @@ export type EntityTableProps<T> = {
   total: number;
   sort?: string;
   dir?: "asc" | "desc";
-  basePath: string;
-  rowHrefBase?: string;
+  /**
+   * Base path used for sort/page links. When unset, defaults to the current
+   * pathname so URL state (e.g. ?drawer=) is preserved.
+   */
+  basePath?: string;
   rowHrefField?: keyof T & string;
+  /**
+   * When set, row click opens the drawer for this entity instead of
+   * navigating to its standalone page. Pairs with rowHrefField (or idField).
+   */
+  drawerEntity?: DrawerEntity;
+  /**
+   * Prefix for sort/dir/page params (e.g. "d" → dsort, ddir, dpage). Use
+   * inside drawer-internal tables so they don't collide with outer page
+   * sort state.
+   */
+  paramPrefix?: string;
   emptyMessage?: string;
 };
 
@@ -52,13 +67,19 @@ export function EntityTable<T>({
   sort,
   dir,
   basePath,
-  rowHrefBase,
   rowHrefField,
+  drawerEntity,
+  paramPrefix = "",
   emptyMessage = "No rows.",
 }: EntityTableProps<T>) {
   const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
   const { state, setOrder, setWidth } = useColumnState();
+  const sortKeyParam = `${paramPrefix}sort`;
+  const dirKeyParam = `${paramPrefix}dir`;
+  const pageKeyParam = `${paramPrefix}page`;
+  const effectiveBasePath = basePath ?? pathname;
 
   const propertyMap = Object.fromEntries(properties.map((p) => [p.id, p]));
   const visibleOrdered = state.order
@@ -70,14 +91,25 @@ export function EntityTable<T>({
     for (const [k, v] of Object.entries(updates)) {
       next.set(k, String(v));
     }
-    return `${basePath}?${next.toString()}`;
+    return `${effectiveBasePath}?${next.toString()}`;
   }
 
   function toggleSort(sortKey: string) {
     if (sort === sortKey) {
-      router.push(buildHref({ sort: sortKey, dir: dir === "asc" ? "desc" : "asc" }));
+      router.push(
+        buildHref({
+          [sortKeyParam]: sortKey,
+          [dirKeyParam]: dir === "asc" ? "desc" : "asc",
+        }),
+      );
     } else {
-      router.push(buildHref({ sort: sortKey, dir: "desc", page: 1 }));
+      router.push(
+        buildHref({
+          [sortKeyParam]: sortKey,
+          [dirKeyParam]: "desc",
+          [pageKeyParam]: 1,
+        }),
+      );
     }
   }
 
@@ -105,7 +137,7 @@ export function EntityTable<T>({
   return (
     <div className="flex flex-1 flex-col min-h-0">
       <div className="flex items-center justify-between border-b border-border bg-background px-5 py-1.5">
-        <div className="text-xs text-muted-foreground tabular-nums">
+        <div className="text-sm text-muted-foreground tabular-nums">
           {total === 0
             ? "0 rows"
             : `Showing ${formatNumber(firstRow)} - ${formatNumber(lastRow)} of ${formatNumber(total)}`}
@@ -161,20 +193,35 @@ export function EntityTable<T>({
             ) : (
               rows.map((row) => {
                 const id = row[idField] as unknown as string;
-                const hrefId = rowHrefField
+                const drawerId = rowHrefField
                   ? (row[rowHrefField] as unknown as string)
                   : id;
-                const href = rowHrefBase ? `${rowHrefBase}/${hrefId}` : undefined;
-                const handleClick = href
+                const handleClick = drawerEntity
                   ? (e: React.MouseEvent) => {
-                      if ((e.target as HTMLElement).closest("a, button")) return;
-                      router.push(href);
+                      const target = e.target as HTMLElement;
+                      // Let pills/buttons inside the row handle their own clicks.
+                      if (target.closest("a, button, [role='button']")) return;
+                      if (
+                        e.metaKey ||
+                        e.ctrlKey ||
+                        e.shiftKey ||
+                        e.altKey ||
+                        e.button !== 0
+                      ) {
+                        return;
+                      }
+                      const next = new URLSearchParams(searchParams.toString());
+                      next.set("drawer", `${drawerEntity}:${drawerId}`);
+                      next.delete("dt");
+                      router.push(`${pathname}?${next.toString()}`, {
+                        scroll: false,
+                      });
                     }
                   : undefined;
                 return (
                   <tr
                     key={id}
-                    className={`group ${href ? "cursor-pointer" : ""}`}
+                    className={`group ${handleClick ? "cursor-pointer" : ""}`}
                     onClick={handleClick}
                   >
                     {visibleOrdered.map((p) => {
@@ -187,7 +234,7 @@ export function EntityTable<T>({
                             minWidth: width,
                             maxWidth: width,
                           }}
-                          className={`px-3 py-2 border-b border-r border-border align-middle bg-background group-hover:bg-accent/50 ${
+                          className={`px-3 py-3 border-b border-border align-middle bg-background group-hover:bg-accent/50 ${
                             p.truncate !== false ? "truncate" : ""
                           } ${p.align === "right" ? "text-right" : ""}`}
                         >
@@ -204,12 +251,12 @@ export function EntityTable<T>({
       </div>
 
       <div className="flex items-center justify-between border-t border-border bg-background px-5 py-2">
-        <div className="text-xs text-muted-foreground">
+        <div className="text-sm text-muted-foreground">
           Page {formatNumber(page)} of {formatNumber(totalPages)}
         </div>
         <div className="flex items-center gap-1">
           <Link
-            href={buildHref({ page: Math.max(1, page - 1) })}
+            href={buildHref({ [pageKeyParam]: Math.max(1, page - 1) })}
             aria-disabled={page <= 1}
             className={
               page <= 1
@@ -217,12 +264,12 @@ export function EntityTable<T>({
                 : "hover:bg-accent rounded"
             }
           >
-            <Button variant="ghost" size="sm" className="h-7 w-7 p-0">
+            <Button variant="ghost" size="sm" className="h-7 w-7 cursor-pointer p-0">
               <ChevronLeft size={14} />
             </Button>
           </Link>
           <Link
-            href={buildHref({ page: Math.min(totalPages, page + 1) })}
+            href={buildHref({ [pageKeyParam]: Math.min(totalPages, page + 1) })}
             aria-disabled={page >= totalPages}
             className={
               page >= totalPages
@@ -230,7 +277,7 @@ export function EntityTable<T>({
                 : "hover:bg-accent rounded"
             }
           >
-            <Button variant="ghost" size="sm" className="h-7 w-7 p-0">
+            <Button variant="ghost" size="sm" className="h-7 w-7 cursor-pointer p-0">
               <ChevronRight size={14} />
             </Button>
           </Link>
@@ -294,7 +341,7 @@ function HeaderCell<T>({
         opacity: isDragging ? 0.5 : 1,
         zIndex: isDragging ? 25 : 20,
       }}
-      className={`px-3 py-2 text-left font-medium text-xs text-muted-foreground border-b border-r border-border bg-background sticky top-0 ${
+      className={`px-3 py-3 text-left font-medium text-sm text-muted-foreground border-b border-border bg-background sticky top-0 ${
         property.align === "right" ? "text-right" : ""
       }`}
     >
@@ -312,7 +359,7 @@ function HeaderCell<T>({
                 onSort();
               }}
               onPointerDown={(e) => e.stopPropagation()}
-              className="inline-flex items-center gap-1 hover:text-foreground"
+              className="inline-flex cursor-pointer items-center gap-1 hover:text-foreground"
             >
               {property.label}
               <ChevronsUpDown

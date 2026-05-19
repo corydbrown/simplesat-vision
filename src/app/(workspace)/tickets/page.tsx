@@ -75,7 +75,7 @@ export default async function TicketsPage(props: PageProps<"/tickets">) {
         sort={sort}
         dir={dir}
         basePath="/tickets"
-        rowHrefBase="/tickets"
+        drawerEntity="ticket"
       />
     </ColumnStateProvider>
   );

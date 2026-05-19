@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { Topbar } from "@/components/shell/topbar";
 import { ResponseDetailBody } from "@/components/responses/response-detail";
+import { DetailActions } from "@/components/shared/detail-actions";
 import { getResponseById } from "@/db/queries/responses";
 import type { ResponseListRow } from "@/db/queries/responses";
 
@@ -23,9 +24,10 @@ export default async function ResponseDetailPage(
     ticketExternalId: response.ticket?.externalId ?? null,
     customerId: response.customer?.id ?? null,
     customerName: response.customer?.name ?? null,
-    teamMemberId: response.agent?.id ?? null,
-    teamMemberName: response.agent?.name ?? null,
-    teamMemberAvatarColor: response.agent?.avatarColor ?? null,
+    customerCompany: response.customer?.company ?? null,
+    teamMemberId: response.teamMember?.id ?? null,
+    teamMemberName: response.teamMember?.name ?? null,
+    teamMemberAvatarColor: response.teamMember?.avatarColor ?? null,
   };
 
   return (
@@ -35,6 +37,7 @@ export default async function ResponseDetailPage(
           { label: "Responses", href: "/responses" },
           { label: `${response.rating}/${response.scale}` },
         ]}
+        actions={<DetailActions entityHref={`/responses/${response.id}`} />}
       />
       <ResponseDetailBody response={response} responseRow={responseRow} />
     </>

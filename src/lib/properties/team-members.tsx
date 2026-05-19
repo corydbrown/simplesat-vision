@@ -3,11 +3,14 @@
 import { TeamMemberPill } from "@/components/shared/entity-pill";
 import { AvgRating } from "@/components/shared/avg-rating";
 import { TeamPill } from "@/components/shared/team-pill";
+import { TeamGroupPill } from "@/components/shared/team-group-pill";
 import type { TeamMemberListRow } from "@/db/queries/team-members";
 import { formatNumber } from "@/lib/format";
+import { TEAM_MEMBER_CUSTOM_FIELDS } from "./custom-fields";
+import { customFieldProperties } from "./custom-field-properties";
 import type { Property } from "./types";
 
-export const TEAM_MEMBER_PROPERTIES: Property<TeamMemberListRow>[] = [
+const CORE_PROPERTIES: Property<TeamMemberListRow>[] = [
   {
     id: "name",
     label: "Name",
@@ -33,6 +36,45 @@ export const TEAM_MEMBER_PROPERTIES: Property<TeamMemberListRow>[] = [
     group: "Identity",
     defaultVisible: true,
     cell: (m) => <TeamPill team={m.team} />,
+  },
+  {
+    id: "region",
+    label: "Region",
+    width: 140,
+    group: "Identity",
+    defaultVisible: true,
+    cell: (m) =>
+      m.region ? (
+        <span className="text-muted-foreground">{m.region}</span>
+      ) : (
+        <span className="text-muted-foreground">-</span>
+      ),
+  },
+  {
+    id: "language",
+    label: "Language",
+    width: 110,
+    group: "Identity",
+    defaultVisible: false,
+    cell: (m) =>
+      m.language ? (
+        <span className="text-muted-foreground">{m.language}</span>
+      ) : (
+        <span className="text-muted-foreground">-</span>
+      ),
+  },
+  {
+    id: "group",
+    label: "Group",
+    width: 180,
+    group: "Identity",
+    defaultVisible: true,
+    cell: (m) =>
+      m.groupName ? (
+        <TeamGroupPill name={m.groupName} />
+      ) : (
+        <span className="text-muted-foreground">-</span>
+      ),
   },
   {
     id: "email",
@@ -83,5 +125,11 @@ export const TEAM_MEMBER_PROPERTIES: Property<TeamMemberListRow>[] = [
     cell: (m) => (
       <span className="font-mono text-xs text-muted-foreground">{m.id}</span>
     ),
+    detail: (m) => <span className="text-muted-foreground">{m.id}</span>,
   },
+];
+
+export const TEAM_MEMBER_PROPERTIES: Property<TeamMemberListRow>[] = [
+  ...CORE_PROPERTIES,
+  ...customFieldProperties<TeamMemberListRow>(TEAM_MEMBER_CUSTOM_FIELDS),
 ];

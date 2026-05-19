@@ -5,7 +5,7 @@ import { db, schema } from "../client";
 export type DecliningCustomer = {
   id: string;
   name: string;
-  company: string;
+  company: string | null;
   avgRating: number;
   responseCount: number;
 };
@@ -30,7 +30,7 @@ export async function getDecliningCustomers(
   const rows = await db.all<{
     id: string;
     name: string;
-    company: string;
+    company: string | null;
     avg_rating: number;
     response_count: number;
   }>(sql`

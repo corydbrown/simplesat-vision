@@ -10,7 +10,12 @@ export type TeamMemberListRow = {
   email: string;
   role: string;
   team: string;
+  region: string | null;
+  language: string | null;
+  groupId: string | null;
+  groupName: string | null;
   avatarColor: string;
+  customProperties: Record<string, unknown>;
   totalTickets: number;
   avgRating: number | null;
   totalResponses: number;
@@ -49,12 +54,21 @@ export async function listTeamMembers({
       email: schema.teamMembers.email,
       role: schema.teamMembers.role,
       team: schema.teamMembers.team,
+      region: schema.teamMembers.region,
+      language: schema.teamMembers.language,
+      groupId: schema.teamMembers.groupId,
+      groupName: schema.teamMemberGroups.name,
       avatarColor: schema.teamMembers.avatarColor,
+      customProperties: schema.teamMembers.customProperties,
       totalTickets: totalTicketsExpr,
       avgRating: avgRatingExpr,
       totalResponses: totalResponsesExpr,
     })
-    .from(schema.teamMembers);
+    .from(schema.teamMembers)
+    .leftJoin(
+      schema.teamMemberGroups,
+      eq(schema.teamMemberGroups.id, schema.teamMembers.groupId),
+    );
 
   const rows = await (where ? baseQuery.where(where) : baseQuery).orderBy(
     desc(totalTicketsExpr),
@@ -175,6 +189,7 @@ export async function getTeamMemberResponses(
       ticketExternalId: schema.tickets.helpdeskExternalId,
       customerId: schema.customers.id,
       customerName: schema.customers.name,
+      customerCompany: schema.customers.company,
       teamMemberId: schema.teamMembers.id,
       teamMemberName: schema.teamMembers.name,
       teamMemberAvatarColor: schema.teamMembers.avatarColor,

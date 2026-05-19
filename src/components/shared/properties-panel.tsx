@@ -1,21 +1,20 @@
 "use client";
 
-import { PropertyRow } from "@/components/shared/property-row";
+import { PropertyList } from "@/components/shared/property-list";
 import { useColumnState } from "@/lib/column-prefs";
 import type { Property } from "@/lib/properties/types";
 
 export function PropertiesPanel<T>({
   row,
   properties,
+  layout = "inline",
 }: {
   row: T;
   properties: Property<T>[];
+  layout?: "inline" | "stacked";
 }) {
   const { state } = useColumnState();
 
-  // Render in registry order (not the user's table reorder), grouped
-  // by property.group like a Notion card. Hidden properties hide here
-  // too so the table and card stay in sync.
   const groups = new Map<string, Property<T>[]>();
   for (const p of properties) {
     if (state.visibility[p.id] === false) continue;
@@ -26,19 +25,16 @@ export function PropertiesPanel<T>({
   }
 
   return (
-    <div className="divide-y divide-border rounded-md border border-border bg-background">
+    <PropertyList layout={layout}>
       {[...groups.entries()].map(([groupLabel, props]) => (
-        <div key={groupLabel} className="px-5 py-2">
-          <div className="pb-2 pt-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-            {groupLabel}
-          </div>
+        <PropertyList.Group key={groupLabel} label={groupLabel}>
           {props.map((p) => (
-            <PropertyRow key={p.id} label={p.label}>
+            <PropertyList.Row key={p.id} label={p.label}>
               {p.detail ? p.detail(row) : p.cell(row)}
-            </PropertyRow>
+            </PropertyList.Row>
           ))}
-        </div>
+        </PropertyList.Group>
       ))}
-    </div>
+    </PropertyList>
   );
 }

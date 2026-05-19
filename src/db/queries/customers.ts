@@ -8,8 +8,12 @@ export type CustomerListRow = {
   id: string;
   name: string;
   email: string;
-  company: string;
+  company: string | null;
+  companyExternalId: string | null;
+  companyDomain: string | null;
+  language: string | null;
   tier: CustomerTier;
+  customProperties: Record<string, unknown>;
   totalTickets: number;
   avgRating: number | null;
   lastSeen: Date | null;
@@ -46,7 +50,11 @@ export async function listCustomers({
       name: schema.customers.name,
       email: schema.customers.email,
       company: schema.customers.company,
+      companyExternalId: schema.customers.companyExternalId,
+      companyDomain: schema.customers.companyDomain,
+      language: schema.customers.language,
       tier: schema.customers.tier,
+      customProperties: schema.customers.customProperties,
       totalTickets: totalTicketsExpr,
       avgRating: avgRatingExpr,
       lastSeen: lastSeenExpr,
@@ -177,6 +185,7 @@ export async function getCustomerResponses(
       ticketExternalId: schema.tickets.helpdeskExternalId,
       customerId: schema.customers.id,
       customerName: schema.customers.name,
+      customerCompany: schema.customers.company,
       teamMemberId: schema.teamMembers.id,
       teamMemberName: schema.teamMembers.name,
       teamMemberAvatarColor: schema.teamMembers.avatarColor,

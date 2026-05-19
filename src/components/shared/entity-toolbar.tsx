@@ -42,7 +42,7 @@ export function EntityToolbar<T>({
       <div className="flex-1" />
       {trailing}
       <ToolbarButton icon={<Download size={13} />} label="Export" />
-      <Button size="sm" className="h-8 gap-1.5">
+      <Button size="sm" className="h-8 cursor-pointer gap-1.5">
         <Plus size={13} />
         New
       </Button>
@@ -63,7 +63,7 @@ function ToolbarButton({
     <Button
       variant="ghost"
       size="sm"
-      className="h-8 gap-1.5 text-sm text-muted-foreground"
+      className="h-8 cursor-pointer gap-1.5 text-sm text-muted-foreground"
     >
       {icon}
       {label}

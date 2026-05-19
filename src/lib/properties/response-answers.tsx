@@ -62,7 +62,7 @@ function AnswerValue({ answer }: { answer: SurveyAnswer }) {
         </div>
       );
     case "comment":
-      return <span className="text-foreground/80">{answer.value}</span>;
+      return <span className="text-foreground">{answer.value}</span>;
   }
 }
 
@@ -89,7 +89,7 @@ export const ANSWER_PROPERTIES: Property<AnswerRow>[] = [
     group: "Answer",
     defaultVisible: true,
     cell: (r) => (
-      <span className="text-xs uppercase tracking-wide text-muted-foreground">
+      <span className="text-muted-foreground">
         {TYPE_LABEL[r.answer.type]}
       </span>
     ),
@@ -133,8 +133,8 @@ export const ANSWER_PROPERTIES: Property<AnswerRow>[] = [
       ),
   },
   {
-    id: "agent",
-    label: "Agent",
+    id: "team_member",
+    label: "Team member",
     width: 200,
     group: "Relations",
     defaultVisible: true,

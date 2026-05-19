@@ -1,86 +1,69 @@
 import {
-  BarChart3,
-  Home,
-  Inbox,
-  MessageSquareText,
-  Plug,
-  Settings,
-  ShieldCheck,
-  Star,
-  Users,
-  UserSquare2,
-} from "lucide-react";
-import { PrimaryNavLink } from "./nav-link";
+  CUSTOMER_VIEWS,
+  RESPONSE_VIEWS,
+  TEAM_MEMBER_VIEWS,
+  TICKET_VIEWS,
+} from "@/lib/views";
+import { PrimaryNavClient } from "./primary-nav-client";
+import type { NavSection } from "./primary-nav-client";
+
+// Server-rendered nav data. Counts removed per Notion-style cleanliness —
+// users get totals on the list page header instead.
+
+const SECTIONS: NavSection[] = [
+  {
+    id: "responses",
+    label: "Responses",
+    icon: "Star",
+    href: "/responses",
+    views: RESPONSE_VIEWS.map((v) => ({
+      id: v.id,
+      label: v.label,
+      href: v.id === "all" ? "/responses" : `/responses?view=${v.id}`,
+    })),
+  },
+  {
+    id: "customers",
+    label: "Customers",
+    icon: "UserSquare2",
+    href: "/customers",
+    views: CUSTOMER_VIEWS.map((v) => ({
+      id: v.id,
+      label: v.label,
+      href: v.id === "all" ? "/customers" : `/customers?view=${v.id}`,
+    })),
+  },
+  {
+    id: "team-members",
+    label: "Team members",
+    icon: "Users",
+    href: "/team-members",
+    views: TEAM_MEMBER_VIEWS.map((v) => ({
+      id: v.id,
+      label: v.label,
+      href: v.id === "all" ? "/team-members" : `/team-members?view=${v.id}`,
+    })),
+  },
+  {
+    id: "tickets",
+    label: "Tickets",
+    icon: "Inbox",
+    href: "/tickets",
+    views: TICKET_VIEWS.map((v) => ({
+      id: v.id,
+      label: v.label,
+      href: v.id === "all" ? "/tickets" : `/tickets?view=${v.id}`,
+    })),
+  },
+  {
+    id: "reports",
+    label: "Reports",
+    icon: "BarChart3",
+    href: "/reports",
+    views: [{ id: "new", label: "New report", href: "/reports" }],
+  },
+];
 
 export function PrimaryNav() {
-  return (
-    <nav className="flex w-[52px] shrink-0 flex-col items-center gap-0.5 border-r border-border bg-sidebar py-3 sticky top-0 h-screen">
-      <div className="mb-2 flex h-9 w-9 items-center justify-center rounded bg-foreground text-background text-sm font-semibold">
-        S
-      </div>
-      <PrimaryNavLink
-        href="/"
-        icon={<Home size={16} />}
-        label="Home"
-        match="/"
-      />
-      <PrimaryNavLink
-        href="/tickets"
-        icon={<Inbox size={16} />}
-        label="Tickets"
-        match="/tickets"
-      />
-      <PrimaryNavLink
-        href="/responses"
-        icon={<Star size={16} />}
-        label="Responses"
-        match="/responses"
-      />
-      <PrimaryNavLink
-        href="/customers"
-        icon={<UserSquare2 size={16} />}
-        label="Customers"
-        match="/customers"
-      />
-      <PrimaryNavLink
-        href="/team-members"
-        icon={<Users size={16} />}
-        label="Team members"
-        match="/team-members"
-      />
-      <PrimaryNavLink
-        href="/qa-evaluations"
-        icon={<ShieldCheck size={16} />}
-        label="QA evaluations (soon)"
-        match="/qa-evaluations"
-        dim
-      />
-      <div className="my-2 h-px w-6 bg-border" />
-      <PrimaryNavLink
-        href="/reports"
-        icon={<BarChart3 size={16} />}
-        label="Reports"
-        match="/reports"
-      />
-      <PrimaryNavLink
-        href="/surveys"
-        icon={<MessageSquareText size={16} />}
-        label="Surveys"
-        match="/surveys"
-      />
-      <PrimaryNavLink
-        href="/integrations"
-        icon={<Plug size={16} />}
-        label="Integrations"
-        match="/integrations"
-      />
-      <div className="flex-1" />
-      <PrimaryNavLink
-        href="/settings"
-        icon={<Settings size={16} />}
-        label="Settings"
-        match="/settings"
-      />
-    </nav>
-  );
+  return <PrimaryNavClient sections={SECTIONS} />;
 }

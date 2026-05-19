@@ -32,6 +32,38 @@ export function formatNumber(value: number): string {
   return numberFormatter.format(value);
 }
 
+const relativeFormatter = new Intl.RelativeTimeFormat("en-US", {
+  numeric: "auto",
+});
+
+export function formatRelative(
+  value: Date | number | null | undefined,
+  now: Date = new Date(),
+): string {
+  if (value == null) return "-";
+  const ms = typeof value === "number" ? value : value.getTime();
+  const diff = ms - now.getTime();
+  const abs = Math.abs(diff);
+  const minute = 60_000;
+  const hour = 60 * minute;
+  const day = 24 * hour;
+  const week = 7 * day;
+  const month = 30 * day;
+  const year = 365 * day;
+  if (abs < minute) return "just now";
+  if (abs < hour)
+    return relativeFormatter.format(Math.round(diff / minute), "minute");
+  if (abs < day)
+    return relativeFormatter.format(Math.round(diff / hour), "hour");
+  if (abs < week)
+    return relativeFormatter.format(Math.round(diff / day), "day");
+  if (abs < month)
+    return relativeFormatter.format(Math.round(diff / week), "week");
+  if (abs < year)
+    return relativeFormatter.format(Math.round(diff / month), "month");
+  return relativeFormatter.format(Math.round(diff / year), "year");
+}
+
 export function formatDuration(
   start: Date | number | null | undefined,
   end: Date | number | null | undefined,

@@ -1,17 +1,32 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { faker } from "@faker-js/faker";
 import { db, schema } from "./client";
 import { prefixedId } from "../lib/ids";
+import {
+  CUSTOMER_CUSTOM_FIELDS,
+  TEAM_MEMBER_CUSTOM_FIELDS,
+  type CustomFieldDef,
+} from "../lib/properties/custom-fields";
+import { rollupTopics } from "../lib/topics";
 import type {
   Channel,
   ConversationMessage,
   CustomerTier,
   NewCustomer,
   NewResponse,
+  NewSurvey,
   NewTeamMember,
+  NewTeamMemberGroup,
   NewTicket,
   SurveyAnswer,
+  SurveyChannel,
   SurveyNotSentReason,
+  SurveyQuestion,
+  SurveyType,
+  TicketPriority,
   TicketStatus,
+  TopicTag,
 } from "./schema";
 
 faker.seed(42);
@@ -32,17 +47,29 @@ function pickWeighted<T>(items: Weighted<T>[]): T {
   return items[items.length - 1].value;
 }
 
+function pickFrom<T>(arr: readonly T[]): T {
+  return arr[faker.number.int({ min: 0, max: arr.length - 1 })];
+}
+
+// ---------------------------------------------------------------------------
+// Bloom Beauty narrative constants. Mid-market B2C beauty retailer with a
+// three-tier loyalty program (Insider / Gold / Elite). ~95% of customers are
+// individual consumers; the remaining ~5% are B2B (wholesale, corporate
+// gifting, influencer partnerships) and carry a `company` value plus org-
+// rollup fields.
+// ---------------------------------------------------------------------------
+
 const TIER_WEIGHTS: Weighted<CustomerTier>[] = [
-  { value: "starter", weight: 60 },
-  { value: "pro", weight: 30 },
-  { value: "enterprise", weight: 10 },
+  { value: "insider", weight: 75 },
+  { value: "gold", weight: 20 },
+  { value: "elite", weight: 5 },
 ];
 
 const CHANNEL_WEIGHTS: Weighted<Channel>[] = [
-  { value: "email", weight: 70 },
-  { value: "chat", weight: 20 },
+  { value: "email", weight: 55 },
+  { value: "chat", weight: 32 },
   { value: "phone", weight: 8 },
-  { value: "social", weight: 2 },
+  { value: "social", weight: 5 },
 ];
 
 const STATUS_WEIGHTS: Weighted<TicketStatus>[] = [
@@ -50,6 +77,13 @@ const STATUS_WEIGHTS: Weighted<TicketStatus>[] = [
   { value: "closed", weight: 25 },
   { value: "pending", weight: 10 },
   { value: "open", weight: 5 },
+];
+
+const PRIORITY_WEIGHTS: Weighted<TicketPriority>[] = [
+  { value: "normal", weight: 62 },
+  { value: "low", weight: 18 },
+  { value: "high", weight: 15 },
+  { value: "urgent", weight: 5 },
 ];
 
 const NOT_SENT_REASONS: Weighted<SurveyNotSentReason>[] = [
@@ -67,13 +101,19 @@ const RATING_WEIGHTS: Weighted<number>[] = [
   { value: 1, weight: 4 },
 ];
 
-const TEAMS = ["Tier 1", "Tier 2"] as const;
+const TEAMS = ["Front line", "Senior", "Specialist"] as const;
 const SUPPORT_ROLES = [
-  "Support Agent",
-  "Senior Agent",
-  "Team Lead",
-  "Support Specialist",
+  "Beauty Advisor",
+  "Senior Beauty Advisor",
+  "Returns Specialist",
+  "VIP Concierge",
+  "Customer Care Lead",
+  "Loyalty Specialist",
+  "Store Care Coordinator",
 ];
+
+const REGIONS = ["North America", "EMEA", "APAC", "LATAM"] as const;
+const LANGUAGES = ["en", "es", "fr", "de", "pt", "ja", "it"] as const;
 
 const AVATAR_COLORS = [
   "#ef4444",
@@ -92,60 +132,99 @@ const AVATAR_COLORS = [
 ];
 
 const TAG_POOL = [
-  "billing",
   "shipping",
+  "returns",
   "refund",
-  "bug",
-  "onboarding",
-  "feature-request",
+  "damaged",
+  "shade-match",
+  "loyalty",
+  "bopis",
+  "gift-card",
+  "app",
+  "samples",
   "vip",
-  "escalation",
-  "integration",
-  "account",
+  "influencer",
+  "wholesale",
+  "fragrance",
 ];
 
-const NAMED_DETRACTOR_COMPANIES = ["Hooli", "Globex", "Umbrella Co"];
+/** B2B / wholesale / influencer accounts that consistently produce detractor
+ *  responses — useful for the "company-level dissatisfaction" demo. */
+const NAMED_DETRACTOR_COMPANIES = [
+  { name: "Atlas Hospitality", domain: "atlashospitality.com" },
+  { name: "Pacific Beauty Distributors", domain: "pacbeautydist.com" },
+  { name: "Crown Department Stores", domain: "crowndept.com" },
+];
+
+/** Wider B2B account pool for the ~5% of customers that aren't individuals.
+ *  Mix of wholesale, corporate-gifting, influencer, and partner accounts. */
+const B2B_COMPANIES: { name: string; domain: string }[] = [
+  ...NAMED_DETRACTOR_COMPANIES,
+  { name: "Aurora Hotels Group", domain: "aurorahotels.co" },
+  { name: "Coastal Spas & Wellness", domain: "coastalspas.com" },
+  { name: "Modern Mercantile", domain: "modernmerc.co" },
+  { name: "Highland Apothecary Co", domain: "highlandapoth.co" },
+  { name: "Marquee Events", domain: "marqueeevents.co" },
+  { name: "Silver Lake Studios", domain: "silverlakestudios.tv" },
+  { name: "Quartz Gifting", domain: "quartzgifting.com" },
+  { name: "Verde Concierge", domain: "verdeconcierge.io" },
+  { name: "House of Lumière", domain: "houseoflumiere.co" },
+  { name: "North Star Retreats", domain: "northstarretreats.co" },
+  { name: "Helix Talent", domain: "helixtalent.co" },
+  { name: "Pinecrest Wellness", domain: "pinecrestwellness.com" },
+  { name: "Studio Eleven", domain: "studio11.co" },
+  { name: "Beacon Hospitality", domain: "beaconhospitality.com" },
+];
 
 const SUBJECTS = [
-  "Cannot log in",
   "Where is my order?",
-  "Refund request",
-  "Integration broken",
-  "Feature question",
-  "Billing discrepancy",
-  "Account locked",
-  "Password reset not working",
-  "API rate limit issue",
-  "Webhook not firing",
-  "Dashboard slow",
-  "Export failing",
-  "Plan upgrade",
-  "Cancel subscription",
-  "Data import help",
-  "User permissions",
-  "SSO setup",
-  "Mobile app crash",
-  "Email notification missing",
-  "Survey link not working",
+  "Order arrived damaged",
+  "Wrong shade sent",
+  "Foundation match help",
+  "Missing items in shipment",
+  "Return after 30-day window",
+  "Refund not received",
+  "Cancel order request",
+  "Loyalty points not posting",
+  "Insider tier issue",
+  "Gift card balance question",
+  "BOPIS pickup not ready",
+  "BOPIS order cancelled at store",
+  "Missing samples in order",
+  "App crashes at checkout",
+  "App login problem",
+  "Discount code not working",
+  "Influencer code not working",
+  "Shipping cost question",
+  "Address change after shipping",
+  "Question about product ingredients",
+  "Allergic reaction concern",
+  "Restock alert for backorder",
+  "Cancel subscription / Auto-replenish",
+  "Birthday gift not received",
+  "Klarna / Afterpay split issue",
+  "Price match request",
+  "Lost package follow-up",
+  "Item authenticity concern",
+  "Pro discount enrollment",
+  "Store experience feedback",
+  "Wholesale order question",
 ];
 
 const CUSTOMER_MSG_TEMPLATES = [
-  "Hi, I'm running into an issue. {{problem}} Can you help?",
-  "Hey team - {{problem}} It's been blocking us all morning.",
-  "Following up on this - {{problem}} Any update?",
-  "Quick question: {{problem}} What should I try next?",
+  "Hi! I'm having an issue with my order — {{problem}} Can you help?",
+  "Hey, my recent order — {{problem}} Hoping you can sort this out.",
+  "Just following up on this. {{problem}} Any update?",
+  "Quick question on a return: {{problem}} What's the next step?",
+  "Hi there, having trouble with the app: {{problem}} Could you take a look?",
 ];
 const AGENT_MSG_TEMPLATES = [
-  "Thanks for reaching out. I can see what's happening here - let me take a closer look.",
-  "Great question. Could you try {{suggestion}}? That usually clears it up.",
-  "I've gone ahead and {{action}}. Can you confirm it's working on your side now?",
-  "Apologies for the trouble. We've identified the cause and are rolling out a fix shortly.",
-  "Got it - thanks for the details. I'm escalating this to our integrations team now.",
+  "Thanks for reaching out! I'm so sorry to hear that — let me dig into your order right now.",
+  "Happy to help! Could you try {{suggestion}}? That usually clears it up on our side.",
+  "I've gone ahead and {{action}}. You should see a confirmation in your inbox shortly. Let me know!",
+  "Apologies for the trouble. I've issued a replacement and added a few extra samples on us.",
+  "Great question. I've checked with our store team and {{action}}. You're all set.",
 ];
-
-function pickFrom<T>(arr: readonly T[]): T {
-  return arr[faker.number.int({ min: 0, max: arr.length - 1 })];
-}
 
 function randomTags(): string[] {
   const count = faker.number.int({ min: 0, max: 3 });
@@ -154,91 +233,514 @@ function randomTags(): string[] {
   return [...set];
 }
 
-const RESOLVED_OPTIONS = ["Yes", "Partially", "No"] as const;
-const POSITIVES = [
-  "Response speed",
-  "Expertise",
-  "Communication",
-  "Follow-through",
-  "Friendliness",
-] as const;
-const NEGATIVES = [
-  "Took too long",
-  "Did not understand my issue",
-  "Hard to reach a human",
-  "Issue still not resolved",
-  "Felt impersonal",
-] as const;
+// ---------------------------------------------------------------------------
+// Comment bank loaded from db/comments.json (hand-curated fake retail-voice
+// comments). Buckets are keyed by metric + rating (csat_5, nps_promoter, etc.).
+// ---------------------------------------------------------------------------
+
+const COMMENTS_PATH = resolve(process.cwd(), "db/comments.json");
+const COMMENT_BANK: Record<string, string[]> = JSON.parse(
+  readFileSync(COMMENTS_PATH, "utf-8"),
+);
+
+function commentBucket(metric: SurveyType, rating: number): string {
+  if (metric === "csat") return `csat_${rating}`;
+  if (metric === "ces") return `ces_${rating}`;
+  if (metric === "five_star") return `five_star_${rating}`;
+  if (metric === "nps") {
+    if (rating >= 9) return "nps_promoter";
+    if (rating >= 7) return "nps_passive";
+    return "nps_detractor";
+  }
+  return "custom";
+}
+
+function pickComment(metric: SurveyType, rating: number): string | null {
+  const bucket = commentBucket(metric, rating);
+  const pool = COMMENT_BANK[bucket] ?? [];
+  if (pool.length === 0) {
+    // Fall back to the nearest sentiment-equivalent CSAT bucket
+    const fallback = COMMENT_BANK[`csat_${Math.max(1, Math.min(5, rating))}`] ?? [];
+    if (fallback.length === 0) return null;
+    return pickFrom(fallback);
+  }
+  return pickFrom(pool);
+}
+
+// ---------------------------------------------------------------------------
+// Team member groups. Mirrors a real retail support org — frontline care,
+// returns, online orders, in-store coordination, loyalty/VIP, escalations.
+// ---------------------------------------------------------------------------
+
+const TEAM_MEMBER_GROUP_SPECS: { name: string; description: string }[] = [
+  {
+    name: "Customer Care",
+    description: "First-line support for orders, returns, and general questions.",
+  },
+  {
+    name: "Returns & Exchanges",
+    description: "Specialists handling return windows, refunds, and exchanges.",
+  },
+  {
+    name: "Online Orders",
+    description: "Web + app order issues, payment, and shipping.",
+  },
+  {
+    name: "Stores & BOPIS",
+    description: "In-store pickup, in-store returns, and store-locator help.",
+  },
+  {
+    name: "Loyalty & VIP",
+    description: "Insider / Gold / Elite tier support and clienteling.",
+  },
+  {
+    name: "Escalations",
+    description: "Senior team for fraud, chargebacks, and escalated cases.",
+  },
+];
+
+// ---------------------------------------------------------------------------
+// Surveys. Bloom Beauty's survey mix mirrors a real retail program — heavy
+// CSAT after touchpoints (email, chat, ticket), NPS quarterly + web embed,
+// a returns-flow CES, an onboarding five-star, and an internal roadmap.
+// ---------------------------------------------------------------------------
+
+type SurveySpec = {
+  name: string;
+  metric: SurveyType;
+  channel: SurveyChannel;
+  scale: number;
+  weight: number; // share of responses
+  questions: SurveyQuestion[];
+};
+
+const SURVEY_SPECS: SurveySpec[] = [
+  {
+    name: "Post-purchase CSAT",
+    metric: "csat",
+    channel: "oneoff_email",
+    scale: 5,
+    weight: 18,
+    questions: [
+      { type: "rating", question: "How satisfied are you with your recent order?", scale: 5 },
+      { type: "multi-choice", question: "Did your order arrive as expected?", options: ["Yes", "Mostly", "No"] },
+      { type: "comment", question: "Anything we could do better next time?" },
+    ],
+  },
+  {
+    name: "Live Chat CSAT",
+    metric: "csat",
+    channel: "intercom",
+    scale: 5,
+    weight: 22,
+    questions: [
+      { type: "rating", question: "How was your chat with our Beauty Advisor?", scale: 5 },
+      { type: "comment", question: "What could we have done differently?" },
+    ],
+  },
+  {
+    name: "Customer Service Resolution CSAT",
+    metric: "csat",
+    channel: "zendesk",
+    scale: 5,
+    weight: 18,
+    questions: [
+      { type: "rating", question: "How satisfied were you with how we handled your request?", scale: 5 },
+      {
+        type: "multi-select",
+        question: "Where did we do well?",
+        options: ["Response speed", "Product knowledge", "Communication", "Follow-through", "Friendliness"],
+      },
+      { type: "comment", question: "Tell us more about your experience" },
+    ],
+  },
+  {
+    name: "Brand NPS Quarterly",
+    metric: "nps",
+    channel: "oneoff_email",
+    scale: 11,
+    weight: 12,
+    questions: [
+      { type: "rating", question: "How likely are you to recommend Bloom Beauty to a friend?", scale: 11 },
+      { type: "comment", question: "What's the primary reason for your score?" },
+    ],
+  },
+  {
+    name: "Web NPS",
+    metric: "nps",
+    channel: "web_embed",
+    scale: 11,
+    weight: 8,
+    questions: [
+      { type: "rating", question: "How likely are you to recommend Bloom Beauty?", scale: 11 },
+      { type: "comment", question: "Anything we could improve about your experience?" },
+    ],
+  },
+  {
+    name: "Returns CES",
+    metric: "ces",
+    channel: "zendesk",
+    scale: 5,
+    weight: 9,
+    questions: [
+      { type: "rating", question: "How easy was it to complete your return?", scale: 5 },
+      {
+        type: "multi-choice",
+        question: "Did our team make the return straightforward?",
+        options: ["Yes, completely", "Mostly", "Not really"],
+      },
+      { type: "comment", question: "What would have made it easier?" },
+    ],
+  },
+  {
+    name: "First App Open",
+    metric: "five_star",
+    channel: "web_embed",
+    scale: 5,
+    weight: 8,
+    questions: [
+      { type: "rating", question: "How would you rate your first experience with the Bloom app?", scale: 5 },
+      {
+        type: "multi-select",
+        question: "What stood out?",
+        options: [
+          "Personalized recommendations",
+          "Shade match quiz",
+          "Easy signup",
+          "Beautiful product browse",
+          "Nothing in particular",
+        ],
+      },
+      { type: "comment", question: "Anything we should improve about the app onboarding?" },
+    ],
+  },
+  {
+    name: "2026 Beauty Insider Roadmap",
+    metric: "custom",
+    channel: "generic_embed",
+    scale: 5,
+    weight: 5,
+    questions: [
+      {
+        type: "multi-select",
+        question: "Which areas should Bloom invest in next year?",
+        options: [
+          "Faster shipping and easier returns",
+          "More inclusive shade ranges",
+          "Better in-app personalization and Beauty Advisor matching",
+          "Richer Insider rewards and birthday perks",
+          "Cleaner sustainability and packaging story",
+        ],
+      },
+      {
+        type: "rating",
+        question: "How important is virtual try-on to your shopping experience?",
+        scale: 5,
+      },
+      { type: "comment", question: "What's missing from Bloom for you?" },
+    ],
+  },
+];
+
+// ---------------------------------------------------------------------------
+// Custom-properties population. Per-customer, 25-50 of the available defs get
+// populated, weighted toward higher-importance fields. Same logic for team
+// members but with a smaller pool (8-16 of ~22).
+// ---------------------------------------------------------------------------
+
+function buildCustomProperties(
+  defs: CustomFieldDef[],
+  minFields: number,
+  maxFields: number,
+): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  const target = faker.number.int({ min: minFields, max: maxFields });
+  // Weighted pool: each def appears in the pool `importance` times so higher
+  // importance items are likelier to be chosen
+  const pool: CustomFieldDef[] = [];
+  for (const def of defs) {
+    for (let i = 0; i < def.importance; i++) pool.push(def);
+  }
+  const chosen = new Set<string>();
+  let attempts = 0;
+  while (chosen.size < Math.min(target, defs.length) && attempts < target * 8) {
+    const def = pickFrom(pool);
+    if (!chosen.has(def.id)) {
+      chosen.add(def.id);
+      out[def.id] = def.sample();
+    }
+    attempts++;
+  }
+  return out;
+}
+
+// ---------------------------------------------------------------------------
+// Per-answer topic assignment. Rating biases sentiment; per-answer count 0-2.
+// Reused-topic dedup runs at roll-up time.
+// ---------------------------------------------------------------------------
+
+import { TOPICS } from "../lib/topics";
+
+const POSITIVE_TOPIC_BIAS = [
+  "helpfulness",
+  "courtesy",
+  "active-listening",
+  "knowledgeable",
+  "above-and-beyond",
+  "effectiveness",
+  "thoroughness",
+  "clarity-of-information",
+  "customer-service",
+  "general-professionalism",
+];
+
+const NEGATIVE_TOPIC_BIAS = [
+  "wait-time",
+  "communication-frequency",
+  "billing-clarity",
+  "price",
+  "product-issue",
+  "product-performance",
+  "refund-process",
+  "documentation-clarity",
+  "usability",
+  "consistency",
+];
+
+const NEUTRAL_TOPIC_BIAS = [
+  "product-inquiries",
+  "feature-demo",
+  "product-usage",
+  "trial",
+  "training-materials",
+  "product-setup",
+];
+
+function topicsForAnswer(
+  sentimentLevel: number, // 1 (worst) to 5 (best)
+  hasComment: boolean,
+): TopicTag[] {
+  // Don't tag every answer — multi-choice/select get topics ~30%, comments ~70%
+  const baseRate = hasComment ? 0.7 : 0.3;
+  if (faker.number.float({ min: 0, max: 1 }) > baseRate) return [];
+
+  const count = faker.helpers.weightedArrayElement([
+    { value: 1, weight: 75 },
+    { value: 2, weight: 20 },
+    { value: 0, weight: 5 },
+  ]);
+  if (count === 0) return [];
+
+  // Pick from the right pool based on sentiment, with a small cross-pool chance
+  // for the mixed-sentiment ("happy with support, unhappy with product") case
+  const out: TopicTag[] = [];
+  const usedIds = new Set<string>();
+  for (let i = 0; i < count; i++) {
+    let pool: string[];
+    let sentiment: "positive" | "neutral" | "negative";
+    if (sentimentLevel >= 4) {
+      const r = faker.number.int({ min: 0, max: 99 });
+      if (r < 90) {
+        pool = POSITIVE_TOPIC_BIAS;
+        sentiment = "positive";
+      } else if (r < 98) {
+        pool = NEUTRAL_TOPIC_BIAS;
+        sentiment = "neutral";
+      } else {
+        pool = NEGATIVE_TOPIC_BIAS;
+        sentiment = "negative";
+      }
+    } else if (sentimentLevel === 3) {
+      const r = faker.number.int({ min: 0, max: 99 });
+      if (r < 50) {
+        pool = NEUTRAL_TOPIC_BIAS;
+        sentiment = "neutral";
+      } else if (r < 75) {
+        pool = NEGATIVE_TOPIC_BIAS;
+        sentiment = "negative";
+      } else {
+        pool = POSITIVE_TOPIC_BIAS;
+        sentiment = "positive";
+      }
+    } else {
+      const r = faker.number.int({ min: 0, max: 99 });
+      if (r < 85) {
+        pool = NEGATIVE_TOPIC_BIAS;
+        sentiment = "negative";
+      } else if (r < 95) {
+        pool = NEUTRAL_TOPIC_BIAS;
+        sentiment = "neutral";
+      } else {
+        pool = POSITIVE_TOPIC_BIAS;
+        sentiment = "positive";
+      }
+    }
+    const topicId = pickFrom(pool);
+    if (!TOPICS.some((t) => t.id === topicId)) continue;
+    if (usedIds.has(topicId)) continue;
+    usedIds.add(topicId);
+    out.push({ topic: topicId, sentiment });
+  }
+  return out;
+}
+
+// ---------------------------------------------------------------------------
+// Survey answer builder. Walks the survey's question definitions and emits
+// matching SurveyAnswer values seeded from the rating/sentiment.
+// ---------------------------------------------------------------------------
 
 function buildSurveyAnswers(
-  rating: number,
+  survey: SurveySpec,
+  rating: number, // value on survey.scale
   comment: string | null,
 ): SurveyAnswer[] {
-  const answers: SurveyAnswer[] = [];
+  const sentimentLevel = (() => {
+    if (survey.scale === 11) {
+      if (rating <= 6) return Math.max(1, Math.round(rating / 2));
+      if (rating <= 8) return 3;
+      return 5;
+    }
+    return Math.max(1, Math.min(5, rating));
+  })();
 
-  // Q1: rating (mirrors responses.rating)
-  answers.push({
-    type: "rating",
-    question: "How satisfied are you with this support experience?",
-    value: rating,
-    scale: 5,
-  });
-
-  // Q2: multi-choice resolution
-  const resolvedValue =
-    rating >= 4
-      ? RESOLVED_OPTIONS[0]
-      : rating === 3
-        ? faker.helpers.weightedArrayElement([
-            { value: RESOLVED_OPTIONS[0], weight: 30 },
-            { value: RESOLVED_OPTIONS[1], weight: 60 },
-            { value: RESOLVED_OPTIONS[2], weight: 10 },
-          ])
-        : rating === 2
-          ? faker.helpers.weightedArrayElement([
-              { value: RESOLVED_OPTIONS[1], weight: 50 },
-              { value: RESOLVED_OPTIONS[2], weight: 50 },
-            ])
-          : RESOLVED_OPTIONS[2];
-  answers.push({
-    type: "multi-choice",
-    question: "Was your issue resolved?",
-    options: [...RESOLVED_OPTIONS],
-    value: resolvedValue,
-  });
-
-  // Q3: multi-select on positives or negatives (depending on rating)
-  if (rating >= 4) {
-    const count = faker.number.int({ min: 1, max: 3 });
-    const picks = faker.helpers.arrayElements([...POSITIVES], count);
-    answers.push({
-      type: "multi-select",
-      question: "What did we do well?",
-      options: [...POSITIVES],
-      value: picks,
-    });
-  } else {
-    const count = faker.number.int({ min: 0, max: 3 });
-    const picks =
-      count === 0 ? [] : faker.helpers.arrayElements([...NEGATIVES], count);
-    answers.push({
-      type: "multi-select",
-      question: "Where could we improve?",
-      options: [...NEGATIVES],
-      value: picks,
-    });
+  const out: SurveyAnswer[] = [];
+  for (const q of survey.questions) {
+    const hasComment = q.type === "comment";
+    const topics = topicsForAnswer(sentimentLevel, hasComment);
+    switch (q.type) {
+      case "rating":
+        out.push({
+          type: "rating",
+          question: q.question,
+          value:
+            q.scale === survey.scale
+              ? rating
+              : remapRating(rating, survey.scale, q.scale, sentimentLevel),
+          scale: q.scale,
+          topics,
+        });
+        break;
+      case "multi-choice": {
+        const value = pickChoiceBySentiment(q.options, sentimentLevel);
+        out.push({ type: "multi-choice", question: q.question, options: q.options, value, topics });
+        break;
+      }
+      case "multi-select": {
+        const count =
+          sentimentLevel >= 4
+            ? faker.number.int({ min: 1, max: Math.min(3, q.options.length) })
+            : faker.number.int({ min: 0, max: Math.min(2, q.options.length) });
+        const value =
+          count === 0 ? [] : faker.helpers.arrayElements(q.options, count);
+        out.push({ type: "multi-select", question: q.question, options: q.options, value, topics });
+        break;
+      }
+      case "comment": {
+        const text =
+          comment ??
+          (sentimentLevel <= 2 || faker.number.int({ min: 0, max: 99 }) < 35
+            ? pickComment(survey.metric, rating)
+            : null);
+        if (text) {
+          out.push({ type: "comment", question: q.question, value: text, topics });
+        }
+        break;
+      }
+    }
   }
+  return out;
+}
 
-  // Q4: comment (mirrors responses.comment)
-  if (comment) {
-    answers.push({
-      type: "comment",
-      question: "Anything else we should know?",
-      value: comment,
-    });
+function remapRating(
+  value: number,
+  fromScale: number,
+  toScale: number,
+  sentimentLevel: number,
+): number {
+  if (fromScale === toScale) return value;
+  const proportion = value / fromScale;
+  if (toScale === 5) return Math.max(1, Math.min(5, sentimentLevel));
+  return Math.max(0, Math.min(toScale, Math.round(proportion * toScale)));
+}
+
+function pickChoiceBySentiment(options: string[], sentimentLevel: number): string {
+  if (sentimentLevel >= 4) {
+    return faker.helpers.weightedArrayElement([
+      { value: options[0], weight: 70 },
+      { value: options[Math.min(1, options.length - 1)], weight: 25 },
+      { value: options[options.length - 1], weight: 5 },
+    ]);
   }
+  if (sentimentLevel === 3) {
+    return faker.helpers.weightedArrayElement(
+      options.map((v, i) => ({ value: v, weight: i === 1 || options.length === 1 ? 60 : 20 })),
+    );
+  }
+  return faker.helpers.weightedArrayElement([
+    { value: options[options.length - 1], weight: 60 },
+    { value: options[Math.max(0, options.length - 2)], weight: 30 },
+    { value: options[0], weight: 10 },
+  ]);
+}
 
-  return answers;
+// ---------------------------------------------------------------------------
+// Conversation builder. Retail-flavored placeholders.
+// ---------------------------------------------------------------------------
+
+function buildConversation(
+  customerName: string,
+  agentName: string,
+  createdAt: number,
+  solvedAt: number | null,
+): ConversationMessage[] {
+  const messageCount = faker.number.int({ min: 3, max: 7 });
+  const messages: ConversationMessage[] = [];
+  const end = solvedAt ?? createdAt + 4 * ONE_DAY;
+  const step = Math.max(1, Math.floor((end - createdAt) / messageCount));
+  let cursor = createdAt;
+  const problemSnippets = [
+    "the foundation arrived in the wrong shade",
+    "my order has been stuck in transit for a week",
+    "I never received the samples that were supposed to ship with my order",
+    "the perfume bottle was cracked when it arrived",
+    "my loyalty points haven't posted from last month's purchase",
+    "the discount code at checkout isn't applying",
+    "BOPIS at the Beverly Hills store said my order wasn't ready",
+    "the app keeps logging me out at checkout",
+    "I was charged twice for the same order",
+    "the return label in my account isn't generating",
+  ];
+  const suggestions = [
+    "force-closing and reopening the app",
+    "clearing your cart and re-adding the items",
+    "signing out and back in",
+    "checking your spam folder",
+  ];
+  const actions = [
+    "issued a replacement and added 500 bonus points",
+    "refunded the difference back to your original payment method",
+    "shipped a replacement overnight, on us",
+    "reset your Insider tier and credited the missing points",
+    "flagged this with our store team and confirmed your pickup is ready",
+  ];
+  for (let i = 0; i < messageCount; i++) {
+    const isCustomer = i % 2 === 0;
+    const tpl = isCustomer
+      ? pickFrom(CUSTOMER_MSG_TEMPLATES)
+      : pickFrom(AGENT_MSG_TEMPLATES);
+    const body = tpl
+      .replace("{{problem}}", pickFrom(problemSnippets))
+      .replace("{{suggestion}}", pickFrom(suggestions))
+      .replace("{{action}}", pickFrom(actions));
+    messages.push({
+      author: isCustomer ? customerName : agentName,
+      role: isCustomer ? "customer" : "agent",
+      time: new Date(cursor).toISOString(),
+      body,
+    });
+    cursor += step + faker.number.int({ min: 0, max: step });
+  }
+  return messages;
 }
 
 function adjustRatingForResolution(
@@ -253,36 +755,9 @@ function adjustRatingForResolution(
   return Math.max(1, Math.min(5, adjusted));
 }
 
-function buildConversation(
-  customerName: string,
-  agentName: string,
-  createdAt: number,
-  solvedAt: number | null,
-): ConversationMessage[] {
-  const messageCount = faker.number.int({ min: 3, max: 7 });
-  const messages: ConversationMessage[] = [];
-  const end = solvedAt ?? createdAt + 4 * ONE_DAY;
-  const step = Math.max(1, Math.floor((end - createdAt) / messageCount));
-  let cursor = createdAt;
-  for (let i = 0; i < messageCount; i++) {
-    const isCustomer = i % 2 === 0;
-    const tpl = isCustomer
-      ? pickFrom(CUSTOMER_MSG_TEMPLATES)
-      : pickFrom(AGENT_MSG_TEMPLATES);
-    const body = tpl
-      .replace("{{problem}}", faker.lorem.sentence({ min: 8, max: 14 }))
-      .replace("{{suggestion}}", faker.lorem.words(3))
-      .replace("{{action}}", faker.lorem.words(4));
-    messages.push({
-      author: isCustomer ? customerName : agentName,
-      role: isCustomer ? "customer" : "agent",
-      time: new Date(cursor).toISOString(),
-      body,
-    });
-    cursor += step + faker.number.int({ min: 0, max: step });
-  }
-  return messages;
-}
+// ---------------------------------------------------------------------------
+// Main seed.
+// ---------------------------------------------------------------------------
 
 async function seed() {
   console.log("Resetting tables...");
@@ -291,32 +766,97 @@ async function seed() {
   db.delete(schema.tickets).run();
   db.delete(schema.customers).run();
   db.delete(schema.teamMembers).run();
+  db.delete(schema.teamMemberGroups).run();
+  db.delete(schema.surveys).run();
+
+  console.log("Generating team member groups...");
+  const teamMemberGroups: NewTeamMemberGroup[] = TEAM_MEMBER_GROUP_SPECS.map(
+    (spec) => ({
+      id: prefixedId("tmg"),
+      name: spec.name,
+      description: spec.description,
+      createdAt: new Date(NOW - faker.number.int({ min: 365, max: 900 }) * ONE_DAY),
+      updatedAt: new Date(NOW),
+    }),
+  );
+  db.insert(schema.teamMemberGroups).values(teamMemberGroups).run();
+  const groupIdByName = new Map(
+    teamMemberGroups.map((g) => [g.name, g.id!] as const),
+  );
+
+  console.log("Generating surveys...");
+  const surveys: NewSurvey[] = SURVEY_SPECS.map((spec) => ({
+    id: prefixedId("svy"),
+    name: spec.name,
+    metric: spec.metric,
+    channel: spec.channel,
+    status: "active",
+    scale: spec.scale,
+    questions: spec.questions,
+    createdAt: new Date(NOW - faker.number.int({ min: 90, max: 540 }) * ONE_DAY),
+    updatedAt: new Date(NOW),
+  }));
+  db.insert(schema.surveys).values(surveys).run();
+
+  // Maps survey.id -> SurveySpec for response generation
+  const surveyById = new Map(surveys.map((s, i) => [s.id!, SURVEY_SPECS[i]]));
+  const surveyWeightPool: string[] = [];
+  surveys.forEach((s, i) => {
+    for (let w = 0; w < SURVEY_SPECS[i].weight; w++) surveyWeightPool.push(s.id!);
+  });
 
   console.log("Generating customers...");
   const customers: NewCustomer[] = [];
-  for (const company of NAMED_DETRACTOR_COMPANIES) {
+
+  // Named detractor B2B accounts first — these consistently produce bad
+  // responses, useful for the company-rollup demo.
+  for (const account of NAMED_DETRACTOR_COMPANIES) {
     customers.push({
       id: prefixedId("cus"),
       name: faker.person.fullName(),
       email: faker.internet
         .email()
         .toLowerCase()
-        .replace(/@.*$/, `@${company.toLowerCase().replace(/\s+/g, "")}.com`),
-      company,
-      tier: "enterprise",
+        .replace(/@.*$/, `@${account.domain}`),
+      tier: "elite",
+      language: "en",
+      company: account.name,
+      companyExternalId: faker.string.numeric(11),
+      companyDomain: account.domain,
       helpdeskExternalId: faker.string.numeric(7),
+      customProperties: buildCustomProperties(CUSTOMER_CUSTOM_FIELDS, 30, 50),
       createdAt: new Date(NOW - 300 * ONE_DAY),
       updatedAt: new Date(NOW),
     });
   }
-  for (let i = 0; i < 497; i++) {
+
+  const TARGET_CUSTOMERS = 1200;
+  for (let i = customers.length; i < TARGET_CUSTOMERS; i++) {
+    // ~5% of customers are B2B (wholesale, gifting, influencer, partner).
+    const isB2B = faker.number.int({ min: 0, max: 99 }) < 5;
+    const b2bAccount = isB2B ? pickFrom(B2B_COMPANIES) : null;
+    const language =
+      faker.number.int({ min: 0, max: 99 }) < 70 ? pickFrom(LANGUAGES) : null;
+
+    const tier = pickWeighted(TIER_WEIGHTS);
+    const email = isB2B && b2bAccount
+      ? faker.internet
+          .email()
+          .toLowerCase()
+          .replace(/@.*$/, `@${b2bAccount.domain}`)
+      : faker.internet.email().toLowerCase();
+
     customers.push({
       id: prefixedId("cus"),
       name: faker.person.fullName(),
-      email: faker.internet.email().toLowerCase(),
-      company: faker.company.name(),
-      tier: pickWeighted(TIER_WEIGHTS),
+      email,
+      tier,
+      language,
+      company: b2bAccount?.name ?? null,
+      companyExternalId: b2bAccount ? faker.string.numeric(11) : null,
+      companyDomain: b2bAccount?.domain ?? null,
       helpdeskExternalId: faker.string.numeric(7),
+      customProperties: buildCustomProperties(CUSTOMER_CUSTOM_FIELDS, 25, 50),
       createdAt: new Date(
         NOW - faker.number.int({ min: 1, max: HORIZON_DAYS }) * ONE_DAY,
       ),
@@ -326,17 +866,32 @@ async function seed() {
 
   console.log("Generating team members...");
   const teamMembers: NewTeamMember[] = [];
-  const tier1Count = 15;
-  const tier2Count = 10;
-  for (let i = 0; i < tier1Count + tier2Count; i++) {
+  const totalTeamMembers = 25;
+  // Bias group assignment — Customer Care is the biggest bucket.
+  const groupAssignmentPool: string[] = [
+    ...Array(8).fill(groupIdByName.get("Customer Care")!),
+    ...Array(4).fill(groupIdByName.get("Returns & Exchanges")!),
+    ...Array(4).fill(groupIdByName.get("Online Orders")!),
+    ...Array(3).fill(groupIdByName.get("Stores & BOPIS")!),
+    ...Array(3).fill(groupIdByName.get("Loyalty & VIP")!),
+    ...Array(3).fill(groupIdByName.get("Escalations")!),
+  ];
+
+  for (let i = 0; i < totalTeamMembers; i++) {
+    const groupId = groupAssignmentPool[i % groupAssignmentPool.length];
+    const team = i < 10 ? TEAMS[0] : i < 20 ? TEAMS[1] : TEAMS[2];
     teamMembers.push({
       id: prefixedId("tm"),
       name: faker.person.fullName(),
       email: faker.internet.email().toLowerCase(),
       role: pickFrom(SUPPORT_ROLES),
-      team: i < tier1Count ? TEAMS[0] : TEAMS[1],
+      team,
+      region: pickFrom(REGIONS),
+      language: pickFrom(LANGUAGES),
+      groupId,
       helpdeskExternalId: faker.string.numeric(7),
       avatarColor: pickFrom(AVATAR_COLORS),
+      customProperties: buildCustomProperties(TEAM_MEMBER_CUSTOM_FIELDS, 8, 16),
       createdAt: new Date(
         NOW - faker.number.int({ min: 30, max: HORIZON_DAYS }) * ONE_DAY,
       ),
@@ -344,7 +899,7 @@ async function seed() {
     });
   }
 
-  // 4 of the 25 agents are "low performers" - shifted-down rating distribution
+  // 4 of the 25 agents are "low performers" — shifted-down rating distribution
   const lowPerformerIds = new Set(
     faker.helpers.arrayElements(
       teamMembers.map((t) => t.id!),
@@ -364,10 +919,13 @@ async function seed() {
   });
 
   console.log("Generating 50,000 tickets + responses...");
+  const detractorCompanyNames = new Set(
+    NAMED_DETRACTOR_COMPANIES.map((d) => d.name),
+  );
   const detractorCustomerIds = new Set(
-    customers.filter((c) => NAMED_DETRACTOR_COMPANIES.includes(c.company)).map(
-      (c) => c.id!,
-    ),
+    customers
+      .filter((c) => c.company && detractorCompanyNames.has(c.company))
+      .map((c) => c.id!),
   );
   const customerIds = customers.map((c) => c.id!);
   const agentIds = teamMembers.map((t) => t.id!);
@@ -382,7 +940,6 @@ async function seed() {
     const daysAgo = faker.number.int({ min: 0, max: HORIZON_DAYS });
     const baseCreated = NOW - daysAgo * ONE_DAY;
     const createdDate = new Date(baseCreated);
-    // Slight Mon/Tue bump, dip on Sat/Sun: rerandomize day occasionally
     const dow = createdDate.getUTCDay();
     if ((dow === 0 || dow === 6) && faker.number.int({ min: 0, max: 99 }) < 60) {
       createdDate.setUTCDate(
@@ -393,6 +950,7 @@ async function seed() {
 
     const status = pickWeighted(STATUS_WEIGHTS);
     const channel = pickWeighted(CHANNEL_WEIGHTS);
+    const priority = pickWeighted(PRIORITY_WEIGHTS);
     const customerId = pickFrom(customerIds);
     const isDetractorCustomer = detractorCustomerIds.has(customerId);
     const agentId = pickFrom(agentIds);
@@ -431,14 +989,12 @@ async function seed() {
     let attachResponse = false;
 
     if (surveyEligible && solvedAt) {
-      // ~11% of eligible-but-not-sent tickets get a not-sent reason
       const notSentRoll = faker.number.int({ min: 0, max: 99 });
       if (notSentRoll < 11) {
         surveyNotSentReason = pickWeighted(NOT_SENT_REASONS);
       } else {
         surveySentAt =
           solvedAt + faker.number.int({ min: 1, max: 30 }) * 60 * 1000;
-        // 30% of sent surveys get responded to (yields ~15k responses)
         if (faker.number.int({ min: 0, max: 99 }) < 38) {
           attachResponse = true;
         }
@@ -471,6 +1027,7 @@ async function seed() {
       subject: pickFrom(SUBJECTS),
       status,
       channel,
+      priority,
       helpdesk: "zendesk",
       helpdeskExternalId: faker.string.numeric(8),
       customerId,
@@ -500,26 +1057,44 @@ async function seed() {
       const respondedAt =
         surveySentAt! + faker.number.int({ min: 5, max: 60 * 48 }) * 60 * 1000;
 
-      const comment =
-        baseRating <= 3 && faker.number.int({ min: 0, max: 99 }) < 70
-          ? faker.lorem.sentence({ min: 6, max: 18 })
-          : baseRating === 5 && faker.number.int({ min: 0, max: 99 }) < 30
-            ? faker.lorem.sentence({ min: 4, max: 10 })
-            : null;
+      const surveyId = pickFrom(surveyWeightPool);
+      const survey = surveyById.get(surveyId)!;
 
-      const answers = buildSurveyAnswers(baseRating, comment);
+      // Project the 1-5 base rating into the survey's scale
+      let storedRating: number;
+      if (survey.scale === 11) {
+        storedRating =
+          baseRating === 1
+            ? 1
+            : baseRating === 2
+              ? 4
+              : baseRating === 3
+                ? 7
+                : baseRating === 4
+                  ? 9
+                  : 10;
+      } else {
+        storedRating = baseRating;
+      }
+
+      const comment = pickComment(survey.metric, storedRating);
+
+      const answers = buildSurveyAnswers(survey, storedRating, comment);
+      const topics = rollupTopics(answers.map((a) => a.topics));
 
       responses.push({
         id: prefixedId("rsp"),
         ticketId,
         customerId,
         teamMemberId: agentId,
-        surveyType: "csat",
-        rating: baseRating,
-        scale: 5,
+        surveyId,
+        surveyType: survey.metric,
+        rating: storedRating,
+        scale: survey.scale,
         comment,
         respondedAt: new Date(respondedAt),
         answers,
+        topics,
       });
     }
   }
@@ -542,16 +1117,26 @@ async function seed() {
   });
 
   console.log("Done. Final counts:");
-  const [customerCount, teamMemberCount, ticketCount, responseCount] =
-    await Promise.all([
-      db.$count(schema.customers),
-      db.$count(schema.teamMembers),
-      db.$count(schema.tickets),
-      db.$count(schema.responses),
-    ]);
+  const [
+    surveyCount,
+    customerCount,
+    teamMemberCount,
+    teamMemberGroupCount,
+    ticketCount,
+    responseCount,
+  ] = await Promise.all([
+    db.$count(schema.surveys),
+    db.$count(schema.customers),
+    db.$count(schema.teamMembers),
+    db.$count(schema.teamMemberGroups),
+    db.$count(schema.tickets),
+    db.$count(schema.responses),
+  ]);
   console.log({
+    surveys: surveyCount,
     customers: customerCount,
     teamMembers: teamMemberCount,
+    teamMemberGroups: teamMemberGroupCount,
     tickets: ticketCount,
     responses: responseCount,
     conversationsAttached,

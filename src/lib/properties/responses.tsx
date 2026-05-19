@@ -17,7 +17,9 @@ export const RESPONSE_PROPERTIES: Property<ResponseListRow>[] = [
     width: 110,
     group: "Answer",
     alwaysVisible: true,
-    cell: (r) => <ResponsePill rating={r.rating} scale={r.scale} />,
+    cell: (r) => (
+      <ResponsePill id={r.id} rating={r.rating} scale={r.scale} />
+    ),
   },
   {
     id: "comment",
@@ -27,7 +29,7 @@ export const RESPONSE_PROPERTIES: Property<ResponseListRow>[] = [
     defaultVisible: true,
     cell: (r) =>
       r.comment ? (
-        <span className="text-foreground/80">{r.comment}</span>
+        <span className="text-foreground">{r.comment}</span>
       ) : (
         <span className="text-muted-foreground">-</span>
       ),
@@ -63,8 +65,8 @@ export const RESPONSE_PROPERTIES: Property<ResponseListRow>[] = [
       ),
   },
   {
-    id: "agent",
-    label: "Agent",
+    id: "team_member",
+    label: "Team member",
     width: 200,
     group: "Relations",
     defaultVisible: true,
@@ -100,5 +102,6 @@ export const RESPONSE_PROPERTIES: Property<ResponseListRow>[] = [
     cell: (r) => (
       <span className="font-mono text-xs text-muted-foreground">{r.id}</span>
     ),
+    detail: (r) => <span className="text-muted-foreground">{r.id}</span>,
   },
 ];

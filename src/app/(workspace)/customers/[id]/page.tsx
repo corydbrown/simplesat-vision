@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { Topbar } from "@/components/shell/topbar";
 import { CustomerDetailBody } from "@/components/customers/customer-detail";
+import { DetailActions } from "@/components/shared/detail-actions";
 import {
   getCustomerById,
   getCustomerResponses,
@@ -8,14 +9,10 @@ import {
 } from "@/db/queries/customers";
 import type { CustomerListRow } from "@/db/queries/customers";
 
-type Tab = "tickets" | "responses";
-
 export default async function CustomerDetailPage(
   props: PageProps<"/customers/[id]">,
 ) {
   const { id } = await props.params;
-  const sp = await props.searchParams;
-  const tab: Tab = sp.tab === "responses" ? "responses" : "tickets";
 
   const customer = await getCustomerById(id);
   if (!customer) notFound();
@@ -30,7 +27,11 @@ export default async function CustomerDetailPage(
     name: customer.name,
     email: customer.email,
     company: customer.company,
+    companyExternalId: customer.companyExternalId,
+    companyDomain: customer.companyDomain,
+    language: customer.language,
     tier: customer.tier,
+    customProperties: customer.customProperties,
     totalTickets: customer.stats.totalTickets,
     avgRating: customer.stats.avgRating,
     lastSeen: customer.stats.lastSeen,
@@ -43,13 +44,13 @@ export default async function CustomerDetailPage(
           { label: "Customers", href: "/customers" },
           { label: customer.name },
         ]}
+        actions={<DetailActions entityHref={`/customers/${customer.id}`} />}
       />
       <CustomerDetailBody
         customer={customer}
         customerRow={customerRow}
         tickets={tickets}
         responses={responses}
-        tab={tab}
       />
     </>
   );

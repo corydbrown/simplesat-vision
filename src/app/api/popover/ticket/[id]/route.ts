@@ -24,7 +24,7 @@ export async function GET(
           company: ticket.customer.company,
         }
       : null,
-    agent: ticket.assignee
+    teamMember: ticket.assignee
       ? {
           id: ticket.assignee.id,
           name: ticket.assignee.name,

@@ -37,7 +37,7 @@ export default async function TeamMembersPage(
         pageSize={total || 1}
         total={total}
         basePath="/team-members"
-        rowHrefBase="/team-members"
+        drawerEntity="team-member"
       />
     </ColumnStateProvider>
   );

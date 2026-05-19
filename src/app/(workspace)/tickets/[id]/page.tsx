@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { Topbar } from "@/components/shell/topbar";
 import { TicketDetailBody } from "@/components/tickets/ticket-detail";
+import { DetailActions } from "@/components/shared/detail-actions";
 import { getTicketById } from "@/db/queries/tickets";
 
 export default async function TicketDetailPage(
@@ -17,6 +18,7 @@ export default async function TicketDetailPage(
           { label: "Tickets", href: "/tickets" },
           { label: ticket.helpdeskExternalId ?? ticket.id },
         ]}
+        actions={<DetailActions entityHref={`/tickets/${ticket.id}`} />}
       />
       <TicketDetailBody ticket={ticket} />
     </>

@@ -8,9 +8,11 @@ import { AvgRating } from "@/components/shared/avg-rating";
 import { TierPill } from "@/components/shared/tier-pill";
 import type { CustomerListRow } from "@/db/queries/customers";
 import { formatDate, formatNumber } from "@/lib/format";
+import { CUSTOMER_CUSTOM_FIELDS } from "./custom-fields";
+import { customFieldProperties } from "./custom-field-properties";
 import type { Property } from "./types";
 
-export const CUSTOMER_PROPERTIES: Property<CustomerListRow>[] = [
+const CORE_PROPERTIES: Property<CustomerListRow>[] = [
   {
     id: "name",
     label: "Name",
@@ -18,14 +20,6 @@ export const CUSTOMER_PROPERTIES: Property<CustomerListRow>[] = [
     group: "Identity",
     alwaysVisible: true,
     cell: (c) => <CustomerPill id={c.id} name={c.name} />,
-  },
-  {
-    id: "company",
-    label: "Company",
-    width: 200,
-    group: "Identity",
-    defaultVisible: true,
-    cell: (c) => <CompanyPill name={c.company} />,
   },
   {
     id: "email",
@@ -37,11 +31,66 @@ export const CUSTOMER_PROPERTIES: Property<CustomerListRow>[] = [
   },
   {
     id: "tier",
-    label: "Tier",
-    width: 120,
+    label: "Loyalty tier",
+    width: 130,
     group: "Account",
     defaultVisible: true,
     cell: (c) => <TierPill tier={c.tier} />,
+  },
+  {
+    id: "language",
+    label: "Language",
+    width: 110,
+    group: "Identity",
+    defaultVisible: false,
+    cell: (c) =>
+      c.language ? (
+        <span className="text-muted-foreground">{c.language}</span>
+      ) : (
+        <span className="text-muted-foreground">-</span>
+      ),
+  },
+  {
+    id: "company",
+    label: "Company",
+    width: 200,
+    group: "Account",
+    defaultVisible: true,
+    cell: (c) => <CompanyPill name={c.company} />,
+  },
+  {
+    id: "company_external_id",
+    label: "Company external ID",
+    width: 170,
+    group: "Account",
+    defaultVisible: false,
+    cell: (c) =>
+      c.companyExternalId ? (
+        <span className="font-mono text-xs text-muted-foreground">
+          {c.companyExternalId}
+        </span>
+      ) : (
+        <span className="text-muted-foreground">-</span>
+      ),
+    detail: (c) =>
+      c.companyExternalId ? (
+        <span className="text-muted-foreground">{c.companyExternalId}</span>
+      ) : (
+        <span className="text-muted-foreground">-</span>
+      ),
+  },
+  {
+    id: "company_domain",
+    label: "Company domain",
+    width: 200,
+    group: "Account",
+    defaultVisible: false,
+    cell: (c) =>
+      c.companyDomain ? (
+        <span className="text-muted-foreground">{c.companyDomain}</span>
+      ) : (
+        <span className="text-muted-foreground">-</span>
+      ),
   },
   {
     id: "total_tickets",
@@ -51,7 +100,9 @@ export const CUSTOMER_PROPERTIES: Property<CustomerListRow>[] = [
     defaultVisible: true,
     align: "right",
     cell: (c) => (
-      <span className="tabular-nums">{formatNumber(c.totalTickets)}</span>
+      <span className="tabular-nums text-muted-foreground">
+        {formatNumber(c.totalTickets)}
+      </span>
     ),
   },
   {
@@ -83,5 +134,11 @@ export const CUSTOMER_PROPERTIES: Property<CustomerListRow>[] = [
     cell: (c) => (
       <span className="font-mono text-xs text-muted-foreground">{c.id}</span>
     ),
+    detail: (c) => <span className="text-muted-foreground">{c.id}</span>,
   },
+];
+
+export const CUSTOMER_PROPERTIES: Property<CustomerListRow>[] = [
+  ...CORE_PROPERTIES,
+  ...customFieldProperties<CustomerListRow>(CUSTOMER_CUSTOM_FIELDS),
 ];

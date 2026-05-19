@@ -1,4 +1,8 @@
 import { PrimaryNav } from "@/components/shell/primary-nav";
+import { GlobalDrawer } from "@/components/shared/global-drawer";
+import { SidebarProvider } from "@/components/shell/sidebar-context";
+
+export const dynamic = "force-dynamic";
 
 export default function WorkspaceLayout({
   children,
@@ -6,9 +10,12 @@ export default function WorkspaceLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex min-h-screen">
-      <PrimaryNav />
-      <div className="flex-1 flex min-w-0">{children}</div>
-    </div>
+    <SidebarProvider>
+      <div className="flex min-h-screen">
+        <PrimaryNav />
+        <div className="flex-1 flex min-w-0">{children}</div>
+        <GlobalDrawer />
+      </div>
+    </SidebarProvider>
   );
 }

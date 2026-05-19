@@ -66,12 +66,14 @@ export function responsesViewWhere(viewId: string): SQL | undefined {
 
 export function customersViewWhere(viewId: string): SQL | undefined {
   switch (viewId) {
-    case "enterprise":
-      return eq(schema.customers.tier, "enterprise");
-    case "pro":
-      return eq(schema.customers.tier, "pro");
-    case "starter":
-      return eq(schema.customers.tier, "starter");
+    case "elite":
+      return eq(schema.customers.tier, "elite");
+    case "gold":
+      return eq(schema.customers.tier, "gold");
+    case "insider":
+      return eq(schema.customers.tier, "insider");
+    case "b2b":
+      return isNotNull(schema.customers.company);
     // at-risk is computed (avg rating) - handled in customer queries directly
     default:
       return undefined;
@@ -80,10 +82,12 @@ export function customersViewWhere(viewId: string): SQL | undefined {
 
 export function teamMembersViewWhere(viewId: string): SQL | undefined {
   switch (viewId) {
-    case "tier-1":
-      return eq(schema.teamMembers.team, "Tier 1");
-    case "tier-2":
-      return eq(schema.teamMembers.team, "Tier 2");
+    case "front-line":
+      return eq(schema.teamMembers.team, "Front line");
+    case "senior":
+      return eq(schema.teamMembers.team, "Senior");
+    case "specialist":
+      return eq(schema.teamMembers.team, "Specialist");
     // low-performers is computed - handled in team-member queries directly
     default:
       return undefined;

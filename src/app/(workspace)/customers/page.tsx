@@ -32,7 +32,7 @@ export default async function CustomersPage(props: PageProps<"/customers">) {
         pageSize={total || 1}
         total={total}
         basePath="/customers"
-        rowHrefBase="/customers"
+        drawerEntity="customer"
       />
     </ColumnStateProvider>
   );

@@ -23,15 +23,17 @@ export const RESPONSE_VIEWS: ViewDef[] = [
 
 export const CUSTOMER_VIEWS: ViewDef[] = [
   { id: "all", label: "All customers" },
-  { id: "enterprise", label: "Enterprise" },
-  { id: "pro", label: "Pro" },
-  { id: "starter", label: "Starter" },
+  { id: "elite", label: "Elite" },
+  { id: "gold", label: "Gold" },
+  { id: "insider", label: "Insider" },
+  { id: "b2b", label: "B2B accounts" },
   { id: "at-risk", label: "At risk" },
 ];
 
 export const TEAM_MEMBER_VIEWS: ViewDef[] = [
   { id: "all", label: "All members" },
-  { id: "tier-1", label: "Tier 1" },
-  { id: "tier-2", label: "Tier 2" },
+  { id: "front-line", label: "Front line" },
+  { id: "senior", label: "Senior" },
+  { id: "specialist", label: "Specialist" },
   { id: "low-performers", label: "Low performers" },
 ];

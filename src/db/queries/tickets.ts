@@ -8,13 +8,14 @@ export type TicketSortKey =
   | "createdAt"
   | "subject"
   | "status"
+  | "priority"
   | "channel"
   | "closedAt"
   | "solvedAt";
 export type SortDir = "asc" | "desc";
 
 export type TicketsRow = Ticket & {
-  customer: { id: string; name: string; company: string } | null;
+  customer: { id: string; name: string; company: string | null } | null;
   assignee: {
     id: string;
     name: string;
@@ -33,6 +34,7 @@ const SORT_COLUMN_MAP = {
   createdAt: schema.tickets.createdAt,
   subject: schema.tickets.subject,
   status: schema.tickets.status,
+  priority: schema.tickets.priority,
   channel: schema.tickets.channel,
   closedAt: schema.tickets.closedAt,
   solvedAt: schema.tickets.solvedAt,

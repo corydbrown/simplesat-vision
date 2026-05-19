@@ -16,6 +16,7 @@ export type ResponseListRow = {
   ticketExternalId: string | null;
   customerId: string | null;
   customerName: string | null;
+  customerCompany: string | null;
   teamMemberId: string | null;
   teamMemberName: string | null;
   teamMemberAvatarColor: string | null;
@@ -43,6 +44,7 @@ export async function listResponses({
       ticketExternalId: schema.tickets.helpdeskExternalId,
       customerId: schema.customers.id,
       customerName: schema.customers.name,
+      customerCompany: schema.customers.company,
       teamMemberId: schema.teamMembers.id,
       teamMemberName: schema.teamMembers.name,
       teamMemberAvatarColor: schema.teamMembers.avatarColor,
@@ -82,9 +84,9 @@ export type ResponseDetail = Response & {
   customer: {
     id: string;
     name: string;
-    company: string;
+    company: string | null;
   } | null;
-  agent: {
+  teamMember: {
     id: string;
     name: string;
     avatarColor: string;
@@ -106,10 +108,10 @@ export async function getResponseById(
       customerId: schema.customers.id,
       customerName: schema.customers.name,
       customerCompany: schema.customers.company,
-      agentId: schema.teamMembers.id,
-      agentName: schema.teamMembers.name,
-      agentAvatarColor: schema.teamMembers.avatarColor,
-      agentTeam: schema.teamMembers.team,
+      teamMemberId: schema.teamMembers.id,
+      teamMemberName: schema.teamMembers.name,
+      teamMemberAvatarColor: schema.teamMembers.avatarColor,
+      teamMemberTeam: schema.teamMembers.team,
     })
     .from(schema.responses)
     .leftJoin(
@@ -144,15 +146,15 @@ export async function getResponseById(
       ? {
           id: row.customerId,
           name: row.customerName!,
-          company: row.customerCompany!,
+          company: row.customerCompany,
         }
       : null,
-    agent: row.agentId
+    teamMember: row.teamMemberId
       ? {
-          id: row.agentId,
-          name: row.agentName!,
-          avatarColor: row.agentAvatarColor!,
-          team: row.agentTeam!,
+          id: row.teamMemberId,
+          name: row.teamMemberName!,
+          avatarColor: row.teamMemberAvatarColor!,
+          team: row.teamMemberTeam!,
         }
       : null,
   };

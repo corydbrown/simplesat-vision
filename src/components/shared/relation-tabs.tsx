@@ -9,24 +9,43 @@ export type Tab = {
   count?: number | string;
 };
 
-export function RelationTabs({ tabs }: { tabs: Tab[] }) {
+export function RelationTabs({
+  tabs,
+  paramName = "tab",
+  alwaysSet = false,
+  trailing,
+}: {
+  tabs: Tab[];
+  paramName?: string;
+  /**
+   * If true, the first/default tab still puts paramName in the URL.
+   * Otherwise, the default tab clears the param.
+   */
+  alwaysSet?: boolean;
+  /**
+   * Slot for content rendered right-aligned next to the tabs.
+   * Used for things like "open as full-width table" links.
+   */
+  trailing?: React.ReactNode;
+}) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const current = searchParams.get("tab") ?? tabs[0]?.id;
+  const current = searchParams.get(paramName) ?? tabs[0]?.id;
 
   function buildHref(tabId: string): string {
     const next = new URLSearchParams(searchParams.toString());
-    if (tabId === tabs[0]?.id) {
-      next.delete("tab");
+    if (tabId === tabs[0]?.id && !alwaysSet) {
+      next.delete(paramName);
     } else {
-      next.set("tab", tabId);
+      next.set(paramName, tabId);
     }
     const qs = next.toString();
     return `${pathname}${qs ? `?${qs}` : ""}`;
   }
 
   return (
-    <div className="flex items-center gap-1 border-b border-border">
+    <div className="flex items-center gap-1 pb-2">
+      <div className="flex flex-1 items-center gap-1 min-w-0">
       {tabs.map((t) => {
         const active = t.id === current;
         return (
@@ -34,10 +53,10 @@ export function RelationTabs({ tabs }: { tabs: Tab[] }) {
             key={t.id}
             href={buildHref(t.id)}
             scroll={false}
-            className={`-mb-px flex items-center gap-1.5 border-b-2 px-3 py-2 text-sm transition-colors ${
+            className={`flex cursor-pointer items-center gap-1.5 rounded-full px-3 py-1.5 text-sm transition-colors ${
               active
-                ? "border-foreground text-foreground"
-                : "border-transparent text-muted-foreground hover:text-foreground"
+                ? "bg-accent text-foreground font-medium"
+                : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
             }`}
           >
             <span>{t.label}</span>
@@ -55,6 +74,8 @@ export function RelationTabs({ tabs }: { tabs: Tab[] }) {
           </Link>
         );
       })}
+      </div>
+      {trailing}
     </div>
   );
 }

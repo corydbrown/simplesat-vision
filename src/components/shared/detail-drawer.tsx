@@ -1,8 +1,17 @@
 "use client";
 
-import { GripVertical, X } from "lucide-react";
+import { ChevronsRight, GripVertical, Maximize2 } from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { Kbd } from "@/components/ui/kbd";
+import { DetailActions } from "./detail-actions";
+import { useDetailHotkeys } from "@/lib/use-detail-hotkeys";
 
 const STORAGE_KEY = "simplesat:drawer:width";
 const DEFAULT_WIDTH = 720;
@@ -15,7 +24,9 @@ function loadWidth(): number {
     const raw = window.localStorage.getItem(STORAGE_KEY);
     if (!raw) return DEFAULT_WIDTH;
     const n = Number(raw);
-    return Number.isFinite(n) && n >= MIN_WIDTH && n <= MAX_WIDTH ? n : DEFAULT_WIDTH;
+    return Number.isFinite(n) && n >= MIN_WIDTH && n <= MAX_WIDTH
+      ? n
+      : DEFAULT_WIDTH;
   } catch {
     return DEFAULT_WIDTH;
   }
@@ -31,55 +42,50 @@ function saveWidth(width: number) {
 }
 
 export function DetailDrawer({
-  closeHref,
+  fullPageHref,
+  isOpen,
+  onClose,
   children,
 }: {
-  closeHref: string;
+  fullPageHref: string;
+  isOpen: boolean;
+  onClose: () => void;
   children: React.ReactNode;
 }) {
-  const router = useRouter();
   const drawerRef = useRef<HTMLDivElement>(null);
+  const router = useRouter();
   const [width, setWidth] = useState(DEFAULT_WIDTH);
   const [resizing, setResizing] = useState(false);
 
-  // Hydrate persisted width after mount to avoid SSR/CSR mismatch.
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setWidth(loadWidth());
   }, []);
 
-  // Persist width changes
   useEffect(() => {
     if (width !== DEFAULT_WIDTH) saveWidth(width);
   }, [width]);
 
-  // Close on Escape
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") router.push(closeHref);
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [closeHref, router]);
+  // Esc and Cmd+Enter live here because they're drawer-specific. Cmd+L
+  // is handled by DetailActions (works on standalone pages too).
+  useDetailHotkeys({
+    onClose: isOpen ? onClose : undefined,
+    onOpenFull: isOpen ? () => router.push(fullPageHref) : undefined,
+  });
 
-  // Close on outside click — but let entity links/buttons navigate first.
-  // A deferred document listener avoids firing on the initial open click.
+  // Close on outside click. Skip when any Radix popper (dropdown, tooltip,
+  // hover card) is currently mounted — the click is dismissing that, not
+  // the drawer.
   useEffect(() => {
+    if (!isOpen) return;
     const onClick = (e: MouseEvent) => {
       if (!drawerRef.current) return;
       const target = e.target as HTMLElement;
       if (drawerRef.current.contains(target)) return;
-      // Allow interactive elements to do their thing; this is how
-      // "click an entity pill outside drawer => opens that drawer"
-      // continues to work.
-      if (
-        target.closest(
-          "a, button, input, select, textarea, [role='button'], [contenteditable]",
-        )
-      ) {
-        return;
-      }
-      router.push(closeHref);
+      if (target.closest("[data-radix-popper-content-wrapper]")) return;
+      if (target.closest("[data-drawer-link]")) return;
+      if (document.querySelector("[data-radix-popper-content-wrapper]")) return;
+      onClose();
     };
     const timer = window.setTimeout(
       () => document.addEventListener("mousedown", onClick),
@@ -89,7 +95,7 @@ export function DetailDrawer({
       window.clearTimeout(timer);
       document.removeEventListener("mousedown", onClick);
     };
-  }, [closeHref, router]);
+  }, [isOpen, onClose]);
 
   const onResizeStart = useCallback(
     (e: React.PointerEvent) => {
@@ -115,8 +121,11 @@ export function DetailDrawer({
   return (
     <div
       ref={drawerRef}
-      style={{ width }}
-      className="fixed top-0 right-0 bottom-0 z-40 max-w-full bg-background border-l border-border shadow-2xl flex flex-col animate-in slide-in-from-right duration-200"
+      style={{
+        width,
+        transform: isOpen ? "translateX(0)" : "translateX(100%)",
+      }}
+      className="fixed top-0 right-0 bottom-0 z-40 max-w-full bg-background border-l border-border shadow-2xl flex flex-col transition-transform duration-200 ease-out"
     >
       <div
         onPointerDown={onResizeStart}
@@ -133,16 +142,41 @@ export function DetailDrawer({
           }`}
         />
       </div>
-      <div className="flex items-center justify-between border-b border-border px-4 py-2 shrink-0">
-        <div className="text-xs text-muted-foreground">Detail</div>
-        <button
-          type="button"
-          aria-label="Close"
-          onClick={() => router.push(closeHref)}
-          className="rounded p-1 text-muted-foreground hover:bg-accent hover:text-foreground"
-        >
-          <X size={16} />
-        </button>
+      <div className="flex items-center justify-between border-b border-border px-3 py-2 shrink-0">
+        <div className="flex items-center gap-0.5">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                aria-label="Close drawer"
+                onClick={onClose}
+                className="cursor-pointer rounded p-1 text-muted-foreground hover:bg-accent hover:text-foreground"
+              >
+                <ChevronsRight size={16} />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">
+              Close <Kbd>Esc</Kbd>
+            </TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Link
+                href={fullPageHref}
+                aria-label="Open in full page"
+                onClick={onClose}
+                className="cursor-pointer rounded p-1 text-muted-foreground hover:bg-accent hover:text-foreground"
+              >
+                <Maximize2 size={15} />
+              </Link>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">
+              Open in full page <Kbd>⌘</Kbd>
+              <Kbd>⏎</Kbd>
+            </TooltipContent>
+          </Tooltip>
+        </div>
+        <DetailActions entityHref={fullPageHref} />
       </div>
       <div className="flex-1 overflow-y-auto">{children}</div>
     </div>

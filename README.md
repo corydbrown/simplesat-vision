@@ -4,12 +4,12 @@ High-fidelity prototype of where Simplesat is headed - the future product, runni
 
 ## Stack
 
-- Next.js 16 (App Router) + React 19.2 + TypeScript strict
+- Next.js 16 (App Router, Turbopack) + React 19.2 + TypeScript strict
 - Tailwind CSS v4 + shadcn/ui (radix-nova preset, Lucide icons, Geist font)
-- TanStack Table v8 for the tickets grid
+- Custom `EntityTable` component (no TanStack — drag/resize/sort/show-hide built directly on dnd-kit + URL state)
 - Drizzle ORM + better-sqlite3 (local file at `db/simplesat.db`)
 - Faker for seed data
-- dnd-kit, Recharts available (used in phase 2)
+- dnd-kit (column reorder), Recharts (reserved for Reports phase)
 
 ## Quickstart
 
@@ -43,13 +43,16 @@ The seed is deterministic (`faker.seed(42)`) so re-running `db:reset` produces i
 ## What's mocked vs. real
 
 **Real**:
-- 500 customers, 25 team members, 50,000 tickets, ~14,000 responses, 50 tickets with real conversation threads. Stored in a local SQLite file. Queried server-side with Drizzle. All joins on the Tickets page are live.
+- 500 customers, 25 team members, 50,000 tickets, ~14,000 responses, 50 tickets with real conversation threads. Stored in a local SQLite file. Queried server-side with Drizzle.
+- All four list pages (Tickets, Customers, Team members, Responses) — Views, sort, column show/hide, drag-to-reorder, column resize, pagination.
+- Detail drawer + standalone page for all four entities. Drawer is URL-driven (`?drawer=<entity>:<id>`), opens from any page, swaps content in place, preserves back/forward.
+- Hover popovers on every entity pill.
 
 **Mocked / cosmetic**:
-- View tabs on the Tickets page (only "All tickets" is active)
-- Toolbar buttons (Filter, Group by, Sort, Properties, Export, New) are visual only
-- QA Evaluations: schema exists but no seed data or UI beyond the "Soon" cards
-- Stub pages for Responses, Customers, Team members, Reports
+- Toolbar buttons (Filter, Group by, Sort, Export, New) are visual only — except column show/hide, which is real.
+- Drawer kebab menu actions (Edit / Duplicate / Archive / Delete) are placeholder.
+- QA Evaluations: schema exists but no seed data or UI beyond the "Soon" cards.
+- Reports page: planning only (see `REPORTS.md`).
 
 ## Project layout
 

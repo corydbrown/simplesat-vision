@@ -15,6 +15,20 @@
       "when": 1779063772658,
       "tag": "0001_petite_golden_guardian",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1779172900547,
+      "tag": "0002_empty_randall",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1779192888450,
+      "tag": "0003_worried_skin",
+      "breakpoints": true
     }
   ]
 }

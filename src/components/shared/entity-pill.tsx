@@ -1,5 +1,9 @@
+"use client";
+
 import Link from "next/link";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { ArrowUpRight, Star } from "lucide-react";
+import { forwardRef } from "react";
 import {
   HoverCard,
   HoverCardContent,
@@ -7,6 +11,7 @@ import {
 } from "@/components/ui/hover-card";
 import { Avatar } from "@/components/shared/avatar";
 import { EntityPopoverBody } from "./entity-popover";
+import { type DrawerEntity, fullPagePath } from "./global-drawer";
 import { colorFromName, initialsFromName } from "@/lib/color-from-name";
 
 type CommonProps = {
@@ -19,6 +24,62 @@ const POPOVER_PROPS = {
   sideOffset: 4,
 } as const;
 
+// DrawerLink renders a real <a> so cmd/middle-click opens the full page in a
+// new tab. Default click is intercepted: we update the URL with ?drawer=.
+// Forwards refs and spreads arbitrary props so Radix HoverCard / DnD wrappers
+// using `asChild` can inject pointer handlers and refs.
+type DrawerLinkProps = Omit<
+  React.AnchorHTMLAttributes<HTMLAnchorElement>,
+  "href"
+> & {
+  entity: DrawerEntity;
+  id: string;
+};
+
+const DrawerLink = forwardRef<HTMLAnchorElement, DrawerLinkProps>(
+  function DrawerLink(
+    { entity, id, onClick: passedOnClick, children, ...rest },
+    ref,
+  ) {
+    const router = useRouter();
+    const pathname = usePathname();
+    const searchParams = useSearchParams();
+    const href = fullPagePath(entity, id);
+
+    function handleClick(e: React.MouseEvent<HTMLAnchorElement>) {
+      passedOnClick?.(e);
+      if (
+        e.defaultPrevented ||
+        e.button !== 0 ||
+        e.metaKey ||
+        e.ctrlKey ||
+        e.shiftKey ||
+        e.altKey
+      ) {
+        return;
+      }
+      e.preventDefault();
+      const next = new URLSearchParams(searchParams.toString());
+      next.set("drawer", `${entity}:${id}`);
+      next.delete("dt");
+      const qs = next.toString();
+      router.push(`${pathname}${qs ? `?${qs}` : ""}`, { scroll: false });
+    }
+
+    return (
+      <Link
+        {...rest}
+        ref={ref}
+        href={href}
+        onClick={handleClick}
+        data-drawer-link
+      >
+        {children}
+      </Link>
+    );
+  },
+);
+
 export function CustomerPill({
   id,
   name,
@@ -28,19 +89,19 @@ export function CustomerPill({
   return (
     <HoverCard openDelay={200} closeDelay={80}>
       <HoverCardTrigger asChild>
-        <BasePill
-          href={`/customers/${id}`}
-          avatar={
-            <Avatar
-              bg={colorFromName(name)}
-              initials={initialsFromName(name)}
-              size={size === "md" ? "md" : "sm"}
-            />
-          }
-          label={name}
-          size={size}
-          className={className}
-        />
+        <DrawerLink
+          entity="customer"
+          id={id}
+          className={basePillClass(size, className)}
+        >
+          <Avatar
+            bg={colorFromName(name)}
+            initials={initialsFromName(name)}
+            size={size === "md" ? "md" : "sm"}
+          />
+          <span className="truncate">{name}</span>
+          <ArrowUpRight size={10} className={arrowClass} />
+        </DrawerLink>
       </HoverCardTrigger>
       <HoverCardContent {...POPOVER_PROPS}>
         <EntityPopoverBody entity="customer" id={id} />
@@ -53,11 +114,11 @@ export function CompanyPill({
   name,
   size = "sm",
   className,
-}: CommonProps & { name: string }) {
+}: CommonProps & { name: string | null | undefined }) {
   if (!name) return <span className="text-muted-foreground">-</span>;
   return (
     <span
-      className={`inline-flex items-center rounded px-1 py-0.5 ${
+      className={`inline-flex items-center ${
         size === "md" ? "text-base" : "text-sm"
       } text-foreground ${className ?? ""}`}
     >
@@ -76,19 +137,19 @@ export function TeamMemberPill({
   return (
     <HoverCard openDelay={200} closeDelay={80}>
       <HoverCardTrigger asChild>
-        <BasePill
-          href={`/team-members/${id}`}
-          avatar={
-            <Avatar
-              bg={avatarColor}
-              initials={initialsFromName(name)}
-              size={size === "md" ? "md" : "sm"}
-            />
-          }
-          label={name}
-          size={size}
-          className={className}
-        />
+        <DrawerLink
+          entity="team-member"
+          id={id}
+          className={basePillClass(size, className)}
+        >
+          <Avatar
+            bg={avatarColor}
+            initials={initialsFromName(name)}
+            size={size === "md" ? "md" : "sm"}
+          />
+          <span className="truncate">{name}</span>
+          <ArrowUpRight size={10} className={arrowClass} />
+        </DrawerLink>
       </HoverCardTrigger>
       <HoverCardContent {...POPOVER_PROPS}>
         <EntityPopoverBody entity="team-member" id={id} />
@@ -108,11 +169,12 @@ export function TicketPill({
   return (
     <HoverCard openDelay={200} closeDelay={80}>
       <HoverCardTrigger asChild>
-        <Link
-          href={`/tickets/${id}`}
-          className={`group inline-flex items-center gap-1.5 rounded px-1 py-0.5 ${
+        <DrawerLink
+          entity="ticket"
+          id={id}
+          className={`group inline-flex cursor-pointer items-center gap-1.5 rounded -mx-1 px-1 py-0.5 ${
             size === "md" ? "text-base" : "text-sm"
-          } font-mono text-muted-foreground hover:bg-accent hover:text-foreground ${
+          } bg-accent/40 font-mono text-muted-foreground hover:bg-accent hover:text-foreground ${
             className ?? ""
           }`}
         >
@@ -122,11 +184,8 @@ export function TicketPill({
               {subject}
             </span>
           )}
-          <ArrowUpRight
-            size={11}
-            className="opacity-0 group-hover:opacity-100 transition-opacity"
-          />
-        </Link>
+          <ArrowUpRight size={11} className={arrowClass} />
+        </DrawerLink>
       </HoverCardTrigger>
       <HoverCardContent {...POPOVER_PROPS}>
         <EntityPopoverBody entity="ticket" id={id} />
@@ -136,57 +195,100 @@ export function TicketPill({
 }
 
 export function ResponsePill({
+  id,
   rating,
   scale,
   size = "sm",
   className,
-}: CommonProps & { rating: number; scale: number }) {
+}: CommonProps & { id?: string; rating: number; scale: number }) {
   const tone =
     rating <= 2
       ? "text-red-600"
       : rating === 3
         ? "text-amber-600"
         : "text-emerald-600";
-  return (
-    <span
-      className={`inline-flex items-center gap-1 ${
-        size === "md" ? "text-base" : "text-sm"
-      } ${tone} ${className ?? ""}`}
-    >
+  const inner = (
+    <>
       <Star size={11} className="fill-current" />
       <span className="tabular-nums font-medium">
         {rating}/{scale}
       </span>
-    </span>
+    </>
+  );
+  const visualClass = `inline-flex items-center gap-1 ${
+    size === "md" ? "text-base" : "text-sm"
+  } ${tone} ${className ?? ""}`;
+
+  if (!id) {
+    return <span className={visualClass}>{inner}</span>;
+  }
+  return (
+    <HoverCard openDelay={200} closeDelay={80}>
+      <HoverCardTrigger asChild>
+        <DrawerLink
+          entity="response"
+          id={id}
+          className={`${visualClass} group cursor-pointer rounded -mx-1 px-1 py-0.5 bg-accent/40 hover:bg-accent`}
+        >
+          {inner}
+          <ArrowUpRight size={10} className={arrowClass} />
+        </DrawerLink>
+      </HoverCardTrigger>
+      <HoverCardContent {...POPOVER_PROPS}>
+        <EntityPopoverBody entity="response" id={id} />
+      </HoverCardContent>
+    </HoverCard>
   );
 }
 
-function BasePill({
-  href,
-  avatar,
-  label,
-  size,
+export function SurveyPill({
+  id,
+  name,
+  metric,
+  size = "sm",
   className,
-}: {
-  href: string;
-  avatar: React.ReactNode;
-  label: string;
-  size: "sm" | "md";
-  className?: string;
+}: CommonProps & {
+  id: string;
+  name: string;
+  metric: "csat" | "nps" | "ces" | "five_star" | "custom";
 }) {
+  const tag =
+    metric === "csat"
+      ? "CSAT"
+      : metric === "nps"
+        ? "NPS"
+        : metric === "ces"
+          ? "CES"
+          : metric === "five_star"
+            ? "5★"
+            : "Custom";
   return (
-    <Link
-      href={href}
-      className={`group inline-flex items-center gap-1.5 rounded px-1 py-0.5 ${
-        size === "md" ? "text-base" : "text-sm"
-      } text-foreground hover:bg-accent ${className ?? ""}`}
-    >
-      {avatar}
-      <span className="truncate">{label}</span>
-      <ArrowUpRight
-        size={10}
-        className="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground"
-      />
-    </Link>
+    <HoverCard openDelay={200} closeDelay={80}>
+      <HoverCardTrigger asChild>
+        <DrawerLink
+          entity="survey"
+          id={id}
+          className={basePillClass(size, className)}
+        >
+          <span className="inline-flex items-center justify-center rounded bg-muted px-1 text-[10px] font-medium text-muted-foreground">
+            {tag}
+          </span>
+          <span className="truncate">{name}</span>
+          <ArrowUpRight size={10} className={arrowClass} />
+        </DrawerLink>
+      </HoverCardTrigger>
+      <HoverCardContent {...POPOVER_PROPS}>
+        <EntityPopoverBody entity="survey" id={id} />
+      </HoverCardContent>
+    </HoverCard>
   );
 }
+
+function basePillClass(size: "sm" | "md", className?: string) {
+  return `group inline-flex cursor-pointer items-center gap-1.5 rounded -mx-1 px-1 py-0.5 ${
+    size === "md" ? "text-base" : "text-sm"
+  } bg-accent/40 text-foreground hover:bg-accent ${className ?? ""}`;
+}
+
+const arrowClass =
+  "text-muted-foreground transition-colors group-hover:text-foreground";

@@ -9,13 +9,13 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { colorFromName, initialsFromName } from "@/lib/color-from-name";
 import { formatDate, formatDuration, formatNumber } from "@/lib/format";
 
-type Entity = "customer" | "team-member" | "ticket";
+type Entity = "customer" | "team-member" | "ticket" | "response" | "survey";
 
 type CustomerData = {
   id: string;
   name: string;
   email: string;
-  company: string;
+  company: string | null;
   tier: string;
   totalTickets: number;
   avgRating: number | null;
@@ -41,12 +41,35 @@ type TicketData = {
   subject: string;
   status: string;
   channel: string;
-  customer: { id: string; name: string; company: string } | null;
-  agent: { id: string; name: string; avatarColor: string } | null;
+  customer: { id: string; name: string; company: string | null } | null;
+  teamMember: { id: string; name: string; avatarColor: string } | null;
   rating: number | null;
   scale: number | null;
   createdAt: string;
   solvedAt: string | null;
+};
+
+type SurveyData = {
+  id: string;
+  name: string;
+  metric: "csat" | "nps" | "ces" | "five_star" | "custom";
+  channel: string;
+  status: string;
+  scale: number;
+  totalResponses: number;
+  avgRating: number | null;
+  lastResponseAt: string | null;
+};
+
+type ResponseData = {
+  id: string;
+  rating: number;
+  scale: number;
+  comment: string | null;
+  respondedAt: string;
+  ticket: { id: string; subject: string; externalId: string | null } | null;
+  customer: { id: string; name: string; company: string | null } | null;
+  teamMember: { id: string; name: string; avatarColor: string } | null;
 };
 
 const cache = new Map<string, unknown>();
@@ -123,7 +146,9 @@ export function EntityPopoverBody({
   if (entity === "customer") return <CustomerPopover data={data as CustomerData} />;
   if (entity === "team-member")
     return <TeamMemberPopover data={data as TeamMemberData} />;
-  return <TicketPopover data={data as TicketData} />;
+  if (entity === "ticket") return <TicketPopover data={data as TicketData} />;
+  if (entity === "survey") return <SurveyPopover data={data as SurveyData} />;
+  return <ResponsePopover data={data as ResponseData} />;
 }
 
 function StatBlock({
@@ -166,9 +191,11 @@ function CustomerPopover({ data }: { data: CustomerData }) {
             {data.email}
           </div>
           <div className="mt-1 flex items-center gap-1.5 text-xs">
-            <span className="text-muted-foreground truncate">
-              {data.company}
-            </span>
+            {data.company ? (
+              <span className="text-muted-foreground truncate">
+                {data.company}
+              </span>
+            ) : null}
             <span className="ml-1 rounded-full bg-muted px-1.5 py-0.5 text-[10px]">
               {tierLabel}
             </span>
@@ -205,11 +232,14 @@ function CustomerPopover({ data }: { data: CustomerData }) {
   );
 }
 
+const TEAM_TONES: Record<string, string> = {
+  "Front line": "bg-blue-50 text-blue-700",
+  Senior: "bg-violet-50 text-violet-700",
+  Specialist: "bg-emerald-50 text-emerald-700",
+};
+
 function TeamMemberPopover({ data }: { data: TeamMemberData }) {
-  const teamTone =
-    data.team === "Tier 1"
-      ? "bg-blue-50 text-blue-700"
-      : "bg-violet-50 text-violet-700";
+  const teamTone = TEAM_TONES[data.team] ?? "bg-zinc-100 text-zinc-700";
   return (
     <div>
       <div className="px-4 py-3 flex items-start gap-3">
@@ -252,6 +282,108 @@ function TeamMemberPopover({ data }: { data: TeamMemberData }) {
   );
 }
 
+function ResponsePopover({ data }: { data: ResponseData }) {
+  const tone = ratingTone(data.rating);
+  return (
+    <div>
+      <div className="px-4 py-3">
+        <div className="flex items-baseline gap-2">
+          <span className={`text-lg font-semibold tabular-nums ${tone ?? ""}`}>
+            <Star size={13} className="inline fill-current mr-0.5 -translate-y-0.5" />
+            {data.rating}/{data.scale}
+          </span>
+          <span className="text-[11px] text-muted-foreground tabular-nums">
+            {formatDate(new Date(data.respondedAt))}
+          </span>
+        </div>
+        {data.comment && (
+          <p className="mt-1 text-sm text-foreground/80 line-clamp-3">
+            &ldquo;{data.comment}&rdquo;
+          </p>
+        )}
+      </div>
+      <div className="border-t border-border px-4 py-3 bg-muted/30 space-y-1.5 text-xs">
+        {data.ticket && (
+          <div className="flex items-center gap-2">
+            <span className="text-muted-foreground w-20">Ticket</span>
+            <span className="font-mono text-muted-foreground">
+              {data.ticket.externalId ?? data.ticket.id}
+            </span>
+            <span className="truncate text-foreground/80">
+              {data.ticket.subject}
+            </span>
+          </div>
+        )}
+        {data.customer && (
+          <div className="flex items-center gap-2">
+            <span className="text-muted-foreground w-20">Customer</span>
+            <span className="font-medium">{data.customer.name}</span>
+            {data.customer.company ? (
+              <>
+                <span className="text-muted-foreground">·</span>
+                <span className="text-muted-foreground truncate">
+                  {data.customer.company}
+                </span>
+              </>
+            ) : null}
+          </div>
+        )}
+        {data.teamMember && (
+          <div className="flex items-center gap-2">
+            <span className="text-muted-foreground w-20">Team member</span>
+            <span className="font-medium">{data.teamMember.name}</span>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function SurveyPopover({ data }: { data: SurveyData }) {
+  const metricLabel =
+    data.metric === "csat"
+      ? "CSAT"
+      : data.metric === "nps"
+        ? "NPS"
+        : data.metric === "ces"
+          ? "CES"
+          : data.metric === "five_star"
+            ? "5-Star"
+            : "Custom";
+  const channelLabel = data.channel.replace(/_/g, " ");
+  return (
+    <div>
+      <div className="px-4 py-3">
+        <div className="text-[10px] uppercase tracking-wide text-muted-foreground">
+          {metricLabel} · {channelLabel}
+        </div>
+        <div className="mt-0.5 font-medium leading-tight">{data.name}</div>
+      </div>
+      <div className="grid grid-cols-2 gap-3 border-t border-border px-4 py-3 bg-muted/30">
+        <StatBlock label="Responses" value={formatNumber(data.totalResponses)} />
+        <StatBlock
+          label="Avg rating"
+          tone={ratingTone(data.avgRating)}
+          value={
+            data.avgRating != null ? (
+              <span className="tabular-nums">
+                {data.avgRating.toFixed(2)}/{data.scale}
+              </span>
+            ) : (
+              <span className="text-muted-foreground">-</span>
+            )
+          }
+        />
+      </div>
+      {data.lastResponseAt && (
+        <div className="px-4 py-2 text-[11px] text-muted-foreground border-t border-border">
+          Last response {formatDate(new Date(data.lastResponseAt))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function TicketPopover({ data }: { data: TicketData }) {
   return (
     <div>
@@ -270,16 +402,20 @@ function TicketPopover({ data }: { data: TicketData }) {
           <div className="flex items-center gap-2">
             <span className="text-muted-foreground w-20">Customer</span>
             <span className="font-medium">{data.customer.name}</span>
-            <span className="text-muted-foreground">·</span>
-            <span className="text-muted-foreground truncate">
-              {data.customer.company}
-            </span>
+            {data.customer.company ? (
+              <>
+                <span className="text-muted-foreground">·</span>
+                <span className="text-muted-foreground truncate">
+                  {data.customer.company}
+                </span>
+              </>
+            ) : null}
           </div>
         )}
-        {data.agent && (
+        {data.teamMember && (
           <div className="flex items-center gap-2">
-            <span className="text-muted-foreground w-20">Agent</span>
-            <span className="font-medium">{data.agent.name}</span>
+            <span className="text-muted-foreground w-20">Team member</span>
+            <span className="font-medium">{data.teamMember.name}</span>
           </div>
         )}
         <div className="flex items-center gap-2">

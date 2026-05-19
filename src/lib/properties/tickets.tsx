@@ -1,6 +1,7 @@
 "use client";
 
 import { ChannelPill } from "@/components/tickets/channel-pill";
+import { PriorityPill } from "@/components/tickets/priority-pill";
 import { StatusPill } from "@/components/tickets/status-pill";
 import { SurveyStateCell } from "@/components/tickets/survey-state-cell";
 import {
@@ -17,13 +18,18 @@ import type { Property } from "./types";
 export const TICKET_PROPERTIES: Property<TicketsRow>[] = [
   {
     id: "external_id",
-    label: "ID",
+    label: "External ID",
     width: 130,
     group: "Identity",
     alwaysVisible: true,
     sortable: false,
     cell: (t) => (
       <span className="font-mono text-xs text-muted-foreground">
+        {t.helpdeskExternalId ?? "-"}
+      </span>
+    ),
+    detail: (t) => (
+      <span className="text-muted-foreground">
         {t.helpdeskExternalId ?? "-"}
       </span>
     ),
@@ -45,6 +51,15 @@ export const TICKET_PROPERTIES: Property<TicketsRow>[] = [
     defaultVisible: true,
     sortable: true,
     cell: (t) => <StatusPill status={t.status} />,
+  },
+  {
+    id: "priority",
+    label: "Priority",
+    width: 110,
+    group: "State",
+    defaultVisible: true,
+    sortable: true,
+    cell: (t) => <PriorityPill priority={t.priority} />,
   },
   {
     id: "customer",
@@ -135,7 +150,11 @@ export const TICKET_PROPERTIES: Property<TicketsRow>[] = [
     defaultVisible: true,
     cell: (t) =>
       t.response ? (
-        <ResponsePill rating={t.response.rating} scale={t.response.scale} />
+        <ResponsePill
+          id={t.response.id}
+          rating={t.response.rating}
+          scale={t.response.scale}
+        />
       ) : (
         <span className="text-muted-foreground">-</span>
       ),
@@ -170,13 +189,14 @@ export const TICKET_PROPERTIES: Property<TicketsRow>[] = [
   },
   {
     id: "internal_id",
-    label: "Internal ID",
+    label: "ID",
     width: 156,
     group: "Identity",
     defaultVisible: false,
     cell: (t) => (
       <span className="font-mono text-xs text-muted-foreground">{t.id}</span>
     ),
+    detail: (t) => <span className="text-muted-foreground">{t.id}</span>,
   },
   {
     id: "helpdesk",

@@ -15,7 +15,7 @@ import type { SurveyAnswer } from "@/db/schema";
 function AnswerBlock({ answer }: { answer: SurveyAnswer }) {
   return (
     <div className="rounded-md border border-border bg-background px-4 py-3">
-      <div className="text-xs text-muted-foreground">{answer.question}</div>
+      <div className="text-sm text-muted-foreground">{answer.question}</div>
       <div className="mt-2">
         {answer.type === "rating" && (
           <StarRating value={answer.value} scale={answer.scale} />
@@ -77,9 +77,11 @@ function AnswerBlock({ answer }: { answer: SurveyAnswer }) {
 export function ResponseDetailBody({
   response,
   responseRow,
+  inDrawer = false,
 }: {
   response: ResponseDetail;
   responseRow: ResponseListRow;
+  inDrawer?: boolean;
 }) {
   const tone =
     response.rating <= 2
@@ -88,47 +90,71 @@ export function ResponseDetailBody({
         ? "text-amber-600"
         : "text-emerald-600";
 
-  return (
-    <main className="px-8 py-6">
-      <div className="mb-1 font-mono text-xs text-muted-foreground">
-        {response.id}
-      </div>
-      <div className="flex items-baseline gap-3">
-        <h1 className={`text-2xl font-semibold tracking-tight ${tone}`}>
-          {response.rating}/{response.scale}
-        </h1>
-        <span className="text-sm text-muted-foreground capitalize">
-          {response.surveyType} response
-        </span>
-        <span className="text-muted-foreground/60">·</span>
-        <span className="text-sm text-muted-foreground tabular-nums">
-          {formatDateTime(response.respondedAt)}
-        </span>
-      </div>
+  const header = (
+    <div className="flex items-baseline gap-3 min-w-0">
+      <h1 className={`text-3xl font-semibold tracking-tight ${tone}`}>
+        {response.rating}/{response.scale}
+      </h1>
+      <span className="text-sm text-muted-foreground capitalize">
+        {response.surveyType} response
+      </span>
+      <span className="text-muted-foreground/60">·</span>
+      <span className="text-sm text-muted-foreground tabular-nums">
+        {formatDateTime(response.respondedAt)}
+      </span>
+    </div>
+  );
 
-      <ColumnStateProvider
-        tableId="response-detail"
+  const properties = (
+    <ColumnStateProvider
+      tableId="response-detail"
+      properties={RESPONSE_PROPERTIES}
+    >
+      <div className="flex items-center justify-between pb-2">
+        <h2 className="text-sm font-medium text-muted-foreground">
+          Properties
+        </h2>
+        <PropertiesHeader properties={RESPONSE_PROPERTIES} />
+      </div>
+      <PropertiesPanel
+        row={responseRow}
         properties={RESPONSE_PROPERTIES}
-      >
-        <DetailSection
-          title="Properties"
-          trailing={<PropertiesHeader properties={RESPONSE_PROPERTIES} />}
-        >
-          <PropertiesPanel row={responseRow} properties={RESPONSE_PROPERTIES} />
-        </DetailSection>
-      </ColumnStateProvider>
+        layout={inDrawer ? "inline" : "stacked"}
+      />
+    </ColumnStateProvider>
+  );
 
-      <DetailSection title="Survey answers">
-        <div className="space-y-3">
-          {response.answers.length === 0 ? (
-            <div className="rounded-md border border-dashed border-border px-5 py-4 text-sm text-muted-foreground">
-              No structured answers.
-            </div>
-          ) : (
-            response.answers.map((a, i) => <AnswerBlock key={i} answer={a} />)
-          )}
-        </div>
-      </DetailSection>
+  const content = (
+    <DetailSection title="Survey answers">
+      <div className="space-y-3">
+        {response.answers.length === 0 ? (
+          <div className="rounded-md border border-dashed border-border px-5 py-4 text-sm text-muted-foreground">
+            No structured answers.
+          </div>
+        ) : (
+          response.answers.map((a, i) => <AnswerBlock key={i} answer={a} />)
+        )}
+      </div>
+    </DetailSection>
+  );
+
+  if (inDrawer) {
+    return (
+      <main className="px-10 py-7">
+        {header}
+        <div className="mt-6">{properties}</div>
+        <div className="mt-6">{content}</div>
+      </main>
+    );
+  }
+
+  return (
+    <main className="px-14 py-10">
+      {header}
+      <div className="mt-8 grid grid-cols-[1fr_260px] gap-10">
+        <div className="min-w-0">{content}</div>
+        <aside className="sticky top-14 self-start">{properties}</aside>
+      </div>
     </main>
   );
 }

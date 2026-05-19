@@ -1,6 +1,9 @@
 import { notFound } from "next/navigation";
 import { Topbar } from "@/components/shell/topbar";
 import { TeamMemberDetailBody } from "@/components/team-members/team-member-detail";
+import { DetailActions } from "@/components/shared/detail-actions";
+import { db, schema } from "@/db/client";
+import { eq } from "drizzle-orm";
 import {
   getRatingHistogram,
   getTeamMemberById,
@@ -9,22 +12,26 @@ import {
 } from "@/db/queries/team-members";
 import type { TeamMemberListRow } from "@/db/queries/team-members";
 
-type Tab = "tickets" | "responses";
-
 export default async function TeamMemberDetailPage(
   props: PageProps<"/team-members/[id]">,
 ) {
   const { id } = await props.params;
-  const sp = await props.searchParams;
-  const tab: Tab = sp.tab === "responses" ? "responses" : "tickets";
 
   const member = await getTeamMemberById(id);
   if (!member) notFound();
 
-  const [tickets, responses, histogram] = await Promise.all([
+  const [tickets, responses, histogram, group] = await Promise.all([
     getTeamMemberTickets(id, 50),
     getTeamMemberResponses(id, 50),
     getRatingHistogram(id),
+    member.groupId
+      ? db
+          .select({ name: schema.teamMemberGroups.name })
+          .from(schema.teamMemberGroups)
+          .where(eq(schema.teamMemberGroups.id, member.groupId))
+          .limit(1)
+          .then((rows) => rows[0] ?? null)
+      : Promise.resolve(null),
   ]);
 
   const memberRow: TeamMemberListRow = {
@@ -33,7 +40,12 @@ export default async function TeamMemberDetailPage(
     email: member.email,
     role: member.role,
     team: member.team,
+    region: member.region,
+    language: member.language,
+    groupId: member.groupId,
+    groupName: group?.name ?? null,
     avatarColor: member.avatarColor,
+    customProperties: member.customProperties,
     totalTickets: member.stats.totalTickets,
     avgRating: member.stats.avgRating,
     totalResponses: member.stats.totalResponses,
@@ -46,6 +58,7 @@ export default async function TeamMemberDetailPage(
           { label: "Team members", href: "/team-members" },
           { label: member.name },
         ]}
+        actions={<DetailActions entityHref={`/team-members/${member.id}`} />}
       />
       <TeamMemberDetailBody
         member={member}
@@ -53,7 +66,6 @@ export default async function TeamMemberDetailPage(
         tickets={tickets}
         responses={responses}
         histogram={histogram}
-        tab={tab}
       />
     </>
   );

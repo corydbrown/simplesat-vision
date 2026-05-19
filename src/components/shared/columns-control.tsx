@@ -35,7 +35,7 @@ export function ColumnsControl<T>({
         <Button
           variant="ghost"
           size="sm"
-          className="h-8 gap-1.5 text-sm text-muted-foreground"
+          className="h-8 cursor-pointer gap-1.5 text-sm text-muted-foreground"
         >
           <Eye size={13} />
           Properties

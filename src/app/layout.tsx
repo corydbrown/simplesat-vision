@@ -3,8 +3,8 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Simplesat Vision",
-  description: "Future Simplesat - high fidelity prototype",
+  title: "Bloom Beauty Vision",
+  description: "Future Simplesat - high fidelity prototype, seeded as Bloom Beauty",
 };
 
 export default function RootLayout({

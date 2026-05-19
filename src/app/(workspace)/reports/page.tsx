@@ -1,11 +1,22 @@
-import { ComingSoonPage } from "@/components/shell/coming-soon";
+import { Topbar } from "@/components/shell/topbar";
+import { ReportBuilder } from "@/components/reports/report-builder";
+import { configFromSearchParam } from "@/lib/reports/url-state";
 
-export default function ReportsPage() {
+export const dynamic = "force-dynamic";
+
+export default async function ReportsPage(props: PageProps<"/reports">) {
+  const sp = await props.searchParams;
+  const config = configFromSearchParam(sp.r, "response");
+
   return (
-    <ComingSoonPage
-      crumbs={[{ label: "Reports" }]}
-      title="Reports"
-      description="Customizable dashboards, CSAT/NPS/CES trends, agent leaderboards."
-    />
+    <>
+      <Topbar
+        crumbs={[
+          { label: "Reports", href: "/reports" },
+          { label: "Untitled report" },
+        ]}
+      />
+      <ReportBuilder initialConfig={config} />
+    </>
   );
 }

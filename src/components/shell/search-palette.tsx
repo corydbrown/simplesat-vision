@@ -169,10 +169,10 @@ export function SearchPalette({ open, onOpenChange }: Props) {
             ) : null}
           </Command.List>
 
-          <div className="flex items-center justify-between border-t border-border px-3 py-1.5 text-[11px] text-muted-foreground/80">
+          <div className="grid grid-cols-3 items-center border-t border-border px-3 py-1.5 text-[11px] text-muted-foreground/80">
             <span>↑↓ navigate</span>
-            <span>↵ open</span>
-            <span>esc close</span>
+            <span className="justify-self-center">↵ open</span>
+            <span className="justify-self-end">esc close</span>
           </div>
         </Command>
       </DialogContent>
@@ -246,12 +246,15 @@ function PaletteItem({
         <span className="flex h-5 w-5 shrink-0 items-center justify-center text-muted-foreground">
           {icon}
         </span>
-      ) : (
-        <span className="h-5 w-5 shrink-0" />
-      )}
-      <span className="truncate text-foreground/90">{label}</span>
+      ) : null}
+      <span className="min-w-0 flex-1 truncate text-foreground/90">
+        {label}
+      </span>
       {secondary ? (
-        <span className="ml-auto truncate text-xs text-muted-foreground/70 pl-2">
+        <span
+          className="shrink-0 truncate pl-2 text-xs text-muted-foreground/70"
+          style={{ maxWidth: "45%" }}
+        >
           {secondary}
         </span>
       ) : null}

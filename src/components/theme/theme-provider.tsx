@@ -14,7 +14,6 @@ export type Theme = "light" | "dark";
 
 type ThemeValue = {
   theme: Theme;
-  setTheme: (t: Theme) => void;
   toggleTheme: () => void;
 };
 
@@ -43,11 +42,6 @@ function persist(theme: Theme) {
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setThemeState] = useState<Theme>(readInitialTheme);
-
-  const setTheme = useCallback((t: Theme) => {
-    setThemeState(t);
-    persist(t);
-  }, []);
 
   const toggleTheme = useCallback(() => {
     setThemeState((prev) => {
@@ -93,7 +87,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   }, [toggleTheme]);
 
   return (
-    <ThemeContext.Provider value={{ theme, setTheme, toggleTheme }}>
+    <ThemeContext.Provider value={{ theme, toggleTheme }}>
       {children}
     </ThemeContext.Provider>
   );

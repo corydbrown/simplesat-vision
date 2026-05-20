@@ -4,7 +4,11 @@ import { useSyncExternalStore } from "react";
 
 export function isMac(): boolean {
   if (typeof navigator === "undefined") return true;
-  return /Mac|iPhone|iPad|iPod/.test(navigator.platform || navigator.userAgent);
+  const uaData = (navigator as Navigator & {
+    userAgentData?: { platform?: string };
+  }).userAgentData;
+  const source = uaData?.platform || navigator.platform || navigator.userAgent;
+  return /Mac|iPhone|iPad|iPod/.test(source);
 }
 
 function subscribe() {

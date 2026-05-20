@@ -96,7 +96,7 @@ export function SearchPalette({ open, onOpenChange }: Props) {
         <DialogTitle className="sr-only">Search</DialogTitle>
         <Command
           label="Global search"
-          className="flex flex-col max-h-[60vh]"
+          className="flex min-w-0 flex-col max-h-[60vh]"
           // shouldFilter is true by default; cmdk fuzzy-matches the `value`
           // and `keywords` of each item against the input.
         >

@@ -96,7 +96,7 @@ export function SearchPalette({ open, onOpenChange }: Props) {
         <DialogTitle className="sr-only">Search</DialogTitle>
         <Command
           label="Global search"
-          className="flex flex-col max-h-[60vh]"
+          className="flex min-w-0 flex-col max-h-[60vh]"
           // shouldFilter is true by default; cmdk fuzzy-matches the `value`
           // and `keywords` of each item against the input.
         >
@@ -169,10 +169,10 @@ export function SearchPalette({ open, onOpenChange }: Props) {
             ) : null}
           </Command.List>
 
-          <div className="flex items-center justify-between border-t border-border px-3 py-1.5 text-[11px] text-muted-foreground/80">
+          <div className="grid grid-cols-3 items-center border-t border-border px-3 py-1.5 text-[11px] text-muted-foreground/80">
             <span>↑↓ navigate</span>
-            <span>↵ open</span>
-            <span>esc close</span>
+            <span className="justify-self-center">↵ open</span>
+            <span className="justify-self-end">esc close</span>
           </div>
         </Command>
       </DialogContent>
@@ -249,9 +249,11 @@ function PaletteItem({
       ) : (
         <span className="h-5 w-5 shrink-0" />
       )}
-      <span className="truncate text-foreground/90">{label}</span>
+      <span className="min-w-0 flex-1 truncate text-foreground/90">
+        {label}
+      </span>
       {secondary ? (
-        <span className="ml-auto truncate text-xs text-muted-foreground/70 pl-2">
+        <span className="max-w-[45%] shrink-0 truncate pl-2 text-xs text-muted-foreground/70">
           {secondary}
         </span>
       ) : null}

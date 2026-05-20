@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx tsc --noEmit)",
+      "Bash(npm run lint)",
+      "Bash(npm run *)",
+      "Bash(npx next typegen)",
+      "Bash(curl -s http://localhost:*)",
+      "Bash(git *)",
+      "Bash(rm -rf .next)",
+      "Bash(rm -rf node_modules)",
+      "Bash(sqlite3 db/simplesat.db *)",
+      "Bash(pkill -f next *)",
+      "mcp__n8n-mcp__n8n_get_workflow",
+      "mcp__n8n-mcp__n8n_executions",
+      "mcp__claude_ai_Notion__notion-fetch"
+    ]
+  }
+}

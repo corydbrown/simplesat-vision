@@ -14,7 +14,8 @@ const SECTIONS: NavSection[] = [
   {
     id: "responses",
     label: "Responses",
-    icon: "Star",
+    icon: "MessageCircleMore",
+    iconClass: "text-icon-responses",
     href: "/responses",
     views: RESPONSE_VIEWS.map((v) => ({
       id: v.id,
@@ -26,6 +27,7 @@ const SECTIONS: NavSection[] = [
     id: "customers",
     label: "Customers",
     icon: "UserSquare2",
+    iconClass: "text-icon-customers",
     href: "/customers",
     views: CUSTOMER_VIEWS.map((v) => ({
       id: v.id,
@@ -37,6 +39,7 @@ const SECTIONS: NavSection[] = [
     id: "team-members",
     label: "Team members",
     icon: "Users",
+    iconClass: "text-icon-team-members",
     href: "/team-members",
     views: TEAM_MEMBER_VIEWS.map((v) => ({
       id: v.id,
@@ -48,6 +51,7 @@ const SECTIONS: NavSection[] = [
     id: "tickets",
     label: "Tickets",
     icon: "Inbox",
+    iconClass: "text-icon-tickets",
     href: "/tickets",
     views: TICKET_VIEWS.map((v) => ({
       id: v.id,
@@ -59,6 +63,7 @@ const SECTIONS: NavSection[] = [
     id: "reports",
     label: "Reports",
     icon: "BarChart3",
+    iconClass: "text-icon-reports",
     href: "/reports",
     views: [{ id: "new", label: "New report", href: "/reports" }],
   },

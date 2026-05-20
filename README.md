@@ -1,6 +1,8 @@
 # Simplesat Vision
 
-High-fidelity prototype of where Simplesat is headed - the future product, running on real seeded data. Intended as an internal reference for the team to align on direction. Not connected to production.
+High-fidelity prototype of where Simplesat is headed - the future product, running on realistic seeded data. Intended as an internal reference for the team to align on direction. Not connected to production.
+
+**Seed narrative**: mid-market B2C beauty retailer "Bloom Beauty" (Sephora-style). Three-tier loyalty program (Insider / Gold / Elite). ~95% individual consumers, ~5% B2B accounts (wholesale / corporate gifting / influencer). Simplesat is the underlying product; Bloom Beauty is the demo brand whose customer data flows through it.
 
 ## Stack
 
@@ -43,7 +45,7 @@ The seed is deterministic (`faker.seed(42)`) so re-running `db:reset` produces i
 ## What's mocked vs. real
 
 **Real**:
-- 500 customers, 25 team members, 50,000 tickets, ~14,000 responses, 50 tickets with real conversation threads. Stored in a local SQLite file. Queried server-side with Drizzle.
+- 1,200 customers, 25 team members across 6 groups, 50,000 tickets, ~13,600 responses, 50 tickets with full conversation threads, 8 surveys. Stored in a local SQLite file. Queried server-side with Drizzle.
 - All four list pages (Tickets, Customers, Team members, Responses) — Views, sort, column show/hide, drag-to-reorder, column resize, pagination.
 - Detail drawer + standalone page for all four entities. Drawer is URL-driven (`?drawer=<entity>:<id>`), opens from any page, swaps content in place, preserves back/forward.
 - Hover popovers on every entity pill.

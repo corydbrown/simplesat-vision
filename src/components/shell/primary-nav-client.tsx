@@ -5,9 +5,9 @@ import {
   ChevronDown,
   Home,
   Inbox,
+  MessageCircleMore,
   Search,
   Settings,
-  Star,
   UserSquare2,
   Users,
   type LucideIcon,
@@ -32,13 +32,15 @@ export type NavSection = {
   id: string;
   label: string;
   icon: keyof typeof ICONS;
+  /** Tailwind text color utility for the icon, e.g. `text-icon-responses`. Token in globals.css. */
+  iconClass?: string;
   href: string;
   views?: NavView[];
 };
 
 const ICONS = {
   Inbox,
-  Star,
+  MessageCircleMore,
   UserSquare2,
   Users,
   BarChart3,
@@ -266,7 +268,7 @@ function Section({
         aria-expanded={!isCollapsed}
         className="group flex h-7 cursor-pointer items-center gap-1.5 rounded px-2 text-left text-sm font-medium text-muted-foreground/80 transition-colors hover:bg-accent/60 hover:text-foreground"
       >
-        <Icon size={14} className="shrink-0" />
+        <Icon size={14} className={`shrink-0 ${section.iconClass ?? ""}`} />
         <span className="truncate">{section.label}</span>
         <ChevronDown
           size={14}

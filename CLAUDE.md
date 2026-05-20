@@ -75,7 +75,7 @@ Rules:
 | DnD | dnd-kit (column reorder; reserved for future Reports builder) |
 | Charts | Recharts (reserved for future Reports) |
 | Icons | Lucide |
-| Font | System stack |
+| Font | Lato via `next/font/google`, with system stack fallback |
 | Seed | Faker, deterministic via `faker.seed(42)` |
 | Deploy target | Vercel (would swap to Turso/libSQL for SQLite hosting) |
 
@@ -357,8 +357,8 @@ URL-driven pivot table editor at `/reports`. Full details in `REPORTS.md`. Key l
 - **No `<a>` tags** for internal navigation. Use Next `Link`.
 - **No date/number libraries**. Use `Intl.*` via `src/lib/format.ts` (includes `formatRelative` for feed-style "3 hours ago").
 - **No em dashes** in user-facing copy.
-- **Font sizes** (Slack/Notion-style — accessibility over density):
-  - Body / nav / detail values / property labels / table cells & headers: `text-sm` (14px)
+- **Font sizes** (Slack/Asana-style — accessibility over density):
+  - Body / nav / detail values / property labels / table cells & headers: `text-sm` (15px — Tailwind's `text-sm` is **overridden** from its default 14px in [`globals.css`](src/app/globals.css), see DESIGN.md → Typography)
   - Feed card comment text: `text-base` (16px) — the centerpiece of a feed card gets more weight
   - Stateful pills (status, channel, tier) + `kbd`: `text-xs` (12px) — only because the visual is dominant and content short
   - Entity name in detail header: `text-3xl` (30px)
@@ -383,35 +383,22 @@ URL-driven pivot table editor at `/reports`. Full details in `REPORTS.md`. Key l
 
 ## Visual tokens
 
-Typography, value-color, and pill rules live in Conventions above — **those win** over any external style guide. This section covers what they don't: brand color, status colors, spacing rhythm, shadows, charts. Concrete dictionary, not philosophy.
+**The token dictionary lives in [DESIGN.md](DESIGN.md).** That file owns the color/typography/border/state values and the architectural rules for how to add or change one. This section covers usage *philosophy* — when to reach for which token — that doesn't fit a table.
 
-### Brand color
+### Brand vs primary
 
-Two tokens, distinct roles.
+Two tokens, distinct roles — don't conflate.
 
-- **`--primary`** = blue `#007eff`. The workhorse action color. Used for:
-  - Primary buttons (`bg-primary`)
-  - Active nav state
-  - Focus rings (`ring-primary/30`, 2px) — `--ring` mirrors `--primary`
-  - Informational/neutral links
-- **`--brand`** = green `#43BE64`. **Brand accent only — rare and meaningful.** Used for:
-  - Brand moments (logo accents, marketing-flavored emphasis)
-  - Not for primary actions, not for decoration, not for hover tints
+- **`--primary`** (blue `#007eff`) is the workhorse action color: primary buttons, active nav, focus rings (`ring-primary/30`), informational/neutral links. `--ring` mirrors `--primary`.
+- **`--brand`** (green `#43BE64`) is a brand-moment accent: logo flourish, marketing-flavored emphasis. **Not** for primary actions, decoration, or hover tints.
 
 Positive metrics and success states use `--positive` (the soft-green badge pair), **not** `--brand`. Neutral hover stays `bg-accent/40` (existing pill pattern).
-
-Keep system font stack. Do not introduce Lato or any web font.
 
 ### Status colors
 
 For badges, semantic pills, inline state indicators. Defined as CSS vars in `globals.css`; consume via Tailwind utilities (`bg-positive text-positive-foreground`, etc.) — never hardcode hex in components.
 
-| Status | Background | Text |
-|---|---|---|
-| Positive (good CSAT, success) | `#E8F7EC` | `#1E7A36` |
-| Negative (detractor, error) | `#FCE8E6` | `#A02E26` |
-| Neutral (warning, yellow rating) | `#FEF4E0` | `#8B6A14` |
-| Info (informational, neutral link) | `#E6F0FB` | `#1E5A9C` |
+Backgrounds are deliberately softer than the Figma "Emotive" palette — full-saturation status colors look loud at our table/feed density. Full values in [DESIGN.md](DESIGN.md).
 
 Positive shares the brand-green hue family but uses softer values for backgrounds — don't substitute `--primary` directly.
 
@@ -592,6 +579,7 @@ The "many customers with many custom attributes" UX is faked via two layers:
 ## See also
 
 - `README.md` — surface-level quickstart
+- `DESIGN.md` — design token reference (colors, typography, borders, states)
 - `DECISIONS.md` — explicit assumptions made along the way
 - `REPORTS.md` — pivot editor status + roadmap (AI integration is next)
 - `AGENTS.md` — Next.js 16 warning (read before writing route code)

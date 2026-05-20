@@ -7,10 +7,12 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Kbd } from "@/components/ui/kbd";
+import { useModKey } from "@/lib/platform";
 import { useSidebar } from "./sidebar-context";
 
 export function SidebarToggle() {
   const { collapsed, toggle } = useSidebar();
+  const mod = useModKey();
   return (
     <Tooltip>
       <TooltipTrigger asChild>
@@ -24,7 +26,7 @@ export function SidebarToggle() {
         </button>
       </TooltipTrigger>
       <TooltipContent side="bottom">
-        {collapsed ? "Open sidebar" : "Close sidebar"} <Kbd>⌘</Kbd>
+        {collapsed ? "Open sidebar" : "Close sidebar"} <Kbd>{mod}</Kbd>
         <Kbd>\</Kbd>
       </TooltipContent>
     </Tooltip>

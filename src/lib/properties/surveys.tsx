@@ -28,9 +28,9 @@ const STATUS_LABEL: Record<SurveyRow["status"], string> = {
 };
 
 const STATUS_TONE: Record<SurveyRow["status"], string> = {
-  active: "bg-emerald-50 text-emerald-700 ring-emerald-200",
+  active: "bg-emerald-50 text-emerald-700 ring-emerald-200 dark:bg-emerald-500/15 dark:text-emerald-300 dark:ring-emerald-500/20",
   archived: "bg-muted text-muted-foreground ring-border",
-  draft: "bg-amber-50 text-amber-700 ring-amber-200",
+  draft: "bg-amber-50 text-amber-700 ring-amber-200 dark:bg-amber-500/15 dark:text-amber-300 dark:ring-amber-500/20",
 };
 
 export const SURVEY_PROPERTIES: Property<SurveyRow>[] = [

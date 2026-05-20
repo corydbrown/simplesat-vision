@@ -15,6 +15,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Kbd } from "@/components/ui/kbd";
+import { useModKey } from "@/lib/platform";
 import { useDetailHotkeys } from "@/lib/use-detail-hotkeys";
 
 function buildAbsoluteUrl(href: string): string {
@@ -26,6 +27,7 @@ function buildAbsoluteUrl(href: string): string {
 export function DetailActions({ entityHref }: { entityHref: string }) {
   const [copied, setCopied] = useState(false);
   const copyTimer = useRef<number | null>(null);
+  const mod = useModKey();
 
   async function copy() {
     try {
@@ -61,7 +63,7 @@ export function DetailActions({ entityHref }: { entityHref: string }) {
             "Copied"
           ) : (
             <>
-              Copy link <Kbd>⌘</Kbd>
+              Copy link <Kbd>{mod}</Kbd>
               <Kbd>L</Kbd>
             </>
           )}

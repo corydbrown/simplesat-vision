@@ -12,6 +12,7 @@ import {
 import { Kbd } from "@/components/ui/kbd";
 import { DetailActions } from "./detail-actions";
 import { useDetailHotkeys } from "@/lib/use-detail-hotkeys";
+import { useModKey } from "@/lib/platform";
 
 const STORAGE_KEY = "simplesat:drawer:width";
 const DEFAULT_WIDTH = 720;
@@ -56,6 +57,7 @@ export function DetailDrawer({
   const router = useRouter();
   const [width, setWidth] = useState(DEFAULT_WIDTH);
   const [resizing, setResizing] = useState(false);
+  const mod = useModKey();
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -171,7 +173,7 @@ export function DetailDrawer({
               </Link>
             </TooltipTrigger>
             <TooltipContent side="bottom">
-              Open in full page <Kbd>⌘</Kbd>
+              Open in full page <Kbd>{mod}</Kbd>
               <Kbd>⏎</Kbd>
             </TooltipContent>
           </Tooltip>

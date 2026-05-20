@@ -246,15 +246,14 @@ function PaletteItem({
         <span className="flex h-5 w-5 shrink-0 items-center justify-center text-muted-foreground">
           {icon}
         </span>
-      ) : null}
+      ) : (
+        <span className="h-5 w-5 shrink-0" />
+      )}
       <span className="min-w-0 flex-1 truncate text-foreground/90">
         {label}
       </span>
       {secondary ? (
-        <span
-          className="shrink-0 truncate pl-2 text-xs text-muted-foreground/70"
-          style={{ maxWidth: "45%" }}
-        >
+        <span className="max-w-[45%] shrink-0 truncate pl-2 text-xs text-muted-foreground/70">
           {secondary}
         </span>
       ) : null}

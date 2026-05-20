@@ -233,13 +233,13 @@ function CustomerPopover({ data }: { data: CustomerData }) {
 }
 
 const TEAM_TONES: Record<string, string> = {
-  "Front line": "bg-blue-50 text-blue-700",
-  Senior: "bg-violet-50 text-violet-700",
-  Specialist: "bg-emerald-50 text-emerald-700",
+  "Front line": "bg-blue-50 text-blue-700 dark:bg-blue-500/15 dark:text-blue-300",
+  Senior: "bg-violet-50 text-violet-700 dark:bg-violet-500/15 dark:text-violet-300",
+  Specialist: "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300",
 };
 
 function TeamMemberPopover({ data }: { data: TeamMemberData }) {
-  const teamTone = TEAM_TONES[data.team] ?? "bg-zinc-100 text-zinc-700";
+  const teamTone = TEAM_TONES[data.team] ?? "bg-zinc-100 text-zinc-700 dark:bg-zinc-500/15 dark:text-zinc-300";
   return (
     <div>
       <div className="px-4 py-3 flex items-start gap-3">

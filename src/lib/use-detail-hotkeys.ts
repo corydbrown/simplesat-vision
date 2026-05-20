@@ -28,12 +28,13 @@ export function useDetailHotkeys({
         onClose();
         return;
       }
-      if (onCopyLink && mod && e.key.toLowerCase() === "l") {
+      // Require shift NOT pressed so Cmd+Shift+L (theme toggle) doesn't also copy.
+      if (onCopyLink && mod && !e.shiftKey && e.key.toLowerCase() === "l") {
         e.preventDefault();
         onCopyLink();
         return;
       }
-      if (onOpenFull && mod && e.key === "Enter") {
+      if (onOpenFull && mod && !e.shiftKey && e.key === "Enter") {
         e.preventDefault();
         onOpenFull();
         return;

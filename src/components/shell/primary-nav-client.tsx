@@ -21,6 +21,7 @@ import {
   useSidebar,
 } from "./sidebar-context";
 import { useSearch } from "./search-context";
+import { useModKey } from "@/lib/platform";
 
 export type NavView = {
   id: string;
@@ -74,6 +75,8 @@ export function PrimaryNavClient({ sections }: { sections: NavSection[] }) {
   const searchParams = useSearchParams();
   const { width, collapsed, setWidth } = useSidebar();
   const { open: openSearch } = useSearch();
+  const mod = useModKey();
+  const searchHint = `Search (${mod}K)`;
   const [resizing, setResizing] = useState(false);
   const [sectionsCollapsed, setSectionsCollapsed] = useState<Set<string>>(
     new Set(),
@@ -139,8 +142,8 @@ export function PrimaryNavClient({ sections }: { sections: NavSection[] }) {
           <button
             type="button"
             onClick={openSearch}
-            aria-label="Search (⌘K)"
-            title="Search (⌘K)"
+            aria-label={searchHint}
+            title={searchHint}
             className="ml-auto flex h-6 w-6 cursor-pointer items-center justify-center rounded text-muted-foreground/70 transition-colors hover:bg-accent/60 hover:text-foreground"
           >
             <Search size={14} />

@@ -29,7 +29,7 @@ function AnswerBlock({ answer }: { answer: SurveyAnswer }) {
                   key={opt}
                   className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs ring-1 ring-inset ${
                     active
-                      ? "bg-emerald-50 text-emerald-700 ring-emerald-200 font-medium"
+                      ? "bg-emerald-50 text-emerald-700 ring-emerald-200 dark:bg-emerald-500/15 dark:text-emerald-300 dark:ring-emerald-500/20 font-medium"
                       : "bg-muted text-muted-foreground ring-transparent"
                   }`}
                 >
@@ -50,7 +50,7 @@ function AnswerBlock({ answer }: { answer: SurveyAnswer }) {
               answer.value.map((v) => (
                 <span
                   key={v}
-                  className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-200"
+                  className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-200 dark:bg-blue-500/15 dark:text-blue-300 dark:ring-blue-500/20"
                 >
                   <Check size={11} />
                   {v}

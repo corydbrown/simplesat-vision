@@ -105,10 +105,10 @@ export function TicketDetailBody({
         )}
       </DetailSection>
 
-      <section className="mt-6 rounded-lg border border-dashed border-purple-300 bg-purple-50/40 px-5 py-4">
-        <div className="flex items-center gap-2 text-sm font-medium text-purple-900">
+      <section className="mt-6 rounded-lg border border-dashed border-purple-300 bg-purple-50/40 px-5 py-4 dark:border-purple-500/30 dark:bg-purple-500/10">
+        <div className="flex items-center gap-2 text-sm font-medium text-purple-900 dark:text-purple-200">
           QA Evaluation
-          <span className="rounded bg-purple-200/60 px-1.5 py-0.5 text-[10px] tracking-wider text-purple-900">
+          <span className="rounded bg-purple-200/60 px-1.5 py-0.5 text-[10px] tracking-wider text-purple-900 dark:bg-purple-500/20 dark:text-purple-200">
             Soon
           </span>
         </div>

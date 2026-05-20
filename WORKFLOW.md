@@ -14,6 +14,20 @@ Then `source ~/.zshrc` (or open a new terminal).
 
 Verify: `which nw` should print `/Users/cory/Documents/Cowork/bin/nw`.
 
+## The fast path — just say `/start`
+
+In any Claude Code session, type `/start` (or "new session", "menu", "what now?"). Claude detects whether you're in supervisor or worker context and offers a menu of next actions. Pick one, it does the work, then tells you the next step.
+
+You almost never need to know the underlying git commands — these slash commands cover the full lifecycle:
+
+| Command | When | What it does |
+|---|---|---|
+| `/start` | Beginning of any session | Detects context (supervisor vs worker), shows an options menu |
+| `/ship` | Worker session, after a commit | Pushes the branch, opens a PR with `--fill`, reports the Vercel preview URL |
+| `/cleanup` | After a PR is merged | Removes the worktree, deletes the branch, prunes stale remote refs |
+
+The rest of this doc explains what's happening under the hood, for the rare times you need to reach past these.
+
 ## The pattern
 
 **1 task = 1 worktree = 1 Claude Code window = 1 PR.**
@@ -96,6 +110,9 @@ The `nw` script auto-assigns based on how many worktrees already exist.
 
 | Skill / tool | When |
 |---|---|
+| `/start` | Concierge menu for the current session — see top of this doc |
+| `/ship` | Push current branch + open a PR |
+| `/cleanup` | Tear down a merged worktree + branch |
 | `/review` | Review a PR before merging |
 | `/ultrareview <PR#>` | Multi-agent cloud review on a PR (Cory triggers — billed) |
 | `/security-review` | Pre-merge security pass on the diff |

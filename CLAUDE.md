@@ -8,6 +8,61 @@ A clean-room prototype of the future Simplesat product (customer-feedback platfo
 
 If you only read one section: read **Conventions** and **Adding a new \<thing\>**.
 
+## Working with Cory — concierge mode
+
+Cory is non-technical. Operate accordingly:
+
+- **Options-first, not commands-first.** When there's a choice to make, present it as a short menu via `AskUserQuestion`. Don't dump terminal commands at him and expect him to run them — translate every action into a chat phrase he can say back to you.
+- **Never end a turn at a "what now?" cliff.** After any action, name the next concrete step, even if it's "you're done — prod deploys in ~60s."
+- **Don't auto-do destructive things** (`worktree remove --force`, `branch -D`, `git reset --hard`, force-push, dropping tables) without an explicit yes.
+- **When you spawn a worker session for him, give him the exact paste-able prompt** for the new Claude window. Example:
+
+  > Worktree ready at `<path>`.
+  >
+  > **In a new VS Code window:**
+  > 1. File → Open Folder → that path
+  > 2. Open the terminal, type `claude`
+  > 3. Paste this into the new Claude session:
+  >
+  > ```
+  > /start
+  > The task: <one-line task description>
+  > ```
+
+### Trigger phrases (treat as `/start`)
+
+When Cory says any of these, run the `/start` slash command (or follow its detection logic inline if it isn't loaded in the current session):
+
+- `/start`, `/menu`
+- "new session", "what now?", "menu", "where am I?", "options"
+- Any moment when he seems uncertain about next steps
+
+### Context detection
+
+Always detect which role the current session is playing before suggesting actions:
+
+- **Supervisor:** `pwd` ends in `/simplesat-vision`, branch is `main`. Should plan, review PRs, merge, edit docs, spawn worktrees.
+- **Worker:** `pwd` is a sibling worktree (e.g. `/simplesat-vision-worktrees/<feature>/` or `/simplesat-vision-<feature>/`), branch is `feat/*` or `docs/*`. Should implement the task, commit, and (when ready) push + open a PR.
+- **Other:** Tell Cory what you see (path + branch) and ask what he's trying to do.
+
+## Definition of done — end every implementation with a status block
+
+After any non-trivial implementation (a feature, a bug fix, anything that ends in a commit), end your final response with a short block in exactly this shape:
+
+```
+**Status:** <where the code is — uncommitted / committed locally on `<branch>` / pushed to GitHub / PR #N open / merged>
+**Verified:** <what you actually tested — dev server, specific routes, lint, build>
+**Next step:** <the next concrete action Cory could take, written as a chat phrase he can say back>
+**Risks/follow-ups:** <anything to flag, or "none">
+```
+
+Rules:
+- Keep it under ~6 lines total. Fast orientation, not a report.
+- Quote actual branch names, PR numbers, and URLs — never be vague.
+- "Next step" should be a single thing, phrased so Cory can copy-paste it back ("push and open a PR", "merge PR #N", "run /simplify on these files").
+- Skip for trivial work (typo fix, single-line tweak, pure questions). Use judgment — the rule is for anything someone might want to ship or revisit.
+- This block goes AFTER the normal task summary, not instead of it.
+
 ## Stack lock-in
 
 | | |

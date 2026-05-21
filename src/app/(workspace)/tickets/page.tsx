@@ -4,6 +4,8 @@ import { EntityToolbar } from "@/components/shared/entity-toolbar";
 import { ListFilterRow } from "@/components/shared/list-filter-row";
 import { ColumnStateProvider } from "@/lib/column-prefs";
 import { filtersFromSearchParam } from "@/lib/filters/url-state";
+import { TICKET_GROUP_IDS } from "@/lib/group/fields/tickets";
+import { groupFromSearchParam } from "@/lib/group/url-state";
 import { TICKET_PROPERTIES } from "@/lib/properties/tickets";
 import { parseSortParam } from "@/lib/sort/url-state";
 import { listTickets } from "@/db/queries/tickets";
@@ -23,6 +25,7 @@ export default async function TicketsPage(props: PageProps<"/tickets">) {
   const page = parsePage(typeof sp.page === "string" ? sp.page : undefined);
   const view = typeof sp.view === "string" ? sp.view : undefined;
   const filters = filtersFromSearchParam(sp.f);
+  const groupBy = groupFromSearchParam(sp.group, TICKET_GROUP_IDS);
 
   const { rows, total } = await listTickets({
     page,
@@ -30,6 +33,7 @@ export default async function TicketsPage(props: PageProps<"/tickets">) {
     sorts,
     view,
     filters,
+    groupBy,
   });
 
   const activeView = TICKET_VIEWS.find((v) => v.id === (view ?? "all"));
@@ -54,6 +58,7 @@ export default async function TicketsPage(props: PageProps<"/tickets">) {
         page={page}
         pageSize={PAGE_SIZE}
         total={total}
+        groupBy={groupBy?.propertyId}
         basePath="/tickets"
         drawerEntity="ticket"
         serverSorted

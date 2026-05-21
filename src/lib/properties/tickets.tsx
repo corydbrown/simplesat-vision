@@ -66,6 +66,9 @@ export const TICKET_PROPERTIES: Property<TicketsRow>[] = [
     sortable: true,
     sortValue: (t) => t.status,
     filter: { dataType: "enum", ops: ENUM_OPS, enumValues: TICKET_STATUS },
+    groupable: true,
+    groupValue: (t) => t.status,
+    groupLabel: (v) => <StatusPill status={v as TicketsRow["status"]} />,
     cell: (t) => <StatusPill status={t.status} />,
   },
   {
@@ -77,6 +80,9 @@ export const TICKET_PROPERTIES: Property<TicketsRow>[] = [
     sortable: true,
     sortValue: (t) => t.priority,
     filter: { dataType: "enum", ops: ENUM_OPS, enumValues: TICKET_PRIORITY },
+    groupable: true,
+    groupValue: (t) => t.priority,
+    groupLabel: (v) => <PriorityPill priority={v as TicketsRow["priority"]} />,
     cell: (t) => <PriorityPill priority={t.priority} />,
   },
   {
@@ -102,6 +108,9 @@ export const TICKET_PROPERTIES: Property<TicketsRow>[] = [
     defaultVisible: true,
     sortable: true,
     sortValue: (t) => t.customer?.company ?? null,
+    groupable: true,
+    groupValue: (t) => t.customer?.company ?? null,
+    nullGroupLabel: "No company",
     cell: (t) =>
       t.customer?.company ? (
         <CompanyPill name={t.customer.company} />
@@ -117,6 +126,9 @@ export const TICKET_PROPERTIES: Property<TicketsRow>[] = [
     defaultVisible: true,
     sortable: true,
     sortValue: (t) => t.assignee?.name ?? null,
+    groupable: true,
+    groupValue: (t) => t.assignee?.name ?? null,
+    nullGroupLabel: "Unassigned",
     cell: (t) =>
       t.assignee ? (
         <TeamMemberPill
@@ -137,6 +149,9 @@ export const TICKET_PROPERTIES: Property<TicketsRow>[] = [
     sortable: true,
     sortValue: (t) => t.channel,
     filter: { dataType: "enum", ops: ENUM_OPS, enumValues: TICKET_CHANNEL },
+    groupable: true,
+    groupValue: (t) => t.channel,
+    groupLabel: (v) => <ChannelPill channel={v as TicketsRow["channel"]} />,
     cell: (t) => <ChannelPill channel={t.channel} />,
   },
   {
@@ -254,6 +269,9 @@ export const TICKET_PROPERTIES: Property<TicketsRow>[] = [
     sortable: true,
     sortValue: (t) => t.helpdesk,
     filter: { dataType: "enum", ops: ENUM_OPS, enumValues: TICKET_HELPDESK },
+    groupable: true,
+    groupValue: (t) => t.helpdesk,
+    groupLabel: (v) => <span className="capitalize">{v}</span>,
     cell: (t) => (
       <span className="capitalize text-muted-foreground">{t.helpdesk}</span>
     ),

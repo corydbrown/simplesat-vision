@@ -1,6 +1,9 @@
 import "server-only";
 import { desc, eq, sql } from "drizzle-orm";
 import { db, schema } from "../client";
+import { compileGroupOrderBy } from "@/lib/group/compile";
+import { RESPONSE_GROUP_FIELDS } from "@/lib/group/fields/responses";
+import type { GroupSpec } from "@/lib/group/types";
 import type { Survey } from "../schema";
 
 export type SurveyRow = {
@@ -82,7 +85,9 @@ export async function getSurveyById(id: string): Promise<SurveyDetail | null> {
 export async function getSurveyResponses(
   surveyId: string,
   limit = 50,
+  groupBy?: GroupSpec | null,
 ): Promise<import("./responses").ResponseListRow[]> {
+  const groupOrderBy = compileGroupOrderBy(groupBy ?? null, RESPONSE_GROUP_FIELDS);
   return db
     .select({
       id: schema.responses.id,
@@ -112,6 +117,6 @@ export async function getSurveyResponses(
       eq(schema.teamMembers.id, schema.responses.teamMemberId),
     )
     .where(eq(schema.responses.surveyId, surveyId))
-    .orderBy(desc(schema.responses.respondedAt))
+    .orderBy(...groupOrderBy, desc(schema.responses.respondedAt))
     .limit(limit);
 }

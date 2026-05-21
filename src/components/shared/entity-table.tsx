@@ -35,6 +35,13 @@ export type EntityTableProps<T> = {
   pageSize: number;
   total: number;
   /**
+   * Property id to group rows by. Property must declare groupable + groupValue.
+   * Server queries pre-order rows so each group is contiguous (and nulls sort
+   * last) on paginated pages; the table buckets defensively either way so
+   * embedded tables work without server-side groupBy plumbing.
+   */
+  groupBy?: string;
+  /**
    * Base path used for pagination links. Defaults to the current pathname so
    * URL state (e.g. ?drawer=) is preserved.
    */
@@ -46,8 +53,8 @@ export type EntityTableProps<T> = {
    */
   drawerEntity?: DrawerEntity;
   /**
-   * Prefix for sort/page params (e.g. "d" → dsort, dpage). Use inside
-   * drawer-internal tables so they don't collide with outer page state.
+   * Prefix for sort/group/page params (e.g. "d" → dsort, dgroup, dpage). Use
+   * inside drawer-internal tables so they don't collide with outer page state.
    */
   paramPrefix?: string;
   /**
@@ -70,6 +77,7 @@ export function EntityTable<T>({
   page,
   pageSize,
   total,
+  groupBy,
   basePath,
   rowHrefField,
   drawerEntity,
@@ -96,6 +104,32 @@ export function EntityTable<T>({
     if (sorts.length === 0) return rows;
     return applyMultiSort(rows, sorts, properties);
   }, [rows, serverSorted, searchParams, sortKeyParam, properties]);
+
+  const groupProp =
+    groupBy && propertyMap[groupBy]?.groupable && propertyMap[groupBy]?.groupValue
+      ? propertyMap[groupBy]
+      : null;
+
+  // Bucket the post-sort rows by groupValue. Insertion order preserves the
+  // server's (or client multi-sort's) ordering of group keys; null bucket is
+  // forced last.
+  const sections = useMemo(() => {
+    if (!groupProp) return null;
+    const buckets = new Map<string | null, T[]>();
+    for (const row of displayRows) {
+      const key = groupProp.groupValue?.(row) ?? null;
+      const list = buckets.get(key);
+      if (list) list.push(row);
+      else buckets.set(key, [row]);
+    }
+    const arr = [...buckets.entries()].map(([key, rs]) => ({ key, rows: rs }));
+    const nullIdx = arr.findIndex((s) => s.key === null);
+    if (nullIdx !== -1 && nullIdx !== arr.length - 1) {
+      const [nullSec] = arr.splice(nullIdx, 1);
+      arr.push(nullSec);
+    }
+    return arr;
+  }, [displayRows, groupProp]);
 
   function buildHref(updates: Record<string, string | number>): string {
     const next = new URLSearchParams(searchParams.toString());
@@ -124,6 +158,61 @@ export function EntityTable<T>({
     const newVisibleOrder = arrayMove(ids, oldIndex, newIndex);
     const hidden = state.order.filter((id) => !ids.includes(id));
     setOrder([...newVisibleOrder, ...hidden]);
+  }
+
+  function renderDataRow(row: T) {
+    const id = row[idField] as unknown as string;
+    const drawerId = rowHrefField
+      ? (row[rowHrefField] as unknown as string)
+      : id;
+    const handleClick = drawerEntity
+      ? (e: React.MouseEvent) => {
+          const target = e.target as HTMLElement;
+          // Let pills/buttons inside the row handle their own clicks.
+          if (target.closest("a, button, [role='button']")) return;
+          if (
+            e.metaKey ||
+            e.ctrlKey ||
+            e.shiftKey ||
+            e.altKey ||
+            e.button !== 0
+          ) {
+            return;
+          }
+          const next = new URLSearchParams(searchParams.toString());
+          next.set("drawer", `${drawerEntity}:${drawerId}`);
+          next.delete("dt");
+          router.push(`${pathname}?${next.toString()}`, {
+            scroll: false,
+          });
+        }
+      : undefined;
+    return (
+      <tr
+        key={id}
+        className={`group ${handleClick ? "cursor-pointer" : ""}`}
+        onClick={handleClick}
+      >
+        {visibleOrdered.map((p) => {
+          const width = state.widths[p.id] ?? p.width;
+          return (
+            <td
+              key={p.id}
+              style={{
+                width,
+                minWidth: width,
+                maxWidth: width,
+              }}
+              className={`px-3 py-3 border-b border-border align-middle bg-background group-hover:bg-accent/50 ${
+                p.truncate !== false ? "truncate" : ""
+              } ${p.align === "right" ? "text-right" : ""}`}
+            >
+              {p.cell(row)}
+            </td>
+          );
+        })}
+      </tr>
+    );
   }
 
   return (
@@ -176,61 +265,33 @@ export function EntityTable<T>({
                   {emptyMessage}
                 </td>
               </tr>
-            ) : (
-              displayRows.map((row) => {
-                const id = row[idField] as unknown as string;
-                const drawerId = rowHrefField
-                  ? (row[rowHrefField] as unknown as string)
-                  : id;
-                const handleClick = drawerEntity
-                  ? (e: React.MouseEvent) => {
-                      const target = e.target as HTMLElement;
-                      // Let pills/buttons inside the row handle their own clicks.
-                      if (target.closest("a, button, [role='button']")) return;
-                      if (
-                        e.metaKey ||
-                        e.ctrlKey ||
-                        e.shiftKey ||
-                        e.altKey ||
-                        e.button !== 0
-                      ) {
-                        return;
-                      }
-                      const next = new URLSearchParams(searchParams.toString());
-                      next.set("drawer", `${drawerEntity}:${drawerId}`);
-                      next.delete("dt");
-                      router.push(`${pathname}?${next.toString()}`, {
-                        scroll: false,
-                      });
-                    }
-                  : undefined;
-                return (
-                  <tr
-                    key={id}
-                    className={`group ${handleClick ? "cursor-pointer" : ""}`}
-                    onClick={handleClick}
+            ) : sections && groupProp ? (
+              sections.flatMap((section) => [
+                <tr key={`__group:${section.key ?? "__null__"}`}>
+                  <td
+                    colSpan={visibleOrdered.length}
+                    className="bg-muted/40 px-5 py-2 border-b border-border"
                   >
-                    {visibleOrdered.map((p) => {
-                      const width = state.widths[p.id] ?? p.width;
-                      return (
-                        <td
-                          key={p.id}
-                          style={{
-                            width,
-                            minWidth: width,
-                            maxWidth: width,
-                          }}
-                          className={`px-3 py-3 border-b border-border align-middle bg-background group-hover:bg-accent/50 ${
-                            p.truncate !== false ? "truncate" : ""
-                          } ${p.align === "right" ? "text-right" : ""}`}
-                        >
-                          {p.cell(row)}
-                        </td>
-                      );
-                    })}
-                  </tr>
-                );
-              })
+                    <span className="text-base">
+                      <span className="text-muted-foreground/80">
+                        {groupProp.label}
+                      </span>
+                      <span className="mx-1.5 text-muted-foreground/40">·</span>
+                      <span className="font-medium text-foreground">
+                        {section.key === null
+                          ? (groupProp.nullGroupLabel ?? "(None)")
+                          : (groupProp.groupLabel?.(section.key) ?? section.key)}
+                      </span>
+                      <span className="ml-2 tabular-nums text-muted-foreground/60">
+                        {section.rows.length}
+                      </span>
+                    </span>
+                  </td>
+                </tr>,
+                ...section.rows.map((row) => renderDataRow(row)),
+              ])
+            ) : (
+              displayRows.map((row) => renderDataRow(row))
             )}
           </tbody>
         </table>

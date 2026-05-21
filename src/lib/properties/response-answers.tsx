@@ -92,6 +92,9 @@ export const ANSWER_PROPERTIES: Property<AnswerRow>[] = [
     defaultVisible: true,
     sortable: true,
     sortValue: (r) => r.answer.type,
+    groupable: true,
+    groupValue: (r) => r.answer.type,
+    groupLabel: (v) => <span>{TYPE_LABEL[v as SurveyAnswer["type"]]}</span>,
     cell: (r) => (
       <span className="text-muted-foreground">
         {TYPE_LABEL[r.answer.type]}
@@ -140,6 +143,9 @@ export const ANSWER_PROPERTIES: Property<AnswerRow>[] = [
     defaultVisible: true,
     sortable: true,
     sortValue: (r) => r.customerName,
+    groupable: true,
+    groupValue: (r) => r.customerName,
+    nullGroupLabel: "Anonymous",
     cell: (r) =>
       r.customerId && r.customerName ? (
         <CustomerPill id={r.customerId} name={r.customerName} />
@@ -155,6 +161,9 @@ export const ANSWER_PROPERTIES: Property<AnswerRow>[] = [
     defaultVisible: true,
     sortable: true,
     sortValue: (r) => r.teamMemberName,
+    groupable: true,
+    groupValue: (r) => r.teamMemberName,
+    nullGroupLabel: "Unassigned",
     cell: (r) =>
       r.teamMemberId && r.teamMemberName && r.teamMemberAvatarColor ? (
         <TeamMemberPill

@@ -4,6 +4,8 @@ import { EntityToolbar } from "@/components/shared/entity-toolbar";
 import { LayoutToggle } from "@/components/shared/layout-toggle";
 import { ResponseFeedCard } from "@/components/responses/response-feed-card";
 import { ColumnStateProvider } from "@/lib/column-prefs";
+import { RESPONSE_GROUP_IDS } from "@/lib/group/fields/responses";
+import { groupFromSearchParam } from "@/lib/group/url-state";
 import { RESPONSE_PROPERTIES } from "@/lib/properties/responses";
 import {
   ANSWER_PROPERTIES,
@@ -34,13 +36,27 @@ export default async function ResponsesPage(props: PageProps<"/responses">) {
   const layout: Layout = parseLayout(
     typeof sp.layout === "string" ? sp.layout : undefined,
   );
+  const responseGroupBy = groupFromSearchParam(sp.group, RESPONSE_GROUP_IDS);
+  // Answer-row groupable ids — kept in sync with response-answers.tsx.
+  // Inlined here because that file is "use client", so we can't iterate
+  // its exports from a server component.
+  const answerGroupBy = groupFromSearchParam(sp.group, [
+    "type",
+    "customer",
+    "team_member",
+  ]);
 
   const sortParam = typeof sp.sort === "string" ? sp.sort : undefined;
   // Answer layout uses its own property registry whose sort keys don't map
   // to listResponses columns — let the table client-sort there. Other
   // layouts can sort on the server.
   const sorts = layout === "answer" ? [] : parseSortParam(sortParam);
-  const { rows, total } = await listResponses({ view, limit: 500, sorts });
+  const { rows, total } = await listResponses({
+    view,
+    limit: 500,
+    sorts,
+    groupBy: layout === "response" ? responseGroupBy : null,
+  });
   const activeView = RESPONSE_VIEWS.find((v) => v.id === (view ?? "all"));
 
   const crumbs = [
@@ -113,6 +129,7 @@ export default async function ResponsesPage(props: PageProps<"/responses">) {
           page={1}
           pageSize={Math.max(answerRows.length, 1)}
           total={answerRows.length}
+          groupBy={answerGroupBy?.propertyId}
           basePath="/responses"
           drawerEntity="response"
         />
@@ -137,6 +154,7 @@ export default async function ResponsesPage(props: PageProps<"/responses">) {
         page={1}
         pageSize={Math.max(rows.length, 1)}
         total={total}
+        groupBy={responseGroupBy?.propertyId}
         basePath="/responses"
         drawerEntity="response"
         serverSorted

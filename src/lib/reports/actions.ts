@@ -33,8 +33,12 @@ const FILTER_OPS: FilterOp[] = [
   "lte",
   "gt",
   "gte",
+  "between",
   "in",
   "not-in",
+  "contains",
+  "starts-with",
+  "relative",
   "isnull",
   "notnull",
 ];
@@ -116,6 +120,7 @@ function serializeField(f: PivotField): string {
     `entity=${f.group}`,
     `dataType=${f.dataType}`,
     `aggregations=[${f.aggregations.join(",")}]`,
+    `filterOps=[${f.filterOps.join(",")}]`,
   ];
   if (f.bucketable) parts.push("bucketable=true");
   if (f.enumValues) parts.push(`enumValues=[${f.enumValues.join(",")}]`);
@@ -138,6 +143,15 @@ ReportConfig shape:
 Each AxisField is { propertyId, bucket? }. \`bucket\` only applies to bucketable date fields (day/week/month/quarter/year).
 Each ValueDef is { propertyId, agg, label? }. Use propertyId "*" with agg "count" for count-of-records. For any other propertyId, the agg must be one of the field's listed aggregations.
 Each FilterDef is { propertyId, op, value? }. \`value\` is required for ops other than isnull/notnull.
+
+Filter op vocabulary:
+- Numeric / date scalar comparisons: eq, neq, lt, lte, gt, gte. \`value\` is a number (or ISO date string).
+- Numeric / date range: between. \`value\` is a 2-element array [min, max].
+- String: eq, neq, contains, starts-with. For "contains" / "starts-with" the value is a substring (no wildcards).
+- Multi-select: in, not-in. \`value\` is an array of allowed (or excluded) strings.
+- Date relative: relative. \`value\` is { n: number, unit: "days"|"weeks"|"months", dir: "past"|"next" }. Use this for prompts like "in the last 7 days", "last 30 days", "next 2 weeks".
+- Null: isnull, notnull. No value.
+Only emit ops that appear in the field's \`filterOps\` list. Pick the op that matches the user's wording most precisely.
 
 Constraints:
 - valueOnly=true fields are pre-aggregated (CSAT/CES/NPS scores, correlated subqueries). They may only appear in values or filters, never in rows or columns.
@@ -261,7 +275,9 @@ function sanitizeFilters(base: BaseEntity, filters: unknown): FilterDef[] {
     out.push({
       propertyId: candidate.propertyId,
       op: candidate.op as FilterOp,
-      ...(candidate.value !== undefined ? { value: candidate.value } : {}),
+      ...(candidate.value !== undefined
+        ? { value: candidate.value as FilterDef["value"] }
+        : {}),
     });
   }
   return out;

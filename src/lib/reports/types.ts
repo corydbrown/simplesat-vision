@@ -1,20 +1,12 @@
+import type { Filter } from "@/lib/filters/types";
+
 export type BaseEntity = "ticket" | "customer" | "team_member" | "response";
 
 export type DateBucket = "day" | "week" | "month" | "quarter" | "year";
 
 export type Aggregation = "count" | "sum" | "avg" | "min" | "max";
 
-export type FilterOp =
-  | "eq"
-  | "neq"
-  | "lt"
-  | "lte"
-  | "gt"
-  | "gte"
-  | "in"
-  | "not-in"
-  | "isnull"
-  | "notnull";
+export type { FilterOp } from "@/lib/filters/types";
 
 export type SortDirection = "asc" | "desc";
 
@@ -39,18 +31,15 @@ export type ValueDef = {
   label?: string;
 };
 
-export type FilterDef = {
-  propertyId: string;
-  op: FilterOp;
-  value?: unknown;
-};
+/** @deprecated use Filter from @/lib/filters/types */
+export type FilterDef = Filter;
 
 export type ReportConfig = {
   base: BaseEntity;
   rows: AxisField[]; // length 0..2
   columns: AxisField[]; // length 0..1
   values: ValueDef[]; // length 1..3
-  filters: FilterDef[];
+  filters: Filter[];
 };
 
 export const MAX_ROWS = 2;

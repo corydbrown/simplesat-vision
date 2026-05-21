@@ -1,7 +1,9 @@
 import { Topbar } from "@/components/shell/topbar";
 import { EntityTable } from "@/components/shared/entity-table";
 import { EntityToolbar } from "@/components/shared/entity-toolbar";
+import { ListFilterRow } from "@/components/shared/list-filter-row";
 import { ColumnStateProvider } from "@/lib/column-prefs";
+import { filtersFromSearchParam } from "@/lib/filters/url-state";
 import { TICKET_PROPERTIES } from "@/lib/properties/tickets";
 import {
   listTickets,
@@ -42,6 +44,7 @@ export default async function TicketsPage(props: PageProps<"/tickets">) {
   const dir = parseDir(typeof sp.dir === "string" ? sp.dir : undefined);
   const page = parsePage(typeof sp.page === "string" ? sp.page : undefined);
   const view = typeof sp.view === "string" ? sp.view : undefined;
+  const filters = filtersFromSearchParam(sp.f);
 
   const { rows, total } = await listTickets({
     page,
@@ -49,6 +52,7 @@ export default async function TicketsPage(props: PageProps<"/tickets">) {
     sort,
     dir,
     view,
+    filters,
   });
 
   const activeView = TICKET_VIEWS.find((v) => v.id === (view ?? "all"));
@@ -65,6 +69,7 @@ export default async function TicketsPage(props: PageProps<"/tickets">) {
         properties={TICKET_PROPERTIES}
         searchPlaceholder="Search tickets..."
       />
+      <ListFilterRow properties={TICKET_PROPERTIES} />
       <EntityTable
         rows={rows}
         idField="id"

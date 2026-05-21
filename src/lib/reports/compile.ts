@@ -1,4 +1,6 @@
 import { sql, type SQL } from "drizzle-orm";
+import { relativeRangeMs } from "@/lib/filters/relative-range";
+import { isRelativeValue, type Filter } from "@/lib/filters/types";
 import {
   BASE_TABLE,
   bucketSql,
@@ -9,7 +11,6 @@ import {
 import type {
   Aggregation,
   AxisField,
-  FilterDef,
   ReportConfig,
   ValueDef,
 } from "./types";
@@ -58,24 +59,126 @@ function axisGroupExpr(axis: AxisField, field: PivotField): string {
   return field.groupExpr;
 }
 
+/** ISO date string ("2026-05-13" or full ISO) → epoch ms, or null. */
+function isoToMs(v: unknown): number | null {
+  if (typeof v !== "string" || !v) return null;
+  // Treat bare YYYY-MM-DD as local midnight.
+  const s = v.length === 10 ? `${v}T00:00:00` : v;
+  const ms = new Date(s).getTime();
+  return Number.isFinite(ms) ? ms : null;
+}
+/** End-of-day for a YYYY-MM-DD (inclusive between). */
+function endOfDayMs(v: unknown): number | null {
+  const ms = isoToMs(v);
+  if (ms == null) return null;
+  return ms + 24 * 60 * 60 * 1000 - 1;
+}
+
 function buildFilter(
-  filter: FilterDef,
+  filter: Filter,
   field: PivotField,
 ): SQL | undefined {
+  // Skip incomplete filters — every op except isnull/notnull needs a value.
+  if (
+    filter.op !== "isnull" &&
+    filter.op !== "notnull" &&
+    filter.value === undefined
+  ) {
+    return undefined;
+  }
+  // Empty strings and empty arrays are also incomplete for ops that look at
+  // the value (eq, contains, in, etc.).
+  if (typeof filter.value === "string" && filter.value === "") {
+    if (
+      filter.op === "eq" ||
+      filter.op === "neq" ||
+      filter.op === "contains" ||
+      filter.op === "starts-with" ||
+      filter.op === "lt" ||
+      filter.op === "lte" ||
+      filter.op === "gt" ||
+      filter.op === "gte"
+    ) {
+      return undefined;
+    }
+  }
+
   const col = sql.raw(field.groupExpr);
+  const isDate = field.dataType === "date";
   switch (filter.op) {
     case "eq":
+      if (isDate) {
+        const startMs = isoToMs(filter.value);
+        const endMs = endOfDayMs(filter.value);
+        if (startMs == null || endMs == null) return undefined;
+        return sql`${col} BETWEEN ${startMs} AND ${endMs}`;
+      }
       return sql`${col} = ${filter.value}`;
     case "neq":
+      if (isDate) {
+        const startMs = isoToMs(filter.value);
+        const endMs = endOfDayMs(filter.value);
+        if (startMs == null || endMs == null) return undefined;
+        return sql`(${col} < ${startMs} OR ${col} > ${endMs})`;
+      }
       return sql`${col} <> ${filter.value}`;
-    case "lt":
+    case "lt": {
+      if (isDate) {
+        const ms = isoToMs(filter.value);
+        return ms == null ? undefined : sql`${col} < ${ms}`;
+      }
       return sql`${col} < ${filter.value}`;
-    case "lte":
+    }
+    case "lte": {
+      if (isDate) {
+        const ms = endOfDayMs(filter.value);
+        return ms == null ? undefined : sql`${col} <= ${ms}`;
+      }
       return sql`${col} <= ${filter.value}`;
-    case "gt":
+    }
+    case "gt": {
+      if (isDate) {
+        const ms = endOfDayMs(filter.value);
+        return ms == null ? undefined : sql`${col} > ${ms}`;
+      }
       return sql`${col} > ${filter.value}`;
-    case "gte":
+    }
+    case "gte": {
+      if (isDate) {
+        const ms = isoToMs(filter.value);
+        return ms == null ? undefined : sql`${col} >= ${ms}`;
+      }
       return sql`${col} >= ${filter.value}`;
+    }
+    case "between": {
+      if (!Array.isArray(filter.value) || filter.value.length !== 2)
+        return undefined;
+      const [a, b] = filter.value as [unknown, unknown];
+      if (a == null || b == null) return undefined;
+      if (isDate) {
+        const aMs = isoToMs(a);
+        const bMs = endOfDayMs(b);
+        if (aMs == null || bMs == null) return undefined;
+        return sql`${col} BETWEEN ${aMs} AND ${bMs}`;
+      }
+      return sql`${col} BETWEEN ${a} AND ${b}`;
+    }
+    case "contains":
+      if (typeof filter.value !== "string" || filter.value === "")
+        return undefined;
+      return sql`${col} LIKE ${"%" + filter.value + "%"}`;
+    case "starts-with":
+      if (typeof filter.value !== "string" || filter.value === "")
+        return undefined;
+      return sql`${col} LIKE ${filter.value + "%"}`;
+    case "relative": {
+      // Date-relative — column must be a millisecond timestamp. We compute
+      // the window's [start, end] in JS and emit a BETWEEN bound query.
+      if (!isRelativeValue(filter.value)) return undefined;
+      const range = relativeRangeMs(filter.value);
+      if (!range) return undefined;
+      return sql`${col} BETWEEN ${range.start} AND ${range.end}`;
+    }
     case "isnull":
       return sql`${col} IS NULL`;
     case "notnull":

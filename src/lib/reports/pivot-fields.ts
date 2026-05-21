@@ -45,7 +45,12 @@ const NUMERIC_AGGS: Aggregation[] = ["count", "sum", "avg", "min", "max"];
 // the UI's value-picker accepts them — "avg" reads naturally for a CSAT score.
 const METRIC_VALUE_AGGS: Aggregation[] = ["avg"];
 
-const STRING_OPS = ["eq", "neq", "isnull", "notnull", "in", "not-in"] as const;
+const STRING_OPS = [
+  "contains",
+  "starts-with",
+  "isnull",
+  "notnull",
+] as const;
 const NUMERIC_OPS = [
   "eq",
   "neq",
@@ -53,12 +58,23 @@ const NUMERIC_OPS = [
   "lte",
   "gt",
   "gte",
+  "between",
   "isnull",
   "notnull",
 ] as const;
-const DATE_OPS = ["lt", "lte", "gt", "gte", "isnull", "notnull"] as const;
-const ENUM_OPS = ["eq", "neq", "in", "not-in", "isnull", "notnull"] as const;
-const RELATION_OPS = ["eq", "neq", "isnull", "notnull"] as const;
+const DATE_OPS = [
+  "eq",
+  "lt",
+  "lte",
+  "gt",
+  "gte",
+  "between",
+  "relative",
+  "isnull",
+  "notnull",
+] as const;
+const ENUM_OPS = ["in", "not-in", "isnull", "notnull"] as const;
+const RELATION_OPS = ["in", "not-in", "isnull", "notnull"] as const;
 
 const TICKET_STATUS = ["open", "pending", "solved", "closed"];
 const CHANNEL = ["email", "chat", "phone", "social"];

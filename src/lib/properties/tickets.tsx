@@ -12,8 +12,18 @@ import {
 } from "@/components/shared/entity-pill";
 import { TagList } from "@/components/shared/tag";
 import type { TicketsRow } from "@/db/queries/tickets";
+import {
+  DATE_OPS,
+  ENUM_OPS,
+  STRING_OPS,
+} from "@/lib/filters/types";
 import { formatDate, formatDuration } from "@/lib/format";
 import type { Property } from "./types";
+
+const TICKET_STATUS = ["open", "pending", "solved", "closed"];
+const TICKET_PRIORITY = ["low", "normal", "high", "urgent"];
+const TICKET_CHANNEL = ["email", "chat", "phone", "social"];
+const TICKET_HELPDESK = ["zendesk", "gladly", "gorgias", "intercom"];
 
 export const TICKET_PROPERTIES: Property<TicketsRow>[] = [
   {
@@ -23,6 +33,7 @@ export const TICKET_PROPERTIES: Property<TicketsRow>[] = [
     group: "Identity",
     alwaysVisible: true,
     sortable: false,
+    filter: { dataType: "string", ops: STRING_OPS },
     cell: (t) => (
       <span className="font-mono text-xs text-muted-foreground">
         {t.helpdeskExternalId ?? "-"}
@@ -41,6 +52,7 @@ export const TICKET_PROPERTIES: Property<TicketsRow>[] = [
     group: "Identity",
     alwaysVisible: true,
     sortable: true,
+    filter: { dataType: "string", ops: STRING_OPS },
     cell: (t) => <span className="text-foreground">{t.subject}</span>,
   },
   {
@@ -50,6 +62,7 @@ export const TICKET_PROPERTIES: Property<TicketsRow>[] = [
     group: "State",
     defaultVisible: true,
     sortable: true,
+    filter: { dataType: "enum", ops: ENUM_OPS, enumValues: TICKET_STATUS },
     cell: (t) => <StatusPill status={t.status} />,
   },
   {
@@ -59,6 +72,7 @@ export const TICKET_PROPERTIES: Property<TicketsRow>[] = [
     group: "State",
     defaultVisible: true,
     sortable: true,
+    filter: { dataType: "enum", ops: ENUM_OPS, enumValues: TICKET_PRIORITY },
     cell: (t) => <PriorityPill priority={t.priority} />,
   },
   {
@@ -111,6 +125,7 @@ export const TICKET_PROPERTIES: Property<TicketsRow>[] = [
     group: "Source",
     defaultVisible: true,
     sortable: true,
+    filter: { dataType: "enum", ops: ENUM_OPS, enumValues: TICKET_CHANNEL },
     cell: (t) => <ChannelPill channel={t.channel} />,
   },
   {
@@ -167,6 +182,7 @@ export const TICKET_PROPERTIES: Property<TicketsRow>[] = [
     defaultVisible: true,
     sortable: true,
     sortKey: "createdAt",
+    filter: { dataType: "date", ops: DATE_OPS },
     cell: (t) => (
       <span className="tabular-nums text-muted-foreground">
         {formatDate(t.createdAt)}
@@ -181,6 +197,7 @@ export const TICKET_PROPERTIES: Property<TicketsRow>[] = [
     defaultVisible: true,
     sortable: true,
     sortKey: "closedAt",
+    filter: { dataType: "date", ops: DATE_OPS },
     cell: (t) => (
       <span className="tabular-nums text-muted-foreground">
         {formatDate(t.closedAt)}
@@ -204,6 +221,7 @@ export const TICKET_PROPERTIES: Property<TicketsRow>[] = [
     width: 110,
     group: "Source",
     defaultVisible: false,
+    filter: { dataType: "enum", ops: ENUM_OPS, enumValues: TICKET_HELPDESK },
     cell: (t) => (
       <span className="capitalize text-muted-foreground">{t.helpdesk}</span>
     ),
@@ -214,6 +232,7 @@ export const TICKET_PROPERTIES: Property<TicketsRow>[] = [
     width: 140,
     group: "Activity",
     defaultVisible: false,
+    filter: { dataType: "date", ops: DATE_OPS },
     cell: (t) => (
       <span className="tabular-nums text-muted-foreground">
         {formatDate(t.firstResponseAt)}
@@ -228,6 +247,7 @@ export const TICKET_PROPERTIES: Property<TicketsRow>[] = [
     defaultVisible: false,
     sortable: true,
     sortKey: "solvedAt",
+    filter: { dataType: "date", ops: DATE_OPS },
     cell: (t) => (
       <span className="tabular-nums text-muted-foreground">
         {formatDate(t.solvedAt)}

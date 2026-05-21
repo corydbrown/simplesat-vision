@@ -3,7 +3,6 @@
 import {
   ArrowDownUp,
   Download,
-  Filter,
   Group,
   Plus,
   Search,
@@ -35,7 +34,6 @@ export function EntityToolbar<T>({
           disabled
         />
       </div>
-      <ToolbarButton icon={<Filter size={13} />} label="Filter" badge={0} />
       <ToolbarButton icon={<Group size={13} />} label="Group by" />
       <ToolbarButton icon={<ArrowDownUp size={13} />} label="Sort" />
       <ColumnsControl properties={properties} />

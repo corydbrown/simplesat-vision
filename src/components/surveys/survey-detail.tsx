@@ -11,6 +11,7 @@ import {
   PropertiesHeader,
 } from "@/components/shared/detail-section";
 import { EntityTable } from "@/components/shared/entity-table";
+import { SortControl } from "@/components/shared/sort-control";
 import type { SurveyDetail, SurveyRow } from "@/db/queries/surveys";
 import type { ResponseListRow } from "@/db/queries/responses";
 import { formatNumber } from "@/lib/format";
@@ -102,7 +103,15 @@ export function SurveyDetailBody({
   );
 
   const responsesTable = (
-    <DetailSection title={`Recent responses (${responses.length})`}>
+    <DetailSection
+      title={`Recent responses (${responses.length})`}
+      trailing={
+        <SortControl
+          properties={RESPONSE_PROPERTIES}
+          paramPrefix={inDrawer ? "d" : ""}
+        />
+      }
+    >
       <ColumnStateProvider
         tableId="survey-responses"
         properties={RESPONSE_PROPERTIES}

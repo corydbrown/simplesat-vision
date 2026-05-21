@@ -1,6 +1,7 @@
 import "server-only";
-import { and, desc, eq, sql, type SQL } from "drizzle-orm";
+import { and, asc, desc, eq, sql, type AnyColumn, type SQL } from "drizzle-orm";
 import { db, schema } from "../client";
+import type { SortSpec } from "@/lib/sort/url-state";
 import { customersViewWhere } from "@/lib/view-predicates";
 import type { Customer, CustomerTier } from "../schema";
 
@@ -23,10 +24,37 @@ const totalTicketsExpr = sql<number>`(SELECT COUNT(*) FROM tickets WHERE tickets
 const avgRatingExpr = sql<number | null>`(SELECT AVG(CAST(rating as REAL)) FROM responses WHERE responses.customer_id = customers.id)`;
 const lastSeenExpr = sql<number | null>`(SELECT MAX(tickets.created_at) FROM tickets WHERE tickets.customer_id = customers.id)`;
 
+const CUSTOMER_SORT_MAP: Record<string, AnyColumn | SQL> = {
+  name: schema.customers.name,
+  email: schema.customers.email,
+  tier: schema.customers.tier,
+  language: schema.customers.language,
+  company: schema.customers.company,
+  company_external_id: schema.customers.companyExternalId,
+  company_domain: schema.customers.companyDomain,
+  id: schema.customers.id,
+  total_tickets: totalTicketsExpr,
+  avg_rating: avgRatingExpr,
+  last_seen: lastSeenExpr,
+};
+
+function buildCustomerOrderBy(sorts: SortSpec[]): SQL[] {
+  const out: SQL[] = [];
+  for (const s of sorts) {
+    const col = CUSTOMER_SORT_MAP[s.key];
+    if (!col) continue;
+    out.push(s.dir === "asc" ? asc(col) : desc(col));
+  }
+  if (out.length === 0) out.push(desc(lastSeenExpr));
+  return out;
+}
+
 export async function listCustomers({
   view,
+  sorts = [],
 }: {
   view?: string;
+  sorts?: SortSpec[];
 } = {}): Promise<{ rows: CustomerListRow[]; total: number }> {
   const tierWhere = view ? customersViewWhere(view) : undefined;
   const atRiskWhere =
@@ -62,7 +90,7 @@ export async function listCustomers({
     .from(schema.customers);
 
   const rows = await (where ? baseQuery.where(where) : baseQuery).orderBy(
-    desc(lastSeenExpr),
+    ...buildCustomerOrderBy(sorts),
   );
 
   return {

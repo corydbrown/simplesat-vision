@@ -3,13 +3,15 @@ import { EntityTable } from "@/components/shared/entity-table";
 import { EntityToolbar } from "@/components/shared/entity-toolbar";
 import { ColumnStateProvider } from "@/lib/column-prefs";
 import { CUSTOMER_PROPERTIES } from "@/lib/properties/customers";
+import { parseSortParam } from "@/lib/sort/url-state";
 import { listCustomers } from "@/db/queries/customers";
 import { CUSTOMER_VIEWS } from "@/lib/views";
 
 export default async function CustomersPage(props: PageProps<"/customers">) {
   const sp = await props.searchParams;
   const view = typeof sp.view === "string" ? sp.view : undefined;
-  const { rows, total } = await listCustomers({ view });
+  const sorts = parseSortParam(typeof sp.sort === "string" ? sp.sort : undefined);
+  const { rows, total } = await listCustomers({ view, sorts });
   const activeView = CUSTOMER_VIEWS.find((v) => v.id === (view ?? "all"));
 
   return (
@@ -33,6 +35,7 @@ export default async function CustomersPage(props: PageProps<"/customers">) {
         total={total}
         basePath="/customers"
         drawerEntity="customer"
+        serverSorted
       />
     </ColumnStateProvider>
   );

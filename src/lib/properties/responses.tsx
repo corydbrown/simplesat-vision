@@ -17,6 +17,8 @@ export const RESPONSE_PROPERTIES: Property<ResponseListRow>[] = [
     width: 110,
     group: "Answer",
     alwaysVisible: true,
+    sortable: true,
+    sortValue: (r) => r.rating,
     cell: (r) => (
       <ResponsePill id={r.id} rating={r.rating} scale={r.scale} />
     ),
@@ -27,6 +29,8 @@ export const RESPONSE_PROPERTIES: Property<ResponseListRow>[] = [
     width: 420,
     group: "Answer",
     defaultVisible: true,
+    sortable: true,
+    sortValue: (r) => r.comment,
     cell: (r) =>
       r.comment ? (
         <span className="text-foreground">{r.comment}</span>
@@ -40,6 +44,8 @@ export const RESPONSE_PROPERTIES: Property<ResponseListRow>[] = [
     width: 240,
     group: "Relations",
     defaultVisible: true,
+    sortable: true,
+    sortValue: (r) => r.ticketSubject ?? r.ticketExternalId,
     cell: (r) =>
       r.ticketId ? (
         <TicketPill
@@ -57,6 +63,8 @@ export const RESPONSE_PROPERTIES: Property<ResponseListRow>[] = [
     width: 200,
     group: "Relations",
     defaultVisible: true,
+    sortable: true,
+    sortValue: (r) => r.customerName,
     cell: (r) =>
       r.customerId && r.customerName ? (
         <CustomerPill id={r.customerId} name={r.customerName} />
@@ -70,6 +78,8 @@ export const RESPONSE_PROPERTIES: Property<ResponseListRow>[] = [
     width: 200,
     group: "Relations",
     defaultVisible: true,
+    sortable: true,
+    sortValue: (r) => r.teamMemberName,
     cell: (r) =>
       r.teamMemberId && r.teamMemberName && r.teamMemberAvatarColor ? (
         <TeamMemberPill
@@ -87,6 +97,8 @@ export const RESPONSE_PROPERTIES: Property<ResponseListRow>[] = [
     width: 170,
     group: "Activity",
     defaultVisible: true,
+    sortable: true,
+    sortValue: (r) => r.respondedAt,
     cell: (r) => (
       <span className="tabular-nums text-muted-foreground">
         {formatDateTime(r.respondedAt)}
@@ -99,6 +111,8 @@ export const RESPONSE_PROPERTIES: Property<ResponseListRow>[] = [
     width: 156,
     group: "Identity",
     defaultVisible: false,
+    sortable: true,
+    sortValue: (r) => r.id,
     cell: (r) => (
       <span className="font-mono text-xs text-muted-foreground">{r.id}</span>
     ),

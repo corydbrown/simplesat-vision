@@ -15,7 +15,9 @@ export type Property<T> = {
   alwaysVisible?: boolean;
   defaultVisible?: boolean;
   sortable?: boolean;
-  sortKey?: string;
+  /** Client-side sort accessor. Required when `sortable: true` so embedded
+   *  tables (which sort in memory rather than re-fetching) can order rows. */
+  sortValue?: (row: T) => string | number | Date | null;
   truncate?: boolean;
   align?: "left" | "right";
   cell: (row: T) => ReactNode;

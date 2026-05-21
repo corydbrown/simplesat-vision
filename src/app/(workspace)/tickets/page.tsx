@@ -5,32 +5,11 @@ import { ListFilterRow } from "@/components/shared/list-filter-row";
 import { ColumnStateProvider } from "@/lib/column-prefs";
 import { filtersFromSearchParam } from "@/lib/filters/url-state";
 import { TICKET_PROPERTIES } from "@/lib/properties/tickets";
-import {
-  listTickets,
-  type SortDir,
-  type TicketSortKey,
-} from "@/db/queries/tickets";
+import { parseSortParam } from "@/lib/sort/url-state";
+import { listTickets } from "@/db/queries/tickets";
 import { TICKET_VIEWS } from "@/lib/views";
 
 const PAGE_SIZE = 50;
-
-const VALID_SORTS: TicketSortKey[] = [
-  "createdAt",
-  "subject",
-  "status",
-  "channel",
-  "closedAt",
-  "solvedAt",
-];
-
-function parseSort(v: string | undefined): TicketSortKey {
-  if (v && (VALID_SORTS as string[]).includes(v)) return v as TicketSortKey;
-  return "closedAt";
-}
-
-function parseDir(v: string | undefined): SortDir {
-  return v === "asc" ? "asc" : "desc";
-}
 
 function parsePage(v: string | undefined): number {
   const n = Number(v);
@@ -40,8 +19,7 @@ function parsePage(v: string | undefined): number {
 
 export default async function TicketsPage(props: PageProps<"/tickets">) {
   const sp = await props.searchParams;
-  const sort = parseSort(typeof sp.sort === "string" ? sp.sort : undefined);
-  const dir = parseDir(typeof sp.dir === "string" ? sp.dir : undefined);
+  const sorts = parseSortParam(typeof sp.sort === "string" ? sp.sort : undefined);
   const page = parsePage(typeof sp.page === "string" ? sp.page : undefined);
   const view = typeof sp.view === "string" ? sp.view : undefined;
   const filters = filtersFromSearchParam(sp.f);
@@ -49,8 +27,7 @@ export default async function TicketsPage(props: PageProps<"/tickets">) {
   const { rows, total } = await listTickets({
     page,
     pageSize: PAGE_SIZE,
-    sort,
-    dir,
+    sorts,
     view,
     filters,
   });
@@ -77,10 +54,9 @@ export default async function TicketsPage(props: PageProps<"/tickets">) {
         page={page}
         pageSize={PAGE_SIZE}
         total={total}
-        sort={sort}
-        dir={dir}
         basePath="/tickets"
         drawerEntity="ticket"
+        serverSorted
       />
     </ColumnStateProvider>
   );

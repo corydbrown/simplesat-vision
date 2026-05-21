@@ -17,6 +17,8 @@ const CORE_PROPERTIES: Property<TeamMemberListRow>[] = [
     width: 220,
     group: "Identity",
     alwaysVisible: true,
+    sortable: true,
+    sortValue: (m) => m.name,
     cell: (m) => (
       <TeamMemberPill id={m.id} name={m.name} avatarColor={m.avatarColor} />
     ),
@@ -27,6 +29,8 @@ const CORE_PROPERTIES: Property<TeamMemberListRow>[] = [
     width: 170,
     group: "Identity",
     defaultVisible: true,
+    sortable: true,
+    sortValue: (m) => m.role,
     cell: (m) => <span className="text-muted-foreground">{m.role}</span>,
   },
   {
@@ -35,6 +39,8 @@ const CORE_PROPERTIES: Property<TeamMemberListRow>[] = [
     width: 110,
     group: "Identity",
     defaultVisible: true,
+    sortable: true,
+    sortValue: (m) => m.team,
     cell: (m) => <TeamPill team={m.team} />,
   },
   {
@@ -43,6 +49,8 @@ const CORE_PROPERTIES: Property<TeamMemberListRow>[] = [
     width: 140,
     group: "Identity",
     defaultVisible: true,
+    sortable: true,
+    sortValue: (m) => m.region,
     cell: (m) =>
       m.region ? (
         <span className="text-muted-foreground">{m.region}</span>
@@ -56,6 +64,8 @@ const CORE_PROPERTIES: Property<TeamMemberListRow>[] = [
     width: 110,
     group: "Identity",
     defaultVisible: false,
+    sortable: true,
+    sortValue: (m) => m.language,
     cell: (m) =>
       m.language ? (
         <span className="text-muted-foreground">{m.language}</span>
@@ -69,6 +79,8 @@ const CORE_PROPERTIES: Property<TeamMemberListRow>[] = [
     width: 180,
     group: "Identity",
     defaultVisible: true,
+    sortable: true,
+    sortValue: (m) => m.groupName,
     cell: (m) =>
       m.groupName ? (
         <TeamGroupPill name={m.groupName} />
@@ -82,6 +94,8 @@ const CORE_PROPERTIES: Property<TeamMemberListRow>[] = [
     width: 220,
     group: "Identity",
     defaultVisible: false,
+    sortable: true,
+    sortValue: (m) => m.email,
     cell: (m) => <span className="text-muted-foreground">{m.email}</span>,
   },
   {
@@ -91,6 +105,8 @@ const CORE_PROPERTIES: Property<TeamMemberListRow>[] = [
     group: "Activity",
     defaultVisible: true,
     align: "right",
+    sortable: true,
+    sortValue: (m) => m.totalTickets,
     cell: (m) => (
       <span className="tabular-nums">{formatNumber(m.totalTickets)}</span>
     ),
@@ -102,6 +118,8 @@ const CORE_PROPERTIES: Property<TeamMemberListRow>[] = [
     group: "Activity",
     defaultVisible: true,
     align: "right",
+    sortable: true,
+    sortValue: (m) => m.totalResponses,
     cell: (m) => (
       <span className="tabular-nums text-muted-foreground">
         {formatNumber(m.totalResponses)}
@@ -114,6 +132,8 @@ const CORE_PROPERTIES: Property<TeamMemberListRow>[] = [
     width: 130,
     group: "Activity",
     defaultVisible: true,
+    sortable: true,
+    sortValue: (m) => m.avgRating,
     cell: (m) => <AvgRating value={m.avgRating} threshold="team-member" />,
   },
   {
@@ -122,6 +142,8 @@ const CORE_PROPERTIES: Property<TeamMemberListRow>[] = [
     width: 156,
     group: "Identity",
     defaultVisible: false,
+    sortable: true,
+    sortValue: (m) => m.id,
     cell: (m) => (
       <span className="font-mono text-xs text-muted-foreground">{m.id}</span>
     ),

@@ -32,7 +32,8 @@ export const TICKET_PROPERTIES: Property<TicketsRow>[] = [
     width: 130,
     group: "Identity",
     alwaysVisible: true,
-    sortable: false,
+    sortable: true,
+    sortValue: (t) => t.helpdeskExternalId,
     filter: { dataType: "string", ops: STRING_OPS },
     cell: (t) => (
       <span className="font-mono text-xs text-muted-foreground">
@@ -52,6 +53,7 @@ export const TICKET_PROPERTIES: Property<TicketsRow>[] = [
     group: "Identity",
     alwaysVisible: true,
     sortable: true,
+    sortValue: (t) => t.subject,
     filter: { dataType: "string", ops: STRING_OPS },
     cell: (t) => <span className="text-foreground">{t.subject}</span>,
   },
@@ -62,6 +64,7 @@ export const TICKET_PROPERTIES: Property<TicketsRow>[] = [
     group: "State",
     defaultVisible: true,
     sortable: true,
+    sortValue: (t) => t.status,
     filter: { dataType: "enum", ops: ENUM_OPS, enumValues: TICKET_STATUS },
     cell: (t) => <StatusPill status={t.status} />,
   },
@@ -72,6 +75,7 @@ export const TICKET_PROPERTIES: Property<TicketsRow>[] = [
     group: "State",
     defaultVisible: true,
     sortable: true,
+    sortValue: (t) => t.priority,
     filter: { dataType: "enum", ops: ENUM_OPS, enumValues: TICKET_PRIORITY },
     cell: (t) => <PriorityPill priority={t.priority} />,
   },
@@ -81,6 +85,8 @@ export const TICKET_PROPERTIES: Property<TicketsRow>[] = [
     width: 200,
     group: "Relations",
     defaultVisible: true,
+    sortable: true,
+    sortValue: (t) => t.customer?.name ?? null,
     cell: (t) =>
       t.customer ? (
         <CustomerPill id={t.customer.id} name={t.customer.name} />
@@ -94,6 +100,8 @@ export const TICKET_PROPERTIES: Property<TicketsRow>[] = [
     width: 180,
     group: "Relations",
     defaultVisible: true,
+    sortable: true,
+    sortValue: (t) => t.customer?.company ?? null,
     cell: (t) =>
       t.customer?.company ? (
         <CompanyPill name={t.customer.company} />
@@ -107,6 +115,8 @@ export const TICKET_PROPERTIES: Property<TicketsRow>[] = [
     width: 200,
     group: "Relations",
     defaultVisible: true,
+    sortable: true,
+    sortValue: (t) => t.assignee?.name ?? null,
     cell: (t) =>
       t.assignee ? (
         <TeamMemberPill
@@ -125,6 +135,7 @@ export const TICKET_PROPERTIES: Property<TicketsRow>[] = [
     group: "Source",
     defaultVisible: true,
     sortable: true,
+    sortValue: (t) => t.channel,
     filter: { dataType: "enum", ops: ENUM_OPS, enumValues: TICKET_CHANNEL },
     cell: (t) => <ChannelPill channel={t.channel} />,
   },
@@ -143,6 +154,9 @@ export const TICKET_PROPERTIES: Property<TicketsRow>[] = [
     group: "Activity",
     defaultVisible: true,
     align: "right",
+    sortable: true,
+    sortValue: (t) =>
+      t.solvedAt ? t.solvedAt.getTime() - t.createdAt.getTime() : null,
     cell: (t) => (
       <span className="tabular-nums text-muted-foreground">
         {formatDuration(t.createdAt, t.solvedAt)}
@@ -155,6 +169,18 @@ export const TICKET_PROPERTIES: Property<TicketsRow>[] = [
     width: 160,
     group: "Survey",
     defaultVisible: true,
+    sortable: true,
+    sortValue: (t) =>
+      // Mirror the SQL CASE ordering in tickets.ts; keep the two in sync.
+      t.response
+        ? "1_responded"
+        : t.surveySentAt
+          ? "2_sent_no_reply"
+          : t.surveyNotSentReason
+            ? "3_not_fired"
+            : !t.surveyEligible
+              ? "4_skipped"
+              : "5_pending",
     cell: (t) => <SurveyStateCell ticket={t} />,
   },
   {
@@ -163,6 +189,8 @@ export const TICKET_PROPERTIES: Property<TicketsRow>[] = [
     width: 110,
     group: "Survey",
     defaultVisible: true,
+    sortable: true,
+    sortValue: (t) => t.response?.rating ?? null,
     cell: (t) =>
       t.response ? (
         <ResponsePill
@@ -181,7 +209,7 @@ export const TICKET_PROPERTIES: Property<TicketsRow>[] = [
     group: "Activity",
     defaultVisible: true,
     sortable: true,
-    sortKey: "createdAt",
+    sortValue: (t) => t.createdAt,
     filter: { dataType: "date", ops: DATE_OPS },
     cell: (t) => (
       <span className="tabular-nums text-muted-foreground">
@@ -196,7 +224,7 @@ export const TICKET_PROPERTIES: Property<TicketsRow>[] = [
     group: "Activity",
     defaultVisible: true,
     sortable: true,
-    sortKey: "closedAt",
+    sortValue: (t) => t.closedAt,
     filter: { dataType: "date", ops: DATE_OPS },
     cell: (t) => (
       <span className="tabular-nums text-muted-foreground">
@@ -210,6 +238,8 @@ export const TICKET_PROPERTIES: Property<TicketsRow>[] = [
     width: 156,
     group: "Identity",
     defaultVisible: false,
+    sortable: true,
+    sortValue: (t) => t.id,
     cell: (t) => (
       <span className="font-mono text-xs text-muted-foreground">{t.id}</span>
     ),
@@ -221,6 +251,8 @@ export const TICKET_PROPERTIES: Property<TicketsRow>[] = [
     width: 110,
     group: "Source",
     defaultVisible: false,
+    sortable: true,
+    sortValue: (t) => t.helpdesk,
     filter: { dataType: "enum", ops: ENUM_OPS, enumValues: TICKET_HELPDESK },
     cell: (t) => (
       <span className="capitalize text-muted-foreground">{t.helpdesk}</span>
@@ -232,6 +264,8 @@ export const TICKET_PROPERTIES: Property<TicketsRow>[] = [
     width: 140,
     group: "Activity",
     defaultVisible: false,
+    sortable: true,
+    sortValue: (t) => t.firstResponseAt,
     filter: { dataType: "date", ops: DATE_OPS },
     cell: (t) => (
       <span className="tabular-nums text-muted-foreground">
@@ -246,7 +280,7 @@ export const TICKET_PROPERTIES: Property<TicketsRow>[] = [
     group: "Activity",
     defaultVisible: false,
     sortable: true,
-    sortKey: "solvedAt",
+    sortValue: (t) => t.solvedAt,
     filter: { dataType: "date", ops: DATE_OPS },
     cell: (t) => (
       <span className="tabular-nums text-muted-foreground">

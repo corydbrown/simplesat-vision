@@ -9,6 +9,7 @@ import {
   ANSWER_PROPERTIES,
   type AnswerRow,
 } from "@/lib/properties/response-answers";
+import { parseSortParam } from "@/lib/sort/url-state";
 import { listResponses } from "@/db/queries/responses";
 import { RESPONSE_VIEWS } from "@/lib/views";
 
@@ -34,7 +35,12 @@ export default async function ResponsesPage(props: PageProps<"/responses">) {
     typeof sp.layout === "string" ? sp.layout : undefined,
   );
 
-  const { rows, total } = await listResponses({ view, limit: 500 });
+  const sortParam = typeof sp.sort === "string" ? sp.sort : undefined;
+  // Answer layout uses its own property registry whose sort keys don't map
+  // to listResponses columns — let the table client-sort there. Other
+  // layouts can sort on the server.
+  const sorts = layout === "answer" ? [] : parseSortParam(sortParam);
+  const { rows, total } = await listResponses({ view, limit: 500, sorts });
   const activeView = RESPONSE_VIEWS.find((v) => v.id === (view ?? "all"));
 
   const crumbs = [
@@ -110,6 +116,8 @@ export default async function ResponsesPage(props: PageProps<"/responses">) {
           basePath="/responses"
           drawerEntity="response"
         />
+        {/* answer layout intentionally omits serverSorted so EntityTable
+            applies the URL sort client-side over the flattened answer rows. */}
       </ColumnStateProvider>
     );
   }
@@ -131,6 +139,7 @@ export default async function ResponsesPage(props: PageProps<"/responses">) {
         total={total}
         basePath="/responses"
         drawerEntity="response"
+        serverSorted
       />
     </ColumnStateProvider>
   );

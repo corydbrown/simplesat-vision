@@ -1,5 +1,5 @@
 import type { AxisAlias } from "./compile";
-import type { ValueDef } from "./types";
+import type { AxisFieldSort, ValueDef } from "./types";
 
 export type PivotCellKey = {
   key: string;
@@ -43,12 +43,18 @@ function readAxis(
   return { value, label };
 }
 
+export type BuildPivotOptions = {
+  rowSort?: AxisFieldSort;
+  columnSort?: AxisFieldSort;
+};
+
 export function buildPivot(
   rows: Array<Record<string, unknown>>,
   rowAliases: AxisAlias[],
   columnAliases: AxisAlias[],
   valueAliases: string[],
   values: ValueDef[],
+  opts: BuildPivotOptions = {},
 ): PivotGrid {
   const rowKeysMap = new Map<string, PivotCellKey>();
   const colKeysMap = new Map<string, PivotCellKey>();
@@ -163,12 +169,68 @@ export function buildPivot(
   const columnTotals = new Map<string, number[]>();
   for (const [k, a] of colAcc) columnTotals.set(k, rollUp(a));
 
+  const rowKeysArr = Array.from(rowKeysMap.values());
+  const colKeysArr = Array.from(colKeysMap.values());
+
   return {
-    rowKeys: Array.from(rowKeysMap.values()),
-    columnKeys: Array.from(colKeysMap.values()),
+    rowKeys: sortAxisKeys(rowKeysArr, rowTotals, opts.rowSort, values.length),
+    columnKeys: sortAxisKeys(colKeysArr, columnTotals, opts.columnSort, values.length),
     cells,
     rowTotals,
     columnTotals,
     grandTotals: rollUp(grandAcc),
   };
+}
+
+function sortAxisKeys(
+  keys: PivotCellKey[],
+  totals: Map<string, number[]>,
+  sort: AxisFieldSort | undefined,
+  valueCount: number,
+): PivotCellKey[] {
+  if (keys.length <= 1) return keys;
+
+  // Fall back to default sort if "by value" references a missing value index.
+  const effective: AxisFieldSort =
+    sort && sort.by === "value" && (sort.valueIndex < 0 || sort.valueIndex >= valueCount)
+      ? { by: "field", direction: "asc" }
+      : sort ?? { by: "field", direction: "asc" };
+
+  const isNoneLabel = (k: PivotCellKey) => k.labels[0] === NULL_LABEL;
+  const direction = effective.direction === "desc" ? -1 : 1;
+
+  // Pair with original index for a stable tiebreaker.
+  const indexed = keys.map((k, i) => ({ k, i }));
+
+  indexed.sort((a, b) => {
+    // NULL labels always sink to the end regardless of direction.
+    const aNull = isNoneLabel(a.k);
+    const bNull = isNoneLabel(b.k);
+    if (aNull && !bNull) return 1;
+    if (!aNull && bNull) return -1;
+    if (aNull && bNull) return a.i - b.i;
+
+    let cmp = 0;
+    if (effective.by === "value") {
+      const av = totals.get(a.k.key)?.[effective.valueIndex];
+      const bv = totals.get(b.k.key)?.[effective.valueIndex];
+      const aMissing = av == null || !Number.isFinite(av);
+      const bMissing = bv == null || !Number.isFinite(bv);
+      if (aMissing && !bMissing) return 1;
+      if (!aMissing && bMissing) return -1;
+      if (!aMissing && !bMissing) cmp = (av as number) - (bv as number);
+    } else {
+      const al = a.k.labels[0] ?? "";
+      const bl = b.k.labels[0] ?? "";
+      cmp = al.localeCompare(bl, undefined, {
+        numeric: true,
+        sensitivity: "base",
+      });
+    }
+
+    if (cmp !== 0) return cmp * direction;
+    return a.i - b.i;
+  });
+
+  return indexed.map((x) => x.k);
 }

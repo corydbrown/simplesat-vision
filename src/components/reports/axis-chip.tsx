@@ -40,16 +40,18 @@ export function AxisChip({
   onRemove,
   onUpdate,
 }: AxisChipProps) {
+  const pivotField: PivotField | null = field === "count" ? null : field;
   const isValue = axisName === "values";
-  const label = field === "count" ? "Records" : field.label;
-  const dataType = field === "count" ? "number" : field.dataType;
+  const label = pivotField?.label ?? "Records";
+  const dataType = pivotField?.dataType ?? "number";
   const bucket = !isValue ? (axis as AxisField).bucket : undefined;
   const agg = isValue ? (axis as ValueDef).agg : undefined;
 
   const summary = bucket ? `by ${bucket}` : agg ? AGG_LABELS[agg] : undefined;
 
-  const hasMenu =
-    field !== "count" && (isValue || field.bucketable);
+  const hasBucketMenu = !isValue && !!pivotField && pivotField.bucketable;
+  const hasAggMenu = isValue && !!pivotField;
+  const hasMenu = hasBucketMenu || hasAggMenu;
 
   return (
     <div
@@ -67,14 +69,14 @@ export function AxisChip({
               "flex items-center gap-0.5 rounded px-1 py-0.5 text-xs text-muted-foreground hover:bg-accent hover:text-foreground cursor-pointer",
             )}
           >
-            {summary ?? "Configure"}
+            {summary}
             <ChevronDown size={12} />
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start">
-            {isValue && (
+            {hasAggMenu && pivotField && (
               <>
                 <DropdownMenuLabel>Aggregation</DropdownMenuLabel>
-                {field.aggregations.map((a) => (
+                {pivotField.aggregations.map((a) => (
                   <DropdownMenuCheckboxItem
                     key={a}
                     checked={agg === a}
@@ -87,8 +89,10 @@ export function AxisChip({
                 ))}
               </>
             )}
-            {!isValue && field.bucketable && (
+
+            {hasBucketMenu && pivotField && (
               <>
+                {hasAggMenu && <DropdownMenuSeparator />}
                 <DropdownMenuLabel>Bucket</DropdownMenuLabel>
                 {BUCKETS.map((b) => (
                   <DropdownMenuCheckboxItem

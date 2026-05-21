@@ -1,5 +1,7 @@
 import {
   defaultConfig,
+  type AxisField,
+  type AxisFieldSort,
   type BaseEntity,
   type ReportConfig,
 } from "./types";
@@ -10,6 +12,39 @@ const VALID_BASES: BaseEntity[] = [
   "team_member",
   "response",
 ];
+
+function sanitizeSort(raw: unknown): AxisFieldSort | undefined {
+  if (!raw || typeof raw !== "object") return undefined;
+  const s = raw as Partial<AxisFieldSort> & Record<string, unknown>;
+  const direction = s.direction === "desc" ? "desc" : s.direction === "asc" ? "asc" : undefined;
+  if (!direction) return undefined;
+  if (s.by === "field") return { by: "field", direction };
+  if (s.by === "value" && typeof s.valueIndex === "number" && s.valueIndex >= 0) {
+    return { by: "value", valueIndex: Math.floor(s.valueIndex), direction };
+  }
+  return undefined;
+}
+
+function sanitizeAxisField(raw: unknown): AxisField | null {
+  if (!raw || typeof raw !== "object") return null;
+  const a = raw as Partial<AxisField> & Record<string, unknown>;
+  if (typeof a.propertyId !== "string" || !a.propertyId) return null;
+  const out: AxisField = { propertyId: a.propertyId };
+  if (typeof a.bucket === "string") out.bucket = a.bucket as AxisField["bucket"];
+  const sort = sanitizeSort(a.sort);
+  if (sort) out.sort = sort;
+  return out;
+}
+
+function sanitizeAxisArray(raw: unknown): AxisField[] {
+  if (!Array.isArray(raw)) return [];
+  const out: AxisField[] = [];
+  for (const item of raw) {
+    const f = sanitizeAxisField(item);
+    if (f) out.push(f);
+  }
+  return out;
+}
 
 function b64encode(s: string): string {
   if (typeof window === "undefined") {
@@ -46,8 +81,8 @@ export function decodeConfig(value: string | null): ReportConfig | null {
     if (!c.base || !VALID_BASES.includes(c.base)) return null;
     return {
       base: c.base,
-      rows: Array.isArray(c.rows) ? c.rows : [],
-      columns: Array.isArray(c.columns) ? c.columns : [],
+      rows: sanitizeAxisArray(c.rows),
+      columns: sanitizeAxisArray(c.columns),
       values:
         Array.isArray(c.values) && c.values.length > 0
           ? c.values

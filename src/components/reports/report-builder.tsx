@@ -32,6 +32,7 @@ import {
   MAX_VALUES,
   defaultConfig,
   type AxisField,
+  type AxisFieldSort,
   type BaseEntity,
   type FilterDef,
   type ReportConfig,
@@ -192,10 +193,33 @@ export function ReportBuilder({ initialConfig }: Props) {
   };
 
   const removeValue = (index: number) => {
-    setConfig((prev) => ({
-      ...prev,
-      values: prev.values.filter((_, i) => i !== index),
-    }));
+    setConfig((prev) => {
+      // Drop any axis sort that referenced the removed value, and shift down
+      // indexes that point past it so they keep referring to the same chip.
+      const scrubAxis = (axes: AxisField[]): AxisField[] =>
+        axes.map((axis) => {
+          const sort = axis.sort;
+          if (!sort || sort.by !== "value") return axis;
+          if (sort.valueIndex === index) {
+            const next = { ...axis };
+            delete next.sort;
+            return next;
+          }
+          if (sort.valueIndex > index) {
+            return {
+              ...axis,
+              sort: { ...sort, valueIndex: sort.valueIndex - 1 },
+            };
+          }
+          return axis;
+        });
+      return {
+        ...prev,
+        values: prev.values.filter((_, i) => i !== index),
+        rows: scrubAxis(prev.rows),
+        columns: scrubAxis(prev.columns),
+      };
+    });
   };
 
   const removeFilter = (index: number) => {
@@ -293,6 +317,21 @@ export function ReportBuilder({ initialConfig }: Props) {
     .map((v) => v.propertyId)
     .filter((id) => id !== "*");
   const canReset = !isConfigEmpty(config);
+
+  const setAxisSort = (
+    section: "rows" | "columns",
+    next: AxisFieldSort | undefined,
+  ) => {
+    setConfig((prev) => {
+      const arr = [...prev[section]];
+      if (!arr[0]) return prev;
+      const updated = { ...arr[0] };
+      if (next) updated.sort = next;
+      else delete updated.sort;
+      arr[0] = updated;
+      return { ...prev, [section]: arr };
+    });
+  };
 
   return (
     <DndContext
@@ -494,7 +533,7 @@ export function ReportBuilder({ initialConfig }: Props) {
 
           <div className="p-6">
             {result ? (
-              <PivotTable result={result} />
+              <PivotTable result={result} onSortChange={setAxisSort} />
             ) : (
               <PivotEmptyState
                 hasBase={true}

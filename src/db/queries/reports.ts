@@ -2,7 +2,14 @@ import "server-only";
 import { db } from "@/db/client";
 import { compileReport } from "@/lib/reports/compile";
 import { buildPivot, type PivotCellKey } from "@/lib/reports/pivot";
-import type { ReportConfig, ValueDef } from "@/lib/reports/types";
+import type { FieldDataType } from "@/lib/reports/pivot-fields";
+import type { AxisFieldSort, ReportConfig, ValueDef } from "@/lib/reports/types";
+
+export type ReportAxisMeta = {
+  label: string;
+  bucket?: string;
+  dataType: FieldDataType;
+};
 
 /** Serializable shape sent to the client. */
 export type ReportResult = {
@@ -13,9 +20,11 @@ export type ReportResult = {
   rowTotals: Record<string, number[]>;
   columnTotals: Record<string, number[]>;
   grandTotals: number[];
-  rowAxes: Array<{ label: string; bucket?: string }>;
-  columnAxes: Array<{ label: string; bucket?: string }>;
+  rowAxes: ReportAxisMeta[];
+  columnAxes: ReportAxisMeta[];
   valueDefs: ValueDef[];
+  rowSort?: AxisFieldSort;
+  columnSort?: AxisFieldSort;
 };
 
 export async function runReport(
@@ -26,12 +35,16 @@ export async function runReport(
 
   const rows = await db.all<Record<string, unknown>>(compiled.query);
 
+  const rowSort = config.rows[0]?.sort;
+  const columnSort = config.columns[0]?.sort;
+
   const grid = buildPivot(
     rows,
     compiled.rowAliases,
     compiled.columnAliases,
     compiled.valueAliases,
     compiled.valueDefs,
+    { rowSort, columnSort },
   );
 
   const cells: Record<string, Record<string, number[]>> = {};
@@ -51,11 +64,15 @@ export async function runReport(
     rowAxes: compiled.rowAliases.map((a) => ({
       label: a.field.label,
       bucket: a.bucket,
+      dataType: a.field.dataType,
     })),
     columnAxes: compiled.columnAliases.map((a) => ({
       label: a.field.label,
       bucket: a.bucket,
+      dataType: a.field.dataType,
     })),
     valueDefs: compiled.valueDefs,
+    rowSort,
+    columnSort,
   };
 }

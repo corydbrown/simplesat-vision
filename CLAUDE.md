@@ -15,6 +15,7 @@ A clean-room prototype of the future Simplesat product (customer-feedback platfo
 - [REPORTS.md](REPORTS.md) — pivot editor details, AI prompt-to-config
 - [DECISIONS.md](DECISIONS.md) — explicit assumptions made along the way
 - [AGENTS.md](AGENTS.md) — Next.js 16 gotchas (loaded automatically)
+- [NOTION.md](NOTION.md) — Tasks DB schema + how agents create deferral tasks
 - [README.md](README.md) — surface-level quickstart
 
 If you only read one section of this file: read **Conventions** and **Don't do**.
@@ -55,6 +56,12 @@ Always detect which role the current session is playing before suggesting action
 - **Supervisor:** `pwd` ends in `/simplesat-vision`, branch is `main`. Plans, reviews PRs, merges, edits docs, spawns worktrees.
 - **Worker:** `pwd` is a sibling worktree (e.g. `/simplesat-vision-worktrees/<feature>/`), branch is `feat/*` or `docs/*`. Implements the task, commits, and (when ready) pushes + opens a PR.
 - **Other:** Tell Cory what you see (path + branch) and ask what he's trying to do.
+
+### Spawning worktrees
+
+- **Cap at 3 active workers.** Cory's context-switching ceiling. If 3 worktrees are already running and a 4th is requested, recommend waiting for one to ship first.
+- **Check collision risk before spawning** when one or more workers are active. Scan the planned scope of the new feature against the surfaces active workers touch. Same surface (toolbar, EntityTable, queries, property registries, shared component) = collision guaranteed → recommend sequential. Different surfaces (CSS tokens vs SQL queries, `/reports` vs list pages, schema additions vs UI) = parallel is safe.
+- **When in doubt, ask Cory before spawning.** Name the active workers, name the surfaces the new one would touch, recommend go or wait.
 
 ### Spoiling Cory
 
@@ -160,6 +167,7 @@ Rules:
 - **DrawerLink must forwardRef + spread props**: it's used as an `asChild` target of Radix `HoverCardTrigger`. If it doesn't forward ref or spread `...rest`, Radix can't inject pointer handlers and popovers silently break.
 - **Aggregate subqueries in Drizzle**: do NOT use `${schema.table.column}` interpolation inside a `sql\`\`` correlated subquery — it produces a parameter placeholder, not a column reference, and you get NULL rows. Use literal `"table.column"` SQL instead. See `listCustomers` for the right pattern.
 - **Cursor pointer everywhere actionable**: shadcn's `Button` doesn't include `cursor-pointer` by default. Add it to any button, link, or `[role="button"]` that's interactive.
+- **Defer-to-Notion-immediately.** When Cory agrees to defer scope ("let's not do that now," "v2," "punt to later," "follow-up"), create a task in the Notion Tasks DB **immediately** via the `notion-create-pages` MCP tool with `Status: Backlog`. Don't wait for a separate handoff. Reply inline with *"Logged in Notion backlog as task #N: [title]"* so Cory knows it persisted. Full schema + defaults in [NOTION.md](NOTION.md).
 
 ## Keyboard shortcuts
 

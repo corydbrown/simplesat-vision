@@ -28,10 +28,14 @@
     ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono",
     monospace;
   --font-heading: var(--font-sans);
-  /* Override Tailwind's default text-sm (14px / 20px) to 15px / 22px.
-     Body, nav, table cells, property labels — everything tagged text-sm — picks this up. */
-  --text-sm: 0.9375rem;
-  --text-sm--line-height: 1.375rem;
+  /* Type ladder (post-decision 2):
+     - text-base = 15px (was Tailwind's 16px default; overridden here)
+     - text-sm   = 14px (Tailwind default — override removed)
+     - text-xs   = 12px (Tailwind default — unchanged, used rarely)
+     Body / nav / table cells / property labels = text-base. Pills = text-sm.
+     For de-emphasis, prefer muted color over a smaller size. */
+  --text-base: 0.9375rem;
+  --text-base--line-height: 1.4375rem;
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -40,6 +44,7 @@
   --color-sidebar-primary: var(--sidebar-primary);
   --color-sidebar-foreground: var(--sidebar-foreground);
   --color-sidebar: var(--sidebar);
+  --color-chart-6: var(--chart-6);
   --color-chart-5: var(--chart-5);
   --color-chart-4: var(--chart-4);
   --color-chart-3: var(--chart-3);
@@ -71,6 +76,52 @@
   --color-neutral-foreground: var(--neutral-foreground);
   --color-info: var(--info);
   --color-info-foreground: var(--info-foreground);
+  /* Production hue palette (Simplesat design system).
+     Tier-1 raw hues — call sites consume `bg-blue`, `text-red-dark`, `border-grey-light`, etc.
+     Tier-2 structural-semantic tokens (--foreground, --background, …) above will be migrated
+     to alias these hues in a follow-up. See DESIGN.md → "Two-tier token system". */
+  --color-black: var(--black);
+  --color-white: var(--white);
+  --color-grey-darker: var(--grey-darker);
+  --color-grey-dark: var(--grey-dark);
+  --color-grey: var(--grey);
+  --color-grey-light: var(--grey-light);
+  --color-grey-lighter: var(--grey-lighter);
+  --color-green-darker: var(--green-darker);
+  --color-green-dark: var(--green-dark);
+  --color-green: var(--green);
+  --color-green-light: var(--green-light);
+  --color-green-lighter: var(--green-lighter);
+  --color-red-darker: var(--red-darker);
+  --color-red-dark: var(--red-dark);
+  --color-red: var(--red);
+  --color-red-light: var(--red-light);
+  --color-red-lighter: var(--red-lighter);
+  --color-blue-darker: var(--blue-darker);
+  --color-blue-dark: var(--blue-dark);
+  --color-blue: var(--blue);
+  --color-blue-light: var(--blue-light);
+  --color-blue-lighter: var(--blue-lighter);
+  --color-purple-darker: var(--purple-darker);
+  --color-purple-dark: var(--purple-dark);
+  --color-purple: var(--purple);
+  --color-purple-light: var(--purple-light);
+  --color-purple-lighter: var(--purple-lighter);
+  --color-teal-darker: var(--teal-darker);
+  --color-teal-dark: var(--teal-dark);
+  --color-teal: var(--teal);
+  --color-teal-light: var(--teal-light);
+  --color-teal-lighter: var(--teal-lighter);
+  --color-yellow-darker: var(--yellow-darker);
+  --color-yellow-dark: var(--yellow-dark);
+  --color-yellow: var(--yellow);
+  --color-yellow-light: var(--yellow-light);
+  --color-yellow-lighter: var(--yellow-lighter);
+  --color-vanilla-darker: var(--vanilla-darker);
+  --color-vanilla-dark: var(--vanilla-dark);
+  --color-vanilla: var(--vanilla);
+  --color-vanilla-light: var(--vanilla-light);
+  --color-vanilla-lighter: var(--vanilla-lighter);
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
@@ -132,11 +183,76 @@
   --neutral-foreground: #8B6A14;
   --info: #E6F0FB;
   --info-foreground: #1E5A9C;
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
+
+  /* ─────────────────────────────────────────────────────────────────────────
+     Production hue palette (Simplesat design system).
+     Tier-1 raw hues. 7 chromatic colors × 5 shades + black/white + vanilla.
+     These do NOT change between light and dark mode — the structural-semantic
+     tokens above (--foreground, --background, --border, …) flip mode-appropriately
+     and will be migrated to alias these hues in a follow-up.
+     See DESIGN.md → "Production hue palette" and "Two-tier token system".
+     ───────────────────────────────────────────────────────────────────────── */
+  --black: #172B4D;
+  --white: #FFFFFF;
+
+  --grey-darker: #4E616C;
+  --grey-dark: #596A82;
+  --grey: #A5ADBA;
+  --grey-light: #DEE6F0;
+  --grey-lighter: #F4F7F9;
+
+  --green-darker: #1E5D33;
+  --green-dark: #2A8449;
+  --green: #4EC677;
+  --green-light: #7AD99A;
+  --green-lighter: #D3F8DF;
+
+  --red-darker: #920111;
+  --red-dark: #B10214;
+  --red: #D00218;
+  --red-light: #FF7989;
+  --red-lighter: #FFDDE1;
+
+  --blue-darker: #003F80;
+  --blue-dark: #0058B3;
+  --blue: #007EFF;
+  --blue-light: #66B2FF;
+  --blue-lighter: #E6F2FF;
+
+  --purple-darker: #4D2E78;
+  --purple-dark: #663EA0;
+  --purple: #804DC8;
+  --purple-light: #BE9AF5;
+  --purple-lighter: #F0ECF9;
+
+  --teal-darker: #008DA6;
+  --teal-dark: #00B8D9;
+  --teal: #00C7E6;
+  --teal-light: #B3F5FF;
+  --teal-lighter: #E6FCFF;
+
+  --yellow-darker: #664400;
+  --yellow-dark: #F2A200;
+  --yellow: #FBBD08;
+  --yellow-light: #FFC86D;
+  --yellow-lighter: #FFEFD5;
+
+  /* Vanilla — production shipped only --vanilla-darker + --vanilla-lighter.
+     Middle three are interpolated guesses (Claude). Tune in review. */
+  --vanilla-darker: #666100;
+  --vanilla-dark: #998C00;
+  --vanilla: #CCBB33;
+  --vanilla-light: #E6D87A;
+  --vanilla-lighter: #FEFCD5;
+
+  /* Chart series — point at production hues (was greyscale shadcn defaults).
+     Order: primary blue, brand green, warning yellow, danger red, accent purple. */
+  --chart-1: var(--blue);
+  --chart-2: var(--green);
+  --chart-3: var(--yellow);
+  --chart-4: var(--red);
+  --chart-5: var(--purple);
+  --chart-6: var(--teal);
   --radius: 0.625rem;
   --sidebar: oklch(0.985 0 0);
   --sidebar-foreground: oklch(0.145 0 0);
@@ -191,11 +307,66 @@
   --neutral-foreground: #FEF4E0;
   --info: #1E5A9C;
   --info-foreground: #E6F0FB;
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
+
+  /* Production hue palette — same values as :root. Hues don't flip per mode.
+     Structural-semantic tokens above (--foreground, --background, …) handle mode. */
+  --black: #172B4D;
+  --white: #FFFFFF;
+
+  --grey-darker: #4E616C;
+  --grey-dark: #596A82;
+  --grey: #A5ADBA;
+  --grey-light: #DEE6F0;
+  --grey-lighter: #F4F7F9;
+
+  --green-darker: #1E5D33;
+  --green-dark: #2A8449;
+  --green: #4EC677;
+  --green-light: #7AD99A;
+  --green-lighter: #D3F8DF;
+
+  --red-darker: #920111;
+  --red-dark: #B10214;
+  --red: #D00218;
+  --red-light: #FF7989;
+  --red-lighter: #FFDDE1;
+
+  --blue-darker: #003F80;
+  --blue-dark: #0058B3;
+  --blue: #007EFF;
+  --blue-light: #66B2FF;
+  --blue-lighter: #E6F2FF;
+
+  --purple-darker: #4D2E78;
+  --purple-dark: #663EA0;
+  --purple: #804DC8;
+  --purple-light: #BE9AF5;
+  --purple-lighter: #F0ECF9;
+
+  --teal-darker: #008DA6;
+  --teal-dark: #00B8D9;
+  --teal: #00C7E6;
+  --teal-light: #B3F5FF;
+  --teal-lighter: #E6FCFF;
+
+  --yellow-darker: #664400;
+  --yellow-dark: #F2A200;
+  --yellow: #FBBD08;
+  --yellow-light: #FFC86D;
+  --yellow-lighter: #FFEFD5;
+
+  --vanilla-darker: #666100;
+  --vanilla-dark: #998C00;
+  --vanilla: #CCBB33;
+  --vanilla-light: #E6D87A;
+  --vanilla-lighter: #FEFCD5;
+
+  --chart-1: var(--blue);
+  --chart-2: var(--green);
+  --chart-3: var(--yellow);
+  --chart-4: var(--red);
+  --chart-5: var(--purple);
+  --chart-6: var(--teal);
   --sidebar: oklch(0.205 0 0);
   --sidebar-foreground: oklch(0.985 0 0);
   --sidebar-primary: oklch(0.488 0.243 264.376);

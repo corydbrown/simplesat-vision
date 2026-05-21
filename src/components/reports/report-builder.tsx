@@ -32,6 +32,7 @@ import {
   MAX_VALUES,
   defaultConfig,
   type AxisField,
+  type AxisFieldSort,
   type BaseEntity,
   type FilterDef,
   type ReportConfig,
@@ -294,6 +295,21 @@ export function ReportBuilder({ initialConfig }: Props) {
     .filter((id) => id !== "*");
   const canReset = !isConfigEmpty(config);
 
+  const setAxisSort = (
+    section: "rows" | "columns",
+    next: AxisFieldSort | undefined,
+  ) => {
+    setConfig((prev) => {
+      const arr = [...prev[section]];
+      if (!arr[0]) return prev;
+      const updated = { ...arr[0] };
+      if (next) updated.sort = next;
+      else delete updated.sort;
+      arr[0] = updated;
+      return { ...prev, [section]: arr };
+    });
+  };
+
   return (
     <DndContext
       sensors={sensors}
@@ -494,7 +510,7 @@ export function ReportBuilder({ initialConfig }: Props) {
 
           <div className="p-6">
             {result ? (
-              <PivotTable result={result} />
+              <PivotTable result={result} onSortChange={setAxisSort} />
             ) : (
               <PivotEmptyState
                 hasBase={true}

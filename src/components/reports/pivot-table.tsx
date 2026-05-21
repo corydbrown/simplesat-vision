@@ -1,8 +1,24 @@
 "use client";
 
-import type { ReportResult } from "@/db/queries/reports";
+import { ArrowDown, ArrowUp, ChevronsUpDown } from "lucide-react";
+import type { ReportAxisMeta, ReportResult } from "@/db/queries/reports";
 import { formatPivotValue, valueLabel } from "@/lib/reports/format";
+import type { AxisFieldSort, SortDirection } from "@/lib/reports/types";
 import { cn } from "@/lib/utils";
+
+type SortTarget =
+  | { kind: "axis-field" }
+  | { kind: "value"; valueIndex: number };
+
+type OnSortChange = (
+  axis: "rows" | "columns",
+  next: AxisFieldSort | undefined,
+) => void;
+
+type PivotTableProps = {
+  result: ReportResult;
+  onSortChange?: OnSortChange;
+};
 
 function computeRowSpans(labels: string[]): number[] {
   const spans = new Array(labels.length).fill(0);
@@ -16,7 +32,99 @@ function computeRowSpans(labels: string[]): number[] {
   return spans;
 }
 
-export function PivotTable({ result }: { result: ReportResult }) {
+function firstDirectionForAxis(axis: ReportAxisMeta | undefined): SortDirection {
+  // Numeric axes start desc on first click; everything else starts asc.
+  return axis?.dataType === "number" ? "desc" : "asc";
+}
+
+function targetMatches(
+  sort: AxisFieldSort | undefined,
+  target: SortTarget,
+): boolean {
+  if (!sort) return false;
+  if (target.kind === "axis-field") return sort.by === "field";
+  return sort.by === "value" && sort.valueIndex === target.valueIndex;
+}
+
+function nextSort(
+  current: AxisFieldSort | undefined,
+  target: SortTarget,
+  firstDirection: SortDirection,
+): AxisFieldSort | undefined {
+  const opposite: SortDirection = firstDirection === "asc" ? "desc" : "asc";
+
+  // Different target — start fresh in firstDirection.
+  if (!targetMatches(current, target)) {
+    if (target.kind === "axis-field") {
+      return { by: "field", direction: firstDirection };
+    }
+    return { by: "value", valueIndex: target.valueIndex, direction: firstDirection };
+  }
+
+  // Same target, already at firstDirection — flip.
+  if (current!.direction === firstDirection) {
+    if (target.kind === "axis-field") {
+      return { by: "field", direction: opposite };
+    }
+    return { by: "value", valueIndex: target.valueIndex, direction: opposite };
+  }
+
+  // Same target, at the opposite direction — clear.
+  return undefined;
+}
+
+function activeDirection(
+  sort: AxisFieldSort | undefined,
+  target: SortTarget,
+): SortDirection | null {
+  if (!targetMatches(sort, target)) return null;
+  return sort!.direction;
+}
+
+function SortableHeader({
+  children,
+  active,
+  direction,
+  onClick,
+  align = "left",
+  className,
+}: {
+  children: React.ReactNode;
+  active: boolean;
+  direction: SortDirection | null;
+  onClick: () => void;
+  align?: "left" | "right" | "center";
+  className?: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "group inline-flex w-full items-center gap-1 rounded-sm px-0.5 py-0.5 hover:bg-muted cursor-pointer",
+        align === "right" && "justify-end",
+        align === "center" && "justify-center",
+        align === "left" && "justify-start",
+        className,
+      )}
+    >
+      <span className="truncate">{children}</span>
+      {active && direction === "desc" ? (
+        <ArrowDown size={12} className="text-foreground shrink-0" aria-hidden />
+      ) : active && direction === "asc" ? (
+        <ArrowUp size={12} className="text-foreground shrink-0" aria-hidden />
+      ) : (
+        <ChevronsUpDown
+          size={12}
+          className="shrink-0 text-muted-foreground/0 group-hover:text-muted-foreground/70"
+          aria-hidden
+        />
+      )}
+    </button>
+  );
+}
+
+export function PivotTable({ result, onSortChange }: PivotTableProps) {
   const {
     rowKeys,
     columnKeys,
@@ -27,6 +135,8 @@ export function PivotTable({ result }: { result: ReportResult }) {
     rowAxes,
     columnAxes,
     valueDefs,
+    rowSort,
+    columnSort,
   } = result;
 
   const valueCount = valueDefs.length;
@@ -36,11 +146,41 @@ export function PivotTable({ result }: { result: ReportResult }) {
   const showValueHeaderRow = hasColumns && valueCount > 1;
   const rowHeaderCols = Math.max(hasRows ? rowAxes.length : 0, 1);
 
-  // For 2-row pivots, merge the first-axis label across consecutive rows
-  // that share the same value (Notion / Excel rowspan behavior).
   const firstAxisSpans = hasMultipleRowAxes
     ? computeRowSpans(rowKeys.map((rk) => rk.labels[0] ?? ""))
     : null;
+
+  const rowAxisFirstDir = firstDirectionForAxis(rowAxes[0]);
+  const columnAxisFirstDir = firstDirectionForAxis(columnAxes[0]);
+
+  const onClickRowAxis = () => {
+    if (!onSortChange || !hasRows) return;
+    onSortChange(
+      "rows",
+      nextSort(rowSort, { kind: "axis-field" }, rowAxisFirstDir),
+    );
+  };
+
+  const onClickColumnAxis = () => {
+    if (!onSortChange || !hasColumns) return;
+    onSortChange(
+      "columns",
+      nextSort(columnSort, { kind: "axis-field" }, columnAxisFirstDir),
+    );
+  };
+
+  const onClickValue = (valueIndex: number) => {
+    if (!onSortChange || !hasRows) return;
+    onSortChange(
+      "rows",
+      nextSort(rowSort, { kind: "value", valueIndex }, "desc"),
+    );
+  };
+
+  const rowAxisFieldDir = activeDirection(rowSort, { kind: "axis-field" });
+  const columnAxisFieldDir = activeDirection(columnSort, {
+    kind: "axis-field",
+  });
 
   return (
     <div className="relative max-h-[calc(100vh-220px)] overflow-x-auto overflow-y-auto rounded-md border border-border bg-card">
@@ -48,7 +188,6 @@ export function PivotTable({ result }: { result: ReportResult }) {
         <thead className="sticky top-0 z-30">
           {hasColumns ? (
             <>
-              {/* Row-axis header labels + column-axis labels */}
               <tr className="border-b border-border bg-muted/40">
                 {Array.from({ length: rowHeaderCols }).map((_, i) => (
                   <th
@@ -58,12 +197,29 @@ export function PivotTable({ result }: { result: ReportResult }) {
                       i === 0 && "sticky left-0 z-10",
                     )}
                   >
-                    {rowAxes[i]?.label ?? ""}
-                    {rowAxes[i]?.bucket ? (
-                      <span className="ml-1 text-muted-foreground/70">
-                        by {rowAxes[i].bucket}
-                      </span>
-                    ) : null}
+                    {i === 0 && hasRows ? (
+                      <SortableHeader
+                        active={rowAxisFieldDir != null}
+                        direction={rowAxisFieldDir}
+                        onClick={onClickRowAxis}
+                      >
+                        {rowAxes[i]?.label ?? ""}
+                        {rowAxes[i]?.bucket ? (
+                          <span className="ml-1 text-muted-foreground/70">
+                            by {rowAxes[i].bucket}
+                          </span>
+                        ) : null}
+                      </SortableHeader>
+                    ) : (
+                      <>
+                        {rowAxes[i]?.label ?? ""}
+                        {rowAxes[i]?.bucket ? (
+                          <span className="ml-1 text-muted-foreground/70">
+                            by {rowAxes[i].bucket}
+                          </span>
+                        ) : null}
+                      </>
+                    )}
                   </th>
                 ))}
                 {columnKeys.map((ck) => (
@@ -72,14 +228,40 @@ export function PivotTable({ result }: { result: ReportResult }) {
                     colSpan={valueCount}
                     className="border-l border-border bg-muted/40 px-3 py-2 text-center text-xs font-medium text-foreground"
                   >
-                    {ck.labels.join(" · ")}
+                    <SortableHeader
+                      active={columnAxisFieldDir != null}
+                      direction={columnAxisFieldDir}
+                      onClick={onClickColumnAxis}
+                      align="center"
+                    >
+                      {ck.labels.join(" · ")}
+                    </SortableHeader>
                   </th>
                 ))}
                 <th
                   colSpan={valueCount}
                   className="border-l border-border bg-muted/40 px-3 py-2 text-center text-xs font-medium text-muted-foreground"
                 >
-                  Total
+                  {!showValueHeaderRow && valueCount === 1 ? (
+                    (() => {
+                      const dir = activeDirection(rowSort, {
+                        kind: "value",
+                        valueIndex: 0,
+                      });
+                      return (
+                        <SortableHeader
+                          active={dir != null}
+                          direction={dir}
+                          onClick={() => onClickValue(0)}
+                          align="center"
+                        >
+                          {valueLabel(valueDefs[0])}
+                        </SortableHeader>
+                      );
+                    })()
+                  ) : (
+                    "Total"
+                  )}
                 </th>
               </tr>
               {showValueHeaderRow && (
@@ -106,17 +288,30 @@ export function PivotTable({ result }: { result: ReportResult }) {
                       </th>
                     )),
                   )}
-                  {valueDefs.map((v, vi) => (
-                    <th
-                      key={`tot-${vi}`}
-                      className={cn(
-                        "bg-muted/20 px-3 py-1.5 text-right text-xs text-muted-foreground",
-                        vi === 0 && "border-l border-border",
-                      )}
-                    >
-                      {valueLabel(v)}
-                    </th>
-                  ))}
+                  {valueDefs.map((v, vi) => {
+                    const dir = activeDirection(rowSort, {
+                      kind: "value",
+                      valueIndex: vi,
+                    });
+                    return (
+                      <th
+                        key={`tot-${vi}`}
+                        className={cn(
+                          "bg-muted/20 px-3 py-1.5 text-right text-xs text-muted-foreground",
+                          vi === 0 && "border-l border-border",
+                        )}
+                      >
+                        <SortableHeader
+                          active={dir != null}
+                          direction={dir}
+                          onClick={() => onClickValue(vi)}
+                          align="right"
+                        >
+                          {valueLabel(v)}
+                        </SortableHeader>
+                      </th>
+                    );
+                  })}
                 </tr>
               )}
             </>
@@ -130,25 +325,55 @@ export function PivotTable({ result }: { result: ReportResult }) {
                     i === 0 && "sticky left-0 z-10",
                   )}
                 >
-                  {rowAxes[i]?.label ?? ""}
-                  {rowAxes[i]?.bucket ? (
-                    <span className="ml-1 text-muted-foreground/70">
-                      by {rowAxes[i].bucket}
-                    </span>
-                  ) : null}
-                </th>
-              ))}
-              {valueDefs.map((v, vi) => (
-                <th
-                  key={`v-${vi}`}
-                  className={cn(
-                    "bg-muted/40 px-3 py-2 text-right text-xs font-medium text-foreground",
-                    vi === 0 && "border-l border-border",
+                  {i === 0 && hasRows ? (
+                    <SortableHeader
+                      active={rowAxisFieldDir != null}
+                      direction={rowAxisFieldDir}
+                      onClick={onClickRowAxis}
+                    >
+                      {rowAxes[i]?.label ?? ""}
+                      {rowAxes[i]?.bucket ? (
+                        <span className="ml-1 text-muted-foreground/70">
+                          by {rowAxes[i].bucket}
+                        </span>
+                      ) : null}
+                    </SortableHeader>
+                  ) : (
+                    <>
+                      {rowAxes[i]?.label ?? ""}
+                      {rowAxes[i]?.bucket ? (
+                        <span className="ml-1 text-muted-foreground/70">
+                          by {rowAxes[i].bucket}
+                        </span>
+                      ) : null}
+                    </>
                   )}
-                >
-                  {valueLabel(v)}
                 </th>
               ))}
+              {valueDefs.map((v, vi) => {
+                const dir = activeDirection(rowSort, {
+                  kind: "value",
+                  valueIndex: vi,
+                });
+                return (
+                  <th
+                    key={`v-${vi}`}
+                    className={cn(
+                      "bg-muted/40 px-3 py-2 text-right text-xs font-medium text-foreground",
+                      vi === 0 && "border-l border-border",
+                    )}
+                  >
+                    <SortableHeader
+                      active={dir != null}
+                      direction={dir}
+                      onClick={() => onClickValue(vi)}
+                      align="right"
+                    >
+                      {valueLabel(v)}
+                    </SortableHeader>
+                  </th>
+                );
+              })}
             </tr>
           )}
         </thead>
@@ -184,9 +409,8 @@ export function PivotTable({ result }: { result: ReportResult }) {
                 >
                   {hasRows ? (
                     rowAxes.map((_, i) => {
-                      // First axis with rowSpan grouping
                       if (i === 0 && firstAxisSpans) {
-                        if (firstSpan === 0) return null; // skipped: covered by rowSpan above
+                        if (firstSpan === 0) return null;
                         return (
                           <th
                             key={`${rk.key}-h-${i}`}

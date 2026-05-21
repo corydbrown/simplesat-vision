@@ -16,9 +16,21 @@ export type FilterOp =
   | "isnull"
   | "notnull";
 
+export type SortDirection = "asc" | "desc";
+
+export type AxisFieldSort =
+  | { by: "field"; direction: SortDirection }
+  | { by: "value"; valueIndex: number; direction: SortDirection };
+
+export const DEFAULT_AXIS_SORT: AxisFieldSort = {
+  by: "field",
+  direction: "asc",
+};
+
 export type AxisField = {
   propertyId: string;
   bucket?: DateBucket;
+  sort?: AxisFieldSort;
 };
 
 export type ValueDef = {

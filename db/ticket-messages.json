@@ -1,0 +1,445 @@
+{
+  "_README": "Hand-curated Bloom Beauty ticket-message bank. Buckets keyed by ticket-subject category (see SUBJECT_CATEGORIES in src/db/seed.ts). Each category carries four slots: customer_initial (first inbound), customer_followup (mid-thread reply), agent_reply (mid-thread response), agent_resolution (closing message). The flat internal_notes array is reused across all subjects. The _default category catches subjects without a tailored bucket. All copy is synthetic — no PII, no harvest. Edit in place to evolve the demo voice. Pattern mirrors db/comments.json.",
+  "_default": {
+    "customer_initial": [
+      "Hi! I'm having an issue with my recent order and was hoping someone could help me sort it out.",
+      "Hey there — could you take a look at my account? Something doesn't seem right with my last purchase.",
+      "Hello, I had a question about an order I placed last week. Hoping you can help.",
+      "Hi, I wanted to follow up on an order issue. Not sure who else to reach out to.",
+      "Hi Bloom team, I'd love some help with a recent order. Thanks in advance."
+    ],
+    "customer_followup": [
+      "Thanks for getting back to me so quickly. Any update on the next steps?",
+      "Just checking in — did you get a chance to look into this?",
+      "Appreciate you looking into it. Let me know what else you need from me.",
+      "Hi! Sorry to follow up so soon, just wanted to make sure this didn't get missed.",
+      "Thank you! That works for me. Let me know once it's sorted."
+    ],
+    "agent_reply": [
+      "Hi there, thanks so much for reaching out! I'm so sorry for the trouble. Let me dig into your order and figure out what happened.",
+      "Hello! Happy to help with this. Could you confirm the email address on the order so I can pull it up?",
+      "Hi! I really appreciate you flagging this. Give me a moment to take a closer look on my end.",
+      "Thanks for the patience — I just want to make sure I look at this carefully before getting back to you with the right answer.",
+      "Hi there! I've got your order pulled up. Let me check a couple of things with our team and circle back."
+    ],
+    "agent_resolution": [
+      "All taken care of! I've sent a follow-up email with the details. Let me know if there's anything else I can help with.",
+      "All sorted on my end. Sorry again for the trouble — thank you for being so patient with us.",
+      "You're all set! I've added 500 Insider bonus points for the inconvenience. Hope to make it up to you on your next order.",
+      "Done and done! Confirmation should hit your inbox in the next few minutes. Reach out anytime.",
+      "All handled. I really appreciate your understanding — please don't hesitate to come back if anything else comes up."
+    ]
+  },
+  "shipping_delay": {
+    "customer_initial": [
+      "Hi! My order placed last Tuesday still hasn't moved past the warehouse. Tracking has said \"label created\" for five days now. Order number is in my account — could you check?",
+      "Hey, the foundation and primer I ordered for an event this weekend are stuck somewhere between the warehouse and FedEx. The tracking hasn't updated in 6 days. I need this by Friday.",
+      "Hello, I'm an Insider member and have been waiting 11 days for an order that was promised in 2-day shipping. What's going on?",
+      "My order has been \"in transit\" for over a week with no movement. This is the second time this has happened. Can someone actually look into where it is?",
+      "Hi, the perfume I ordered for my mom's birthday hasn't shipped and her birthday is tomorrow. Is there anything you can do?"
+    ],
+    "customer_followup": [
+      "Ok thanks — please let me know what they say. Really need this for Friday.",
+      "I appreciate that. If it's lost, can you just reship it? I don't want to wait another week.",
+      "Sounds good. Will keep an eye on my email for the update.",
+      "Thanks, hoping for some good news. This has been frustrating.",
+      "Yeah, expedited would be amazing if you can swing it."
+    ],
+    "agent_reply": [
+      "Hi there, oh no — I'm so sorry your order is stuck in shipping limbo! Let me ping FedEx for an update and check whether this needs to be reshipped from a different DC.",
+      "Thanks for flagging this. That's not normal at all. I've opened a trace with our shipping partner — usually we hear back within 24 hours. I'll keep you posted.",
+      "I see what you mean — the tracking definitely hasn't moved in too long. Let me see what's going on at the warehouse and whether we can get something out to you on overnight shipping.",
+      "I'm really sorry for the delay! Let me look at the route this package took. If it looks like it's truly lost, I'll get a replacement going right away.",
+      "Apologies for the trouble! Let me get our fulfillment team on this. I want to make sure we either find your package or reship before your event."
+    ],
+    "agent_resolution": [
+      "Good news — I've gone ahead and shipped a replacement out on overnight delivery, free of charge. You should have it by tomorrow. Tracking number is on its way to your inbox.",
+      "I've issued a reship from our LA warehouse and applied free 2-day shipping. You'll get the new tracking by end of day. The original will be refunded if it ever shows up.",
+      "Confirmed with FedEx the package is lost. I've reshipped your order overnight and added 1,000 bonus Insider points for the trouble. Will not happen on my watch again.",
+      "All taken care of. The replacement will arrive Friday morning — I made sure of it. Thank you so much for your patience. I added a few free samples to make up for it.",
+      "Done! Reship is on the way with priority shipping, plus I tossed in some extras I thought you'd like based on your past orders. Apologies again for the stress."
+    ]
+  },
+  "damaged_order": {
+    "customer_initial": [
+      "Hi, my Le Labo Santal 33 arrived shattered in the box. There's perfume soaked through the packaging. Photos attached.",
+      "I just got my order and one of the foundation bottles is completely cracked. It's leaked all over the other products. I'm pretty upset.",
+      "My package arrived with the box crushed. The compact inside is broken in half and the powder is everywhere. I'd like a refund or replacement.",
+      "The Drunk Elephant serum I ordered arrived with the pump broken off. I can't use it like this.",
+      "Hello — opened my Bloom delivery and the glass perfume bottle is in pieces. The whole box smells like a department store now."
+    ],
+    "customer_followup": [
+      "Thanks for the quick reply. I do have photos, sending them now.",
+      "Yeah a replacement would be great. I really wanted to use this for the weekend.",
+      "Appreciate it. The other items in the box also got perfume on them — should I send those back too?",
+      "Replacement is fine. I just want one that's actually usable.",
+      "Got it — uploading the pictures now."
+    ],
+    "agent_reply": [
+      "Oh no, I'm so sorry to see this! That's completely unacceptable. Could you send a quick photo of the damage just so I can document it for our packaging team? Replacement will go out right away.",
+      "I'm horrified that arrived to you like that. Let me get a replacement on the way today and we'll figure out the rest. Could you snap a quick pic for our records?",
+      "Hi! I'm so sorry — that should never happen. Please don't worry about returning the broken item, just a photo for our team would help. I'll get a fresh one in the mail today.",
+      "That's awful, I'm really sorry. Let me get you a replacement plus a small care package as an apology. Photos would help us flag this with the warehouse.",
+      "Goodness, I apologize! Send a picture when you can and I'll get a new one out today on expedited shipping. No need to return the broken one."
+    ],
+    "agent_resolution": [
+      "I've shipped a replacement on overnight delivery and added a couple of samples I thought you might like. Truly sorry about this — thank you for being patient with us.",
+      "All taken care of. Replacement is on the way with free 2-day shipping. I've also credited 1,000 Insider points for the trouble. Let me know if anything else turns up.",
+      "Done! New order is on its way and I've flagged this batch with our packaging team to prevent it happening again. So sorry once more for the trouble.",
+      "Replacement is out the door, plus a $25 credit on your account for the inconvenience. Hope this helps make up for it.",
+      "All sorted. I've also reached out to our warehouse manager — this is the second one this week from that location and we're going to fix it. Thank you for the patience."
+    ]
+  },
+  "wrong_shade": {
+    "customer_initial": [
+      "Hi, the foundation I ordered says \"Sand 230\" on the box but the actual product inside is \"Tan 350\". They look nothing alike. Order arrived today.",
+      "My concealer came in the wrong shade. I ordered \"Light 02\" and got \"Medium 04\". Can I exchange?",
+      "I think you sent the wrong color blush. The packaging says Wild Rose but it's clearly a coral. Photos attached.",
+      "Got my Charlotte Tilbury Magic Cream — but it's actually the eye cream, not the face cream I ordered. They were stocked next to each other I'm guessing.",
+      "Just received my order — the lipstick is the wrong shade. Ordered \"Pillow Talk\" and received \"Walk of Shame\"."
+    ],
+    "customer_followup": [
+      "Just sent the photo. Hopefully you can see the mix-up.",
+      "Yeah a swap would be perfect. Do I need to mail this one back?",
+      "Sounds good — really want to use Pillow Talk for an event next weekend.",
+      "Appreciate it. Should I ship it back myself or wait for a label?",
+      "Yes please send the right one when you can!"
+    ],
+    "agent_reply": [
+      "Oh no, I'm so sorry for the shade mix-up! Sounds like a pick error at the warehouse. Could you confirm the shade name on the label vs. the bottle? I'll send the correct one out today.",
+      "Yikes, I'm sorry about that! Don't worry about sending the wrong one back — keep it as a gift or share with a friend. The correct shade is going out right now.",
+      "That's frustrating, I apologize. Let me get the right shade shipped out today on expedited delivery, and you can keep the other one as a free gift.",
+      "Hi! Mix-ups happen but I know it's still annoying. I'll ship the correct shade right away and email you a return label for the wrong one — though honestly, please just keep it.",
+      "Sorry about that! I've flagged this with our QA team. Shipping the correct shade today, free expedited."
+    ],
+    "agent_resolution": [
+      "Correct shade is on its way with 2-day shipping and you can keep the other one — no need to return. Hope the right one is what you were hoping for!",
+      "All sorted! The right shade should arrive Wednesday. I've added 500 points to your account for the trouble.",
+      "Done! Correct product is shipping today and a complimentary lip oil is going along with it as an apology. Enjoy!",
+      "All taken care of. The right shade plus a few skincare samples are on the way. Sorry again — and thank you for being so easy to work with.",
+      "Confirmed and shipped! Tracking is in your inbox. Apologies for the slip-up and please reach out anytime if anything else comes up."
+    ]
+  },
+  "missing_items": {
+    "customer_initial": [
+      "Hi, I got my order today but it's missing the eye cream that's listed on my receipt. The invoice shows it as included but it wasn't in the box.",
+      "Just received order #ZB-44102 — only 3 items in the box but I paid for 5. Missing the lip oil and the brow gel.",
+      "Hello, my order is supposed to come with 4 items but only 2 arrived. The other two aren't on a separate shipment notification either.",
+      "Got my delivery today, the foundation is in there but the matching primer is missing.",
+      "My package arrived with only half of what I ordered. The invoice shows the full list. What happened to the rest?"
+    ],
+    "customer_followup": [
+      "Thanks — yes, the lip oil is the one I really need. Could you prioritize that?",
+      "Yes please reship. I really need both items.",
+      "Appreciate it. The samples that were supposed to come with the order weren't there either, by the way.",
+      "Yes, please. Thanks for taking care of this so quickly.",
+      "Great, thanks. Hoping it's a quick fix."
+    ],
+    "agent_reply": [
+      "I'm so sorry — that's frustrating. Let me check the warehouse pick records and see if there was a packing error. I'll get the missing items shipped out today.",
+      "Apologies for the trouble! It looks like the missing items might have been a fulfillment issue. Reshipping them right now on expedited shipping.",
+      "Hi! So sorry the box came up short. I see the warehouse note now — looks like one of the SKUs was out of stock and didn't get flagged. Sending the missing items today.",
+      "That's not what I want to hear. Let me check our system and confirm both items should have shipped. Reshipping the missing pieces with 2-day delivery on us.",
+      "I really apologize for that. I've put in for a reship of the missing items — should be there in 2 business days."
+    ],
+    "agent_resolution": [
+      "Missing items are on their way! Should arrive in 2 days. I've also tossed in a couple of samples and 500 Insider points as a small apology.",
+      "Reship is moving — you should have everything by Thursday. Apologies again for the hassle.",
+      "Done! The missing items are shipping out today with priority delivery. I've added some bonus samples too.",
+      "All taken care of. Missing pieces will arrive in 2 business days. Thank you for your patience — really appreciate it.",
+      "Reshipped! Tracking will be in your inbox shortly. Apologies once more for the inconvenience."
+    ]
+  },
+  "return_request": {
+    "customer_initial": [
+      "Hi, I'd like to return the moisturizer I bought 32 days ago. I know that's just past the 30-day window — is there any flexibility? It broke me out badly.",
+      "Hello, I want to return a foundation that's the wrong shade. It's been about 22 days since delivery. How do I get a return label?",
+      "Need to return a serum that doesn't work for me. Hoping to get a refund or store credit.",
+      "Hi, can I return an item without the original box? I tossed the packaging but the product is unused.",
+      "I'd like to start a return for the eye cream I bought last week. Should I print a label myself or do you send one?"
+    ],
+    "customer_followup": [
+      "Thank you so much, that's a relief. Yes please send the label.",
+      "Great. I'll have it in the mail tomorrow.",
+      "Sounds good — appreciate the flexibility.",
+      "Perfect, dropping it off at FedEx today.",
+      "Thanks! Will I get the refund in the same payment method?"
+    ],
+    "agent_reply": [
+      "Hi! Normally we hold to 30 days, but for Insider members we can make exceptions for skin reactions. Let me make this work for you — sending a return label now.",
+      "Happy to help with the return! I'll send a prepaid label to your email. Once we receive it, refund typically lands in 3-5 business days.",
+      "No worries about the box — as long as the product itself is intact we can absolutely take it back. Sending you the label now.",
+      "Of course! I'll get a return started for you. Label is going to your email — please drop it at any FedEx within 14 days.",
+      "Returns within the 30-day window are easy — I'll send the label right away. Refund will hit your original payment method once we scan it in."
+    ],
+    "agent_resolution": [
+      "Return is set up and the label is in your inbox. Once we receive the package the refund should land in 3-5 days. Thanks for shopping with us!",
+      "All done — refund will process automatically once the return scans in. Sorry the product didn't work out, and please let us know if there's a better match next time.",
+      "Refund of $48.00 has been processed and should show on your card in 3-5 business days. Thanks for being so easy to work with.",
+      "Return processed and refund issued! I went ahead and made it a one-click refund so you don't need to wait for the package to scan in. Appreciate you.",
+      "All sorted. Refund will hit your account by Friday at the latest. Reach out anytime!"
+    ]
+  },
+  "refund_issue": {
+    "customer_initial": [
+      "Hi, I returned my order on the 8th and got the email confirmation. It's been 12 days and I still don't see the refund on my card. Can you check?",
+      "I was supposed to get a refund for $86.42 last week and it hasn't shown up. The return shows received in my account.",
+      "I see the return as \"refunded\" in my Bloom account but my credit card statement doesn't show it. What's going on?",
+      "Hello — refunded a week ago, still nothing on my Klarna account. Help?",
+      "It's been 14 business days since my return was scanned. Where's my refund?"
+    ],
+    "customer_followup": [
+      "Got it — let me know what your accounting team says.",
+      "Yes please, that would be helpful.",
+      "Ok thanks for looking into it.",
+      "Yeah, hope this is just a delay and not a bigger issue.",
+      "Appreciate that — Klarna has been a hassle lately."
+    ],
+    "agent_reply": [
+      "Oh no, refunds can sometimes lag — let me dig in. I'll check our payments log to confirm we sent it to your card on file.",
+      "I'm so sorry it hasn't hit yet. Let me look at the payment status. If it's stuck on our side I'll push it through manually.",
+      "Apologies for the wait! I see the return in our system. Let me verify the refund was actually initiated — sometimes Klarna takes an extra cycle to reflect.",
+      "Sorry for the trouble. Let me look at it — refunds via Klarna/Afterpay sometimes take a full billing cycle to show.",
+      "I'll dig into this right now. If the bank is holding it up I'll send a copy of the refund confirmation you can forward to them."
+    ],
+    "agent_resolution": [
+      "Found it — looks like the refund was processed on our side but didn't transmit to your card. I've pushed it through manually just now. Should land within 24 hours.",
+      "All sorted. Refund has been re-initiated and I've added a $10 Bloom credit for the delay. Apologies again — this isn't the experience we want.",
+      "Done! The refund just cleared on our end. Your bank may take another day or two — if it's not there by Friday, ping me back.",
+      "All confirmed on Klarna's end. They told me it'll reflect on your next statement cycle. Sorry for the runaround.",
+      "Pushed it through manually and confirmed receipt of payment from our processor. You should see it by tomorrow. Thanks for your patience!"
+    ]
+  },
+  "loyalty_points": {
+    "customer_initial": [
+      "Hi, I made a purchase on May 5th and the points (around 800) never posted to my Insider account. Order # is BB-7724.",
+      "Hello — my Insider points balance still shows 1,200 even though I've made three orders this month. Should be way higher.",
+      "I just upgraded to Gold last week but the bonus 500 birthday points haven't shown up. Was supposed to be automatic.",
+      "Points from an order are missing. The order was a return + repurchase and I only got points for one of them.",
+      "Hi, my loyalty tier got bumped back to Insider somehow even though I spent $500 last quarter."
+    ],
+    "customer_followup": [
+      "Thanks — also, when do the May 5th points expire? Want to use them before they go.",
+      "Appreciate it! Let me know when the points hit.",
+      "Got it — looking forward to having those back in my account.",
+      "Yes please, I want to use them before my birthday promo.",
+      "Perfect, thanks for tracking this down."
+    ],
+    "agent_reply": [
+      "Hi! Sorry about that — sometimes points take 24-48 hours to post but yours should have shown up by now. Let me check the order and post them manually if I need to.",
+      "Apologies! Let me dig into your account history. Points should post the day the order ships, so if they're missing after that something's stuck.",
+      "Hi! I see your order. It does look like the points didn't apply. Adding them now and bumping you back to your Gold tier as a small apology.",
+      "Sorry about that mix-up. Returns sometimes mess with our loyalty calculator — I'll fix this manually right now.",
+      "Thanks for flagging this! I'll look into the points engine — it's been buggy with last week's site update."
+    ],
+    "agent_resolution": [
+      "All fixed! I posted 845 points to your account just now. Plus an extra 200 for the trouble. Enjoy!",
+      "Done — your tier is reset to Gold and I've added the missing 500 birthday points. Sorry for the runaround. Happy belated birthday!",
+      "Points are in and I doubled the bonus on this one as an apology. Total balance is updated.",
+      "All sorted. Missing points are credited and I've also added the Insider exclusive sample set to your next order on the house.",
+      "Got it taken care of! Points are showing in your account. Reach out if anything else looks off."
+    ]
+  },
+  "bopis_issue": {
+    "customer_initial": [
+      "Hi, I got an email yesterday saying my BOPIS order was ready at the Beverly Hills store. I drove there and they couldn't find it. Spent 30 minutes waiting.",
+      "Picked up my BOPIS order at the SoHo store today and they had cancelled it without telling me. Showed up to no order.",
+      "My BOPIS pickup window expired yesterday and the store charged me a no-show fee but I never got a ready-for-pickup notification.",
+      "The store said my BOPIS order had been packed but then they couldn't actually find the bag. They told me to contact you.",
+      "Tried to pick up my order at the Westfield store and they said it was cancelled. Got an automated message yesterday it was ready though."
+    ],
+    "customer_followup": [
+      "Yeah, super frustrating. Hoping for a quick solution.",
+      "Could you have it shipped to me instead?",
+      "Sounds good — I'll wait to hear from the store team.",
+      "Ok, let me know what they find.",
+      "Thanks. Don't want to drive back if it's not actually there."
+    ],
+    "agent_reply": [
+      "I'm so sorry about the wasted trip! Let me reach out to the store manager directly and figure out what happened with your order.",
+      "That's incredibly frustrating — I'm so sorry. Let me check what's going on at the store and see if we should just ship it to you instead.",
+      "Apologies for the BOPIS chaos. Our store team should never let this happen. Let me dig into it.",
+      "I'm pinging the store right now. The no-show fee is going to be refunded immediately — you should have never been charged.",
+      "I'm so sorry — let me confirm with the store what happened and either reship to you for free or refund in full. Your choice."
+    ],
+    "agent_resolution": [
+      "Store team confirmed the order was misplaced. I've reshipped to your home address with free overnight + a $25 credit for the drive.",
+      "All sorted with the store. The order is bagged and ready for you tomorrow morning — they'll call you when it's confirmed. Plus a free travel set for the trouble.",
+      "Refunded the no-show fee and the full order. Hope to make it up to you next time.",
+      "Refunded in full and I added a $50 store credit. Truly sorry — the store team should have called you.",
+      "All done. The order has been shipped home to you with priority shipping and a complimentary signature gift. Apologies again for the runaround."
+    ]
+  },
+  "app_issue": {
+    "customer_initial": [
+      "Hi, the Bloom app crashes every time I try to check out. I've tried 3 times. Using iPhone 15, iOS 18.4.",
+      "I can't log into the app anymore. It keeps saying \"password incorrect\" but I haven't changed it. Web login works fine.",
+      "The app freezes when I add anything to my cart. Super frustrating — was about to spend $200.",
+      "Discount codes don't seem to apply in the app but they work on the website. Bug?",
+      "The shade match quiz in the app crashes the moment I take a selfie. Tried 4 times."
+    ],
+    "customer_followup": [
+      "Tried reinstalling — same thing.",
+      "Ok, working on the website for now. Let me know when it's fixed.",
+      "Thanks for confirming, super annoying.",
+      "Just want my cart to stop disappearing.",
+      "Yeah, the website is fine. App is broken."
+    ],
+    "agent_reply": [
+      "Ugh, I'm sorry! There's been a couple of reports of the same crash today on iOS 18.4. Our engineering team is on it — let me see if I can complete the order for you manually.",
+      "Apologies for the bug! Could you try force-closing and reopening the app? If that doesn't fix it I'll just take your order over chat.",
+      "I'll flag this with our app team right now. In the meantime can I help you place the order through the website?",
+      "Hi! Sorry about that. Let me reset your app session on our end — log out and back in once you see the next email.",
+      "I'm so sorry — that's a known issue with the latest build. Engineering is shipping a patch tonight. Let me take your order over chat in the meantime."
+    ],
+    "agent_resolution": [
+      "Got your order placed manually with the discount applied. Confirmation will hit your inbox shortly. Thanks for the patience while engineering fixes the bug!",
+      "Order placed on your behalf with free expedited shipping. App fix is supposedly going out tonight — I'll keep an eye on it.",
+      "All set! Order placed, discount applied, plus a $15 credit for the headache. Apologies again from our app team.",
+      "Submitted on the web for you. The engineering team confirms a fix is rolling out this evening — should be much smoother tomorrow.",
+      "Reset your account on our end. Order placed manually with priority shipping. Thanks for the patience!"
+    ]
+  },
+  "discount_code": {
+    "customer_initial": [
+      "Hi, the WELCOME10 code from your email today isn't working at checkout. Says \"invalid code.\"",
+      "I have an influencer code from a Bloom partner that's supposed to work but it keeps getting rejected.",
+      "Loyalty perk code BIRTHDAY25 isn't applying. My birthday is this week and the email said it was active.",
+      "Tried using FRIEND15 at checkout and it says \"expired\" but the email said valid through Sunday.",
+      "Hi, I'm getting an error using my Insider tier discount at checkout. Code is in my account but it won't apply."
+    ],
+    "customer_followup": [
+      "Thanks — would love to use this on the items in my cart.",
+      "Yes please, I'm trying to check out right now.",
+      "Sounds good. Let me know what you find.",
+      "Appreciate the help.",
+      "Ok thanks for digging in."
+    ],
+    "agent_reply": [
+      "Oh no, sorry about that. Let me check the promo on our end. Sometimes the codes are case-sensitive — try WELCOME10 in all caps?",
+      "Apologies — I'll look at the influencer code now and see if it's whitelisted in our system.",
+      "Hi! Let me check the promo settings. If it's a bug on our end I'll apply the discount manually.",
+      "I see your account and the BIRTHDAY25 should be active. Looks like there's a glitch — I'll process the order manually with the discount.",
+      "Got it — that promo may have been mistakenly deactivated. Let me re-enable it and you can try again, or I can complete the order for you."
+    ],
+    "agent_resolution": [
+      "Found the issue! The promo had a minimum-order setting that wasn't documented. I've manually applied the discount to your cart — try again now.",
+      "Done — applied the 25% discount to your cart manually and added free shipping. Happy birthday!",
+      "Code is now working. Sorry for the bug! Also threw in some samples I thought you'd like.",
+      "All sorted! Manually applied the influencer discount plus 5% extra for the trouble. Have a great day!",
+      "Promo is fixed and applied. Apologies for the headache — try checking out now."
+    ]
+  },
+  "subscription": {
+    "customer_initial": [
+      "Hi, I want to cancel my Auto-Replenish for the cleanser. I have too much already.",
+      "Tried to skip my next subscription shipment from my account and it didn't work — already got charged.",
+      "I want to pause my subscription for two months — going to be traveling.",
+      "Want to change the cadence of my Auto-Replenish from every month to every 6 weeks.",
+      "Hi, I want to cancel all of my recurring orders. Don't want any more shipments."
+    ],
+    "customer_followup": [
+      "Thanks!",
+      "Yes please refund. I never wanted that shipment.",
+      "Great, appreciate the pause.",
+      "Done, thanks for the quick fix.",
+      "Got it. Glad it's cancelled."
+    ],
+    "agent_reply": [
+      "Of course! Cancelling now — you'll get a confirmation email.",
+      "Apologies for the missed skip — that's a bug I see has been happening. Let me refund the charge and skip future ones.",
+      "Pause confirmed for 2 months — you'll auto-resume in mid-July.",
+      "Updated to every 6 weeks. The next shipment will land on the new cadence.",
+      "All cancelled! You won't see any further charges. Let us know if you want to restart anytime."
+    ],
+    "agent_resolution": [
+      "All done. Subscription is cancelled and any pending charges are refunded.",
+      "Refunded $42 for the missed skip and paused everything for 60 days. Apologies for the trouble.",
+      "Confirmed — pause active. See you when you're back!",
+      "Cadence updated and confirmation is in your inbox.",
+      "All cancellations are processed. Reach out anytime to start back up."
+    ]
+  },
+  "payment_issue": {
+    "customer_initial": [
+      "Hi, my Klarna split says I owe two payments still but I see three charges on my account. Has something doubled?",
+      "Got charged twice for the same order, same amount, same day. Could you look into it?",
+      "Afterpay says my installment failed but I have funds — could you try the charge again or refund?",
+      "Hello — I'm seeing a $0.00 pending charge on my card from Bloom. What is that?",
+      "Hi, paid in full at checkout but I'm getting reminder emails for an installment. I'm not on Klarna."
+    ],
+    "customer_followup": [
+      "Confirmed via my bank. Yes, double charge.",
+      "Yeah Klarna isn't being helpful so really hoping you can fix this on your end.",
+      "Got it — should I do anything?",
+      "Thank you. Let me know when it clears.",
+      "Appreciate the help."
+    ],
+    "agent_reply": [
+      "I'm so sorry — let me check the payment log. Sometimes double charges are pre-auth holds that drop off in 3-5 days, but if it's a real duplicate I'll refund it now.",
+      "Apologies! Let me look at the Klarna sync. There's been an issue with the latest sync that some orders are hitting twice — I can fix on our end.",
+      "Sorry for the trouble — Afterpay sometimes returns false declines. Let me re-charge and confirm.",
+      "Oh, sorry for the confusion! The $0.00 is just an authorization hold — it'll drop off automatically.",
+      "Sorry about the misleading email! Let me check your payment method and turn off the reminders."
+    ],
+    "agent_resolution": [
+      "Confirmed double charge — refunded the duplicate and added $20 credit for the trouble. Should show in 3-5 days.",
+      "Klarna sync fixed on our end. You should only see 2 payments in your Klarna app now — confirmed with their team.",
+      "Re-charged successfully via Afterpay. You're all set, no extra fees from us.",
+      "Confirmed — the pre-auth dropped off this morning. No double charge!",
+      "Turned off the reminder emails. Sorry for the confusion!"
+    ]
+  },
+  "internal_notes": [
+    "Customer is Elite tier — escalate if not resolved today.",
+    "Second time this customer has reported a damaged box from the SoHo warehouse. Flagging to packaging QA.",
+    "Per Marisa, store team will hand-pick this BOPIS replacement and call the customer when ready.",
+    "Customer mentioned an allergy to fragrance in her past notes — make sure we don't include scented samples in the apology pack.",
+    "Loyalty engine bug — Engineering ticket BLM-2241 tracks. Manual points credit needed until fix ships.",
+    "Reaching out to warehouse manager about the broken-bottle rate at LA-2. This is the 4th this month.",
+    "VIP concierge handled this customer before — looping Hugo in for context.",
+    "Refund processed manually because the Klarna sync was down. Confirm next billing cycle.",
+    "Customer's address is a temporary one (Airbnb) — confirm the new address before reshipping.",
+    "Just confirmed with packaging team: extra bubble wrap on perfume orders going forward.",
+    "Order #44102 was caught by fraud screen earlier — manually cleared, all looks legit.",
+    "Customer prefers chat to email — flagging on profile so we route accordingly next time.",
+    "Translated reply needed in Spanish — looping in Marisol.",
+    "Pulled this from the 30-day window exception list — Gold member, second-time issue, approving the late return.",
+    "Customer was on hold for 14 min on phone yesterday before this chat — apologized + adding bonus points.",
+    "Reach out to retail ops about the broken POS at Westfield, this is the 3rd customer affected this week.",
+    "Authentic Bloom product — I checked the batch code against our system. Customer can be reassured.",
+    "Coordinating with influencer partnership team to whitelist this code for future use.",
+    "Per legal: do not promise specific compensation amounts on allergic-reaction tickets. Refund + reach out to brand only.",
+    "Customer ordered for a wedding — flagged Hollie to send a complimentary gift set."
+  ],
+  "lost_package": {
+    "customer_initial": [
+      "Hi, tracking says my package was \"delivered\" yesterday but nothing arrived. I'm home all day. Anyone else seeing this?",
+      "Package says delivered but my doorman doesn't have it and there's nothing at my door.",
+      "I just got back from a trip and the tracking says it was delivered 4 days ago but I have no package.",
+      "My order says \"delivered to mailbox\" but my mailbox is empty. Pretty sure it's stolen.",
+      "Tracking shows delivery to my apartment lobby last week but nothing showed up. The building manager doesn't have it either."
+    ],
+    "customer_followup": [
+      "I've checked everywhere. Nothing.",
+      "Yeah I'd really appreciate that.",
+      "Tried calling FedEx — they say it's marked delivered too.",
+      "Yeah a reship would be ideal. Hopefully not another delivery issue.",
+      "Thanks — I just want this resolved."
+    ],
+    "agent_reply": [
+      "I'm so sorry to hear that! Let me look into this and file a claim with the carrier. We'll get a replacement out to you while that's processing.",
+      "Ugh, lost packages are the worst. Could you give me a couple of hours to file a claim and confirm with the carrier? I'll reship in parallel so you're not waiting.",
+      "Hi! Reshipping right away to a holding address if you prefer. Filing a claim with the carrier on our end.",
+      "Apologies for the wild goose chase. Let me get a replacement going on overnight and ask the carrier for an investigation.",
+      "I'm so sorry. Let me reship to you with signature required this time so we know it gets to the right hands."
+    ],
+    "agent_resolution": [
+      "Replacement is out on overnight with signature required. Filed the carrier claim — they'll follow up directly. So sorry once more.",
+      "Reshipped! Your new tracking is in your inbox. I added some samples and 500 bonus points as a small apology.",
+      "All set — replacement on the way, plus FedEx is investigating. Should reach you tomorrow afternoon. Thanks for being so patient.",
+      "Confirmed reship with priority delivery. The original is being investigated by the carrier. You should be all set!",
+      "Replacement is shipping with signature required, set to arrive Wednesday. Apologies again — please let me know if anything else comes up."
+    ]
+  }
+}

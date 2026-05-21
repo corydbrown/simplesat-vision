@@ -64,6 +64,85 @@ export function formatRelative(
   return relativeFormatter.format(Math.round(diff / year), "year");
 }
 
+const timeOfDayFormatter = new Intl.DateTimeFormat("en-US", {
+  hour: "numeric",
+  minute: "2-digit",
+});
+
+const monthDayFormatter = new Intl.DateTimeFormat("en-US", {
+  month: "short",
+  day: "numeric",
+});
+
+const monthDayYearFormatter = new Intl.DateTimeFormat("en-US", {
+  month: "short",
+  day: "numeric",
+  year: "numeric",
+});
+
+const weekdayFullFormatter = new Intl.DateTimeFormat("en-US", {
+  weekday: "long",
+  month: "long",
+  day: "numeric",
+  year: "numeric",
+});
+
+/** Activity-feed time: relative for the recent past (<24h: "3h ago",
+ *  <7 days: "Mon at 2:14 PM"), then absolute (this year: "May 4, 2:14 PM",
+ *  prior years: "May 4, 2024"). Designed to read at-a-glance in a stream
+ *  where "6 months ago" loses precision. */
+export function formatSmartTime(
+  value: Date | number | null | undefined,
+  now: Date = new Date(),
+): string {
+  if (value == null) return "-";
+  const date = typeof value === "number" ? new Date(value) : value;
+  const ms = date.getTime();
+  const diff = Math.abs(now.getTime() - ms);
+  const minute = 60_000;
+  const hour = 60 * minute;
+  const day = 24 * hour;
+  const week = 7 * day;
+  if (diff < minute) return "just now";
+  if (diff < hour) return `${Math.round(diff / minute)}m ago`;
+  if (diff < day) return `${Math.round(diff / hour)}h ago`;
+  if (diff < week) {
+    const weekday = new Intl.DateTimeFormat("en-US", { weekday: "short" }).format(
+      date,
+    );
+    return `${weekday} at ${timeOfDayFormatter.format(date)}`;
+  }
+  if (date.getFullYear() === now.getFullYear()) {
+    return `${monthDayFormatter.format(date)}, ${timeOfDayFormatter.format(date)}`;
+  }
+  return `${monthDayYearFormatter.format(date)}, ${timeOfDayFormatter.format(date)}`;
+}
+
+/** Day-grouping label for timeline dividers. Returns "Today" / "Yesterday"
+ *  for those days, the weekday for <7 days ago, then absolute. */
+export function formatTimelineDay(
+  value: Date | number | null | undefined,
+  now: Date = new Date(),
+): string {
+  if (value == null) return "-";
+  const date = typeof value === "number" ? new Date(value) : value;
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const that = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  const diffDays = Math.round(
+    (today.getTime() - that.getTime()) / (24 * 60 * 60 * 1000),
+  );
+  if (diffDays === 0) return "Today";
+  if (diffDays === 1) return "Yesterday";
+  if (diffDays < 7) {
+    return new Intl.DateTimeFormat("en-US", {
+      weekday: "long",
+      month: "long",
+      day: "numeric",
+    }).format(date);
+  }
+  return weekdayFullFormatter.format(date);
+}
+
 export function formatDuration(
   start: Date | number | null | undefined,
   end: Date | number | null | undefined,

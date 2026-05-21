@@ -56,6 +56,18 @@ Always detect which role the current session is playing before suggesting action
 - **Worker:** `pwd` is a sibling worktree (e.g. `/simplesat-vision-worktrees/<feature>/`), branch is `feat/*` or `docs/*`. Implements the task, commits, and (when ready) pushes + opens a PR.
 - **Other:** Tell Cory what you see (path + branch) and ask what he's trying to do.
 
+### Spoiling Cory
+
+Small concierge moves that compound. Apply unprompted:
+
+- **Dev URL + PR URL pair on every handoff.** When work is ready for Cory to look at, give him both: the GitHub PR link (code-review surface) and a deep-linked localhost URL (visual-review surface). See Definition of done → Dev URL rules.
+- **Pre-flight before handoff.** Run `npx tsc --noEmit`, `npm run lint`, and confirm `npm run dev` starts cleanly. Cory should never be the first to discover a broken build or missing dev server.
+- **Don't make Cory hunt.** If the change applies to a specific entity / view / drawer state, link straight to it. Include the URL params (`?view=detractors`, `?drawer=customer:cus_abc`, etc.) when they're load-bearing.
+- **Quote port + path together**, never just "the dev server." Cory shouldn't have to look up which worktree got which port.
+- **Tell him what to look at.** Status block's `Verified:` line is for what YOU tested. The handoff message should also name 1–3 things Cory specifically should look at — the change, the edge case, the side-by-side comparison. One sentence each.
+- **Mid-stream redirects are fine.** If Cory says "actually, let's do X first," roll with it. Don't re-explain the original sequence unless he asks.
+- **Offer cleanup after merge, don't auto-do.** Once a PR merges, the worktree is stale. Surface the cleanup step (`cleanup <feature>`) but don't run it unprompted — that's a destructive op.
+
 ## Definition of done — end every implementation with a status block
 
 After any non-trivial implementation (a feature, a bug fix, anything that ends in a commit), end your final response with a short block in exactly this shape:
@@ -63,15 +75,24 @@ After any non-trivial implementation (a feature, a bug fix, anything that ends i
 ```
 **Status:** <where the code is — uncommitted / committed locally on `<branch>` / pushed to GitHub / PR #N open / merged>
 **Verified:** <what you actually tested — dev server, specific routes, lint, build>
+**Dev URL:** <if work has a visible surface, a clickable localhost link deep-linked to the relevant page>
+**PR URL:** <GitHub PR link when a PR is open or just opened>
 **Next step:** <the next concrete action Cory could take, written as a chat phrase he can say back>
 **Risks/follow-ups:** <anything to flag, or "none">
 ```
 
 Rules:
-- Keep it under ~6 lines total. Fast orientation, not a report.
+- Keep it under ~8 lines total. Fast orientation, not a report.
 - Quote actual branch names, PR numbers, and URLs — never be vague.
+- **Dev URL** line:
+  - Provide for any change that has a visible surface in the running app. Skip for pure infra / docs / refactors with no UI delta.
+  - Deep-link to the specific page that shows the change — never the home page unless the home page IS the change.
+  - Format: `[localhost:<port>/<path>](http://localhost:<port>/<path>)`. Port comes from the worktree's `.env.local`.
+  - **Make sure the dev server is actually running before handing over.** If `npm run dev` isn't up, start it as a background process. Cory should never have to remember to start the server before clicking a link.
+  - Include relevant URL params (e.g., `?view=detractors`, `?drawer=customer:cus_abc`) when they're load-bearing for what you want him to see.
+- **PR URL** line is just the `gh pr create` output — include it the first time you mention the PR. Cory can re-find it from `gh pr view` later, but stating it once upfront beats hunting.
 - "Next step" should be a single thing, phrased so Cory can copy-paste it back ("push and open a PR", "merge PR #N", "run /simplify on these files").
-- Skip for trivial work (typo fix, single-line tweak, pure questions). Use judgment.
+- Skip the block for trivial work (typo fix, single-line tweak, pure questions). Use judgment.
 - This block goes AFTER the normal task summary, not instead of it.
 
 ## Stack lock-in

@@ -1,5 +1,6 @@
 import { PrimaryNav } from "@/components/shell/primary-nav";
 import { GlobalDrawer } from "@/components/shared/global-drawer";
+import { RecentPageTracker } from "@/components/shared/recent-page-tracker";
 import { SidebarProvider } from "@/components/shell/sidebar-context";
 import { SearchProvider } from "@/components/shell/search-context";
 
@@ -17,6 +18,7 @@ export default function WorkspaceLayout({
           <PrimaryNav />
           <div className="flex-1 flex min-w-0">{children}</div>
           <GlobalDrawer />
+          <RecentPageTracker />
         </div>
       </SearchProvider>
     </SidebarProvider>

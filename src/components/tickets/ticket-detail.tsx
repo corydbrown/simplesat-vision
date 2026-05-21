@@ -1,5 +1,9 @@
+"use client";
+
+import { useEffect } from "react";
 import { Topbar } from "@/components/shell/topbar";
 import { ColumnStateProvider } from "@/lib/column-prefs";
+import { recordEntityView } from "@/lib/recent-pages";
 import { TICKET_PROPERTIES } from "@/lib/properties/tickets";
 import { PropertiesPanel } from "@/components/shared/properties-panel";
 import {
@@ -18,6 +22,19 @@ export function TicketDetailBody({
   ticket: TicketDetail;
   inDrawer?: boolean;
 }) {
+  useEffect(() => {
+    // Drawer side records via global-drawer.tsx; standalone records here.
+    if (inDrawer) return;
+    recordEntityView({
+      entity: "ticket",
+      id: ticket.id,
+      label: ticket.subject ?? `Ticket ${ticket.helpdeskExternalId ?? ticket.id}`,
+      secondary: ticket.helpdeskExternalId
+        ? `#${ticket.helpdeskExternalId}`
+        : undefined,
+    });
+  }, [inDrawer, ticket.id, ticket.subject, ticket.helpdeskExternalId]);
+
   const header = (
     <div>
       <h1 className="text-3xl font-semibold tracking-tight">

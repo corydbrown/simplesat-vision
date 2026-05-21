@@ -3,14 +3,44 @@
 import { Command } from "cmdk";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import { Search } from "lucide-react";
+import {
+  ClipboardList,
+  Inbox,
+  MessageCircleMore,
+  Search,
+} from "lucide-react";
 import {
   Dialog,
   DialogContent,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Avatar } from "@/components/shared/avatar";
+import { fullPagePath } from "@/components/shared/global-drawer";
+import { colorFromName, initialsFromName } from "@/lib/color-from-name";
 import { STATIC_INDEX, type SearchEntry } from "@/lib/search-index";
+import {
+  useRecentPages,
+  type RecentEntityEntry,
+} from "@/lib/recent-pages";
 import type { SearchResponse, SearchResult } from "@/lib/search-types";
+
+const STATIC_INDEX_BY_HREF = new Map(STATIC_INDEX.map((e) => [e.href, e]));
+
+// Entity types for which the palette renders a per-entity icon (avatars
+// for people, lucide glyphs otherwise). Shared between Recent rows and
+// dynamic search rows so they stay visually consistent.
+type IconEntity = "customer" | "team-member" | "ticket" | "response" | "survey";
+
+const DYNAMIC_GROUP_ENTITY: Record<string, IconEntity> = {
+  Customers: "customer",
+  Tickets: "ticket",
+  Surveys: "survey",
+  "Team members": "team-member",
+  Responses: "response",
+};
+
+const GROUP_HEADING_CLS =
+  "[&_[cmdk-group-heading]]:px-3 [&_[cmdk-group-heading]]:pt-2 [&_[cmdk-group-heading]]:pb-1 [&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:text-muted-foreground/70";
 
 type Props = {
   open: boolean;
@@ -30,6 +60,7 @@ export function SearchPalette({ open, onOpenChange }: Props) {
   const [query, setQuery] = useState("");
   const [dynamic, setDynamic] = useState<SearchResponse>(EMPTY_DYNAMIC);
   const [loading, setLoading] = useState(false);
+  const recent = useRecentPages();
 
   // Reset query when the palette closes so reopening starts fresh.
   useEffect(() => {
@@ -119,11 +150,47 @@ export function SearchPalette({ open, onOpenChange }: Props) {
               No results
             </Command.Empty>
 
+            {query.trim().length < 1 && recent.length > 0 ? (
+              <Command.Group
+                heading="Recent pages"
+                className={GROUP_HEADING_CLS}
+              >
+                {recent.slice(0, 8).map((r) => {
+                  if (r.kind === "entity") {
+                    return (
+                      <PaletteItem
+                        key={`recent:entity:${r.entity}:${r.id}`}
+                        value={`recent:entity:${r.entity}:${r.id}`}
+                        label={r.label}
+                        secondary={r.secondary}
+                        icon={<EntityIcon entity={r.entity} entry={r} />}
+                        onSelect={() => go(fullPagePath(r.entity, r.id))}
+                      />
+                    );
+                  }
+                  const indexed = STATIC_INDEX_BY_HREF.get(r.href);
+                  if (!indexed) return null;
+                  return (
+                    <PaletteItem
+                      key={`recent:page:${r.href}`}
+                      value={`recent:page:${r.href}`}
+                      label={indexed.label}
+                      secondary={indexed.secondary}
+                      icon={
+                        indexed.icon ? <indexed.icon size={14} /> : null
+                      }
+                      onSelect={() => go(indexed.href)}
+                    />
+                  );
+                })}
+              </Command.Group>
+            ) : null}
+
             {grouped.map(({ category, entries }) => (
               <Command.Group
                 key={category}
                 heading={category}
-                className="[&_[cmdk-group-heading]]:px-3 [&_[cmdk-group-heading]]:pt-2 [&_[cmdk-group-heading]]:pb-1 [&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:text-muted-foreground/70"
+                className={GROUP_HEADING_CLS}
               >
                 {entries.map((e) => (
                   <PaletteItem
@@ -205,22 +272,59 @@ function DynamicGroup({
   onSelect: (href: string) => void;
 }) {
   if (results.length === 0) return null;
+  const entity = DYNAMIC_GROUP_ENTITY[heading];
   return (
-    <Command.Group
-      heading={heading}
-      className="[&_[cmdk-group-heading]]:px-3 [&_[cmdk-group-heading]]:pt-2 [&_[cmdk-group-heading]]:pb-1 [&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:text-muted-foreground/70"
-    >
+    <Command.Group heading={heading} className={GROUP_HEADING_CLS}>
       {results.map((r) => (
         <PaletteItem
           key={`${heading}:${r.id}`}
           value={`${r.label} ${r.secondary ?? ""}`.trim()}
           label={r.label}
           secondary={r.secondary}
+          icon={
+            entity ? (
+              <EntityIcon
+                entity={entity}
+                entry={{ label: r.label, avatarColor: r.avatarColor }}
+              />
+            ) : null
+          }
           onSelect={() => onSelect(r.href)}
         />
       ))}
     </Command.Group>
   );
+}
+
+function EntityIcon({
+  entity,
+  entry,
+}: {
+  entity: IconEntity;
+  // Minimal shape so both RecentEntityEntry and SearchResult can pass in.
+  entry: Pick<RecentEntityEntry, "label" | "avatarColor">;
+}) {
+  if (entity === "customer") {
+    return (
+      <Avatar
+        bg={colorFromName(entry.label)}
+        initials={initialsFromName(entry.label)}
+        size="sm"
+      />
+    );
+  }
+  if (entity === "team-member") {
+    return (
+      <Avatar
+        bg={entry.avatarColor ?? colorFromName(entry.label)}
+        initials={initialsFromName(entry.label)}
+        size="sm"
+      />
+    );
+  }
+  if (entity === "ticket") return <Inbox size={14} />;
+  if (entity === "response") return <MessageCircleMore size={14} />;
+  return <ClipboardList size={14} />;
 }
 
 function PaletteItem({

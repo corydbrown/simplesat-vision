@@ -1,5 +1,9 @@
+"use client";
+
+import { useEffect } from "react";
 import { Check } from "lucide-react";
 import { ColumnStateProvider } from "@/lib/column-prefs";
+import { recordEntityView } from "@/lib/recent-pages";
 import { RESPONSE_PROPERTIES } from "@/lib/properties/responses";
 import { PropertiesPanel } from "@/components/shared/properties-panel";
 import {
@@ -83,6 +87,33 @@ export function ResponseDetailBody({
   responseRow: ResponseListRow;
   inDrawer?: boolean;
 }) {
+  useEffect(() => {
+    // Drawer side records via global-drawer.tsx; standalone records here.
+    if (inDrawer) return;
+    const who = response.customer?.name;
+    const label = who
+      ? `${response.rating}/${response.scale} from ${who}`
+      : `${response.rating}/${response.scale} response`;
+    const comment = response.comment?.replace(/\s+/g, " ").trim();
+    recordEntityView({
+      entity: "response",
+      id: response.id,
+      label,
+      secondary: comment
+        ? comment.length > 60
+          ? `${comment.slice(0, 60)}…`
+          : comment
+        : undefined,
+    });
+  }, [
+    inDrawer,
+    response.id,
+    response.rating,
+    response.scale,
+    response.customer?.name,
+    response.comment,
+  ]);
+
   const tone =
     response.rating <= 2
       ? "text-red-600"

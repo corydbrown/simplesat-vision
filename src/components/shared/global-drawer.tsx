@@ -9,6 +9,11 @@ import { TeamMemberDetailBody } from "@/components/team-members/team-member-deta
 import { ResponseDetailBody } from "@/components/responses/response-detail";
 import { SurveyDetailBody } from "@/components/surveys/survey-detail";
 import { Skeleton } from "@/components/ui/skeleton";
+import { SURVEY_METRIC_LABEL } from "@/lib/properties/surveys";
+import {
+  recordEntityView,
+  type RecentEntityEntry,
+} from "@/lib/recent-pages";
 import type { CustomerDetail, CustomerListRow } from "@/db/queries/customers";
 import type { TicketDetail, TicketsRow } from "@/db/queries/tickets";
 import type {
@@ -115,6 +120,66 @@ type DrawerData =
 
 const cache = new Map<string, DrawerData>();
 
+function buildEntryFromDrawerPayload(
+  payload: DrawerData,
+): Omit<RecentEntityEntry, "kind" | "viewedAt"> {
+  if (payload.entity === "customer") {
+    const c = payload.data.customer;
+    return {
+      entity: "customer",
+      id: c.id,
+      label: c.name,
+      secondary: c.company ?? c.email ?? undefined,
+    };
+  }
+  if (payload.entity === "ticket") {
+    const t = payload.data.ticket;
+    return {
+      entity: "ticket",
+      id: t.id,
+      label: t.subject ?? `Ticket ${t.helpdeskExternalId ?? t.id}`,
+      secondary: t.helpdeskExternalId
+        ? `#${t.helpdeskExternalId}`
+        : undefined,
+    };
+  }
+  if (payload.entity === "team-member") {
+    const m = payload.data.member;
+    return {
+      entity: "team-member",
+      id: m.id,
+      label: m.name,
+      secondary: m.team ?? undefined,
+      avatarColor: m.avatarColor,
+    };
+  }
+  if (payload.entity === "response") {
+    const r = payload.data.response;
+    const who = r.customer?.name;
+    const label = who
+      ? `${r.rating}/${r.scale} from ${who}`
+      : `${r.rating}/${r.scale} response`;
+    const comment = r.comment?.replace(/\s+/g, " ").trim();
+    return {
+      entity: "response",
+      id: r.id,
+      label,
+      secondary: comment
+        ? comment.length > 60
+          ? `${comment.slice(0, 60)}…`
+          : comment
+        : undefined,
+    };
+  }
+  const s = payload.data.survey;
+  return {
+    entity: "survey",
+    id: s.id,
+    label: s.name,
+    secondary: SURVEY_METRIC_LABEL[s.metric],
+  };
+}
+
 function surveyRowFromDetail(s: SurveyDetail): SurveyRow {
   return {
     id: s.id,
@@ -152,7 +217,11 @@ export function GlobalDrawer() {
   const requestId = useRef(0);
   useEffect(() => {
     if (!parsed || !currentKey) return;
-    if (cache.has(currentKey)) return;
+    const cached = cache.get(currentKey);
+    if (cached) {
+      recordEntityView(buildEntryFromDrawerPayload(cached));
+      return;
+    }
     const myId = ++requestId.current;
     fetch(`/api/drawer/${parsed.entity}/${parsed.id}`)
       .then((r) => {
@@ -164,6 +233,7 @@ export function GlobalDrawer() {
         const revived = reviveDates<DrawerData["data"]>(raw);
         const next = { entity: parsed.entity, data: revived } as DrawerData;
         cache.set(currentKey, next);
+        recordEntityView(buildEntryFromDrawerPayload(next));
         setSnapshot({ key: currentKey, payload: next, error: false });
       })
       .catch(() => {

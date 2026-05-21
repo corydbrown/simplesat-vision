@@ -3,8 +3,31 @@
 import { ArrowDown, ArrowUp, ChevronsUpDown } from "lucide-react";
 import type { ReportAxisMeta, ReportResult } from "@/db/queries/reports";
 import { formatPivotValue, valueLabel } from "@/lib/reports/format";
+import type { EntityRef } from "@/lib/reports/pivot";
 import type { AxisFieldSort, SortDirection } from "@/lib/reports/types";
 import { cn } from "@/lib/utils";
+import {
+  CustomerPill,
+  SurveyPill,
+  TeamMemberPill,
+} from "@/components/shared/entity-pill";
+
+function EntityCell({ entity, label }: { entity: EntityRef; label: string }) {
+  switch (entity.entity) {
+    case "customer":
+      return <CustomerPill id={entity.id} name={label} />;
+    case "team-member":
+      return <TeamMemberPill id={entity.id} name={label} />;
+    case "survey":
+      return <SurveyPill id={entity.id} name={label} />;
+    // ticket and response have no relation-field axes in the current pivot
+    // registry, so we fall back to plain text. If those are added, render
+    // the matching pill here.
+    case "ticket":
+    case "response":
+      return <>{label}</>;
+  }
+}
 
 type SortTarget =
   | { kind: "axis-field" }
@@ -79,6 +102,42 @@ function activeDirection(
 ): SortDirection | null {
   if (!targetMatches(sort, target)) return null;
   return sort!.direction;
+}
+
+function SortIconButton({
+  active,
+  direction,
+  onClick,
+  className,
+}: {
+  active: boolean;
+  direction: SortDirection | null;
+  onClick: () => void;
+  className?: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label="Sort"
+      className={cn(
+        "group inline-flex items-center justify-center rounded-sm p-0.5 hover:bg-muted cursor-pointer",
+        className,
+      )}
+    >
+      {active && direction === "desc" ? (
+        <ArrowDown size={12} className="text-foreground shrink-0" aria-hidden />
+      ) : active && direction === "asc" ? (
+        <ArrowUp size={12} className="text-foreground shrink-0" aria-hidden />
+      ) : (
+        <ChevronsUpDown
+          size={12}
+          className="shrink-0 text-muted-foreground/40 group-hover:text-muted-foreground/70"
+          aria-hidden
+        />
+      )}
+    </button>
+  );
 }
 
 function SortableHeader({
@@ -222,22 +281,55 @@ export function PivotTable({ result, onSortChange }: PivotTableProps) {
                     )}
                   </th>
                 ))}
-                {columnKeys.map((ck) => (
-                  <th
-                    key={ck.key}
-                    colSpan={valueCount}
-                    className="border-l border-border bg-muted/40 px-3 py-2 text-center text-xs font-medium text-foreground"
-                  >
-                    <SortableHeader
-                      active={columnAxisFieldDir != null}
-                      direction={columnAxisFieldDir}
-                      onClick={onClickColumnAxis}
-                      align="center"
+                {columnKeys.map((ck) => {
+                  const hasEntity = ck.entities.some((e) => e != null);
+                  return (
+                    <th
+                      key={ck.key}
+                      colSpan={valueCount}
+                      className="border-l border-border bg-muted/40 px-3 py-2 text-center text-xs font-medium text-foreground"
                     >
-                      {ck.labels.join(" · ")}
-                    </SortableHeader>
-                  </th>
-                ))}
+                      {hasEntity ? (
+                        <div className="inline-flex items-center justify-center gap-1.5">
+                          {ck.labels.map((lbl, li) => {
+                            const e = ck.entities[li];
+                            return (
+                              <span
+                                key={li}
+                                className="inline-flex items-center"
+                              >
+                                {li > 0 && (
+                                  <span className="mr-1.5 text-muted-foreground/60">
+                                    ·
+                                  </span>
+                                )}
+                                {e ? (
+                                  <EntityCell entity={e} label={lbl} />
+                                ) : (
+                                  <span>{lbl}</span>
+                                )}
+                              </span>
+                            );
+                          })}
+                          <SortIconButton
+                            active={columnAxisFieldDir != null}
+                            direction={columnAxisFieldDir}
+                            onClick={onClickColumnAxis}
+                          />
+                        </div>
+                      ) : (
+                        <SortableHeader
+                          active={columnAxisFieldDir != null}
+                          direction={columnAxisFieldDir}
+                          onClick={onClickColumnAxis}
+                          align="center"
+                        >
+                          {ck.labels.join(" · ")}
+                        </SortableHeader>
+                      )}
+                    </th>
+                  );
+                })}
                 <th
                   colSpan={valueCount}
                   className="border-l border-border bg-muted/40 px-3 py-2 text-center text-xs font-medium text-muted-foreground"
@@ -409,6 +501,13 @@ export function PivotTable({ result, onSortChange }: PivotTableProps) {
                 >
                   {hasRows ? (
                     rowAxes.map((_, i) => {
+                      const label = rk.labels[i] ?? "";
+                      const entity = rk.entities[i] ?? null;
+                      const content = entity ? (
+                        <EntityCell entity={entity} label={label} />
+                      ) : (
+                        label
+                      );
                       if (i === 0 && firstAxisSpans) {
                         if (firstSpan === 0) return null;
                         return (
@@ -420,7 +519,7 @@ export function PivotTable({ result, onSortChange }: PivotTableProps) {
                               ri > 0 && "border-t border-border",
                             )}
                           >
-                            {rk.labels[i] ?? ""}
+                            {content}
                           </th>
                         );
                       }
@@ -432,7 +531,7 @@ export function PivotTable({ result, onSortChange }: PivotTableProps) {
                             i === 0 && "sticky left-0 z-10 bg-card font-medium",
                           )}
                         >
-                          {rk.labels[i] ?? ""}
+                          {content}
                         </th>
                       );
                     })

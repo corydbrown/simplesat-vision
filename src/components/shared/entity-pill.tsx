@@ -133,7 +133,7 @@ export function TeamMemberPill({
   avatarColor,
   size = "sm",
   className,
-}: CommonProps & { id: string; name: string; avatarColor: string }) {
+}: CommonProps & { id: string; name: string; avatarColor?: string }) {
   return (
     <HoverCard openDelay={200} closeDelay={80}>
       <HoverCardTrigger asChild>
@@ -143,7 +143,7 @@ export function TeamMemberPill({
           className={basePillClass(size, className)}
         >
           <Avatar
-            bg={avatarColor}
+            bg={avatarColor ?? colorFromName(name)}
             initials={initialsFromName(name)}
             size={size === "md" ? "md" : "sm"}
           />
@@ -250,10 +250,11 @@ export function SurveyPill({
 }: CommonProps & {
   id: string;
   name: string;
-  metric: "csat" | "nps" | "ces" | "five_star" | "custom";
+  metric?: "csat" | "nps" | "ces" | "five_star" | "custom";
 }) {
-  const tag =
-    metric === "csat"
+  const tag = !metric
+    ? null
+    : metric === "csat"
       ? "CSAT"
       : metric === "nps"
         ? "NPS"
@@ -270,9 +271,11 @@ export function SurveyPill({
           id={id}
           className={basePillClass(size, className)}
         >
-          <span className="inline-flex items-center justify-center rounded bg-muted px-1 text-[10px] font-medium text-muted-foreground">
-            {tag}
-          </span>
+          {tag && (
+            <span className="inline-flex items-center justify-center rounded bg-muted px-1 text-[10px] font-medium text-muted-foreground">
+              {tag}
+            </span>
+          )}
           <span className="truncate">{name}</span>
           <ArrowUpRight size={10} className={arrowClass} />
         </DrawerLink>

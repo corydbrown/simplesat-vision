@@ -1,9 +1,16 @@
 import type { AxisAlias } from "./compile";
 import type { AxisFieldSort, ValueDef } from "./types";
+import type { DrawerEntity } from "@/components/shared/global-drawer";
+
+export type EntityRef = { entity: DrawerEntity; id: string };
 
 export type PivotCellKey = {
   key: string;
   labels: string[];
+  /** Parallel to `labels`. When an axis position is an entity field and the
+   *  value is non-null, holds the entity id + kind so the renderer can show
+   *  a clickable pill. null otherwise. */
+  entities: (EntityRef | null)[];
 };
 
 export type PivotGrid = {
@@ -31,7 +38,7 @@ function coordLabels(
 function readAxis(
   row: Record<string, unknown>,
   alias: AxisAlias,
-): { value: unknown; label: string | null } {
+): { value: unknown; label: string | null; entity: EntityRef | null } {
   const value = row[alias.alias];
   const labelRaw = alias.labelAlias ? row[alias.labelAlias] : value;
   const label =
@@ -40,7 +47,11 @@ function readAxis(
       : typeof labelRaw === "number"
         ? String(labelRaw)
         : String(labelRaw);
-  return { value, label };
+  const entity =
+    alias.field.entity && value != null
+      ? { entity: alias.field.entity, id: String(value) }
+      : null;
+  return { value, label, entity };
 }
 
 export type BuildPivotOptions = {
@@ -92,8 +103,13 @@ export function buildPivot(
       rowAliases.length === 0
         ? []
         : coordLabels(rowParts.map((p) => p.label));
+    const rowEntities = rowParts.map((p) => p.entity);
     if (!rowKeysMap.has(rowKey))
-      rowKeysMap.set(rowKey, { key: rowKey, labels: rowLabels });
+      rowKeysMap.set(rowKey, {
+        key: rowKey,
+        labels: rowLabels,
+        entities: rowEntities,
+      });
 
     // Build column key
     const colParts = columnAliases.map((a) => readAxis(row, a));
@@ -105,8 +121,13 @@ export function buildPivot(
       columnAliases.length === 0
         ? []
         : coordLabels(colParts.map((p) => p.label));
+    const colEntities = colParts.map((p) => p.entity);
     if (!colKeysMap.has(colKey))
-      colKeysMap.set(colKey, { key: colKey, labels: colLabels });
+      colKeysMap.set(colKey, {
+        key: colKey,
+        labels: colLabels,
+        entities: colEntities,
+      });
 
     // Read value numbers
     const nums = valueAliases.map((v) => {

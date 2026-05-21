@@ -74,9 +74,9 @@ function AddFieldPopover({
       <PopoverTrigger asChild>
         <button
           type="button"
-          className="flex items-center gap-1 rounded-md px-2 py-1 text-xs text-muted-foreground hover:bg-accent hover:text-foreground cursor-pointer h-8"
+          className="flex items-center gap-1 rounded-md px-2 py-1 text-[14px] text-muted-foreground hover:bg-accent hover:text-foreground cursor-pointer h-8"
         >
-          <Plus size={12} />
+          <Plus size={14} />
           {label}
         </button>
       </PopoverTrigger>
@@ -97,7 +97,7 @@ function AddFieldPopover({
         <div className="flex flex-col gap-2 p-2">
           {orderedGroupKeys.map((group) => (
             <div key={group} className="flex flex-col gap-0.5">
-              <div className="px-2 pt-1 text-xs text-muted-foreground">
+              <div className="px-2 pt-1 text-xs font-medium text-muted-foreground/80">
                 {group}
               </div>
               {groups[group].map((f) => (

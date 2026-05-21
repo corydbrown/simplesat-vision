@@ -345,7 +345,7 @@ export function ReportBuilder({ initialConfig }: Props) {
           className="relative shrink-0 border-r border-border bg-background overflow-y-auto"
         >
           <div className="flex flex-col gap-2 p-4">
-            <div className="text-xs font-medium text-muted-foreground px-2">
+            <div className="text-[14px] font-medium text-muted-foreground px-2">
               Properties
             </div>
             <PropertyRail base={config.base} onAddField={addField} />
@@ -366,7 +366,7 @@ export function ReportBuilder({ initialConfig }: Props) {
             />
             <div className="flex items-center gap-1">
               {pending && (
-                <span className="text-xs text-muted-foreground mr-1">
+                <span className="text-[14px] text-muted-foreground mr-1">
                   refreshing…
                 </span>
               )}
@@ -466,7 +466,7 @@ export function ReportBuilder({ initialConfig }: Props) {
                     <button
                       type="button"
                       onClick={addCount}
-                      className="flex items-center gap-1 rounded-md px-2 py-1 text-xs text-muted-foreground hover:bg-accent hover:text-foreground cursor-pointer h-8"
+                      className="flex items-center gap-1 rounded-md px-2 py-1 text-[14px] text-muted-foreground hover:bg-accent hover:text-foreground cursor-pointer h-8"
                     >
                       Count
                     </button>

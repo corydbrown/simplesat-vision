@@ -1,9 +1,16 @@
 "use client";
 
 import { useDroppable } from "@dnd-kit/core";
-import { ChevronDown, Plus, X } from "lucide-react";
-import { useMemo, useState } from "react";
-import { Button } from "@/components/ui/button";
+import {
+  ChevronDown,
+  MoreHorizontal,
+  Plus,
+  Search,
+  Trash2,
+  X,
+} from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Calendar } from "@/components/ui/calendar";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -15,12 +22,21 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import type { FieldDescriptor } from "@/lib/filters/descriptor";
+import { Avatar } from "@/components/shared/avatar";
+import type { FieldDescriptor, RelationEntity } from "@/lib/filters/descriptor";
 import {
+  primeRelationLabel,
+  useRelationLabel,
+} from "@/lib/filters/relation-cache";
+import {
+  searchRelationOptions,
+  type RelationOption,
+} from "@/lib/filters/relation-options";
+import {
+  capitalize,
   defaultOpFor,
   defaultValueFor,
   isRelativeValue,
-  OP_LABEL,
   opLabel,
   opNeedsValue,
   type Filter,
@@ -30,14 +46,18 @@ import {
   type RelativeUnit,
   type RelativeValue,
 } from "@/lib/filters/types";
+import { colorFromName, initialsFromName } from "@/lib/color-from-name";
 import { cn } from "@/lib/utils";
+
+/** Tailwind utility to strip the native number-input arrow buttons. */
+const NO_SPINNERS =
+  "[appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none";
 
 // ---------------------------------------------------------------------------
 // Public API
 // ---------------------------------------------------------------------------
 
 type FilterRowProps = {
-  label?: string;
   fields: FieldDescriptor[];
   filters: Filter[];
   onChange: (next: Filter[]) => void;
@@ -48,13 +68,14 @@ type FilterRowProps = {
 };
 
 export function FilterRow({
-  label = "Filters",
   fields,
   filters,
   onChange,
   droppableId,
   className,
 }: FilterRowProps) {
+  const [autoOpenIndex, setAutoOpenIndex] = useState<number | null>(null);
+
   const updateAt = (i: number, next: Filter) => {
     const arr = [...filters];
     arr[i] = next;
@@ -62,22 +83,25 @@ export function FilterRow({
   };
   const removeAt = (i: number) => {
     onChange(filters.filter((_, idx) => idx !== i));
+    if (autoOpenIndex === i) setAutoOpenIndex(null);
   };
-  const add = (filter: Filter) => onChange([...filters, filter]);
+  const add = (filter: Filter) => {
+    onChange([...filters, filter]);
+    setAutoOpenIndex(filters.length);
+  };
 
   return (
     <FilterRowDroppable id={droppableId} className={className}>
-      <span className="text-xs font-medium text-muted-foreground shrink-0">
-        {label}
-      </span>
       <div className="flex min-w-0 flex-wrap items-center gap-1.5">
         {filters.map((f, i) => (
           <FilterChip
             key={`${f.propertyId}-${i}`}
             filter={f}
             fields={fields}
-            onChange={(next) => updateAt(i, next)}
-            onRemove={() => removeAt(i)}
+            autoOpen={autoOpenIndex === i}
+            onAutoOpenConsumed={() => setAutoOpenIndex(null)}
+            onUpdate={(next) => updateAt(i, next)}
+            onDelete={() => removeAt(i)}
           />
         ))}
         <FilterAddTrigger fields={fields} onAdd={add} />
@@ -99,7 +123,6 @@ function FilterRowDroppable({
   children: React.ReactNode;
 }) {
   if (id) {
-    // Reports: wrap with useDroppable.
     return (
       <FilterRowDroppableInner id={id} className={className}>
         {children}
@@ -143,31 +166,45 @@ function FilterRowDroppableInner({
 }
 
 // ---------------------------------------------------------------------------
-// Chip
+// Chip — click to edit. No X button; delete lives in the editor's kebab menu.
 // ---------------------------------------------------------------------------
 
 function FilterChip({
   filter,
   fields,
-  onChange,
-  onRemove,
+  autoOpen,
+  onAutoOpenConsumed,
+  onUpdate,
+  onDelete,
 }: {
   filter: Filter;
   fields: FieldDescriptor[];
-  onChange: (next: Filter) => void;
-  onRemove: () => void;
+  autoOpen?: boolean;
+  onAutoOpenConsumed?: () => void;
+  onUpdate: (next: Filter) => void;
+  onDelete: () => void;
 }) {
   const field = fields.find((f) => f.id === filter.propertyId);
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(autoOpen ?? false);
+
+  // Honour `autoOpen` (set by the parent after adding a new chip). Open
+  // once on the first render where autoOpen=true, then tell the parent so
+  // it can clear its marker.
+  useEffect(() => {
+    if (!autoOpen) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setOpen(true);
+    onAutoOpenConsumed?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoOpen]);
 
   if (!field) {
-    // Stale filter pointing at an unknown field — show as orphan with remove button.
     return (
-      <div className="inline-flex items-center gap-1.5 rounded-md border border-border bg-muted/40 px-2 py-1 text-sm h-8 text-muted-foreground">
+      <div className="inline-flex items-center gap-1.5 rounded-md border border-border bg-muted/40 px-2 py-1 text-[14px] h-8 text-muted-foreground">
         Unknown field
         <button
           type="button"
-          onClick={onRemove}
+          onClick={onDelete}
           aria-label="Remove filter"
           className="ml-0.5 rounded p-0.5 hover:bg-accent hover:text-foreground cursor-pointer"
         >
@@ -179,42 +216,36 @@ function FilterChip({
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
-      <div className="inline-flex items-center gap-1 rounded-md border border-border bg-card pl-2 pr-1 py-1 text-sm h-8">
-        <PopoverTrigger asChild>
-          <button
-            type="button"
-            className="flex items-center gap-1.5 cursor-pointer outline-none"
-          >
-            <span className="text-foreground">{field.label}</span>
-            <span className="text-muted-foreground">
-              {opLabel(filter.op, field.dataType)}
-            </span>
-            <ValueLabel filter={filter} field={field} />
-          </button>
-        </PopoverTrigger>
+      <PopoverTrigger asChild>
         <button
           type="button"
-          onClick={onRemove}
-          aria-label="Remove filter"
-          className="ml-0.5 rounded p-0.5 text-muted-foreground hover:bg-accent hover:text-foreground cursor-pointer"
+          className="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-2.5 py-1 text-[14px] h-8 cursor-pointer outline-none hover:border-foreground/20 transition-colors"
         >
-          <X size={12} />
+          <span className="text-foreground">{field.label}</span>
+          <span className="text-muted-foreground">
+            {opLabel(filter.op, field.dataType)}
+          </span>
+          <ValueLabel filter={filter} field={field} />
         </button>
-      </div>
-      <PopoverContent align="start" className="w-80 p-0">
+      </PopoverTrigger>
+      <PopoverContent align="start" className="w-72 p-0">
         <FilterEditor
-          fields={fields}
-          initial={filter}
-          onApply={(next) => {
-            onChange(next);
+          field={field}
+          filter={filter}
+          onUpdate={onUpdate}
+          onDelete={() => {
+            onDelete();
             setOpen(false);
           }}
-          onCancel={() => setOpen(false)}
         />
       </PopoverContent>
     </Popover>
   );
 }
+
+// ---------------------------------------------------------------------------
+// Chip value label (right-hand "value" portion of the chip)
+// ---------------------------------------------------------------------------
 
 function ValueLabel({
   filter,
@@ -225,41 +256,130 @@ function ValueLabel({
 }) {
   if (!opNeedsValue(filter.op)) return null;
   const v = filter.value;
-  let text: string;
-  if (filter.op === "relative" && isRelativeValue(v)) {
-    text = `${v.dir === "past" ? "last" : "next"} ${v.n} ${v.unit}`;
-  } else if (filter.op === "between" && Array.isArray(v) && v.length === 2) {
-    text = `${formatScalar(v[0])} – ${formatScalar(v[1])}`;
-  } else if (Array.isArray(v)) {
-    text = v.length === 0 ? "(empty)" : v.map(formatScalar).join(", ");
-  } else if (v == null || v === "") {
-    text = "(empty)";
-  } else {
-    text = formatScalar(v);
+
+  // Relation single: avatar + name
+  if (field.entity && typeof v === "string") {
+    if (!v) return <Placeholder />;
+    return <RelationChipSingle entity={field.entity} id={v} />;
   }
+  // Relation multi
+  if (field.entity && Array.isArray(v)) {
+    if (v.length === 0) return <Placeholder />;
+    return (
+      <RelationChipMulti entity={field.entity} ids={v as string[]} />
+    );
+  }
+
+  // Date relative — "last 7 days" / "this week" style.
+  if (filter.op === "relative" && isRelativeValue(v)) {
+    let text: string;
+    if (v.dir === "this") {
+      const unitSingular = v.unit.replace(/s$/, "");
+      text = `this ${unitSingular}`;
+    } else {
+      text = `${v.dir === "past" ? "last" : "next"} ${v.n} ${v.unit}`;
+    }
+    return (
+      <span className="text-foreground max-w-[20ch] truncate">{text}</span>
+    );
+  }
+  // Between range
+  if (filter.op === "between" && Array.isArray(v) && v.length === 2) {
+    const [a, b] = v as [unknown, unknown];
+    if (a == null || b == null) return <Placeholder />;
+    return (
+      <span className="text-foreground max-w-[24ch] truncate">
+        {formatScalar(a, field, filter.propertyId)}–
+        {formatScalar(b, field, filter.propertyId)}
+      </span>
+    );
+  }
+  // Multi-value (enum in/not-in) when not relation
+  if (Array.isArray(v)) {
+    if (v.length === 0) return <Placeholder />;
+    return (
+      <span className="text-foreground max-w-[24ch] truncate">
+        {v
+          .map((x) => formatScalar(x, field, filter.propertyId))
+          .join(", ")}
+      </span>
+    );
+  }
+  // Empty single value
+  if (v == null || v === "") return <Placeholder />;
+  // Single scalar
   return (
-    <span
-      className={cn(
-        "max-w-[16ch] truncate text-foreground",
-        // Enum fields' "is" with a single value reads better visually but no
-        // styling diff needed today.
-        field.dataType === "enum" && "",
-      )}
-    >
-      {text}
+    <span className="text-foreground max-w-[20ch] truncate">
+      {formatScalar(v, field, filter.propertyId)}
     </span>
   );
 }
 
-function formatScalar(v: unknown): string {
-  if (typeof v === "string") return v;
+function Placeholder() {
+  return <span className="text-muted-foreground italic">—</span>;
+}
+
+function RelationChipSingle({
+  entity,
+  id,
+}: {
+  entity: RelationEntity;
+  id: string;
+}) {
+  const label = useRelationLabel(entity, id);
+  const showName = label ?? id;
+  const showAvatar = entity === "customer" || entity === "team_member";
+  return (
+    <span className="inline-flex items-center gap-1 text-foreground max-w-[22ch] truncate">
+      {showAvatar && label && (
+        <Avatar
+          bg={colorFromName(label)}
+          initials={initialsFromName(label)}
+          size="sm"
+        />
+      )}
+      <span className="truncate">{showName}</span>
+    </span>
+  );
+}
+
+function RelationChipMulti({
+  entity,
+  ids,
+}: {
+  entity: RelationEntity;
+  ids: string[];
+}) {
+  return (
+    <span className="inline-flex items-center gap-1 text-foreground max-w-[28ch] truncate">
+      {ids.slice(0, 3).map((id) => (
+        <RelationChipSingle key={id} entity={entity} id={id} />
+      ))}
+      {ids.length > 3 && (
+        <span className="text-muted-foreground">+{ids.length - 3}</span>
+      )}
+    </span>
+  );
+}
+
+function formatScalar(
+  v: unknown,
+  field: FieldDescriptor,
+  propertyId: string,
+): string {
+  if (typeof v === "string") {
+    if (field.enumValues?.includes(v)) {
+      return formatEnumValue(propertyId, v);
+    }
+    return v;
+  }
   if (typeof v === "number") return String(v);
   if (typeof v === "boolean") return v ? "true" : "false";
   return "";
 }
 
 // ---------------------------------------------------------------------------
-// Add trigger
+// Add trigger — two-stage popover (pick field → edit just-added chip).
 // ---------------------------------------------------------------------------
 
 function FilterAddTrigger({
@@ -271,174 +391,138 @@ function FilterAddTrigger({
 }) {
   const [open, setOpen] = useState(false);
 
+  const pickField = (id: string) => {
+    const field = fields.find((f) => f.id === id);
+    if (!field) return;
+    const op = field.ops.includes(defaultOpFor(field.dataType))
+      ? defaultOpFor(field.dataType)
+      : field.ops[0];
+    const filter: Filter = { propertyId: id, op };
+    const dv = defaultValueFor(op);
+    // Skip default scalar zeros — leave the value blank so the user is
+    // prompted to fill it in via the chip's editor.
+    if (
+      op === "between" ||
+      op === "in" ||
+      op === "not-in" ||
+      op === "relative"
+    ) {
+      filter.value = dv;
+    } else if (op === "isnull" || op === "notnull") {
+      // no value
+    } else {
+      // eq/neq/contains/lt/lte/gt/gte etc. — leave value undefined so the
+      // chip shows "—" until the user picks one.
+    }
+    onAdd(filter);
+    setOpen(false);
+  };
+
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <button
           type="button"
-          className="flex items-center gap-1 rounded-md px-2 py-1 text-xs text-muted-foreground hover:bg-accent hover:text-foreground cursor-pointer h-8"
+          className="flex items-center gap-1 rounded-md px-2 py-1 text-[14px] text-muted-foreground hover:bg-accent hover:text-foreground cursor-pointer h-8"
         >
-          <Plus size={12} />
+          <Plus size={14} />
           Add filter
         </button>
       </PopoverTrigger>
-      <PopoverContent align="start" className="w-80 p-0">
-        <FilterEditor
-          fields={fields}
-          initial={null}
-          onApply={(next) => {
-            onAdd(next);
-            setOpen(false);
-          }}
-          onCancel={() => setOpen(false)}
-        />
+      <PopoverContent align="start" className="w-72 p-0">
+        <FieldPicker fields={fields} onPick={pickField} />
       </PopoverContent>
     </Popover>
   );
 }
 
 // ---------------------------------------------------------------------------
-// Editor — shared between add (no initial) and edit (initial = current filter)
+// Editor — field is locked. Op + value auto-apply. Kebab menu top-right
+// holds "Delete filter".
 // ---------------------------------------------------------------------------
 
-type EditorState = {
-  fieldId: string | null;
-  op: FilterOp | null;
-  value: FilterValue;
-};
-
-function initialEditorState(initial: Filter | null): EditorState {
-  return {
-    fieldId: initial?.propertyId ?? null,
-    op: initial?.op ?? null,
-    value: initial?.value,
-  };
-}
-
 function FilterEditor({
-  fields,
-  initial,
-  onApply,
-  onCancel,
+  field,
+  filter,
+  onUpdate,
+  onDelete,
 }: {
-  fields: FieldDescriptor[];
-  initial: Filter | null;
-  onApply: (filter: Filter) => void;
-  onCancel: () => void;
+  field: FieldDescriptor;
+  filter: Filter;
+  onUpdate: (next: Filter) => void;
+  onDelete: () => void;
 }) {
-  const [state, setState] = useState<EditorState>(() =>
-    initialEditorState(initial),
-  );
-  const field = useMemo(
-    () =>
-      state.fieldId
-        ? (fields.find((f) => f.id === state.fieldId) ?? null)
-        : null,
-    [state.fieldId, fields],
-  );
+  const setOp = (op: FilterOp) => {
+    const dv = defaultValueFor(op);
+    const next: Filter = { propertyId: field.id, op };
+    if (op !== "isnull" && op !== "notnull" && dv !== undefined) {
+      next.value = dv;
+    }
+    onUpdate(next);
+  };
 
-  const pickField = (nextId: string) => {
-    const nextField = fields.find((f) => f.id === nextId);
-    if (!nextField) return;
-    // Keep existing op/value only when the user re-picks the same field
-    // (covers the edit flow: initial filter's field is already selected and
-    // the user is just changing op or value).
-    if (state.fieldId === nextId && state.op && nextField.ops.includes(state.op)) {
+  const setValue = (next: FilterValue) => {
+    if (next === undefined) {
+      const out: Filter = { propertyId: field.id, op: filter.op };
+      onUpdate(out);
       return;
     }
-    const nextOp = nextField.ops.includes(defaultOpFor(nextField.dataType))
-      ? defaultOpFor(nextField.dataType)
-      : nextField.ops[0];
-    setState({
-      fieldId: nextId,
-      op: nextOp,
-      value: defaultValueFor(nextOp),
-    });
-  };
-
-  const setOpAndResetValue = (nextOp: FilterOp) => {
-    setState((prev) => ({
-      ...prev,
-      op: nextOp,
-      value: defaultValueFor(nextOp),
-    }));
-  };
-
-  const setValue = (next: FilterValue) =>
-    setState((prev) => ({ ...prev, value: next }));
-
-  if (!field) {
-    return <FieldPicker fields={fields} onPick={pickField} />;
-  }
-
-  const op = state.op ?? field.ops[0];
-  const canApply = isValueValid(op, state.value);
-  const apply = () => {
-    if (!canApply) return;
-    const out: Filter = { propertyId: field.id, op };
-    if (opNeedsValue(op) && state.value !== undefined) out.value = state.value;
-    onApply(out);
+    onUpdate({ propertyId: field.id, op: filter.op, value: next });
   };
 
   return (
     <div className="flex flex-col gap-2 p-2">
       <div className="flex items-center gap-1">
-        <FieldDropdown
-          fields={fields}
-          currentId={field.id}
-          onPick={pickField}
-        />
-        <OpDropdown field={field} op={op} onChange={setOpAndResetValue} />
+        <span className="text-[14px] font-medium text-foreground px-1.5 truncate">
+          {field.label}
+        </span>
+        <OpDropdown field={field} op={filter.op} onChange={setOp} />
+        <div className="flex-1" />
+        <EditorMenu onDelete={onDelete} />
       </div>
       <ValueEditor
         field={field}
-        op={op}
-        value={state.value}
+        op={filter.op}
+        value={filter.value}
         onChange={setValue}
       />
-      <div className="flex items-center justify-end gap-2 pt-1">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={onCancel}
-          className="cursor-pointer"
-        >
-          Cancel
-        </Button>
-        <Button
-          size="sm"
-          disabled={!canApply}
-          onClick={apply}
-          className="cursor-pointer"
-        >
-          Apply
-        </Button>
-      </div>
     </div>
   );
 }
 
-function isValueValid(op: FilterOp, value: FilterValue): boolean {
-  if (!opNeedsValue(op)) return true;
-  if (op === "between") {
-    if (!Array.isArray(value) || value.length !== 2) return false;
-    const [a, b] = value;
-    return a !== null && a !== undefined && b !== null && b !== undefined;
-  }
-  if (op === "in" || op === "not-in") {
-    return Array.isArray(value) && value.length > 0;
-  }
-  if (op === "relative") {
-    return isRelativeValue(value) && value.n > 0;
-  }
-  if (typeof value === "string") return value !== "";
-  if (typeof value === "number") return Number.isFinite(value);
-  if (typeof value === "boolean") return true;
-  return false;
+function EditorMenu({ onDelete }: { onDelete: () => void }) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button
+          type="button"
+          aria-label="Filter options"
+          className="rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground cursor-pointer"
+        >
+          <MoreHorizontal size={16} />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="min-w-[12rem]">
+        <DropdownMenuItem
+          onSelect={onDelete}
+          className="cursor-pointer whitespace-nowrap hover:bg-destructive/10 hover:text-destructive focus:bg-destructive/10 focus:text-destructive"
+        >
+          <Trash2 size={14} />
+          Delete filter
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          disabled
+          className="text-muted-foreground/60 whitespace-nowrap"
+        >
+          Add to advanced filter
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
 }
 
 // ---------------------------------------------------------------------------
-// Field picker (add flow, step 1)
+// Field picker (add flow, stage 1)
 // ---------------------------------------------------------------------------
 
 function FieldPicker({
@@ -460,20 +544,26 @@ function FieldPicker({
   return (
     <div className="max-h-80 overflow-auto">
       <div className="sticky top-0 border-b bg-popover p-2">
-        <input
-          type="text"
-          placeholder="Search fields"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          autoFocus
-          className="w-full rounded-md border border-border bg-background px-2 py-1 text-sm outline-none focus:border-primary"
-        />
+        <div className="relative">
+          <Search
+            size={14}
+            className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground"
+          />
+          <input
+            type="text"
+            placeholder="Search fields"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            autoFocus
+            className="w-full rounded-md border border-border bg-background pl-7 pr-2 py-1.5 text-[14px] outline-none focus:border-primary"
+          />
+        </div>
       </div>
       <div className="flex flex-col gap-1 p-2">
         {Object.keys(groups).map((group) => (
           <div key={group} className="flex flex-col gap-0.5">
             {group && (
-              <div className="px-2 pt-1 text-xs text-muted-foreground">
+              <div className="px-2 pt-1 text-xs font-medium text-muted-foreground/80">
                 {group}
               </div>
             )}
@@ -482,7 +572,7 @@ function FieldPicker({
                 key={f.id}
                 type="button"
                 onClick={() => onPick(f.id)}
-                className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-left hover:bg-accent cursor-pointer"
+                className="flex items-center gap-2 rounded-md px-2 py-1.5 text-[14px] text-left hover:bg-accent cursor-pointer"
               >
                 <span className="text-foreground truncate">{f.label}</span>
               </button>
@@ -490,54 +580,12 @@ function FieldPicker({
           </div>
         ))}
         {filtered.length === 0 && (
-          <div className="px-2 py-3 text-sm text-muted-foreground">
+          <div className="px-2 py-3 text-[14px] text-muted-foreground">
             No matching fields.
           </div>
         )}
       </div>
     </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Field dropdown (editor, top-left)
-// ---------------------------------------------------------------------------
-
-function FieldDropdown({
-  fields,
-  currentId,
-  onPick,
-}: {
-  fields: FieldDescriptor[];
-  currentId: string;
-  onPick: (id: string) => void;
-}) {
-  const current = fields.find((f) => f.id === currentId);
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <button
-          type="button"
-          className="flex items-center gap-1 rounded-md border border-border bg-background px-2 py-1 text-sm cursor-pointer hover:bg-accent"
-        >
-          <span className="text-foreground truncate max-w-[12ch]">
-            {current?.label ?? "Field"}
-          </span>
-          <ChevronDown size={12} className="text-muted-foreground" />
-        </button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" className="max-h-72 overflow-auto">
-        {fields.map((f) => (
-          <DropdownMenuItem
-            key={f.id}
-            onSelect={() => onPick(f.id)}
-            className="cursor-pointer"
-          >
-            {f.label}
-          </DropdownMenuItem>
-        ))}
-      </DropdownMenuContent>
-    </DropdownMenu>
   );
 }
 
@@ -559,25 +607,22 @@ function OpDropdown({
       <DropdownMenuTrigger asChild>
         <button
           type="button"
-          className="flex items-center gap-1 rounded-md border border-border bg-background px-2 py-1 text-sm cursor-pointer hover:bg-accent"
+          className="flex items-center gap-1 rounded-md px-1.5 py-1 text-[14px] cursor-pointer hover:bg-accent"
         >
-          <span className="text-foreground">
+          <span className="text-muted-foreground">
             {opLabel(op, field.dataType)}
           </span>
-          <ChevronDown size={12} className="text-muted-foreground" />
+          <ChevronDown size={14} className="text-muted-foreground" />
         </button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="start">
+      <DropdownMenuContent align="start" className="min-w-[12rem]">
         {field.ops.map((o) => (
           <DropdownMenuItem
             key={o}
             onSelect={() => onChange(o)}
-            className="cursor-pointer"
+            className="cursor-pointer whitespace-nowrap"
           >
-            {opLabel(o, field.dataType)}
-            <span className="ml-2 text-xs text-muted-foreground">
-              {OP_LABEL[o]}
-            </span>
+            {capitalize(opLabel(o, field.dataType))}
           </DropdownMenuItem>
         ))}
       </DropdownMenuContent>
@@ -586,7 +631,7 @@ function OpDropdown({
 }
 
 // ---------------------------------------------------------------------------
-// Value editor — per dataType + op
+// Value editor (auto-apply)
 // ---------------------------------------------------------------------------
 
 function ValueEditor({
@@ -601,188 +646,68 @@ function ValueEditor({
   onChange: (next: FilterValue) => void;
 }) {
   if (!opNeedsValue(op)) {
-    return (
-      <div className="px-1 text-xs text-muted-foreground">
-        No value needed.
-      </div>
-    );
+    return null;
   }
 
-  // Multi-select (in / not-in) — applies to enum and relation alike.
-  if (op === "in" || op === "not-in") {
-    const choices = field.enumValues ?? [];
-    if (choices.length === 0) {
-      return (
-        <TextOrNumberInput
-          dataType="string"
-          value={value}
-          onChange={onChange}
-        />
-      );
-    }
-    const selected = Array.isArray(value) ? (value as string[]) : [];
+  // Relation typeahead (multi-select only; enum/relation no longer use eq/neq)
+  if (field.entity && (op === "in" || op === "not-in")) {
     return (
-      <div className="flex flex-col gap-1">
-        <div className="max-h-48 overflow-auto rounded-md border border-border">
-          {choices.map((c) => {
-            const checked = selected.includes(c);
-            return (
-              <label
-                key={c}
-                className="flex items-center gap-2 px-2 py-1 text-sm hover:bg-accent cursor-pointer"
-              >
-                <input
-                  type="checkbox"
-                  checked={checked}
-                  onChange={(e) => {
-                    onChange(
-                      e.target.checked
-                        ? [...selected, c]
-                        : selected.filter((s) => s !== c),
-                    );
-                  }}
-                />
-                <span className="text-foreground">{c}</span>
-              </label>
-            );
-          })}
-        </div>
-      </div>
-    );
-  }
-
-  // Single enum (eq/neq)
-  if (field.dataType === "enum" && (op === "eq" || op === "neq")) {
-    const choices = field.enumValues ?? [];
-    return (
-      <select
-        value={typeof value === "string" ? value : ""}
-        onChange={(e) => onChange(e.target.value)}
-        autoFocus
-        className="w-full rounded-md border border-border bg-background px-2 py-1 text-sm outline-none focus:border-primary cursor-pointer"
-      >
-        <option value="" disabled>
-          Select…
-        </option>
-        {choices.map((c) => (
-          <option key={c} value={c}>
-            {c}
-          </option>
-        ))}
-      </select>
-    );
-  }
-
-  // Boolean (eq/neq)
-  if (field.dataType === "boolean" && (op === "eq" || op === "neq")) {
-    const v = typeof value === "boolean" ? value : value === "true";
-    return (
-      <div className="flex gap-2">
-        <button
-          type="button"
-          onClick={() => onChange(true)}
-          className={cn(
-            "flex-1 rounded-md border px-2 py-1 text-sm cursor-pointer",
-            v
-              ? "border-primary bg-primary/10 text-foreground"
-              : "border-border text-muted-foreground hover:bg-accent",
-          )}
-        >
-          true
-        </button>
-        <button
-          type="button"
-          onClick={() => onChange(false)}
-          className={cn(
-            "flex-1 rounded-md border px-2 py-1 text-sm cursor-pointer",
-            !v
-              ? "border-primary bg-primary/10 text-foreground"
-              : "border-border text-muted-foreground hover:bg-accent",
-          )}
-        >
-          false
-        </button>
-      </div>
-    );
-  }
-
-  // Between (numeric or date)
-  if (op === "between") {
-    const arr = Array.isArray(value) ? value : ([null, null] as const);
-    const [a, b] = arr as [unknown, unknown];
-    const isDate = field.dataType === "date";
-    return (
-      <div className="flex items-center gap-2">
-        <BetweenInput
-          isDate={isDate}
-          value={a}
-          onChange={(next) => onChange([next, b] as [number, number])}
-        />
-        <span className="text-sm text-muted-foreground">and</span>
-        <BetweenInput
-          isDate={isDate}
-          value={b}
-          onChange={(next) => onChange([a, next] as [number, number])}
-        />
-      </div>
-    );
-  }
-
-  // Relative (date)
-  if (op === "relative") {
-    const rv: RelativeValue = isRelativeValue(value)
-      ? value
-      : { n: 7, unit: "days", dir: "past" };
-    return (
-      <div className="flex items-center gap-2">
-        <select
-          value={rv.dir}
-          onChange={(e) =>
-            onChange({ ...rv, dir: e.target.value as RelativeDir })
-          }
-          className="rounded-md border border-border bg-background px-2 py-1 text-sm cursor-pointer"
-        >
-          <option value="past">Last</option>
-          <option value="next">Next</option>
-        </select>
-        <input
-          type="number"
-          min={1}
-          value={rv.n}
-          onChange={(e) =>
-            onChange({ ...rv, n: Math.max(1, Number(e.target.value || 1)) })
-          }
-          className="w-16 rounded-md border border-border bg-background px-2 py-1 text-sm outline-none focus:border-primary"
-        />
-        <select
-          value={rv.unit}
-          onChange={(e) =>
-            onChange({ ...rv, unit: e.target.value as RelativeUnit })
-          }
-          className="rounded-md border border-border bg-background px-2 py-1 text-sm cursor-pointer"
-        >
-          <option value="days">days</option>
-          <option value="weeks">weeks</option>
-          <option value="months">months</option>
-        </select>
-      </div>
-    );
-  }
-
-  // Date single (lt/lte/gt/gte)
-  if (field.dataType === "date") {
-    return (
-      <input
-        type="date"
-        value={typeof value === "string" ? value : ""}
-        onChange={(e) => onChange(e.target.value)}
-        autoFocus
-        className="w-full rounded-md border border-border bg-background px-2 py-1 text-sm outline-none focus:border-primary"
+      <RelationMultiInput
+        entity={field.entity}
+        value={Array.isArray(value) ? (value as string[]) : []}
+        onChange={onChange}
       />
     );
   }
 
-  // Default: text or number input
+  // Multi-select on enum (or strings with known options)
+  if ((op === "in" || op === "not-in") && field.enumValues?.length) {
+    return (
+      <EnumMultiInput
+        propertyId={field.id}
+        options={field.enumValues}
+        value={Array.isArray(value) ? (value as string[]) : []}
+        onChange={onChange}
+      />
+    );
+  }
+
+  // Boolean
+  if (field.dataType === "boolean" && (op === "eq" || op === "neq")) {
+    const v = typeof value === "boolean" ? value : value === "true";
+    return (
+      <div className="flex gap-2">
+        <ToggleButton active={v} label="true" onClick={() => onChange(true)} />
+        <ToggleButton
+          active={!v}
+          label="false"
+          onClick={() => onChange(false)}
+        />
+      </div>
+    );
+  }
+
+  // Date between → range calendar
+  if (field.dataType === "date" && op === "between") {
+    return <DateRangeInput value={value} onChange={onChange} />;
+  }
+
+  // Date single (lt/lte/gt/gte)
+  if (field.dataType === "date") {
+    return <DateSingleInput value={value} onChange={onChange} />;
+  }
+
+  // Numeric between
+  if (op === "between") {
+    return <NumericBetweenInput value={value} onChange={onChange} />;
+  }
+
+  // Relative date
+  if (op === "relative") {
+    return <RelativeDateInput value={value} onChange={onChange} />;
+  }
+
+  // Default: text or number
   return (
     <TextOrNumberInput
       dataType={field.dataType === "number" ? "number" : "string"}
@@ -792,34 +717,390 @@ function ValueEditor({
   );
 }
 
-function BetweenInput({
-  isDate,
+function ToggleButton({
+  active,
+  label,
+  onClick,
+}: {
+  active: boolean;
+  label: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "flex-1 rounded-md border px-2 py-1.5 text-[14px] cursor-pointer",
+        active
+          ? "border-primary bg-primary/10 text-foreground"
+          : "border-border text-muted-foreground hover:bg-accent",
+      )}
+    >
+      {label}
+    </button>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Enum value formatting
+// ---------------------------------------------------------------------------
+
+const SURVEY_TYPE_LABELS: Record<string, string> = {
+  csat: "CSAT",
+  nps: "NPS",
+  ces: "CES",
+  five_star: "5-Star",
+  custom: "Custom",
+};
+
+export function formatEnumValue(propertyId: string, value: string): string {
+  if (propertyId === "survey_type" || propertyId === "survey_metric") {
+    return SURVEY_TYPE_LABELS[value] ?? value;
+  }
+  // Generic title-case for everything else (open → Open, not_sent → Not sent)
+  const spaced = value.replace(/_/g, " ");
+  return spaced.charAt(0).toUpperCase() + spaced.slice(1);
+}
+
+// ---------------------------------------------------------------------------
+// Enum multi (pills-in-input)
+// ---------------------------------------------------------------------------
+
+function EnumMultiInput({
+  propertyId,
+  options,
   value,
   onChange,
 }: {
-  isDate: boolean;
-  value: unknown;
-  onChange: (next: number | string) => void;
+  propertyId: string;
+  options: readonly string[];
+  value: string[];
+  onChange: (next: string[]) => void;
 }) {
-  if (isDate) {
-    return (
-      <input
-        type="date"
-        value={typeof value === "string" ? value : ""}
-        onChange={(e) => onChange(e.target.value)}
-        className="flex-1 rounded-md border border-border bg-background px-2 py-1 text-sm outline-none focus:border-primary"
-      />
-    );
-  }
+  const [query, setQuery] = useState("");
+  const q = query.trim().toLowerCase();
+  const remaining = options.filter(
+    (o) =>
+      !value.includes(o) &&
+      (q === "" || formatEnumValue(propertyId, o).toLowerCase().includes(q)),
+  );
+
+  return (
+    <div className="flex flex-col gap-1.5">
+      <PillsInputContainer>
+        {value.map((v) => (
+          <SelectedPill
+            key={v}
+            label={formatEnumValue(propertyId, v)}
+            onRemove={() => onChange(value.filter((x) => x !== v))}
+          />
+        ))}
+        <PillsInputField
+          value={query}
+          onChange={setQuery}
+          placeholder={value.length === 0 ? "Search…" : ""}
+        />
+      </PillsInputContainer>
+      {remaining.length > 0 && (
+        <div className="max-h-48 overflow-auto rounded-md border border-border bg-popover">
+          {remaining.map((o) => (
+            <button
+              key={o}
+              type="button"
+              onClick={() => {
+                onChange([...value, o]);
+                setQuery("");
+              }}
+              className="flex w-full items-center px-2 py-1.5 text-[14px] text-left hover:bg-accent cursor-pointer"
+            >
+              <span className="text-foreground truncate flex-1">
+                {formatEnumValue(propertyId, o)}
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Shared pills-in-input primitives
+// ---------------------------------------------------------------------------
+
+function PillsInputContainer({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="flex flex-wrap items-center gap-1 rounded-md border border-border bg-background px-1.5 py-1 min-h-9 focus-within:border-primary">
+      {children}
+    </div>
+  );
+}
+
+function PillsInputField({
+  value,
+  onChange,
+  placeholder,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
+}) {
   return (
     <input
-      type="number"
-      value={value == null ? "" : Number(value)}
-      onChange={(e) => onChange(Number(e.target.value))}
-      className="w-full rounded-md border border-border bg-background px-2 py-1 text-sm outline-none focus:border-primary"
+      type="text"
+      autoFocus
+      placeholder={placeholder}
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      className="flex-1 min-w-[80px] bg-transparent text-[14px] outline-none placeholder:text-muted-foreground"
     />
   );
 }
+
+function SelectedPill({
+  label,
+  avatar,
+  onRemove,
+}: {
+  label: string;
+  avatar?: React.ReactNode;
+  onRemove: () => void;
+}) {
+  return (
+    <span className="inline-flex items-center gap-1 rounded-md bg-muted px-1.5 py-0.5 text-[13px] text-foreground max-w-[14ch]">
+      {avatar}
+      <span className="truncate">{label}</span>
+      <button
+        type="button"
+        onClick={onRemove}
+        aria-label="Remove"
+        className="rounded p-0.5 text-muted-foreground hover:bg-accent hover:text-foreground cursor-pointer shrink-0"
+      >
+        <X size={11} />
+      </button>
+    </span>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Numeric between (no "and" text, narrower inputs to fit popover)
+// ---------------------------------------------------------------------------
+
+function NumericBetweenInput({
+  value,
+  onChange,
+}: {
+  value: FilterValue;
+  onChange: (next: FilterValue) => void;
+}) {
+  const arr = Array.isArray(value) ? value : ([undefined, undefined] as const);
+  const [a, b] = arr as [unknown, unknown];
+  return (
+    <div className="flex items-center gap-2">
+      <input
+        type="number"
+        placeholder="Min"
+        value={a == null ? "" : Number(a)}
+        onChange={(e) =>
+          onChange([
+            e.target.value === "" ? null : Number(e.target.value),
+            b,
+          ] as never)
+        }
+        autoFocus
+        className={cn(
+          "w-1/2 rounded-md border border-border bg-background px-2 py-1.5 text-[14px] outline-none focus:border-primary",
+          NO_SPINNERS,
+        )}
+      />
+      <input
+        type="number"
+        placeholder="Max"
+        value={b == null ? "" : Number(b)}
+        onChange={(e) =>
+          onChange([
+            a,
+            e.target.value === "" ? null : Number(e.target.value),
+          ] as never)
+        }
+        className={cn(
+          "w-1/2 rounded-md border border-border bg-background px-2 py-1.5 text-[14px] outline-none focus:border-primary",
+          NO_SPINNERS,
+        )}
+      />
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Date inputs — react-day-picker inline calendar
+// ---------------------------------------------------------------------------
+
+function parseISODate(s: unknown): Date | undefined {
+  if (typeof s !== "string" || !s) return undefined;
+  const d = new Date(s);
+  return isNaN(d.getTime()) ? undefined : d;
+}
+function isoFromDate(d: Date | undefined): string {
+  if (!d) return "";
+  // Local-date YYYY-MM-DD so the calendar selection and the filter line up.
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+function formatDateLabel(s: string | undefined): string {
+  const d = parseISODate(s);
+  if (!d) return "";
+  return d.toLocaleDateString(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
+}
+
+function DateSingleInput({
+  value,
+  onChange,
+}: {
+  value: FilterValue;
+  onChange: (next: FilterValue) => void;
+}) {
+  const selected =
+    typeof value === "string" ? parseISODate(value) : undefined;
+
+  return (
+    <div className="flex flex-col gap-1.5">
+      <div className="rounded-md border border-border bg-background px-2 py-1.5 text-[14px]">
+        {selected ? (
+          <span className="text-foreground">{formatDateLabel(value as string)}</span>
+        ) : (
+          <span className="text-muted-foreground">Pick a date</span>
+        )}
+      </div>
+      <Calendar
+        mode="single"
+        selected={selected}
+        onSelect={(d) => onChange(isoFromDate(d))}
+      />
+    </div>
+  );
+}
+
+function DateRangeInput({
+  value,
+  onChange,
+}: {
+  value: FilterValue;
+  onChange: (next: FilterValue) => void;
+}) {
+  const arr = Array.isArray(value) ? value : ([undefined, undefined] as const);
+  const from = parseISODate((arr as [unknown, unknown])[0]);
+  const to = parseISODate((arr as [unknown, unknown])[1]);
+
+  return (
+    <div className="flex flex-col gap-1.5">
+      <div className="flex items-center gap-2">
+        <div className="flex-1 rounded-md border border-border bg-background px-2 py-1.5 text-[14px]">
+          {from ? (
+            <span className="text-foreground">{formatDateLabel(isoFromDate(from))}</span>
+          ) : (
+            <span className="text-muted-foreground">Start</span>
+          )}
+        </div>
+        <div className="flex-1 rounded-md border border-border bg-background px-2 py-1.5 text-[14px]">
+          {to ? (
+            <span className="text-foreground">{formatDateLabel(isoFromDate(to))}</span>
+          ) : (
+            <span className="text-muted-foreground">End</span>
+          )}
+        </div>
+      </div>
+      <Calendar
+        mode="range"
+        selected={{ from, to }}
+        onSelect={(range) => {
+          onChange([
+            isoFromDate(range?.from),
+            isoFromDate(range?.to),
+          ] as never);
+        }}
+      />
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Relative date
+// ---------------------------------------------------------------------------
+
+function RelativeDateInput({
+  value,
+  onChange,
+}: {
+  value: FilterValue;
+  onChange: (next: FilterValue) => void;
+}) {
+  const rv: RelativeValue = isRelativeValue(value)
+    ? value
+    : { n: 7, unit: "days", dir: "past" };
+  const isThis = rv.dir === "this";
+  return (
+    <div className="flex items-center gap-2">
+      <select
+        value={rv.dir}
+        onChange={(e) =>
+          onChange({ ...rv, dir: e.target.value as RelativeDir })
+        }
+        className="rounded-md border border-border bg-background px-2 py-1.5 text-[14px] cursor-pointer"
+      >
+        <option value="past">Last</option>
+        <option value="next">Next</option>
+        <option value="this">This</option>
+      </select>
+      {!isThis && (
+        <input
+          type="number"
+          min={1}
+          value={rv.n}
+          onChange={(e) =>
+            onChange({ ...rv, n: Math.max(1, Number(e.target.value || 1)) })
+          }
+          className={cn(
+            "w-16 rounded-md border border-border bg-background px-2 py-1.5 text-[14px] outline-none focus:border-primary",
+            NO_SPINNERS,
+          )}
+        />
+      )}
+      <select
+        value={rv.unit}
+        onChange={(e) =>
+          onChange({ ...rv, unit: e.target.value as RelativeUnit })
+        }
+        className="rounded-md border border-border bg-background px-2 py-1.5 text-[14px] cursor-pointer flex-1"
+      >
+        {isThis ? (
+          <>
+            <option value="days">day</option>
+            <option value="weeks">week</option>
+            <option value="months">month</option>
+          </>
+        ) : (
+          <>
+            <option value="days">days</option>
+            <option value="weeks">weeks</option>
+            <option value="months">months</option>
+          </>
+        )}
+      </select>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Text / number plain input
+// ---------------------------------------------------------------------------
 
 function TextOrNumberInput({
   dataType,
@@ -834,24 +1115,174 @@ function TextOrNumberInput({
     return (
       <input
         type="number"
+        placeholder="Enter a number"
         value={
           typeof value === "number" ? value : value == null ? "" : String(value)
         }
         onChange={(e) =>
-          onChange(e.target.value === "" ? "" : Number(e.target.value))
+          onChange(e.target.value === "" ? undefined : Number(e.target.value))
         }
         autoFocus
-        className="w-full rounded-md border border-border bg-background px-2 py-1 text-sm outline-none focus:border-primary"
+        className={cn(
+          "w-full rounded-md border border-border bg-background px-2 py-1.5 text-[14px] outline-none focus:border-primary",
+          NO_SPINNERS,
+        )}
       />
     );
   }
   return (
     <input
       type="text"
+      placeholder="Enter a value"
       value={typeof value === "string" ? value : ""}
       onChange={(e) => onChange(e.target.value)}
       autoFocus
-      className="w-full rounded-md border border-border bg-background px-2 py-1 text-sm outline-none focus:border-primary"
+      className="w-full rounded-md border border-border bg-background px-2 py-1.5 text-[14px] outline-none focus:border-primary"
+    />
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Relation typeahead — single + multi, with avatars for people-like entities
+// ---------------------------------------------------------------------------
+
+function useRelationOptions(entity: RelationEntity, query: string) {
+  const [options, setOptions] = useState<RelationOption[]>([]);
+  const [loading, setLoading] = useState(false);
+  const reqId = useRef(0);
+
+  useEffect(() => {
+    const myReq = ++reqId.current;
+    const t = setTimeout(async () => {
+      setLoading(true);
+      try {
+        const opts = await searchRelationOptions(entity, query);
+        if (myReq === reqId.current) {
+          for (const o of opts) primeRelationLabel(entity, o.value, o.label);
+          setOptions(opts);
+        }
+      } finally {
+        if (myReq === reqId.current) setLoading(false);
+      }
+    }, 120);
+    return () => clearTimeout(t);
+  }, [entity, query]);
+
+  return { options, loading };
+}
+
+function entityHasAvatar(entity: RelationEntity): boolean {
+  return entity === "customer" || entity === "team_member";
+}
+
+function RelationOptionRow({
+  option,
+  entity,
+  onClick,
+}: {
+  option: RelationOption;
+  entity: RelationEntity;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex w-full items-center gap-2 px-2 py-1.5 text-[14px] text-left hover:bg-accent cursor-pointer"
+    >
+      {entityHasAvatar(entity) && (
+        <Avatar
+          bg={colorFromName(option.label)}
+          initials={initialsFromName(option.label)}
+          size="sm"
+        />
+      )}
+      <span className="text-foreground truncate flex-1">{option.label}</span>
+    </button>
+  );
+}
+
+function RelationMultiInput({
+  entity,
+  value,
+  onChange,
+}: {
+  entity: RelationEntity;
+  value: string[];
+  onChange: (next: string[]) => void;
+}) {
+  const [query, setQuery] = useState("");
+  const { options, loading } = useRelationOptions(entity, query);
+  const remaining = options.filter((o) => !value.includes(o.value));
+
+  return (
+    <div className="flex flex-col gap-1.5">
+      <PillsInputContainer>
+        {value.map((id) => (
+          <SelectedRelationPill
+            key={id}
+            entity={entity}
+            id={id}
+            onRemove={() => onChange(value.filter((v) => v !== id))}
+          />
+        ))}
+        <PillsInputField
+          value={query}
+          onChange={setQuery}
+          placeholder={value.length === 0 ? "Search…" : ""}
+        />
+      </PillsInputContainer>
+      <div className="max-h-56 overflow-auto rounded-md border border-border bg-popover">
+        {loading && remaining.length === 0 && (
+          <div className="px-2 py-2 text-[14px] text-muted-foreground">
+            Searching…
+          </div>
+        )}
+        {!loading && remaining.length === 0 && (
+          <div className="px-2 py-2 text-[14px] text-muted-foreground">
+            No matches.
+          </div>
+        )}
+        {remaining.map((o) => (
+          <RelationOptionRow
+            key={o.value}
+            option={o}
+            entity={entity}
+            onClick={() => {
+              onChange([...value, o.value]);
+              setQuery("");
+            }}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function SelectedRelationPill({
+  entity,
+  id,
+  onRemove,
+}: {
+  entity: RelationEntity;
+  id: string;
+  onRemove: () => void;
+}) {
+  const label = useRelationLabel(entity, id);
+  const shown = label ?? id;
+  return (
+    <SelectedPill
+      label={shown}
+      avatar={
+        entityHasAvatar(entity) && label ? (
+          <Avatar
+            bg={colorFromName(label)}
+            initials={initialsFromName(label)}
+            size="sm"
+          />
+        ) : undefined
+      }
+      onRemove={onRemove}
     />
   );
 }

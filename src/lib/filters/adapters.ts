@@ -1,8 +1,15 @@
 import { PIVOT_FIELDS } from "@/lib/reports/pivot-fields";
 import type { BaseEntity } from "@/lib/reports/types";
 import type { Property } from "@/lib/properties/types";
-import type { FieldDescriptor } from "./descriptor";
+import type { FieldDescriptor, RelationEntity } from "./descriptor";
 import type { FilterDataType, FilterOp } from "./types";
+
+const RELATION_ENTITY_MAP: Record<string, RelationEntity> = {
+  customer: "customer",
+  "team-member": "team_member",
+  survey: "survey",
+  ticket: "ticket",
+};
 
 /** Convert PivotField[] (reports) → FieldDescriptor[] (FilterRow input). */
 export function pivotFieldsToDescriptors(base: BaseEntity): FieldDescriptor[] {
@@ -15,6 +22,7 @@ export function pivotFieldsToDescriptors(base: BaseEntity): FieldDescriptor[] {
       dataType: f.dataType as FilterDataType,
       ops: f.filterOps as readonly FilterOp[],
       enumValues: f.enumValues ? [...f.enumValues] : undefined,
+      entity: f.entity ? RELATION_ENTITY_MAP[f.entity] : undefined,
     }));
 }
 

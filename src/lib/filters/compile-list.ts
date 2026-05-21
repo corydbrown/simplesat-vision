@@ -13,9 +13,11 @@ import {
   lte,
   ne,
   notInArray,
+  sql,
   type AnyColumn,
   type SQL,
 } from "drizzle-orm";
+import { relativeRangeMs } from "./relative-range";
 import {
   isRelativeValue,
   type Filter,
@@ -57,29 +59,95 @@ export function compileListFilters(
   return and(...parts);
 }
 
+function toDate(v: unknown): Date | null {
+  if (typeof v !== "string" || !v) return null;
+  const s = v.length === 10 ? `${v}T00:00:00` : v;
+  const d = new Date(s);
+  return Number.isFinite(d.getTime()) ? d : null;
+}
+function toEndOfDay(v: unknown): Date | null {
+  const d = toDate(v);
+  return d ? new Date(d.getTime() + 24 * 60 * 60 * 1000 - 1) : null;
+}
+
 function buildFilter(
   filter: Filter,
   field: ListFilterField,
 ): SQL | undefined {
+  // Skip incomplete filters — every op except isnull/notnull needs a value.
+  if (
+    filter.op !== "isnull" &&
+    filter.op !== "notnull" &&
+    filter.value === undefined
+  ) {
+    return undefined;
+  }
+  if (typeof filter.value === "string" && filter.value === "") {
+    if (
+      filter.op === "eq" ||
+      filter.op === "neq" ||
+      filter.op === "contains" ||
+      filter.op === "starts-with" ||
+      filter.op === "lt" ||
+      filter.op === "lte" ||
+      filter.op === "gt" ||
+      filter.op === "gte"
+    ) {
+      return undefined;
+    }
+  }
+
   const col = field.column as ColumnLike;
+  const isDate = field.dataType === "date";
   switch (filter.op) {
     case "eq":
+      if (isDate) {
+        const aD = toDate(filter.value);
+        const bD = toEndOfDay(filter.value);
+        if (!aD || !bD) return undefined;
+        return between(col as AnyColumn, aD as never, bD as never);
+      }
       return eq(col as AnyColumn, filter.value as never);
     case "neq":
+      if (isDate) {
+        const aD = toDate(filter.value);
+        const bD = toEndOfDay(filter.value);
+        if (!aD || !bD) return undefined;
+        // a < start OR a > end
+        return sql`(${col} < ${aD} OR ${col} > ${bD})`;
+      }
       return ne(col as AnyColumn, filter.value as never);
-    case "lt":
-      return lt(col as AnyColumn, filter.value as never);
-    case "lte":
-      return lte(col as AnyColumn, filter.value as never);
-    case "gt":
-      return gt(col as AnyColumn, filter.value as never);
-    case "gte":
-      return gte(col as AnyColumn, filter.value as never);
+    case "lt": {
+      const v = isDate ? toDate(filter.value) : filter.value;
+      if (v == null) return undefined;
+      return lt(col as AnyColumn, v as never);
+    }
+    case "lte": {
+      const v = isDate ? toEndOfDay(filter.value) : filter.value;
+      if (v == null) return undefined;
+      return lte(col as AnyColumn, v as never);
+    }
+    case "gt": {
+      const v = isDate ? toEndOfDay(filter.value) : filter.value;
+      if (v == null) return undefined;
+      return gt(col as AnyColumn, v as never);
+    }
+    case "gte": {
+      const v = isDate ? toDate(filter.value) : filter.value;
+      if (v == null) return undefined;
+      return gte(col as AnyColumn, v as never);
+    }
     case "between": {
       if (!Array.isArray(filter.value) || filter.value.length !== 2)
         return undefined;
       const [a, b] = filter.value as [unknown, unknown];
       if (a == null || b == null) return undefined;
+      if (isDate) {
+        const aD = toDate(a);
+        const bD = toEndOfDay(b);
+        if (!aD || !bD) return undefined;
+        return between(col as AnyColumn, aD as never, bD as never);
+      }
       return between(col as AnyColumn, a as never, b as never);
     }
     case "contains":
@@ -101,26 +169,13 @@ function buildFilter(
       return notInArray(col as AnyColumn, filter.value as never[]);
     }
     case "relative": {
-      // Date-relative — column must be a timestamp_ms integer.
       if (!isRelativeValue(filter.value)) return undefined;
-      const { n, unit, dir } = filter.value;
-      const unitMs =
-        unit === "days"
-          ? 24 * 60 * 60 * 1000
-          : unit === "weeks"
-            ? 7 * 24 * 60 * 60 * 1000
-            : 30 * 24 * 60 * 60 * 1000; // months ~= 30 days
-      const deltaMs = n * unitMs;
-      const nowMs = Date.now();
-      if (dir === "past") {
-        return and(
-          gte(col as AnyColumn, new Date(nowMs - deltaMs) as never),
-          lte(col as AnyColumn, new Date(nowMs) as never),
-        );
-      }
-      return and(
-        gte(col as AnyColumn, new Date(nowMs) as never),
-        lte(col as AnyColumn, new Date(nowMs + deltaMs) as never),
+      const range = relativeRangeMs(filter.value);
+      if (!range) return undefined;
+      return between(
+        col as AnyColumn,
+        new Date(range.start) as never,
+        new Date(range.end) as never,
       );
     }
     case "isnull":

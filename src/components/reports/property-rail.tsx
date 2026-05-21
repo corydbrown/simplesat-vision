@@ -39,7 +39,7 @@ export function PropertyRail({
     <div className="flex flex-col gap-4 pr-2">
       {ordered.map((group) => (
         <div key={group} className="flex flex-col gap-1">
-          <div className="px-2 text-xs font-medium text-muted-foreground">
+          <div className="px-2 text-xs font-medium text-muted-foreground/80">
             {group}
           </div>
           {groups[group].map((field) => (

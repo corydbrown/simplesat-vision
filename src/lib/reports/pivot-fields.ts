@@ -46,12 +46,8 @@ const NUMERIC_AGGS: Aggregation[] = ["count", "sum", "avg", "min", "max"];
 const METRIC_VALUE_AGGS: Aggregation[] = ["avg"];
 
 const STRING_OPS = [
-  "eq",
-  "neq",
   "contains",
   "starts-with",
-  "in",
-  "not-in",
   "isnull",
   "notnull",
 ] as const;
@@ -67,6 +63,7 @@ const NUMERIC_OPS = [
   "notnull",
 ] as const;
 const DATE_OPS = [
+  "eq",
   "lt",
   "lte",
   "gt",
@@ -76,15 +73,8 @@ const DATE_OPS = [
   "isnull",
   "notnull",
 ] as const;
-const ENUM_OPS = ["eq", "neq", "in", "not-in", "isnull", "notnull"] as const;
-const RELATION_OPS = [
-  "eq",
-  "neq",
-  "in",
-  "not-in",
-  "isnull",
-  "notnull",
-] as const;
+const ENUM_OPS = ["in", "not-in", "isnull", "notnull"] as const;
+const RELATION_OPS = ["in", "not-in", "isnull", "notnull"] as const;
 
 const TICKET_STATUS = ["open", "pending", "solved", "closed"];
 const CHANNEL = ["email", "chat", "phone", "social"];

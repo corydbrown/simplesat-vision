@@ -23,7 +23,7 @@ export type FilterOp =
   | "notnull";
 
 export type RelativeUnit = "days" | "weeks" | "months";
-export type RelativeDir = "past" | "next";
+export type RelativeDir = "past" | "next" | "this";
 
 export type RelativeValue = {
   n: number;
@@ -50,12 +50,8 @@ export type Filter = {
 };
 
 export const STRING_OPS: readonly FilterOp[] = [
-  "eq",
-  "neq",
   "contains",
   "starts-with",
-  "in",
-  "not-in",
   "isnull",
   "notnull",
 ];
@@ -73,6 +69,7 @@ export const NUMERIC_OPS: readonly FilterOp[] = [
 ];
 
 export const DATE_OPS: readonly FilterOp[] = [
+  "eq",
   "lt",
   "lte",
   "gt",
@@ -84,8 +81,6 @@ export const DATE_OPS: readonly FilterOp[] = [
 ];
 
 export const ENUM_OPS: readonly FilterOp[] = [
-  "eq",
-  "neq",
   "in",
   "not-in",
   "isnull",
@@ -100,8 +95,6 @@ export const BOOLEAN_OPS: readonly FilterOp[] = [
 ];
 
 export const RELATION_OPS: readonly FilterOp[] = [
-  "eq",
-  "neq",
   "in",
   "not-in",
   "isnull",
@@ -146,35 +139,45 @@ export function opNeedsValue(op: FilterOp): boolean {
   return op !== "isnull" && op !== "notnull";
 }
 
+/** Default op label (lowercase, natural language). Capitalize at display time. */
 export const OP_LABEL: Record<FilterOp, string> = {
   eq: "is",
   neq: "is not",
-  lt: "<",
-  lte: "≤",
-  gt: ">",
-  gte: "≥",
-  between: "between",
-  in: "is one of",
-  "not-in": "is none of",
+  lt: "is less than",
+  lte: "is at most",
+  gt: "is greater than",
+  gte: "is at least",
+  between: "is between",
+  in: "contains",
+  "not-in": "does not contain",
   contains: "contains",
   "starts-with": "starts with",
-  relative: "in the",
+  relative: "is in the",
   isnull: "is empty",
   notnull: "is not empty",
 };
 
-/** Op shown for the "=" operator in numeric/date contexts (different from enum). */
-export const OP_LABEL_NUMERIC: Partial<Record<FilterOp, string>> = {
-  eq: "=",
-  neq: "≠",
-};
+/** Capitalize the first letter of a string (for dropdown labels). */
+export function capitalize(s: string): string {
+  if (!s) return s;
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
 
+/** Returns a context-aware op label. Date fields use temporal verbs
+ *  ("is before" / "is after"). Enums and relations use the OP_LABEL
+ *  defaults ("contains" for in, "does not contain" for not-in). */
 export function opLabel(op: FilterOp, dataType: FilterDataType): string {
-  if (
-    (dataType === "number" || dataType === "date") &&
-    OP_LABEL_NUMERIC[op]
-  ) {
-    return OP_LABEL_NUMERIC[op]!;
+  if (dataType === "date") {
+    switch (op) {
+      case "lt":
+        return "is before";
+      case "lte":
+        return "is on or before";
+      case "gt":
+        return "is after";
+      case "gte":
+        return "is on or after";
+    }
   }
   return OP_LABEL[op];
 }
@@ -186,7 +189,7 @@ export function defaultOpFor(dataType: FilterDataType): FilterOp {
     case "number":
       return "eq";
     case "date":
-      return "relative";
+      return "eq";
     case "enum":
       return "in";
     case "boolean":

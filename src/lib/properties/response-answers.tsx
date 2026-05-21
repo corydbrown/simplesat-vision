@@ -80,6 +80,8 @@ export const ANSWER_PROPERTIES: Property<AnswerRow>[] = [
     width: 320,
     group: "Answer",
     alwaysVisible: true,
+    sortable: true,
+    sortValue: (r) => r.answer.question,
     cell: (r) => <span className="text-foreground">{r.answer.question}</span>,
   },
   {
@@ -88,6 +90,8 @@ export const ANSWER_PROPERTIES: Property<AnswerRow>[] = [
     width: 130,
     group: "Answer",
     defaultVisible: true,
+    sortable: true,
+    sortValue: (r) => r.answer.type,
     cell: (r) => (
       <span className="text-muted-foreground">
         {TYPE_LABEL[r.answer.type]}
@@ -100,6 +104,13 @@ export const ANSWER_PROPERTIES: Property<AnswerRow>[] = [
     width: 360,
     group: "Answer",
     defaultVisible: true,
+    sortable: true,
+    sortValue: (r) => {
+      const v = r.answer.value;
+      if (typeof v === "number" || typeof v === "string") return v;
+      // multi-select: sort by joined option list for stability.
+      return Array.isArray(v) ? v.join(", ") : null;
+    },
     cell: (r) => <AnswerValue answer={r.answer} />,
   },
   {
@@ -108,6 +119,8 @@ export const ANSWER_PROPERTIES: Property<AnswerRow>[] = [
     width: 200,
     group: "Relations",
     defaultVisible: true,
+    sortable: true,
+    sortValue: (r) => r.ticketSubject ?? r.ticketExternalId,
     cell: (r) =>
       r.ticketId ? (
         <TicketPill
@@ -125,6 +138,8 @@ export const ANSWER_PROPERTIES: Property<AnswerRow>[] = [
     width: 200,
     group: "Relations",
     defaultVisible: true,
+    sortable: true,
+    sortValue: (r) => r.customerName,
     cell: (r) =>
       r.customerId && r.customerName ? (
         <CustomerPill id={r.customerId} name={r.customerName} />
@@ -138,6 +153,8 @@ export const ANSWER_PROPERTIES: Property<AnswerRow>[] = [
     width: 200,
     group: "Relations",
     defaultVisible: true,
+    sortable: true,
+    sortValue: (r) => r.teamMemberName,
     cell: (r) =>
       r.teamMemberId && r.teamMemberName && r.teamMemberAvatarColor ? (
         <TeamMemberPill
@@ -155,6 +172,8 @@ export const ANSWER_PROPERTIES: Property<AnswerRow>[] = [
     width: 170,
     group: "Activity",
     defaultVisible: true,
+    sortable: true,
+    sortValue: (r) => r.respondedAt,
     cell: (r) => (
       <span className="tabular-nums text-muted-foreground">
         {formatDateTime(r.respondedAt)}
@@ -167,6 +186,8 @@ export const ANSWER_PROPERTIES: Property<AnswerRow>[] = [
     width: 156,
     group: "Identity",
     defaultVisible: false,
+    sortable: true,
+    sortValue: (r) => r.responseId,
     cell: (r) => (
       <span className="font-mono text-xs text-muted-foreground">
         {r.responseId}

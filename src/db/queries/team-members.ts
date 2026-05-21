@@ -1,6 +1,7 @@
 import "server-only";
-import { and, desc, eq, sql, type SQL } from "drizzle-orm";
+import { and, asc, desc, eq, sql, type AnyColumn, type SQL } from "drizzle-orm";
 import { db, schema } from "../client";
+import type { SortSpec } from "@/lib/sort/url-state";
 import { teamMembersViewWhere } from "@/lib/view-predicates";
 import type { TeamMember } from "../schema";
 
@@ -25,9 +26,35 @@ const totalTicketsExpr = sql<number>`(SELECT COUNT(*) FROM tickets WHERE tickets
 const avgRatingExpr = sql<number | null>`(SELECT AVG(CAST(rating as REAL)) FROM responses WHERE responses.team_member_id = team_members.id)`;
 const totalResponsesExpr = sql<number>`(SELECT COUNT(*) FROM responses WHERE responses.team_member_id = team_members.id)`;
 
+const TEAM_MEMBER_SORT_MAP: Record<string, AnyColumn | SQL> = {
+  name: schema.teamMembers.name,
+  role: schema.teamMembers.role,
+  team: schema.teamMembers.team,
+  region: schema.teamMembers.region,
+  language: schema.teamMembers.language,
+  group: schema.teamMemberGroups.name,
+  email: schema.teamMembers.email,
+  id: schema.teamMembers.id,
+  total_tickets: totalTicketsExpr,
+  total_responses: totalResponsesExpr,
+  avg_rating: avgRatingExpr,
+};
+
+function buildTeamMemberOrderBy(sorts: SortSpec[]): SQL[] {
+  const out: SQL[] = [];
+  for (const s of sorts) {
+    const col = TEAM_MEMBER_SORT_MAP[s.key];
+    if (!col) continue;
+    out.push(s.dir === "asc" ? asc(col) : desc(col));
+  }
+  if (out.length === 0) out.push(desc(totalTicketsExpr));
+  return out;
+}
+
 export async function listTeamMembers({
   view,
-}: { view?: string } = {}): Promise<{
+  sorts = [],
+}: { view?: string; sorts?: SortSpec[] } = {}): Promise<{
   rows: TeamMemberListRow[];
   total: number;
 }> {
@@ -71,7 +98,7 @@ export async function listTeamMembers({
     );
 
   const rows = await (where ? baseQuery.where(where) : baseQuery).orderBy(
-    desc(totalTicketsExpr),
+    ...buildTeamMemberOrderBy(sorts),
   );
 
   return {

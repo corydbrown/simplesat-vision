@@ -16,6 +16,7 @@ import {
 import { EntityTable } from "@/components/shared/entity-table";
 import { RelationTabs } from "@/components/shared/relation-tabs";
 import { OpenInTable } from "@/components/shared/open-in-table";
+import { SortControl } from "@/components/shared/sort-control";
 import { initialsFromName } from "@/lib/color-from-name";
 import { recordEntityView } from "@/lib/recent-pages";
 import { formatNumber } from "@/lib/format";
@@ -185,10 +186,23 @@ export function TeamMemberDetailBody({
             },
           ]}
           trailing={
-            <OpenInTable
-              href={tab === "tickets" ? "/tickets" : "/responses"}
-              label={`Open ${tab} as full table`}
-            />
+            <div className="flex items-center gap-1">
+              {tab === "tickets" ? (
+                <SortControl
+                  properties={TICKET_PROPERTIES}
+                  paramPrefix={inDrawer ? "d" : ""}
+                />
+              ) : (
+                <SortControl
+                  properties={RESPONSE_PROPERTIES}
+                  paramPrefix={inDrawer ? "d" : ""}
+                />
+              )}
+              <OpenInTable
+                href={tab === "tickets" ? "/tickets" : "/responses"}
+                label={`Open ${tab} as full table`}
+              />
+            </div>
           }
         />
         {tab === "tickets" ? (

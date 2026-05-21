@@ -11,6 +11,7 @@ import { PropertiesHeader } from "@/components/shared/detail-section";
 import { EntityTable } from "@/components/shared/entity-table";
 import { RelationTabs } from "@/components/shared/relation-tabs";
 import { OpenInTable } from "@/components/shared/open-in-table";
+import { SortControl } from "@/components/shared/sort-control";
 import { Avatar } from "@/components/shared/avatar";
 import { colorFromName, initialsFromName } from "@/lib/color-from-name";
 import { recordEntityView } from "@/lib/recent-pages";
@@ -127,10 +128,23 @@ export function CustomerDetailBody({
           },
         ]}
         trailing={
-          <OpenInTable
-            href={tab === "tickets" ? "/tickets" : "/responses"}
-            label={`Open ${tab} as full table`}
-          />
+          <div className="flex items-center gap-1">
+            {tab === "tickets" ? (
+              <SortControl
+                properties={TICKET_PROPERTIES}
+                paramPrefix={inDrawer ? "d" : ""}
+              />
+            ) : (
+              <SortControl
+                properties={RESPONSE_PROPERTIES}
+                paramPrefix={inDrawer ? "d" : ""}
+              />
+            )}
+            <OpenInTable
+              href={tab === "tickets" ? "/tickets" : "/responses"}
+              label={`Open ${tab} as full table`}
+            />
+          </div>
         }
       />
       {tab === "tickets" ? (

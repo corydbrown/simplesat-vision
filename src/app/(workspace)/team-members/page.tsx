@@ -3,6 +3,7 @@ import { EntityTable } from "@/components/shared/entity-table";
 import { EntityToolbar } from "@/components/shared/entity-toolbar";
 import { ColumnStateProvider } from "@/lib/column-prefs";
 import { TEAM_MEMBER_PROPERTIES } from "@/lib/properties/team-members";
+import { parseSortParam } from "@/lib/sort/url-state";
 import { listTeamMembers } from "@/db/queries/team-members";
 import { TEAM_MEMBER_VIEWS } from "@/lib/views";
 
@@ -11,7 +12,8 @@ export default async function TeamMembersPage(
 ) {
   const sp = await props.searchParams;
   const view = typeof sp.view === "string" ? sp.view : undefined;
-  const { rows, total } = await listTeamMembers({ view });
+  const sorts = parseSortParam(typeof sp.sort === "string" ? sp.sort : undefined);
+  const { rows, total } = await listTeamMembers({ view, sorts });
   const activeView = TEAM_MEMBER_VIEWS.find((v) => v.id === (view ?? "all"));
 
   return (
@@ -38,6 +40,7 @@ export default async function TeamMembersPage(
         total={total}
         basePath="/team-members"
         drawerEntity="team-member"
+        serverSorted
       />
     </ColumnStateProvider>
   );

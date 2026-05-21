@@ -19,6 +19,8 @@ const CORE_PROPERTIES: Property<CustomerListRow>[] = [
     width: 220,
     group: "Identity",
     alwaysVisible: true,
+    sortable: true,
+    sortValue: (c) => c.name,
     cell: (c) => <CustomerPill id={c.id} name={c.name} />,
   },
   {
@@ -27,6 +29,8 @@ const CORE_PROPERTIES: Property<CustomerListRow>[] = [
     width: 220,
     group: "Identity",
     defaultVisible: true,
+    sortable: true,
+    sortValue: (c) => c.email,
     cell: (c) => <span className="text-muted-foreground">{c.email}</span>,
   },
   {
@@ -35,6 +39,8 @@ const CORE_PROPERTIES: Property<CustomerListRow>[] = [
     width: 130,
     group: "Account",
     defaultVisible: true,
+    sortable: true,
+    sortValue: (c) => c.tier,
     cell: (c) => <TierPill tier={c.tier} />,
   },
   {
@@ -43,6 +49,8 @@ const CORE_PROPERTIES: Property<CustomerListRow>[] = [
     width: 110,
     group: "Identity",
     defaultVisible: false,
+    sortable: true,
+    sortValue: (c) => c.language,
     cell: (c) =>
       c.language ? (
         <span className="text-muted-foreground">{c.language}</span>
@@ -56,6 +64,8 @@ const CORE_PROPERTIES: Property<CustomerListRow>[] = [
     width: 200,
     group: "Account",
     defaultVisible: true,
+    sortable: true,
+    sortValue: (c) => c.company,
     cell: (c) => <CompanyPill name={c.company} />,
   },
   {
@@ -64,6 +74,8 @@ const CORE_PROPERTIES: Property<CustomerListRow>[] = [
     width: 170,
     group: "Account",
     defaultVisible: false,
+    sortable: true,
+    sortValue: (c) => c.companyExternalId,
     cell: (c) =>
       c.companyExternalId ? (
         <span className="font-mono text-xs text-muted-foreground">
@@ -85,6 +97,8 @@ const CORE_PROPERTIES: Property<CustomerListRow>[] = [
     width: 200,
     group: "Account",
     defaultVisible: false,
+    sortable: true,
+    sortValue: (c) => c.companyDomain,
     cell: (c) =>
       c.companyDomain ? (
         <span className="text-muted-foreground">{c.companyDomain}</span>
@@ -99,6 +113,8 @@ const CORE_PROPERTIES: Property<CustomerListRow>[] = [
     group: "Activity",
     defaultVisible: true,
     align: "right",
+    sortable: true,
+    sortValue: (c) => c.totalTickets,
     cell: (c) => (
       <span className="tabular-nums text-muted-foreground">
         {formatNumber(c.totalTickets)}
@@ -111,6 +127,8 @@ const CORE_PROPERTIES: Property<CustomerListRow>[] = [
     width: 130,
     group: "Activity",
     defaultVisible: true,
+    sortable: true,
+    sortValue: (c) => c.avgRating,
     cell: (c) => <AvgRating value={c.avgRating} threshold="customer" />,
   },
   {
@@ -119,6 +137,8 @@ const CORE_PROPERTIES: Property<CustomerListRow>[] = [
     width: 130,
     group: "Activity",
     defaultVisible: true,
+    sortable: true,
+    sortValue: (c) => c.lastSeen,
     cell: (c) => (
       <span className="tabular-nums text-muted-foreground">
         {formatDate(c.lastSeen)}
@@ -131,6 +151,8 @@ const CORE_PROPERTIES: Property<CustomerListRow>[] = [
     width: 156,
     group: "Identity",
     defaultVisible: false,
+    sortable: true,
+    sortValue: (c) => c.id,
     cell: (c) => (
       <span className="font-mono text-xs text-muted-foreground">{c.id}</span>
     ),

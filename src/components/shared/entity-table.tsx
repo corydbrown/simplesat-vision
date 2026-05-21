@@ -15,13 +15,15 @@ import {
   useSortable,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { ChevronLeft, ChevronRight, ChevronsUpDown } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useColumnState } from "@/lib/column-prefs";
 import { formatNumber } from "@/lib/format";
+import { applyMultiSort } from "@/lib/sort/compare";
+import { parseSortParam } from "@/lib/sort/url-state";
 import type { Property } from "@/lib/properties/types";
 import type { DrawerEntity } from "./global-drawer";
 
@@ -32,11 +34,9 @@ export type EntityTableProps<T> = {
   page: number;
   pageSize: number;
   total: number;
-  sort?: string;
-  dir?: "asc" | "desc";
   /**
-   * Base path used for sort/page links. When unset, defaults to the current
-   * pathname so URL state (e.g. ?drawer=) is preserved.
+   * Base path used for pagination links. Defaults to the current pathname so
+   * URL state (e.g. ?drawer=) is preserved.
    */
   basePath?: string;
   rowHrefField?: keyof T & string;
@@ -46,11 +46,17 @@ export type EntityTableProps<T> = {
    */
   drawerEntity?: DrawerEntity;
   /**
-   * Prefix for sort/dir/page params (e.g. "d" → dsort, ddir, dpage). Use
-   * inside drawer-internal tables so they don't collide with outer page
-   * sort state.
+   * Prefix for sort/page params (e.g. "d" → dsort, dpage). Use inside
+   * drawer-internal tables so they don't collide with outer page state.
    */
   paramPrefix?: string;
+  /**
+   * When true, the parent already produced rows in sorted order (e.g. server
+   * ORDER BY on a paginated list page). EntityTable will not sort in memory.
+   * When false (default), EntityTable applies multi-sort client-side from
+   * the URL using each property's sortValue accessor.
+   */
+  serverSorted?: boolean;
   emptyMessage?: string;
 };
 
@@ -64,21 +70,19 @@ export function EntityTable<T>({
   page,
   pageSize,
   total,
-  sort,
-  dir,
   basePath,
   rowHrefField,
   drawerEntity,
   paramPrefix = "",
+  serverSorted = false,
   emptyMessage = "No rows.",
 }: EntityTableProps<T>) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const { state, setOrder, setWidth } = useColumnState();
-  const sortKeyParam = `${paramPrefix}sort`;
-  const dirKeyParam = `${paramPrefix}dir`;
   const pageKeyParam = `${paramPrefix}page`;
+  const sortKeyParam = `${paramPrefix}sort`;
   const effectiveBasePath = basePath ?? pathname;
 
   const propertyMap = Object.fromEntries(properties.map((p) => [p.id, p]));
@@ -86,31 +90,19 @@ export function EntityTable<T>({
     .filter((id) => state.visibility[id] !== false && propertyMap[id])
     .map((id) => propertyMap[id]);
 
+  const displayRows = useMemo(() => {
+    if (serverSorted) return rows;
+    const sorts = parseSortParam(searchParams.get(sortKeyParam) ?? undefined);
+    if (sorts.length === 0) return rows;
+    return applyMultiSort(rows, sorts, properties);
+  }, [rows, serverSorted, searchParams, sortKeyParam, properties]);
+
   function buildHref(updates: Record<string, string | number>): string {
     const next = new URLSearchParams(searchParams.toString());
     for (const [k, v] of Object.entries(updates)) {
       next.set(k, String(v));
     }
     return `${effectiveBasePath}?${next.toString()}`;
-  }
-
-  function toggleSort(sortKey: string) {
-    if (sort === sortKey) {
-      router.push(
-        buildHref({
-          [sortKeyParam]: sortKey,
-          [dirKeyParam]: dir === "asc" ? "desc" : "asc",
-        }),
-      );
-    } else {
-      router.push(
-        buildHref({
-          [sortKeyParam]: sortKey,
-          [dirKeyParam]: "desc",
-          [pageKeyParam]: 1,
-        }),
-      );
-    }
   }
 
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
@@ -164,12 +156,6 @@ export function EntityTable<T>({
                         key={p.id}
                         property={p}
                         width={width}
-                        sortActive={sort === (p.sortKey ?? p.id)}
-                        onSort={
-                          p.sortable && (p.sortKey ?? p.id)
-                            ? () => toggleSort(p.sortKey ?? p.id)
-                            : undefined
-                        }
                         onResize={(w) =>
                           setWidth(p.id, Math.max(MIN_COL_WIDTH, Math.min(MAX_COL_WIDTH, w)))
                         }
@@ -181,7 +167,7 @@ export function EntityTable<T>({
             </SortableContext>
           </DndContext>
           <tbody>
-            {rows.length === 0 ? (
+            {displayRows.length === 0 ? (
               <tr>
                 <td
                   colSpan={visibleOrdered.length}
@@ -191,7 +177,7 @@ export function EntityTable<T>({
                 </td>
               </tr>
             ) : (
-              rows.map((row) => {
+              displayRows.map((row) => {
                 const id = row[idField] as unknown as string;
                 const drawerId = rowHrefField
                   ? (row[rowHrefField] as unknown as string)
@@ -290,14 +276,10 @@ export function EntityTable<T>({
 function HeaderCell<T>({
   property,
   width,
-  sortActive,
-  onSort,
   onResize,
 }: {
   property: Property<T>;
   width: number;
-  sortActive: boolean;
-  onSort?: () => void;
   onResize: (width: number) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
@@ -351,27 +333,7 @@ function HeaderCell<T>({
           {...listeners}
           className="flex-1 cursor-grab truncate select-none active:cursor-grabbing"
         >
-          {onSort ? (
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                onSort();
-              }}
-              onPointerDown={(e) => e.stopPropagation()}
-              className="inline-flex cursor-pointer items-center gap-1 hover:text-foreground"
-            >
-              {property.label}
-              <ChevronsUpDown
-                size={11}
-                className={
-                  sortActive ? "text-foreground" : "text-muted-foreground/50"
-                }
-              />
-            </button>
-          ) : (
-            <span>{property.label}</span>
-          )}
+          {property.label}
         </span>
         <span
           onPointerDown={onPointerDown}

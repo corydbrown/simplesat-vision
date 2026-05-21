@@ -1,24 +1,21 @@
 "use client";
 
-import {
-  ArrowDownUp,
-  Download,
-  Group,
-  Plus,
-  Search,
-} from "lucide-react";
+import { Download, Group, Plus, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ColumnsControl } from "./columns-control";
+import { SortControl } from "./sort-control";
 import type { Property } from "@/lib/properties/types";
 
 export function EntityToolbar<T>({
   properties,
   searchPlaceholder = "Search...",
+  paramPrefix = "",
   trailing,
 }: {
   properties: Property<T>[];
   searchPlaceholder?: string;
+  paramPrefix?: string;
   trailing?: React.ReactNode;
 }) {
   return (
@@ -35,7 +32,7 @@ export function EntityToolbar<T>({
         />
       </div>
       <ToolbarButton icon={<Group size={13} />} label="Group by" />
-      <ToolbarButton icon={<ArrowDownUp size={13} />} label="Sort" />
+      <SortControl properties={properties} paramPrefix={paramPrefix} />
       <ColumnsControl properties={properties} />
       <div className="flex-1" />
       {trailing}

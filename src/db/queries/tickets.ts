@@ -1,9 +1,10 @@
 import "server-only";
-import { and, asc, desc, eq } from "drizzle-orm";
+import { and, asc, desc, eq, sql, type AnyColumn, type SQL } from "drizzle-orm";
 import { db, schema } from "../client";
 import { compileListFilters } from "@/lib/filters/compile-list";
 import { TICKET_FILTER_FIELDS } from "@/lib/filters/fields/tickets";
 import type { Filter } from "@/lib/filters/types";
+import type { SortSpec } from "@/lib/sort/url-state";
 import { ticketsViewWhere } from "@/lib/view-predicates";
 import type {
   Ticket,
@@ -14,14 +15,23 @@ import type {
 } from "../schema";
 
 export type TicketSortKey =
-  | "createdAt"
   | "subject"
   | "status"
   | "priority"
   | "channel"
-  | "closedAt"
-  | "solvedAt";
-export type SortDir = "asc" | "desc";
+  | "created_at"
+  | "closed_at"
+  | "solved_at"
+  | "first_response_at"
+  | "helpdesk"
+  | "external_id"
+  | "internal_id"
+  | "customer"
+  | "company"
+  | "assignee"
+  | "response"
+  | "resolution_time"
+  | "survey_state";
 
 export type TicketsRow = Ticket & {
   customer: { id: string; name: string; company: string | null } | null;
@@ -39,33 +49,61 @@ export type TicketsRow = Ticket & {
   } | null;
 };
 
-const SORT_COLUMN_MAP = {
-  createdAt: schema.tickets.createdAt,
+// Server-side ORDER BY references. Resolution time and survey state are
+// computed via SQL expressions; survey_state must mirror the client-side
+// ordering in lib/properties/tickets.tsx so client- and server-sorted
+// surfaces agree.
+const SORT_COLUMN_MAP: Record<TicketSortKey, AnyColumn | SQL> = {
   subject: schema.tickets.subject,
   status: schema.tickets.status,
   priority: schema.tickets.priority,
   channel: schema.tickets.channel,
-  closedAt: schema.tickets.closedAt,
-  solvedAt: schema.tickets.solvedAt,
+  created_at: schema.tickets.createdAt,
+  closed_at: schema.tickets.closedAt,
+  solved_at: schema.tickets.solvedAt,
+  first_response_at: schema.tickets.firstResponseAt,
+  helpdesk: schema.tickets.helpdesk,
+  external_id: schema.tickets.helpdeskExternalId,
+  internal_id: schema.tickets.id,
+  customer: schema.customers.name,
+  company: schema.customers.company,
+  assignee: schema.teamMembers.name,
+  response: schema.responses.rating,
+  resolution_time: sql<number | null>`(tickets.solved_at - tickets.created_at)`,
+  survey_state: sql<number>`(CASE
+    WHEN responses.id IS NOT NULL THEN 1
+    WHEN tickets.survey_sent_at IS NOT NULL THEN 2
+    WHEN tickets.survey_not_sent_reason IS NOT NULL THEN 3
+    WHEN tickets.survey_eligible = 0 THEN 4
+    ELSE 5
+  END)`,
 };
+
+function buildTicketOrderBy(sorts: SortSpec[]): SQL[] {
+  const out: SQL[] = [];
+  for (const s of sorts) {
+    const col = SORT_COLUMN_MAP[s.key as TicketSortKey];
+    if (!col) continue;
+    out.push(s.dir === "asc" ? asc(col) : desc(col));
+  }
+  if (out.length === 0) out.push(desc(schema.tickets.closedAt));
+  return out;
+}
 
 export async function listTickets({
   page,
   pageSize,
-  sort,
-  dir,
+  sorts,
   view,
   filters,
 }: {
   page: number;
   pageSize: number;
-  sort: TicketSortKey;
-  dir: SortDir;
+  sorts: SortSpec[];
   view?: string;
   filters?: Filter[];
 }): Promise<{ rows: TicketsRow[]; total: number }> {
-  const sortCol = SORT_COLUMN_MAP[sort];
-  const orderBy = dir === "asc" ? asc(sortCol) : desc(sortCol);
+  const orderByList = buildTicketOrderBy(sorts);
   const viewWhere = view ? ticketsViewWhere(view) : undefined;
   const filterWhere = filters
     ? compileListFilters(filters, TICKET_FILTER_FIELDS)
@@ -114,7 +152,7 @@ export async function listTickets({
 
   const [rawRows, total] = await Promise.all([
     (where ? baseQuery.where(where) : baseQuery)
-      .orderBy(orderBy)
+      .orderBy(...orderByList)
       .limit(pageSize)
       .offset(offset),
     db.$count(schema.tickets, where),

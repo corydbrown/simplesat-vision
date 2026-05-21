@@ -1,8 +1,30 @@
 import "server-only";
-import { desc, eq } from "drizzle-orm";
+import { asc, desc, eq, type AnyColumn, type SQL } from "drizzle-orm";
 import { db, schema } from "../client";
+import type { SortSpec } from "@/lib/sort/url-state";
 import { responsesViewWhere } from "@/lib/view-predicates";
 import type { Response, SurveyAnswer } from "../schema";
+
+const RESPONSE_SORT_MAP: Record<string, AnyColumn | SQL> = {
+  rating: schema.responses.rating,
+  responded_at: schema.responses.respondedAt,
+  comment: schema.responses.comment,
+  ticket: schema.tickets.subject,
+  customer: schema.customers.name,
+  team_member: schema.teamMembers.name,
+  id: schema.responses.id,
+};
+
+function buildResponseOrderBy(sorts: SortSpec[]): SQL[] {
+  const out: SQL[] = [];
+  for (const s of sorts) {
+    const col = RESPONSE_SORT_MAP[s.key];
+    if (!col) continue;
+    out.push(s.dir === "asc" ? asc(col) : desc(col));
+  }
+  if (out.length === 0) out.push(desc(schema.responses.respondedAt));
+  return out;
+}
 
 export type ResponseListRow = {
   id: string;
@@ -25,7 +47,8 @@ export type ResponseListRow = {
 export async function listResponses({
   view,
   limit = 200,
-}: { view?: string; limit?: number } = {}): Promise<{
+  sorts = [],
+}: { view?: string; limit?: number; sorts?: SortSpec[] } = {}): Promise<{
   rows: ResponseListRow[];
   total: number;
 }> {
@@ -65,7 +88,7 @@ export async function listResponses({
 
   const [rows, total] = await Promise.all([
     (where ? baseQuery.where(where) : baseQuery)
-      .orderBy(desc(schema.responses.respondedAt))
+      .orderBy(...buildResponseOrderBy(sorts))
       .limit(limit),
     db.$count(schema.responses, where),
   ]);

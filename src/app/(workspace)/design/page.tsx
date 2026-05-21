@@ -719,8 +719,7 @@ export default async function DesignAuditPage() {
       listTickets({
         page: 1,
         pageSize: 1,
-        sort: "closedAt",
-        dir: "desc",
+        sorts: [],
       }),
       listResponses({ limit: 1 }),
       listSurveys(),

@@ -13,6 +13,7 @@ import { RelationTabs } from "@/components/shared/relation-tabs";
 import { OpenInTable } from "@/components/shared/open-in-table";
 import { Avatar } from "@/components/shared/avatar";
 import { colorFromName, initialsFromName } from "@/lib/color-from-name";
+import { recordEntityView } from "@/lib/recent-pages";
 import type {
   CustomerDetail,
   CustomerListRow,
@@ -47,6 +48,23 @@ export function CustomerDetailBody({
     next.set("dt", "tickets");
     router.replace(`${pathname}?${next.toString()}`, { scroll: false });
   }, [inDrawer, rawTab, pathname, router, searchParams]);
+
+  useEffect(() => {
+    // Drawer side records via global-drawer.tsx; standalone records here.
+    if (inDrawer) return;
+    recordEntityView({
+      entity: "customer",
+      id: customer.id,
+      label: customer.name,
+      secondary: customer.company ?? customer.email ?? undefined,
+    });
+  }, [
+    inDrawer,
+    customer.id,
+    customer.name,
+    customer.company,
+    customer.email,
+  ]);
 
   const header = (
     <div className="flex items-center gap-3">

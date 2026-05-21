@@ -17,6 +17,7 @@ import { EntityTable } from "@/components/shared/entity-table";
 import { RelationTabs } from "@/components/shared/relation-tabs";
 import { OpenInTable } from "@/components/shared/open-in-table";
 import { initialsFromName } from "@/lib/color-from-name";
+import { recordEntityView } from "@/lib/recent-pages";
 import { formatNumber } from "@/lib/format";
 import type {
   TeamMemberDetail,
@@ -90,6 +91,24 @@ export function TeamMemberDetailBody({
     next.set("dt", "tickets");
     router.replace(`${pathname}?${next.toString()}`, { scroll: false });
   }, [inDrawer, rawTab, pathname, router, searchParams]);
+
+  useEffect(() => {
+    // Drawer side records via global-drawer.tsx; standalone records here.
+    if (inDrawer) return;
+    recordEntityView({
+      entity: "team-member",
+      id: member.id,
+      label: member.name,
+      secondary: member.team ?? undefined,
+      avatarColor: member.avatarColor,
+    });
+  }, [
+    inDrawer,
+    member.id,
+    member.name,
+    member.team,
+    member.avatarColor,
+  ]);
 
   const avgRating = member.stats.avgRating;
   const isLowPerformer =

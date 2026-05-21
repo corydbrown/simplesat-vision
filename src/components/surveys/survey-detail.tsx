@@ -1,6 +1,8 @@
 "use client";
 
+import { useEffect } from "react";
 import { ColumnStateProvider } from "@/lib/column-prefs";
+import { recordEntityView } from "@/lib/recent-pages";
 import { SURVEY_PROPERTIES, SURVEY_METRIC_LABEL } from "@/lib/properties/surveys";
 import { RESPONSE_PROPERTIES } from "@/lib/properties/responses";
 import { PropertiesPanel } from "@/components/shared/properties-panel";
@@ -24,6 +26,17 @@ export function SurveyDetailBody({
   responses: ResponseListRow[];
   inDrawer?: boolean;
 }) {
+  useEffect(() => {
+    // Drawer side records via global-drawer.tsx; standalone records here.
+    if (inDrawer) return;
+    recordEntityView({
+      entity: "survey",
+      id: survey.id,
+      label: survey.name,
+      secondary: SURVEY_METRIC_LABEL[survey.metric],
+    });
+  }, [inDrawer, survey.id, survey.name, survey.metric]);
+
   const header = (
     <div className="min-w-0">
       <div className="text-sm text-muted-foreground">

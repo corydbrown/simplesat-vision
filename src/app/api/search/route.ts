@@ -79,6 +79,7 @@ export async function GET(request: Request) {
           name: schema.teamMembers.name,
           email: schema.teamMembers.email,
           role: schema.teamMembers.role,
+          avatarColor: schema.teamMembers.avatarColor,
         })
         .from(schema.teamMembers)
         .where(
@@ -137,6 +138,7 @@ export async function GET(request: Request) {
       label: m.name,
       secondary: m.role ? `${m.email} · ${m.role}` : m.email,
       href: `/team-members/${m.id}`,
+      avatarColor: m.avatarColor,
     })),
     responses: responses.map((r) => {
       const preview = r.comment

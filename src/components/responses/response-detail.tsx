@@ -19,7 +19,7 @@ import type { SurveyAnswer } from "@/db/schema";
 function AnswerBlock({ answer }: { answer: SurveyAnswer }) {
   return (
     <div className="rounded-md border border-border bg-background px-4 py-3">
-      <div className="text-sm text-muted-foreground">{answer.question}</div>
+      <div className="text-base text-muted-foreground">{answer.question}</div>
       <div className="mt-2">
         {answer.type === "rating" && (
           <StarRating value={answer.value} scale={answer.scale} />
@@ -31,13 +31,13 @@ function AnswerBlock({ answer }: { answer: SurveyAnswer }) {
               return (
                 <span
                   key={opt}
-                  className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs ring-1 ring-inset ${
+                  className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-sm ${
                     active
-                      ? "bg-emerald-50 text-emerald-700 ring-emerald-200 dark:bg-emerald-500/15 dark:text-emerald-300 dark:ring-emerald-500/20 font-medium"
-                      : "bg-muted text-muted-foreground ring-transparent"
+                      ? "bg-green-lighter text-green-darker font-medium"
+                      : "bg-muted text-muted-foreground"
                   }`}
                 >
-                  {active && <Check size={11} />}
+                  {active && <Check size={12} />}
                   {opt}
                 </span>
               );
@@ -47,29 +47,29 @@ function AnswerBlock({ answer }: { answer: SurveyAnswer }) {
         {answer.type === "multi-select" && (
           <div className="flex flex-wrap gap-1.5">
             {answer.value.length === 0 ? (
-              <span className="text-sm text-muted-foreground">
+              <span className="text-base text-muted-foreground">
                 Nothing selected
               </span>
             ) : (
               answer.value.map((v) => (
                 <span
                   key={v}
-                  className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-200 dark:bg-blue-500/15 dark:text-blue-300 dark:ring-blue-500/20"
+                  className="inline-flex items-center gap-1 rounded-full bg-blue-lighter px-2 py-0.5 text-sm font-medium text-blue-darker"
                 >
-                  <Check size={11} />
+                  <Check size={12} />
                   {v}
                 </span>
               ))
             )}
             {answer.value.length > 0 && (
-              <span className="text-xs text-muted-foreground self-center">
+              <span className="text-base text-muted-foreground self-center">
                 of {answer.options.length} options
               </span>
             )}
           </div>
         )}
         {answer.type === "comment" && (
-          <blockquote className="border-l-2 border-border pl-3 text-sm text-foreground/80">
+          <blockquote className="border-l-2 border-border pl-3 text-base text-foreground/80">
             &ldquo;{answer.value}&rdquo;
           </blockquote>
         )}
@@ -116,21 +116,21 @@ export function ResponseDetailBody({
 
   const tone =
     response.rating <= 2
-      ? "text-red-600"
+      ? "text-red-dark"
       : response.rating === 3
-        ? "text-amber-600"
-        : "text-emerald-600";
+        ? "text-yellow-dark"
+        : "text-green-dark";
 
   const header = (
     <div className="flex items-baseline gap-3 min-w-0">
       <h1 className={`text-3xl font-semibold tracking-tight ${tone}`}>
         {response.rating}/{response.scale}
       </h1>
-      <span className="text-sm text-muted-foreground capitalize">
+      <span className="text-base text-muted-foreground capitalize">
         {response.surveyType} response
       </span>
       <span className="text-muted-foreground/60">·</span>
-      <span className="text-sm text-muted-foreground tabular-nums">
+      <span className="text-base text-muted-foreground tabular-nums">
         {formatDateTime(response.respondedAt)}
       </span>
     </div>
@@ -142,7 +142,7 @@ export function ResponseDetailBody({
       properties={RESPONSE_PROPERTIES}
     >
       <div className="flex items-center justify-between pb-2">
-        <h2 className="text-sm font-medium text-muted-foreground">
+        <h2 className="text-base font-medium text-muted-foreground">
           Properties
         </h2>
         <PropertiesHeader properties={RESPONSE_PROPERTIES} />
@@ -159,7 +159,7 @@ export function ResponseDetailBody({
     <DetailSection title="Survey answers">
       <div className="space-y-3">
         {response.answers.length === 0 ? (
-          <div className="rounded-md border border-dashed border-border px-5 py-4 text-sm text-muted-foreground">
+          <div className="rounded-md border border-dashed border-border px-5 py-4 text-base text-muted-foreground">
             No structured answers.
           </div>
         ) : (

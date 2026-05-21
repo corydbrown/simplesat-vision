@@ -35,7 +35,7 @@ export function ColumnsControl<T>({
         <Button
           variant="ghost"
           size="sm"
-          className="h-8 cursor-pointer gap-1.5 text-sm text-muted-foreground"
+          className="h-8 cursor-pointer gap-1.5 text-base text-muted-foreground"
         >
           <Eye size={13} />
           Properties
@@ -46,7 +46,7 @@ export function ColumnsControl<T>({
         <DropdownMenuSeparator />
         {[...groups.entries()].map(([groupLabel, props]) => (
           <div key={groupLabel}>
-            <div className="px-2 py-1 text-[10px] font-medium uppercase tracking-wide text-muted-foreground/80">
+            <div className="px-2 py-1 text-sm font-medium text-muted-foreground/80">
               {groupLabel}
             </div>
             {props.map((p) => (
@@ -59,7 +59,7 @@ export function ColumnsControl<T>({
               >
                 {p.label}
                 {p.alwaysVisible && (
-                  <span className="ml-auto text-[10px] text-muted-foreground">
+                  <span className="ml-auto text-xs text-muted-foreground">
                     always
                   </span>
                 )}

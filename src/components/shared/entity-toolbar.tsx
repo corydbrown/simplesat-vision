@@ -30,7 +30,7 @@ export function EntityToolbar<T>({
         />
         <Input
           placeholder={searchPlaceholder}
-          className="h-8 pl-7 text-sm"
+          className="h-8 pl-7 text-base"
           disabled
         />
       </div>
@@ -61,12 +61,12 @@ function ToolbarButton({
     <Button
       variant="ghost"
       size="sm"
-      className="h-8 cursor-pointer gap-1.5 text-sm text-muted-foreground"
+      className="h-8 cursor-pointer gap-1.5 text-base text-muted-foreground"
     >
       {icon}
       {label}
       {badge !== undefined && (
-        <span className="rounded bg-muted px-1 py-0.5 text-[10px] tabular-nums">
+        <span className="rounded bg-muted px-1 py-0.5 text-xs tabular-nums">
           {badge}
         </span>
       )}

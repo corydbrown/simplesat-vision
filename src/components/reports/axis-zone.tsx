@@ -74,7 +74,7 @@ function AddFieldPopover({
       <PopoverTrigger asChild>
         <button
           type="button"
-          className="flex items-center gap-1 rounded-md px-2 py-1 text-[14px] text-muted-foreground hover:bg-accent hover:text-foreground cursor-pointer h-8"
+          className="flex items-center gap-1 rounded-md px-2 py-1 text-sm text-muted-foreground hover:bg-accent hover:text-foreground cursor-pointer h-8"
         >
           <Plus size={14} />
           {label}

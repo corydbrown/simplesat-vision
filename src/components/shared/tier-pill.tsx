@@ -1,9 +1,9 @@
 import type { CustomerTier } from "@/db/schema";
 
 const TIER_TONE: Record<CustomerTier, string> = {
-  insider: "bg-zinc-100 text-zinc-700 ring-zinc-200 dark:bg-zinc-500/15 dark:text-zinc-300 dark:ring-zinc-500/20",
-  gold: "bg-amber-50 text-amber-800 ring-amber-200 dark:bg-amber-500/15 dark:text-amber-300 dark:ring-amber-500/20",
-  elite: "bg-purple-50 text-purple-700 ring-purple-200 dark:bg-purple-500/15 dark:text-purple-300 dark:ring-purple-500/20",
+  insider: "bg-grey-lighter text-grey-darker",
+  gold: "bg-yellow-lighter text-yellow-darker",
+  elite: "bg-purple-lighter text-purple-darker",
 };
 
 const TIER_LABEL: Record<CustomerTier, string> = {
@@ -15,7 +15,7 @@ const TIER_LABEL: Record<CustomerTier, string> = {
 export function TierPill({ tier }: { tier: CustomerTier }) {
   return (
     <span
-      className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${TIER_TONE[tier]}`}
+      className={`inline-flex items-center rounded-full px-2 py-0.5 text-sm font-medium ${TIER_TONE[tier]}`}
     >
       {TIER_LABEL[tier]}
     </span>

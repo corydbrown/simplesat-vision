@@ -68,7 +68,7 @@ export function ResponseFeedCard({ row }: { row: ResponseListRow }) {
       </header>
 
       {row.comment && (
-        <p className="mt-3 text-base text-foreground/90 leading-relaxed line-clamp-4">
+        <p className="mt-3 text-lg text-foreground/90 leading-relaxed line-clamp-4">
           {row.comment}
         </p>
       )}
@@ -100,15 +100,15 @@ function SentimentAvatar({ rating, scale }: { rating: number; scale: number }) {
   const normalized = rating / scale;
   const config =
     normalized > 0.7
-      ? { Icon: Smile, bg: "bg-emerald-100", color: "text-emerald-600" }
+      ? { Icon: Smile, bg: "bg-green-lighter", color: "text-green-dark" }
       : normalized > 0.4
-        ? { Icon: Meh, bg: "bg-amber-100", color: "text-amber-600" }
-        : { Icon: Frown, bg: "bg-red-100", color: "text-red-600" };
+        ? { Icon: Meh, bg: "bg-yellow-lighter", color: "text-yellow-dark" }
+        : { Icon: Frown, bg: "bg-red-lighter", color: "text-red-dark" };
   return (
     <div className={`relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${config.bg}`}>
       <config.Icon className={config.color} size={26} strokeWidth={2} />
       <span
-        className={`absolute -bottom-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-background px-1 text-[10px] font-semibold tabular-nums ${config.color}`}
+        className={`absolute -bottom-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-background px-1 text-xs font-semibold tabular-nums ${config.color}`}
       >
         {rating}
       </span>

@@ -31,7 +31,7 @@ function AnswerValue({ answer }: { answer: SurveyAnswer }) {
     case "rating":
       return (
         <span className="inline-flex items-center gap-1">
-          <Star size={11} className="fill-amber-400 text-amber-400" />
+          <Star size={12} className="fill-yellow text-yellow" />
           <span className="tabular-nums font-medium">
             {answer.value}/{answer.scale}
           </span>
@@ -39,7 +39,7 @@ function AnswerValue({ answer }: { answer: SurveyAnswer }) {
       );
     case "multi-choice":
       return (
-        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700 ring-1 ring-inset ring-emerald-200 dark:bg-emerald-500/15 dark:text-emerald-300 dark:ring-emerald-500/20">
+        <span className="inline-flex items-center gap-1 rounded-full bg-green-lighter px-2 py-0.5 text-sm font-medium text-green-darker">
           {answer.value}
         </span>
       );
@@ -52,9 +52,9 @@ function AnswerValue({ answer }: { answer: SurveyAnswer }) {
             answer.value.map((v) => (
               <span
                 key={v}
-                className="inline-flex items-center gap-0.5 rounded-full bg-blue-50 px-1.5 py-0.5 text-[11px] font-medium text-blue-700 ring-1 ring-inset ring-blue-200 dark:bg-blue-500/15 dark:text-blue-300 dark:ring-blue-500/20"
+                className="inline-flex items-center gap-0.5 rounded-full bg-blue-lighter px-1.5 py-0.5 text-xs font-medium text-blue-darker"
               >
-                <Check size={9} />
+                <Check size={10} />
                 {v}
               </span>
             ))

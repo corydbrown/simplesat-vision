@@ -236,7 +236,7 @@ export function SearchPalette({ open, onOpenChange }: Props) {
             ) : null}
           </Command.List>
 
-          <div className="grid grid-cols-3 items-center border-t border-border px-3 py-1.5 text-[11px] text-muted-foreground/80">
+          <div className="grid grid-cols-3 items-center border-t border-border px-3 py-1.5 text-xs text-muted-foreground/80">
             <span>↑↓ navigate</span>
             <span className="justify-self-center">↵ open</span>
             <span className="justify-self-end">esc close</span>

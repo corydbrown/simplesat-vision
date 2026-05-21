@@ -66,7 +66,7 @@ export function AxisChip({
         <DropdownMenu>
           <DropdownMenuTrigger
             className={cn(
-              "flex items-center gap-0.5 rounded px-1 py-0.5 text-[14px] text-muted-foreground hover:bg-accent hover:text-foreground cursor-pointer",
+              "flex items-center gap-0.5 rounded px-1 py-0.5 text-sm text-muted-foreground hover:bg-accent hover:text-foreground cursor-pointer",
             )}
           >
             {summary}
@@ -127,7 +127,7 @@ export function AxisChip({
       )}
 
       {!hasMenu && summary && (
-        <span className="text-[14px] text-muted-foreground">{summary}</span>
+        <span className="text-sm text-muted-foreground">{summary}</span>
       )}
 
       <button

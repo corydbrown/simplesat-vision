@@ -77,7 +77,7 @@ export function CustomerDetailBody({
         <h1 className="text-3xl font-semibold tracking-tight truncate">
           {customer.name}
         </h1>
-        <div className="mt-0.5 text-sm text-muted-foreground truncate">
+        <div className="mt-0.5 text-base text-muted-foreground truncate">
           {customer.company ? (
             <>
               {customer.company}
@@ -96,7 +96,7 @@ export function CustomerDetailBody({
       properties={CUSTOMER_PROPERTIES}
     >
       <div className="flex items-center justify-between pb-2">
-        <h2 className="text-sm font-medium text-muted-foreground">
+        <h2 className="text-base font-medium text-muted-foreground">
           Properties
         </h2>
         <PropertiesHeader properties={CUSTOMER_PROPERTIES} />

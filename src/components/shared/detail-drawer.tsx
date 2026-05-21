@@ -127,7 +127,7 @@ export function DetailDrawer({
         width,
         transform: isOpen ? "translateX(0)" : "translateX(100%)",
       }}
-      className="fixed top-0 right-0 bottom-0 z-40 max-w-full bg-background border-l border-border shadow-2xl flex flex-col transition-transform duration-200 ease-out"
+      className="fixed top-0 right-0 bottom-0 z-40 max-w-full bg-background border-l border-border flex flex-col transition-transform duration-200 ease-out"
     >
       <div
         onPointerDown={onResizeStart}

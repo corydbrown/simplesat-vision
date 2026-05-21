@@ -40,13 +40,14 @@ const lato = Lato({ subsets: ["latin"], weight: ["400", "700"], variable: "--fon
 
 | Class | px | Use |
 |---|---|---|
+| `text-lg` | 18 | Centerpiece content — chat-message bubble body, response feed-card comment text |
 | `text-base` | 15 | Body, nav, table cells & headers, property labels, drawer body, detail body |
-| `text-sm` | 14 | Stateful pills (status, priority, channel, tier), chat-message metadata |
-| `text-xs` | 12 | `kbd`, rare chrome (used sparingly — prefer muted color over smaller size) |
+| `text-sm` | 14 | Stateful pills (status, priority, channel, tier), chat-message metadata, filter/toolbar chrome |
+| `text-xs` | 12 | `kbd`, avatar initials, popover chips, rare tight chrome (used sparingly — prefer muted color over smaller size) |
 | `text-2xl` | 24 | Section H1 on dashboards (e.g., workspace home) |
 | `text-3xl` | 30 | Entity name in detail header |
 
-**Implementation:** `--text-base` is overridden to 15px in `globals.css`'s `@theme inline` block. `--text-sm` and `--text-xs` use Tailwind v4 defaults (14px and 12px).
+**Implementation:** `--text-base` is overridden to 15px in `globals.css`'s `@theme inline` block. `--text-sm`, `--text-xs`, and `--text-lg` use Tailwind v4 defaults (14px, 12px, 18px).
 
 **De-emphasis is via color, not size.** If a label needs to read as secondary, use `text-muted-foreground` (or a muted hue alias) at the same size as body text. Going smaller is the last resort — color contrast does the work in most cases. Production tools (Notion, Linear, GitHub) almost never drop body labels below 14px.
 
@@ -178,7 +179,7 @@ These name *roles* (foreground, background, border). They alias Tier 1 hues and 
 
 | Token | Light | Dark | Use |
 |---|---|---|---|
-| `--foreground` | `#373f46` | `oklch(0.985 0 0)` | Primary text. *Migration pending: alias to `--black`.* |
+| `--foreground` | `var(--black)` | `oklch(0.985 0 0)` | Primary text. |
 | `--muted-foreground` | `#373f46cc` (80%) | `oklch(0.708 0 0)` | Secondary metadata (emails, IDs, dates). |
 | `--foreground-light` | `#373f4673` (45%) | `#ffffffb2` | Tertiary text / hints. Rarely needed. |
 | `--foreground-disabled` | `#373f4633` (20%) | `#ffffff33` | Disabled controls. |
@@ -191,7 +192,7 @@ These name *roles* (foreground, background, border). They alias Tier 1 hues and 
 | `--border-strong` | `#373f4633` (20%) | `oklch(1 0 0 / 20%)` | Emphasis border. |
 | `--border-solid` | `#d4d4d5` | `#555555` | Opaque divider for non-white surfaces. |
 | `--input` | `oklch(0.922 0 0)` | `oklch(1 0 0 / 15%)` | Form input border. |
-| `--ring` | mirrors `--primary` | mirrors `--primary` | Focus ring (use `ring-primary/30`). |
+| `--ring` | `var(--blue)` | `var(--blue)` | Focus ring (mirrors `--primary`). |
 
 ### Selection / highlight
 
@@ -204,21 +205,11 @@ These name *roles* (foreground, background, border). They alias Tier 1 hues and 
 
 | Token | Value | Use |
 |---|---|---|
-| `--primary` | `oklch(0.585 0.22 252)` (≈ `--blue`) | Primary actions, focus rings, active nav. *Migration pending: alias to `--blue`.* |
+| `--primary` | `var(--blue)` | Primary actions, focus rings, active nav. |
 | `--primary-foreground` | `oklch(0.985 0 0)` | Text on primary. |
-| `--primary-hover` | `#0066e6` | Hover state. *Migration pending: use `--blue-dark`.* |
-| `--primary-down` | `#0066cc` | Pressed state. *Migration pending: use `--blue-darker`.* |
-
-### Deprecated — pending removal
-
-These existed for state-semantic mapping; the decision is to drop them in favor of direct hue use. Kept until the mechanical sweep wires call sites to hues:
-
-- `--positive` / `--positive-foreground`
-- `--negative` / `--negative-foreground`
-- `--neutral` / `--neutral-foreground`
-- `--info` / `--info-foreground`
-- `--brand` / `--brand-foreground` (was a brand-moment accent; production palette doesn't carry a separate brand token — use `--green` directly)
-- `--destructive` (used 40+ times in the codebase; will alias to `--red` going forward — or stay as a structural alias)
+| `--primary-hover` | `var(--blue-dark)` | Hover state. |
+| `--primary-down` | `var(--blue-darker)` | Pressed state. |
+| `--destructive` | `var(--red-dark)` | Destructive actions (Delete buttons, dangerous menu items). Kept as a structural alias because "destructive button" is a real role. |
 
 ## Nav section icons
 
@@ -226,13 +217,13 @@ Purely decorative palette — one hue per primary nav entity so the sidebar read
 
 | Token | Value | Section |
 |---|---|---|
-| `--icon-responses` | `#007eff` (`--blue`) | Responses |
-| `--icon-customers` | `#e03997` | Customers — pink, NOT in the production palette (audit nit) |
-| `--icon-team-members` | `#804dc8` (`--purple`) | Team members |
-| `--icon-tickets` | `#f2711c` | Tickets — orange, NOT in the production palette (audit nit) |
-| `--icon-reports` | `#43be64` (close to `--green`) | Reports |
+| `--icon-responses` | `var(--blue)` | Responses |
+| `--icon-customers` | `var(--purple)` | Customers |
+| `--icon-team-members` | `var(--teal)` | Team members |
+| `--icon-tickets` | `var(--yellow-dark)` | Tickets (mustard/amber — the closest warm palette hue to the original orange) |
+| `--icon-reports` | `var(--green)` | Reports |
 
-Sourced from Simplesat `Site Colors/Colors/*`. Two of the five (customers, tickets) use orange / pink hues that aren't in the production palette — could be left as one-offs (decorative-only) or migrated to the palette. Defer.
+All five hues come from the production palette; every nav row reads as a distinct color. Previously customers (pink) and tickets (orange) were off-palette one-offs; migrated to `--purple` and `--yellow-dark` in the post-codification sweep.
 
 ## Chart palette (Recharts)
 
@@ -290,24 +281,24 @@ The audit page surfaced patterns where the design system was bypassed rather tha
 
 ## Migration notes
 
-State as of this codification PR:
-
-**Landed in this PR (additive, no breakage):**
+**Landed in the codification PR (#13):**
 - Production hue palette (`--black`, `--white`, 7 hues × 5 shades, vanilla 5-shade) added to `:root` and `.dark`.
 - `@theme inline` exposes Tailwind utilities for every hue (`bg-blue`, `text-grey-dark`, etc.).
 - Type ladder shifted: `text-base` overridden to 15px; `text-sm` reverts to Tailwind default 14px; `text-xs` stays at 12px.
 - Chart series (`--chart-1..5` + new `--chart-6`) now alias the production hues. Previously greyscale shadcn defaults.
-- Discipline rules documented above.
+- Discipline rules documented in CLAUDE.md and echoed below.
 - Decisions captured in [`DECISIONS.md`](DECISIONS.md).
 
-**Pending (mechanical sweep, follow-up PR):**
-- Migrate `--foreground`, `--primary`, `--primary-hover`, `--primary-down`, `--ring` to alias Tier 1 hues (currently hex literals that approximate `--black` / `--blue` / `--blue-dark` / `--blue-darker`).
-- Migrate stateful pill components (status / priority / channel / tier / team / team-group / survey) from raw Tailwind hues (`bg-red-50`, `bg-emerald-50`, etc.) to production hue tokens (`bg-red-lighter`, `bg-green-lighter`, etc.).
-- Remove deprecated `--positive` / `--negative` / `--neutral` / `--info` / `--brand` tokens after migrations land.
-- Fix `text-xs` violations to the new ladder (`text-base` for body labels; `text-sm` for chrome that fits sm; `text-xs` rare).
-- Kill arbitrary `text-[Npx]` one-offs (60+ occurrences) — map to ladder.
-- Replace hand-rolled `<span className="...">DEMO</span>` and similar inline visuals with the `<Badge>` primitive.
-- Decide whether `--brand` and `--primary-down` stay (likely no; their semantic now lives in `--green` / `--blue-darker`).
+**Landed in the mechanical sweep (this PR):**
+- `--foreground`, `--primary`, `--primary-hover`, `--primary-down`, `--ring`, `--destructive` now alias Tier-1 hues (`--black`, `--blue`, `--blue-dark`, `--blue-darker`, `--red-dark`). `--foreground` shifts from `#373f46` to `#172B4D` — slightly darker navy.
+- Stateful pill components (status / priority / channel / tier / team / team-group / survey status) migrated from raw Tailwind hues (`bg-red-50`, `bg-emerald-50`) to production hue tokens (`bg-{hue}-lighter text-{hue}-darker`). Pills bumped from `text-xs` to `text-sm` per [DECISIONS.md](DECISIONS.md) → decision 2.
+- Deprecated `--positive` / `--negative` / `--neutral` / `--info` / `--brand` tokens removed from `:root`, `.dark`, and `@theme inline`. All consumers (ticket-activity timeline, audit page) migrated to production hue tokens.
+- Nav icon palette migrated to production hues. `--icon-customers` (pink → `--purple`), `--icon-team-members` (purple → `--teal` to avoid collision), `--icon-tickets` (orange → `--yellow-dark`).
+- Type ladder migration on call sites — `text-sm` → `text-base` in EntityTable cells/headers, property-list, topbar, primary-nav, drawer chrome, detail page values. Centerpiece `text-base` → `text-lg` in response feed-card comments and ticket-activity message bubbles. New `text-lg = 18` ladder step added.
+- 25+ arbitrary `text-[Npx]` sites mapped to ladder steps. Avatar `sm`/`md` now use `text-xs`.
+- Surfaced violations fixed: StatCard label (drop uppercase+tracking, use muted color at body size), PivotTable headers (text-xs → text-base, matches new EntityTable convention), DetailDrawer (remove `shadow-2xl` — drawer is an inline panel, not a Radix portal), Tabs primitive (remove active-state `shadow-sm`), columns-control category labels, audit-page Light/Dark labels.
+- DEMO "Soon" inline spans replaced with `<Badge variant="secondary">` (workspace home + ticket detail). Outer purple-tinted wrappers migrated from raw Tailwind hues to `--purple-light` / `--purple-lighter` / `--purple-darker`.
+- Star-rating + Avg-rating components migrated off raw Tailwind hues (`text-amber-400` → `text-yellow`; `text-red-600 / text-amber-600 / text-emerald-600` → `text-red-dark / text-yellow-dark / text-green-dark`).
 
 **Body bg-canvas migration (separate, deferred):**
 - `--canvas: #f4f4f4` exists but body still uses `bg-background` (white). To switch to layered grey-canvas + white-cards: (1) change body to `bg-canvas` in `src/app/layout.tsx`, (2) audit `bg-background` panels (`src/app/(workspace)/page.tsx` dashboard section, `src/components/shell/topbar.tsx`) — they should become `bg-card`. Holding off until we've decided we want that look.

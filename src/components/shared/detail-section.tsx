@@ -15,7 +15,7 @@ export function DetailSection({
   return (
     <section className="mt-6">
       <div className="flex items-center justify-between pb-2">
-        <h2 className="text-sm font-medium text-muted-foreground">{title}</h2>
+        <h2 className="text-base font-medium text-muted-foreground">{title}</h2>
         {trailing}
       </div>
       {children}

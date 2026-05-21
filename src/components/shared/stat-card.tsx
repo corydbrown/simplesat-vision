@@ -9,9 +9,7 @@ export function StatCard({
 }) {
   return (
     <div className="rounded-md border border-border bg-background px-4 py-3">
-      <div className="text-xs uppercase tracking-wide text-muted-foreground">
-        {label}
-      </div>
+      <div className="text-sm text-muted-foreground">{label}</div>
       <div
         className={`mt-1 text-2xl font-semibold tabular-nums ${tone ?? "text-foreground"}`}
       >

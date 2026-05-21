@@ -137,7 +137,7 @@ export function EntityTable<T>({
   return (
     <div className="flex flex-1 flex-col min-h-0">
       <div className="flex items-center justify-between border-b border-border bg-background px-5 py-1.5">
-        <div className="text-sm text-muted-foreground tabular-nums">
+        <div className="text-base text-muted-foreground tabular-nums">
           {total === 0
             ? "0 rows"
             : `Showing ${formatNumber(firstRow)} - ${formatNumber(lastRow)} of ${formatNumber(total)}`}
@@ -145,7 +145,7 @@ export function EntityTable<T>({
       </div>
 
       <div className="flex-1 overflow-auto">
-        <table className="text-sm border-separate border-spacing-0">
+        <table className="text-base border-separate border-spacing-0">
           <DndContext
             sensors={sensors}
             collisionDetection={closestCenter}
@@ -185,7 +185,7 @@ export function EntityTable<T>({
               <tr>
                 <td
                   colSpan={visibleOrdered.length}
-                  className="px-3 py-8 text-center text-sm text-muted-foreground border-b border-border"
+                  className="px-3 py-8 text-center text-base text-muted-foreground border-b border-border"
                 >
                   {emptyMessage}
                 </td>
@@ -251,7 +251,7 @@ export function EntityTable<T>({
       </div>
 
       <div className="flex items-center justify-between border-t border-border bg-background px-5 py-2">
-        <div className="text-sm text-muted-foreground">
+        <div className="text-base text-muted-foreground">
           Page {formatNumber(page)} of {formatNumber(totalPages)}
         </div>
         <div className="flex items-center gap-1">
@@ -341,7 +341,7 @@ function HeaderCell<T>({
         opacity: isDragging ? 0.5 : 1,
         zIndex: isDragging ? 25 : 20,
       }}
-      className={`px-3 py-3 text-left font-medium text-sm text-muted-foreground border-b border-border bg-background sticky top-0 ${
+      className={`px-3 py-3 text-left font-medium text-base text-muted-foreground border-b border-border bg-background sticky top-0 ${
         property.align === "right" ? "text-right" : ""
       }`}
     >

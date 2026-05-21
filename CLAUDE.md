@@ -97,18 +97,21 @@ Rules:
 - **Component reuse > custom CSS**. Three layers: (1) Radix / dnd-kit / Recharts primitives — don't touch, (2) shadcn wrappers in `src/components/ui/` — don't edit, only add via shadcn CLI, (3) domain components in `src/components/shared/` — compose ui/ + behavior + your data shapes. Never write a custom component from scratch when an existing shadcn primitive composes. No negative-margin tricks, custom scroll/animation logic, or hand-rolled keyboard handling unless the primitive truly doesn't exist.
 - **Slot APIs over prop explosion**. When a shared component has stable structure but variable content (toolbars, headers, list rows), use named slot props (`leading`, `trailing`, `actions`) or compound components (`<PropertyList.Group>`) — never accept a dozen booleans toggling internal regions. Radix's `asChild` is the standard escape hatch for swapping the underlying element.
 - **Component-per-file in `shared/`**: anything reused twice becomes its own file in `src/components/shared/`.
+- **No reinventing components inline.** If you need a visual that already exists as a component (badge, pill, kbd, tag, etc.), use the existing component. Don't hand-roll a one-off span with utility classes that recreates the shape. Pattern to avoid: inline `<span className="text-[10px] uppercase tracking-wider">DEMO</span>` instead of `<Badge>`. Twice = it's a component.
+- **No raw Tailwind hue classes.** No `bg-red-50`, `text-emerald-700`, `border-amber-300`. Reach for production hue tokens instead (`bg-red-lighter`, `text-green-dark`, `border-yellow-light`). Tailwind's default palette doesn't match the production palette and isn't theme-flippable. See [DESIGN.md](DESIGN.md) → "Production hue palette".
 - **No `any`**. Strict TypeScript.
 - **Server Components by default**. Use `"use client"` only when you need hooks (useState, useEffect, useSearchParams), browser APIs (localStorage), or event handlers.
 - **URL is the state container** for sort, pagination, view filter, tab, layout toggle, drawer open/closed, in-drawer tab, ad-hoc filters (`?f=`), report config (`?r=`). localStorage is for *preferences* (column widths/visibility/order, drawer width, sidebar width/collapsed, section collapsed-state, recent pages).
 - **No `<a>` tags** for internal navigation. Use Next `Link`.
 - **No date/number libraries**. Use `Intl.*` via `src/lib/format.ts` (includes `formatRelative`, `formatSmartTime`, `formatTimelineDay`).
 - **No em dashes** in user-facing copy.
-- **Font sizes** (Slack/Asana-style — accessibility over density):
-  - Body / nav / detail values / property labels / table cells & headers: `text-sm` (15px — Tailwind's `text-sm` is **overridden** from its default 14px in [`globals.css`](src/app/globals.css), see [DESIGN.md](DESIGN.md) → Typography)
-  - Feed card comment text, ticket message bubble body: `text-base` (16px) — centerpiece content gets more weight
-  - Stateful pills (status, channel, tier) + `kbd`: `text-xs` (12px) — only because the visual is dominant and content short
+- **Font sizes** (production ladder — accessibility over density; see [DESIGN.md](DESIGN.md) → Typography for the full table):
+  - Body, nav, detail values, property labels, table cells & headers, drawer body, feed card content, ticket message bubble body: `text-base` (15px — Tailwind's `text-base` is **overridden** from its default 16px in [`globals.css`](src/app/globals.css))
+  - Stateful pills (status, priority, channel, tier), chat-message metadata: `text-sm` (14px — Tailwind default)
+  - `kbd`, rare tight chrome: `text-xs` (12px — Tailwind default, used sparingly)
   - Entity name in detail header: `text-3xl` (30px)
-  - **Do not use `text-xs` for body copy, labels, or section headings.** If something feels like it needs to be smaller, the answer is usually muted color, not smaller size.
+  - **De-emphasis is via muted color, not smaller size.** A secondary label uses `text-muted-foreground` at body size before reaching for a smaller step. Color contrast does the work in most cases.
+  - **No arbitrary text sizes.** No `text-[10px]`, `text-[14px]`, `text-[0.8rem]`, etc. Map to a ladder step or document a new step.
 - **No forced uppercase** on property names, group labels, section titles, or column headers. Natural sentence case throughout.
 - **Value font color rule** (applied across all property registries):
   - `text-foreground` — primary identifiers that answer *"what is this row?"*: name, subject, company, tags, comment text, primary answer values
@@ -144,7 +147,7 @@ Rules:
 - **Don't reach for `useEffect` for the drawer close animation.** It runs after the unmount check. The exit snapshot must be captured synchronously during render. See [ARCHITECTURE.md](ARCHITECTURE.md) → "Drawer architecture → Animation".
 - **Don't add a SecondaryNav-style left column on detail pages.** Standalone detail = 2-col grid with sidebar right (not left).
 - **Don't reintroduce the sticky-first-column behavior**; Cory will spec a configurable version later.
-- **Don't add per-cell text-size classes inside pills** — they should match the parent table's `text-sm`.
+- **Don't add per-cell text-size classes inside pills** — stateful pills set their own `text-sm` internally; don't override from the call site.
 - **Don't fetch popover data on pill mount** — it has to be lazy via `EntityPopoverBody` inside `HoverCardContent`.
 - **Don't write JSX in `src/lib/` files** unless they're `.tsx` AND marked `"use client"`.
 - **Don't use `${schema.table.column}` inside a correlated SQL subquery** (see Conventions).
@@ -153,7 +156,9 @@ Rules:
 - **Don't force uppercase on labels** (`uppercase tracking-*` on property names, group labels, section titles, or column headers).
 - **Don't add vertical column borders** (`border-r`) to tables — only horizontal row dividers.
 - **Don't render an entity's internal id in a detail-page header.** It's still in the properties panel under "Identity".
-- **Don't use `text-xs` for body copy, labels, or section headings.** See Font sizes convention.
+- **Don't use `text-xs` for body copy, labels, or section headings.** `text-xs` is for `kbd` and rare tight chrome only. For de-emphasis, use `text-muted-foreground` at body size.
+- **Don't introduce raw Tailwind hue classes** (`bg-red-50`, `text-emerald-700`, etc.) — they bypass the production palette and won't theme-flip. Use production hue tokens (`bg-red-lighter`, `text-green-dark`, etc.).
+- **Don't hand-roll inline visuals that recreate an existing component.** If the visual you're building looks like a pill, badge, kbd, or tag, use the existing primitive.
 - **Don't lock body scroll when the drawer opens.** Background remains scrollable by design.
 - **Don't add Surveys to the primary nav.** It's a first-class entity for pill/popover/drawer/pivot purposes, but management belongs in settings. The standalone `/surveys/[id]` page exists; there is intentionally no `/surveys` list route.
 - **Don't invent topics.** The taxonomy in `src/lib/topics.ts` mirrors production. New topics arrive via `csv_exports/topics_groups.csv`.

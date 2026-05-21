@@ -1,4 +1,5 @@
 import type { Aggregation, BaseEntity, DateBucket } from "./types";
+import type { DrawerEntity } from "@/components/shared/global-drawer";
 import {
   CUSTOMER_CUSTOM_FIELDS,
   TEAM_MEMBER_CUSTOM_FIELDS,
@@ -31,6 +32,10 @@ export type PivotField = {
   joins?: FieldJoin[];
   /** when true, field can only appear in Values (not Rows/Columns). */
   valueOnly?: boolean;
+  /** Set when groupExpr returns an entity id (and labelExpr returns its
+   *  display name). Tells the pivot renderer to render the cell as the
+   *  matching entity pill — hover popover + click-to-drawer. */
+  entity?: DrawerEntity;
 };
 
 const COUNT_ONLY: Aggregation[] = ["count"];
@@ -446,6 +451,7 @@ export const PIVOT_FIELDS: Record<BaseEntity, PivotField[]> = {
       groupExpr: "tickets.customer_id",
       labelExpr: "c.name",
       joins: [JOIN_CUSTOMERS("tickets.customer_id")],
+      entity: "customer",
     },
     {
       id: "company",
@@ -479,6 +485,7 @@ export const PIVOT_FIELDS: Record<BaseEntity, PivotField[]> = {
       groupExpr: "tickets.assigned_team_member_id",
       labelExpr: "tm.name",
       joins: [JOIN_TEAM_MEMBERS("tickets.assigned_team_member_id")],
+      entity: "team-member",
     },
     {
       id: "team",
@@ -742,6 +749,7 @@ export const PIVOT_FIELDS: Record<BaseEntity, PivotField[]> = {
       groupExpr: "responses.survey_id",
       labelExpr: "s.name",
       joins: [JOIN_SURVEYS],
+      entity: "survey",
     },
     {
       id: "survey_name",
@@ -797,6 +805,7 @@ export const PIVOT_FIELDS: Record<BaseEntity, PivotField[]> = {
       groupExpr: "responses.customer_id",
       labelExpr: "c.name",
       joins: [JOIN_CUSTOMERS("responses.customer_id")],
+      entity: "customer",
     },
     {
       id: "company",
@@ -830,6 +839,7 @@ export const PIVOT_FIELDS: Record<BaseEntity, PivotField[]> = {
       groupExpr: "responses.team_member_id",
       labelExpr: "tm.name",
       joins: [JOIN_TEAM_MEMBERS("responses.team_member_id")],
+      entity: "team-member",
     },
     {
       id: "team",

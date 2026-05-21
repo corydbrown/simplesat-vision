@@ -11,7 +11,6 @@ import {
 import { rollupTopics } from "../lib/topics";
 import type {
   Channel,
-  ConversationMessage,
   CustomerTier,
   NewCustomer,
   NewResponse,
@@ -19,11 +18,14 @@ import type {
   NewTeamMember,
   NewTeamMemberGroup,
   NewTicket,
+  NewTicketEvent,
+  NewTicketMessage,
   SurveyAnswer,
   SurveyChannel,
   SurveyNotSentReason,
   SurveyQuestion,
   SurveyType,
+  TicketMessageChannel,
   TicketPriority,
   TicketStatus,
   TopicTag,
@@ -209,21 +211,6 @@ const SUBJECTS = [
   "Pro discount enrollment",
   "Store experience feedback",
   "Wholesale order question",
-];
-
-const CUSTOMER_MSG_TEMPLATES = [
-  "Hi! I'm having an issue with my order — {{problem}} Can you help?",
-  "Hey, my recent order — {{problem}} Hoping you can sort this out.",
-  "Just following up on this. {{problem}} Any update?",
-  "Quick question on a return: {{problem}} What's the next step?",
-  "Hi there, having trouble with the app: {{problem}} Could you take a look?",
-];
-const AGENT_MSG_TEMPLATES = [
-  "Thanks for reaching out! I'm so sorry to hear that — let me dig into your order right now.",
-  "Happy to help! Could you try {{suggestion}}? That usually clears it up on our side.",
-  "I've gone ahead and {{action}}. You should see a confirmation in your inbox shortly. Let me know!",
-  "Apologies for the trouble. I've issued a replacement and added a few extra samples on us.",
-  "Great question. I've checked with our store team and {{action}}. You're all set.",
 ];
 
 function randomTags(): string[] {
@@ -684,63 +671,431 @@ function pickChoiceBySentiment(options: string[], sentimentLevel: number): strin
 }
 
 // ---------------------------------------------------------------------------
-// Conversation builder. Retail-flavored placeholders.
+// Ticket-message bank. Loaded from db/ticket-messages.json (hand-curated
+// Bloom Beauty retail-voice copy). Buckets keyed by subject category, with
+// `_default` as a fallback when a subject hasn't been individually scripted.
+// Same pattern as db/comments.json — synthetic, no PII, no harvesting.
 // ---------------------------------------------------------------------------
 
-function buildConversation(
-  customerName: string,
-  agentName: string,
-  createdAt: number,
-  solvedAt: number | null,
-): ConversationMessage[] {
-  const messageCount = faker.number.int({ min: 3, max: 7 });
-  const messages: ConversationMessage[] = [];
-  const end = solvedAt ?? createdAt + 4 * ONE_DAY;
-  const step = Math.max(1, Math.floor((end - createdAt) / messageCount));
-  let cursor = createdAt;
-  const problemSnippets = [
-    "the foundation arrived in the wrong shade",
-    "my order has been stuck in transit for a week",
-    "I never received the samples that were supposed to ship with my order",
-    "the perfume bottle was cracked when it arrived",
-    "my loyalty points haven't posted from last month's purchase",
-    "the discount code at checkout isn't applying",
-    "BOPIS at the Beverly Hills store said my order wasn't ready",
-    "the app keeps logging me out at checkout",
-    "I was charged twice for the same order",
-    "the return label in my account isn't generating",
-  ];
-  const suggestions = [
-    "force-closing and reopening the app",
-    "clearing your cart and re-adding the items",
-    "signing out and back in",
-    "checking your spam folder",
-  ];
-  const actions = [
-    "issued a replacement and added 500 bonus points",
-    "refunded the difference back to your original payment method",
-    "shipped a replacement overnight, on us",
-    "reset your Insider tier and credited the missing points",
-    "flagged this with our store team and confirmed your pickup is ready",
-  ];
-  for (let i = 0; i < messageCount; i++) {
-    const isCustomer = i % 2 === 0;
-    const tpl = isCustomer
-      ? pickFrom(CUSTOMER_MSG_TEMPLATES)
-      : pickFrom(AGENT_MSG_TEMPLATES);
-    const body = tpl
-      .replace("{{problem}}", pickFrom(problemSnippets))
-      .replace("{{suggestion}}", pickFrom(suggestions))
-      .replace("{{action}}", pickFrom(actions));
-    messages.push({
-      author: isCustomer ? customerName : agentName,
-      role: isCustomer ? "customer" : "agent",
-      time: new Date(cursor).toISOString(),
-      body,
-    });
-    cursor += step + faker.number.int({ min: 0, max: step });
+const TICKET_MESSAGES_PATH = resolve(process.cwd(), "db/ticket-messages.json");
+type MessageBank = {
+  [category: string]:
+    | string[]
+    | {
+        customer_initial?: string[];
+        customer_followup?: string[];
+        agent_reply?: string[];
+        agent_resolution?: string[];
+      };
+};
+const MESSAGE_BANK: MessageBank = JSON.parse(
+  readFileSync(TICKET_MESSAGES_PATH, "utf-8"),
+);
+
+type MessageSlot =
+  | "customer_initial"
+  | "customer_followup"
+  | "agent_reply"
+  | "agent_resolution";
+
+function bankCategory(subject: string): string {
+  // Map ticket subject to message-bank category. Keep aligned with SUBJECTS.
+  const s = subject.toLowerCase();
+  if (s.includes("where is my order") || s.includes("lost package")) {
+    return s.includes("lost") ? "lost_package" : "shipping_delay";
   }
-  return messages;
+  if (s.includes("damaged") || s.includes("cracked")) return "damaged_order";
+  if (s.includes("wrong shade") || s.includes("foundation match")) {
+    return "wrong_shade";
+  }
+  if (s.includes("missing items")) return "missing_items";
+  if (s.includes("missing samples")) return "missing_items";
+  if (s.includes("return after") || s.includes("return")) return "return_request";
+  if (s.includes("refund")) return "refund_issue";
+  if (s.includes("loyalty") || s.includes("insider tier") || s.includes("points"))
+    return "loyalty_points";
+  if (s.includes("bopis")) return "bopis_issue";
+  if (s.includes("app")) return "app_issue";
+  if (s.includes("discount code") || s.includes("influencer code"))
+    return "discount_code";
+  if (
+    s.includes("subscription") ||
+    s.includes("auto-replenish") ||
+    s.includes("cancel order")
+  )
+    return "subscription";
+  if (s.includes("klarna") || s.includes("afterpay") || s.includes("charged"))
+    return "payment_issue";
+  return "_default";
+}
+
+function pickMessage(category: string, slot: MessageSlot): string {
+  const bucket = MESSAGE_BANK[category];
+  if (bucket && !Array.isArray(bucket) && bucket[slot]?.length) {
+    return pickFrom(bucket[slot]!);
+  }
+  const fallback = MESSAGE_BANK["_default"];
+  if (fallback && !Array.isArray(fallback) && fallback[slot]?.length) {
+    return pickFrom(fallback[slot]!);
+  }
+  // Should never hit; degrade to a generic placeholder.
+  return "Hi, just following up on this ticket.";
+}
+
+function pickInternalNote(): string {
+  const notes = MESSAGE_BANK["internal_notes"];
+  return Array.isArray(notes) && notes.length
+    ? pickFrom(notes)
+    : "Internal note.";
+}
+
+// ---------------------------------------------------------------------------
+// Ticket lifecycle generator. Produces an ordered list of messages + events
+// that together describe the ticket from creation through close. Times are
+// pinned to the ticket's existing createdAt / firstResponseAt / solvedAt /
+// surveySentAt / closedAt so the timeline matches the rolled-up timestamps.
+// Mirrors Zendesk's audit + activity-stream conventions: messages live in
+// ticket_messages, Change-style events (status / assignee / priority / tag)
+// + verb-style events (survey_sent, survey_response_received) live in
+// ticket_events.
+// ---------------------------------------------------------------------------
+
+type LifecycleInput = {
+  ticketId: string;
+  subject: string;
+  channel: Channel;
+  status: TicketStatus;
+  priority: TicketPriority;
+  customerId: string;
+  customerName: string;
+  primaryAgentId: string;
+  primaryAgentName: string;
+  alternateAgentId: string | null;
+  alternateAgentName: string | null;
+  createdAt: number;
+  firstResponseAt: number | null;
+  solvedAt: number | null;
+  closedAt: number | null;
+  tags: string[];
+  surveyEligible: boolean;
+  surveySentAt: number | null;
+  surveyId: string | null;
+  responseId: string | null;
+  respondedAt: number | null;
+};
+
+type LifecycleOutput = {
+  messages: NewTicketMessage[];
+  events: NewTicketEvent[];
+  /** Recomputed message counters so the ticket row stays consistent with
+   *  the seeded messages. Caller assigns these back onto the NewTicket. */
+  messageCount: number;
+  agentMessageCount: number;
+};
+
+function buildLifecycle(input: LifecycleInput): LifecycleOutput {
+  const messages: NewTicketMessage[] = [];
+  const events: NewTicketEvent[] = [];
+
+  const category = bankCategory(input.subject);
+  const messageChannel: TicketMessageChannel =
+    input.channel === "social" ? "social" : input.channel;
+
+  // ---- create -----------------------------------------------------------
+  events.push({
+    id: prefixedId("tke"),
+    ticketId: input.ticketId,
+    actorRole: "customer",
+    actorCustomerId: input.customerId,
+    actorTeamMemberId: null,
+    verb: "ticket_created",
+    fieldName: null,
+    previousValue: null,
+    newValue: null,
+    metadata: { channel: input.channel },
+    createdAt: new Date(input.createdAt),
+  });
+  messages.push({
+    id: prefixedId("tkm"),
+    ticketId: input.ticketId,
+    authorRole: "customer",
+    customerId: input.customerId,
+    teamMemberId: null,
+    channel: messageChannel,
+    isPublic: true,
+    type: "comment",
+    body: pickMessage(category, "customer_initial"),
+    createdAt: new Date(input.createdAt),
+  });
+
+  // ---- system assignment (within a few minutes of creation) -------------
+  const assignmentAt =
+    input.createdAt + faker.number.int({ min: 1, max: 12 }) * 60 * 1000;
+  events.push({
+    id: prefixedId("tke"),
+    ticketId: input.ticketId,
+    actorRole: "system",
+    actorTeamMemberId: null,
+    actorCustomerId: null,
+    verb: "assignee_changed",
+    fieldName: "assignee_id",
+    previousValue: null,
+    newValue: input.primaryAgentId,
+    metadata: { assignee_name: input.primaryAgentName, source: "trigger" },
+    createdAt: new Date(assignmentAt),
+  });
+
+  // If priority is high/urgent, simulate an escalation event a few minutes
+  // after assignment. This gives the timeline some texture.
+  if (input.priority === "high" || input.priority === "urgent") {
+    const escalatedAt =
+      assignmentAt + faker.number.int({ min: 3, max: 25 }) * 60 * 1000;
+    events.push({
+      id: prefixedId("tke"),
+      ticketId: input.ticketId,
+      actorRole: "agent",
+      actorTeamMemberId: input.primaryAgentId,
+      actorCustomerId: null,
+      verb: "priority_changed",
+      fieldName: "priority",
+      previousValue: "normal",
+      newValue: input.priority,
+      metadata: {},
+      createdAt: new Date(escalatedAt),
+    });
+  }
+
+  // ---- first agent reply (status flips new/open if not already) ---------
+  if (input.firstResponseAt) {
+    // Status flip to open on first touch — only if there hasn't been an
+    // explicit pending earlier (we don't model that here).
+    events.push({
+      id: prefixedId("tke"),
+      ticketId: input.ticketId,
+      actorRole: "agent",
+      actorTeamMemberId: input.primaryAgentId,
+      actorCustomerId: null,
+      verb: "status_changed",
+      fieldName: "status",
+      previousValue: "new",
+      newValue: "open",
+      metadata: {},
+      createdAt: new Date(input.firstResponseAt),
+    });
+    messages.push({
+      id: prefixedId("tkm"),
+      ticketId: input.ticketId,
+      authorRole: "agent",
+      customerId: null,
+      teamMemberId: input.primaryAgentId,
+      channel: messageChannel,
+      isPublic: true,
+      type: "comment",
+      body: pickMessage(category, "agent_reply"),
+      createdAt: new Date(input.firstResponseAt),
+    });
+  }
+
+  // ---- mid-thread back-and-forth ----------------------------------------
+  const endTime =
+    input.solvedAt ??
+    input.closedAt ??
+    input.createdAt + 4 * ONE_DAY;
+  const startTime = input.firstResponseAt ?? input.createdAt + 10 * 60 * 1000;
+  // Number of additional customer/agent exchanges between first reply and
+  // resolution. We aim for 1-3 round trips. Bounds keep tickets readable.
+  const exchanges = faker.number.int({ min: 1, max: 3 });
+  const slotLen = Math.max(
+    5 * 60 * 1000,
+    Math.floor((endTime - startTime) / Math.max(1, exchanges * 2 + 1)),
+  );
+  let cursor = startTime + slotLen;
+
+  // ~25% of tickets get an internal note. Place it after the first agent
+  // reply but before the resolution.
+  const hasInternalNote =
+    input.firstResponseAt &&
+    faker.number.int({ min: 0, max: 99 }) < 25;
+
+  for (let i = 0; i < exchanges; i++) {
+    // Customer follow-up
+    messages.push({
+      id: prefixedId("tkm"),
+      ticketId: input.ticketId,
+      authorRole: "customer",
+      customerId: input.customerId,
+      teamMemberId: null,
+      channel: messageChannel,
+      isPublic: true,
+      type: "comment",
+      body: pickMessage(category, "customer_followup"),
+      createdAt: new Date(Math.min(cursor, endTime - 60 * 1000)),
+    });
+    cursor += slotLen;
+
+    // Optional internal note from a *different* agent — happens once, after
+    // the first customer follow-up, before the agent's reply.
+    if (hasInternalNote && i === 0 && input.alternateAgentId) {
+      messages.push({
+        id: prefixedId("tkm"),
+        ticketId: input.ticketId,
+        authorRole: "agent",
+        customerId: null,
+        teamMemberId: input.alternateAgentId,
+        channel: "internal",
+        isPublic: false,
+        type: "comment",
+        body: pickInternalNote(),
+        createdAt: new Date(
+          Math.min(cursor - slotLen / 2, endTime - 30 * 1000),
+        ),
+      });
+    }
+
+    // Agent reply
+    messages.push({
+      id: prefixedId("tkm"),
+      ticketId: input.ticketId,
+      authorRole: "agent",
+      customerId: null,
+      teamMemberId: input.primaryAgentId,
+      channel: messageChannel,
+      isPublic: true,
+      type: "comment",
+      body: pickMessage(category, "agent_reply"),
+      createdAt: new Date(Math.min(cursor, endTime - 30 * 1000)),
+    });
+    cursor += slotLen;
+  }
+
+  // ~15% of tickets get reassigned mid-thread (Care passes to Escalations).
+  if (
+    input.alternateAgentId &&
+    input.alternateAgentName &&
+    faker.number.int({ min: 0, max: 99 }) < 15 &&
+    input.firstResponseAt &&
+    input.solvedAt
+  ) {
+    const reassignAt = Math.floor(
+      input.firstResponseAt + (input.solvedAt - input.firstResponseAt) * 0.6,
+    );
+    events.push({
+      id: prefixedId("tke"),
+      ticketId: input.ticketId,
+      actorRole: "agent",
+      actorTeamMemberId: input.primaryAgentId,
+      actorCustomerId: null,
+      verb: "assignee_changed",
+      fieldName: "assignee_id",
+      previousValue: input.primaryAgentId,
+      newValue: input.alternateAgentId,
+      metadata: {
+        previous_assignee_name: input.primaryAgentName,
+        new_assignee_name: input.alternateAgentName,
+      },
+      createdAt: new Date(reassignAt),
+    });
+  }
+
+  // ---- resolution -------------------------------------------------------
+  if (input.solvedAt) {
+    messages.push({
+      id: prefixedId("tkm"),
+      ticketId: input.ticketId,
+      authorRole: "agent",
+      customerId: null,
+      teamMemberId: input.primaryAgentId,
+      channel: messageChannel,
+      isPublic: true,
+      type: "comment",
+      body: pickMessage(category, "agent_resolution"),
+      createdAt: new Date(input.solvedAt - 30 * 1000),
+    });
+    events.push({
+      id: prefixedId("tke"),
+      ticketId: input.ticketId,
+      actorRole: "agent",
+      actorTeamMemberId: input.primaryAgentId,
+      actorCustomerId: null,
+      verb: "status_changed",
+      fieldName: "status",
+      previousValue: "open",
+      newValue: "solved",
+      metadata: {},
+      createdAt: new Date(input.solvedAt),
+    });
+  }
+
+  // ---- survey lifecycle --------------------------------------------------
+  if (input.surveySentAt && input.surveyId) {
+    events.push({
+      id: prefixedId("tke"),
+      ticketId: input.ticketId,
+      actorRole: "system",
+      actorTeamMemberId: null,
+      actorCustomerId: null,
+      verb: "survey_sent",
+      fieldName: null,
+      previousValue: null,
+      newValue: null,
+      metadata: { survey_id: input.surveyId },
+      createdAt: new Date(input.surveySentAt),
+    });
+  }
+  if (input.respondedAt && input.responseId) {
+    events.push({
+      id: prefixedId("tke"),
+      ticketId: input.ticketId,
+      actorRole: "customer",
+      actorCustomerId: input.customerId,
+      actorTeamMemberId: null,
+      verb: "survey_response_received",
+      fieldName: null,
+      previousValue: null,
+      newValue: null,
+      metadata: {
+        survey_id: input.surveyId,
+        response_id: input.responseId,
+      },
+      createdAt: new Date(input.respondedAt),
+    });
+  }
+
+  // ---- close ------------------------------------------------------------
+  if (input.closedAt) {
+    events.push({
+      id: prefixedId("tke"),
+      ticketId: input.ticketId,
+      actorRole: "system",
+      actorTeamMemberId: null,
+      actorCustomerId: null,
+      verb: "status_changed",
+      fieldName: "status",
+      previousValue: "solved",
+      newValue: "closed",
+      metadata: { source: "automation_close" },
+      createdAt: new Date(input.closedAt),
+    });
+  }
+
+  // ---- recompute counters ----------------------------------------------
+  const messageCount = messages.length;
+  const agentMessageCount = messages.filter(
+    (m) => m.authorRole === "agent" && m.isPublic === true,
+  ).length;
+
+  // Sort messages + events by createdAt to keep DB inserts in chronological
+  // order — useful when reading back without an ORDER BY for sanity checks.
+  messages.sort(
+    (a, b) =>
+      (a.createdAt as Date).getTime() - (b.createdAt as Date).getTime(),
+  );
+  events.sort(
+    (a, b) =>
+      (a.createdAt as Date).getTime() - (b.createdAt as Date).getTime(),
+  );
+
+  return { messages, events, messageCount, agentMessageCount };
 }
 
 function adjustRatingForResolution(
@@ -762,6 +1117,8 @@ function adjustRatingForResolution(
 async function seed() {
   console.log("Resetting tables...");
   await db.delete(schema.qaEvaluations);
+  await db.delete(schema.ticketMessages);
+  await db.delete(schema.ticketEvents);
   await db.delete(schema.responses);
   await db.delete(schema.tickets);
   await db.delete(schema.customers);
@@ -931,10 +1288,14 @@ async function seed() {
   const agentIds = teamMembers.map((t) => t.id!);
 
   const TARGET_TICKETS = 50_000;
-  const TARGET_CONVERSATION_TICKETS = 50;
+  // Number of tickets that get a fully-seeded message + event timeline.
+  // Starting small while we shape the data; expanding is a follow-up.
+  const TARGET_TIMELINE_TICKETS = 50;
   const tickets: NewTicket[] = [];
   const responses: NewResponse[] = [];
-  let conversationsAttached = 0;
+  const ticketMessages: NewTicketMessage[] = [];
+  const ticketEvents: NewTicketEvent[] = [];
+  let timelinesAttached = 0;
 
   for (let i = 0; i < TARGET_TICKETS; i++) {
     const daysAgo = faker.number.int({ min: 0, max: HORIZON_DAYS });
@@ -976,8 +1337,8 @@ async function seed() {
       closedAt = solvedAt + faker.number.int({ min: 1, max: 7 }) * ONE_DAY;
     }
 
-    const messageCount = faker.number.int({ min: 2, max: 12 });
-    const agentMessageCount = Math.floor(
+    let messageCount = faker.number.int({ min: 2, max: 12 });
+    let agentMessageCount = Math.floor(
       messageCount * faker.number.float({ min: 0.3, max: 0.6 }),
     );
 
@@ -1004,47 +1365,13 @@ async function seed() {
     }
 
     const ticketId = prefixedId("tkt");
+    const subject = pickFrom(SUBJECTS);
 
-    let conversation: ConversationMessage[] = [];
-    if (
-      conversationsAttached < TARGET_CONVERSATION_TICKETS &&
-      (status === "solved" || status === "closed") &&
-      faker.number.int({ min: 0, max: 99 }) < 3
-    ) {
-      const customer = customers.find((c) => c.id === customerId)!;
-      const agent = teamMembers.find((t) => t.id === agentId)!;
-      conversation = buildConversation(
-        customer.name,
-        agent.name,
-        createdAt,
-        solvedAt,
-      );
-      conversationsAttached++;
-    }
-
-    tickets.push({
-      id: ticketId,
-      subject: pickFrom(SUBJECTS),
-      status,
-      channel,
-      priority,
-      helpdesk: "zendesk",
-      helpdeskExternalId: faker.string.numeric(8),
-      customerId,
-      assignedTeamMemberId: agentId,
-      createdAt: new Date(createdAt),
-      firstResponseAt: firstResponseAt ? new Date(firstResponseAt) : null,
-      solvedAt: solvedAt ? new Date(solvedAt) : null,
-      closedAt: closedAt ? new Date(closedAt) : null,
-      messageCount,
-      agentMessageCount,
-      tags: randomTags(),
-      surveyEligible,
-      surveySentAt: surveySentAt ? new Date(surveySentAt) : null,
-      surveyNotSentReason,
-      conversation,
-    });
-
+    // Build the response first (if any) so the lifecycle generator knows
+    // both the surveyId and the responseId for survey_* events.
+    let responseEntry: NewResponse | null = null;
+    let surveyIdForLifecycle: string | null = null;
+    let respondedAtForLifecycle: number | null = null;
     if (attachResponse && solvedAt) {
       let baseRating = pickWeighted(RATING_WEIGHTS);
       baseRating = adjustRatingForResolution(baseRating, solvedAt - createdAt);
@@ -1056,7 +1383,6 @@ async function seed() {
       }
       const respondedAt =
         surveySentAt! + faker.number.int({ min: 5, max: 60 * 48 }) * 60 * 1000;
-
       const surveyId = pickFrom(surveyWeightPool);
       const survey = surveyById.get(surveyId)!;
 
@@ -1078,11 +1404,10 @@ async function seed() {
       }
 
       const comment = pickComment(survey.metric, storedRating);
-
       const answers = buildSurveyAnswers(survey, storedRating, comment);
       const topics = rollupTopics(answers.map((a) => a.topics));
 
-      responses.push({
+      responseEntry = {
         id: prefixedId("rsp"),
         ticketId,
         customerId,
@@ -1095,12 +1420,92 @@ async function seed() {
         respondedAt: new Date(respondedAt),
         answers,
         topics,
-      });
+      };
+      responses.push(responseEntry);
+      surveyIdForLifecycle = surveyId;
+      respondedAtForLifecycle = respondedAt;
+    } else if (surveySentAt) {
+      // Survey was sent but customer didn't respond yet. We still want a
+      // survey_sent event in the timeline, so pick a survey ID for the
+      // metadata even though there's no response row.
+      surveyIdForLifecycle = pickFrom(surveyWeightPool);
     }
+
+    // Pick a fully-seeded timeline for the first TARGET_TIMELINE_TICKETS
+    // eligible (solved/closed) tickets. The 3% gate spreads chosen tickets
+    // across the corpus rather than clustering them at the start.
+    if (
+      timelinesAttached < TARGET_TIMELINE_TICKETS &&
+      (status === "solved" || status === "closed") &&
+      faker.number.int({ min: 0, max: 99 }) < 3
+    ) {
+      const customer = customers.find((c) => c.id === customerId)!;
+      const agent = teamMembers.find((t) => t.id === agentId)!;
+      // Pick an alternate agent (for reassignment or internal-note authors)
+      // from a different group when possible, otherwise any other agent.
+      const alternates = teamMembers.filter(
+        (t) => t.id !== agentId && t.groupId !== agent.groupId,
+      );
+      const alternate =
+        alternates.length > 0
+          ? pickFrom(alternates)
+          : teamMembers.find((t) => t.id !== agentId) ?? null;
+
+      const lifecycle = buildLifecycle({
+        ticketId,
+        subject,
+        channel,
+        status,
+        priority,
+        customerId,
+        customerName: customer.name,
+        primaryAgentId: agentId,
+        primaryAgentName: agent.name,
+        alternateAgentId: alternate?.id ?? null,
+        alternateAgentName: alternate?.name ?? null,
+        createdAt,
+        firstResponseAt,
+        solvedAt,
+        closedAt,
+        tags: [],
+        surveyEligible,
+        surveySentAt,
+        surveyId: surveyIdForLifecycle,
+        responseId: responseEntry?.id ?? null,
+        respondedAt: respondedAtForLifecycle,
+      });
+      ticketMessages.push(...lifecycle.messages);
+      ticketEvents.push(...lifecycle.events);
+      messageCount = lifecycle.messageCount;
+      agentMessageCount = lifecycle.agentMessageCount;
+      timelinesAttached++;
+    }
+
+    tickets.push({
+      id: ticketId,
+      subject,
+      status,
+      channel,
+      priority,
+      helpdesk: "zendesk",
+      helpdeskExternalId: faker.string.numeric(8),
+      customerId,
+      assignedTeamMemberId: agentId,
+      createdAt: new Date(createdAt),
+      firstResponseAt: firstResponseAt ? new Date(firstResponseAt) : null,
+      solvedAt: solvedAt ? new Date(solvedAt) : null,
+      closedAt: closedAt ? new Date(closedAt) : null,
+      messageCount,
+      agentMessageCount,
+      tags: randomTags(),
+      surveyEligible,
+      surveySentAt: surveySentAt ? new Date(surveySentAt) : null,
+      surveyNotSentReason,
+    });
   }
 
   console.log(
-    `Inserting ${tickets.length} tickets + ${responses.length} responses...`,
+    `Inserting ${tickets.length} tickets + ${responses.length} responses + ${ticketMessages.length} messages + ${ticketEvents.length} events...`,
   );
   await db.transaction(async (tx) => {
     const chunk = 1000;
@@ -1114,6 +1519,16 @@ async function seed() {
         .insert(schema.responses)
         .values(responses.slice(i, i + chunk));
     }
+    for (let i = 0; i < ticketMessages.length; i += chunk) {
+      await tx
+        .insert(schema.ticketMessages)
+        .values(ticketMessages.slice(i, i + chunk));
+    }
+    for (let i = 0; i < ticketEvents.length; i += chunk) {
+      await tx
+        .insert(schema.ticketEvents)
+        .values(ticketEvents.slice(i, i + chunk));
+    }
   });
 
   console.log("Done. Final counts:");
@@ -1124,6 +1539,8 @@ async function seed() {
     teamMemberGroupCount,
     ticketCount,
     responseCount,
+    ticketMessageCount,
+    ticketEventCount,
   ] = await Promise.all([
     db.$count(schema.surveys),
     db.$count(schema.customers),
@@ -1131,6 +1548,8 @@ async function seed() {
     db.$count(schema.teamMemberGroups),
     db.$count(schema.tickets),
     db.$count(schema.responses),
+    db.$count(schema.ticketMessages),
+    db.$count(schema.ticketEvents),
   ]);
   console.log({
     surveys: surveyCount,
@@ -1139,7 +1558,9 @@ async function seed() {
     teamMemberGroups: teamMemberGroupCount,
     tickets: ticketCount,
     responses: responseCount,
-    conversationsAttached,
+    ticketMessages: ticketMessageCount,
+    ticketEvents: ticketEventCount,
+    timelinesAttached,
   });
 }
 

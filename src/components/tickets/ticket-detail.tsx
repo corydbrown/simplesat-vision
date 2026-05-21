@@ -12,8 +12,8 @@ import {
 } from "@/components/shared/detail-section";
 import { ResponsePill } from "@/components/shared/entity-pill";
 import { DetailActions } from "@/components/shared/detail-actions";
+import { TicketActivitySection } from "@/components/tickets/ticket-activity";
 import type { TicketDetail } from "@/db/queries/tickets";
-import { formatDateTime } from "@/lib/format";
 
 export function TicketDetailBody({
   ticket,
@@ -66,33 +66,11 @@ export function TicketDetailBody({
 
   const content = (
     <>
-      {ticket.conversation.length > 0 && (
-        <DetailSection title="Conversation">
-          <div className="space-y-3">
-            {ticket.conversation.map((m, i) => (
-              <div
-                key={i}
-                className={`rounded-md border border-border px-4 py-3 ${
-                  m.role === "agent" ? "bg-muted/40" : "bg-background"
-                }`}
-              >
-                <div className="flex items-baseline justify-between text-sm">
-                  <span className="font-medium">
-                    {m.author}
-                    <span className="ml-1.5 text-muted-foreground capitalize">
-                      ({m.role})
-                    </span>
-                  </span>
-                  <span className="tabular-nums text-muted-foreground">
-                    {formatDateTime(new Date(m.time))}
-                  </span>
-                </div>
-                <div className="mt-1.5 text-sm text-foreground">{m.body}</div>
-              </div>
-            ))}
-          </div>
-        </DetailSection>
-      )}
+      <TicketActivitySection
+        messages={ticket.messages}
+        events={ticket.events}
+      />
+
 
       <DetailSection title="Survey response">
         {ticket.response ? (

@@ -27,14 +27,34 @@ export type SurveyNotSentReason =
 export type QaEvaluationType = "predictive" | "final" | "re_evaluation";
 export type TopicSentiment = "positive" | "neutral" | "negative";
 
-export type ConversationMessage = {
-  author: string;
-  role: "customer" | "agent";
-  time: string;
-  body: string;
-};
-
 export type TopicTag = { topic: string; sentiment: TopicSentiment };
+
+/** Verbs for ticket_events. Mirrors the Zendesk Audit `Change` event types
+ *  + the activity-stream verb set. Add new verbs by extending this union and
+ *  updating the enum on the `verb` column. */
+export type TicketEventVerb =
+  | "ticket_created"
+  | "status_changed"
+  | "assignee_changed"
+  | "group_changed"
+  | "priority_changed"
+  | "tag_added"
+  | "tag_removed"
+  | "subject_changed"
+  | "merged"
+  | "survey_sent"
+  | "survey_response_received"
+  | "sla_breached"
+  | "ticket_reopened";
+
+export type TicketMessageType = "comment" | "voice_comment" | "chat_message";
+export type TicketMessageAuthorRole = "customer" | "agent" | "system";
+export type TicketMessageChannel =
+  | "email"
+  | "chat"
+  | "phone"
+  | "social"
+  | "internal";
 
 export type SurveyAnswer =
   | {
@@ -283,10 +303,6 @@ export const tickets = sqliteTable(
         "automation_close",
       ],
     }).$type<SurveyNotSentReason>(),
-    conversation: text("conversation", { mode: "json" })
-      .$type<ConversationMessage[]>()
-      .notNull()
-      .default(sql`'[]'`),
   },
   (t) => [
     index("tickets_customer_id_idx").on(t.customerId),
@@ -298,6 +314,122 @@ export const tickets = sqliteTable(
     index("tickets_survey_sent_at_idx").on(t.surveySentAt),
     index("tickets_helpdesk_idx").on(t.helpdesk),
     index("tickets_priority_idx").on(t.priority),
+  ],
+);
+
+/** Per-ticket message log. Mirrors Zendesk Ticket Comments — the public
+ *  back-and-forth between customer and agent, plus internal-only notes that
+ *  agents leave for each other. Exactly one of `customerId` / `teamMemberId`
+ *  is set when `authorRole` is "customer" / "agent"; both null when the
+ *  author is "system" (automation, bot reply, deflection note). */
+export const ticketMessages = sqliteTable(
+  "ticket_messages",
+  {
+    id: text("id").primaryKey(),
+    ticketId: text("ticket_id")
+      .notNull()
+      .references(() => tickets.id),
+    authorRole: text("author_role", {
+      enum: ["customer", "agent", "system"],
+    })
+      .notNull()
+      .$type<TicketMessageAuthorRole>(),
+    customerId: text("customer_id").references(() => customers.id),
+    teamMemberId: text("team_member_id").references(() => teamMembers.id),
+    /** Delivery channel this message arrived on. Tracks per-message because a
+     *  ticket can mix channels (chat session escalated to email, etc.). The
+     *  `internal` channel marks agent-only notes, not customer-visible. */
+    channel: text("channel", {
+      enum: ["email", "chat", "phone", "social", "internal"],
+    })
+      .notNull()
+      .$type<TicketMessageChannel>(),
+    /** Zendesk parlance: `public=true` means visible to the customer; `false`
+     *  is an internal note. Denormalized from `channel="internal"` for
+     *  faster filtering. */
+    isPublic: integer("is_public", { mode: "boolean" })
+      .notNull()
+      .default(true),
+    type: text("type", {
+      enum: ["comment", "voice_comment", "chat_message"],
+    })
+      .notNull()
+      .$type<TicketMessageType>()
+      .default("comment"),
+    body: text("body").notNull(),
+    createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
+  },
+  (t) => [
+    index("ticket_messages_ticket_id_idx").on(t.ticketId),
+    index("ticket_messages_created_at_idx").on(t.createdAt),
+    index("ticket_messages_team_member_id_idx").on(t.teamMemberId),
+    index("ticket_messages_customer_id_idx").on(t.customerId),
+  ],
+);
+
+/** Per-ticket lifecycle events. Mirrors Zendesk Audit `Change` events
+ *  (status / assignee / priority / tag flips) plus the activity-stream verbs
+ *  (survey sent, response received, merge, SLA breach). Messages are NOT in
+ *  this table — they have their own `ticket_messages`. The detail-page
+ *  Activity timeline interleaves the two by `createdAt`. */
+export const ticketEvents = sqliteTable(
+  "ticket_events",
+  {
+    id: text("id").primaryKey(),
+    ticketId: text("ticket_id")
+      .notNull()
+      .references(() => tickets.id),
+    /** Who caused the change. `system` covers automations, triggers, the
+     *  survey scheduler, etc. — `actorTeamMemberId` / `actorCustomerId`
+     *  stay null in that case. */
+    actorRole: text("actor_role", {
+      enum: ["customer", "agent", "system"],
+    })
+      .notNull()
+      .$type<TicketMessageAuthorRole>(),
+    actorTeamMemberId: text("actor_team_member_id").references(
+      () => teamMembers.id,
+    ),
+    actorCustomerId: text("actor_customer_id").references(() => customers.id),
+    verb: text("verb", {
+      enum: [
+        "ticket_created",
+        "status_changed",
+        "assignee_changed",
+        "group_changed",
+        "priority_changed",
+        "tag_added",
+        "tag_removed",
+        "subject_changed",
+        "merged",
+        "survey_sent",
+        "survey_response_received",
+        "sla_breached",
+        "ticket_reopened",
+      ],
+    })
+      .notNull()
+      .$type<TicketEventVerb>(),
+    /** For Change-style verbs, the underlying field that changed (e.g.
+     *  "status", "assignee_id", "priority"). Null for non-Change verbs. */
+    fieldName: text("field_name"),
+    /** String-cast prior / new values. Cast at read-time when typed
+     *  rendering is needed. Null when not applicable to the verb. */
+    previousValue: text("previous_value"),
+    newValue: text("new_value"),
+    /** Verb-specific extras: `{group_id}` for assignee changes, `{survey_id,
+     *  response_id}` for survey verbs, `{tag}` for tag adds, etc. */
+    metadata: text("metadata", { mode: "json" })
+      .$type<Record<string, unknown>>()
+      .notNull()
+      .default(sql`'{}'`),
+    createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
+  },
+  (t) => [
+    index("ticket_events_ticket_id_idx").on(t.ticketId),
+    index("ticket_events_created_at_idx").on(t.createdAt),
+    index("ticket_events_verb_idx").on(t.verb),
+    index("ticket_events_actor_team_member_id_idx").on(t.actorTeamMemberId),
   ],
 );
 
@@ -393,3 +525,7 @@ export type TeamMemberGroup = typeof teamMemberGroups.$inferSelect;
 export type NewTeamMemberGroup = typeof teamMemberGroups.$inferInsert;
 export type QaEvaluation = typeof qaEvaluations.$inferSelect;
 export type NewQaEvaluation = typeof qaEvaluations.$inferInsert;
+export type TicketMessage = typeof ticketMessages.$inferSelect;
+export type NewTicketMessage = typeof ticketMessages.$inferInsert;
+export type TicketEvent = typeof ticketEvents.$inferSelect;
+export type NewTicketEvent = typeof ticketEvents.$inferInsert;

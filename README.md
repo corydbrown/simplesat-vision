@@ -7,7 +7,7 @@ High-fidelity prototype of where Simplesat is headed - the future product, runni
 ## Stack
 
 - Next.js 16 (App Router, Turbopack) + React 19.2 + TypeScript strict
-- Tailwind CSS v4 + shadcn/ui (radix-nova preset, Lucide icons, Geist font)
+- Tailwind CSS v4 + shadcn/ui (radix-nova preset, Lucide icons, Lato font via `next/font/google`)
 - Custom `EntityTable` component (no TanStack — drag/resize/sort/show-hide built directly on dnd-kit + URL state)
 - Drizzle ORM + better-sqlite3 (local file at `db/simplesat.db`)
 - Faker for seed data
@@ -45,45 +45,31 @@ The seed is deterministic (`faker.seed(42)`) so re-running `db:reset` produces i
 ## What's mocked vs. real
 
 **Real**:
-- 1,200 customers, 25 team members across 6 groups, 50,000 tickets, ~13,600 responses, 50 tickets with full conversation threads, 8 surveys. Stored in a local SQLite file. Queried server-side with Drizzle.
-- All four list pages (Tickets, Customers, Team members, Responses) — Views, sort, column show/hide, drag-to-reorder, column resize, pagination.
-- Detail drawer + standalone page for all four entities. Drawer is URL-driven (`?drawer=<entity>:<id>`), opens from any page, swaps content in place, preserves back/forward.
-- Hover popovers on every entity pill.
+- 1,200 customers, 25 team members across 6 groups, 50,000 tickets, ~14,200 responses, 50 tickets with full message + event timelines (351 messages, 289 events), 8 surveys. Stored in a local SQLite file. Queried server-side with Drizzle.
+- Four list pages (Tickets, Customers, Team members, Responses) — saved views, sort, column show/hide, drag-to-reorder, column resize, pagination, ad-hoc filters via shared `<FilterRow />` (Tickets first; other lists follow).
+- Detail drawer + standalone page for all entities. Drawer is URL-driven (`?drawer=<entity>:<id>`), opens from any page, swaps content in place, preserves back/forward.
+- Hover popovers on every entity pill. Chat-style activity timeline on `/tickets/[id]`.
+- Reports / pivot editor at `/reports` with AI prompt-to-config (`claude-haiku-4-5`).
+- `⌘K` search palette with recent-pages section and entity avatars.
 
 **Mocked / cosmetic**:
-- Toolbar buttons (Filter, Group by, Sort, Export, New) are visual only — except column show/hide, which is real.
-- Drawer kebab menu actions (Edit / Duplicate / Archive / Delete) are placeholder.
-- QA Evaluations: schema exists but no seed data or UI beyond the "Soon" cards.
-- Reports page: planning only (see `REPORTS.md`).
+- Toolbar buttons that aren't wired (Group by, Export, New, drawer kebab actions) are visual only.
+- QA Evaluations: schema exists but no seed data or UI beyond placeholder cards.
 
 ## Project layout
 
+Top-level shape only — full annotated file tree lives in [ARCHITECTURE.md](ARCHITECTURE.md).
+
 ```
 src/
-  app/
-    (workspace)/      # routes that share the sidebar layout
-      page.tsx        # home
-      tickets/        # tickets list + detail
-      responses/      # stub
-      customers/      # stub
-      team-members/   # stub
-      reports/        # stub
-    layout.tsx        # root layout (font, tooltip provider)
-    globals.css       # tailwind + shadcn theme
-  components/
-    shell/            # sidebar, topbar, coming-soon
-    tickets/          # table, columns, pills, toolbar, view tabs
-    ui/               # shadcn components
-  db/
-    client.ts         # better-sqlite3 + drizzle singleton
-    schema.ts         # all 5 tables
-    seed.ts           # faker seed
-    queries/          # typed query helpers
-  lib/
-    ids.ts            # prefixedId() using nanoid
-    format.ts         # date/number/duration formatters
+  app/           # Next.js App Router routes + API endpoints
+  components/    # shared/ (reused), shell/ (nav), <entity>/ (per-entity), ui/ (shadcn)
+  db/            # schema, seed, queries
+  lib/           # properties (registries), filters, reports, format, ids, topics
 db/
   simplesat.db        # gitignored, regenerate with db:reset
+  comments.json       # response comment bank (PII-scrubbed synthetic)
+  ticket-messages.json # ticket message bank (PII-scrubbed synthetic)
 drizzle/
   *.sql               # checked-in migrations
 ```
@@ -99,10 +85,14 @@ The SQLite file is local-only for phase 1. To deploy to Vercel, swap better-sqli
 - URL `searchParams` for table sort/pagination - no client state library.
 - No em dashes in user-facing copy.
 
-## Decisions log
+## Docs
 
-See `DECISIONS.md` for explicit assumptions made during the build that are open to discussion.
-
-## Planning docs
-
-- `REPORTS.md` — phase 4 plan for the Reports / pivot table feature.
+- [CLAUDE.md](CLAUDE.md) — agent guide: conventions, "don't do" list, file map for the rest of the docs
+- [ARCHITECTURE.md](ARCHITECTURE.md) — file layout, core abstractions (Property registry, EntityTable, Drawer, Filter system, Reports)
+- [DESIGN.md](DESIGN.md) — design tokens (colors, typography, borders, states) + usage philosophy
+- [DATA.md](DATA.md) — entity quick-ref, seed scale, custom attributes, topic taxonomy, content banks
+- [COOKBOOK.md](COOKBOOK.md) — recipes for adding a property, view, entity, filter, or pivot field
+- [REPORTS.md](REPORTS.md) — pivot editor details, AI prompt-to-config
+- [DECISIONS.md](DECISIONS.md) — explicit assumptions made along the way
+- [AGENTS.md](AGENTS.md) — Next.js 16 gotchas
+- [WORKFLOW.md](WORKFLOW.md) — worktree-per-task workflow

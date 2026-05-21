@@ -1,6 +1,9 @@
 import "server-only";
-import { asc, desc, eq } from "drizzle-orm";
+import { and, asc, desc, eq } from "drizzle-orm";
 import { db, schema } from "../client";
+import { compileListFilters } from "@/lib/filters/compile-list";
+import { TICKET_FILTER_FIELDS } from "@/lib/filters/fields/tickets";
+import type { Filter } from "@/lib/filters/types";
 import { ticketsViewWhere } from "@/lib/view-predicates";
 import type { Ticket } from "../schema";
 
@@ -46,16 +49,25 @@ export async function listTickets({
   sort,
   dir,
   view,
+  filters,
 }: {
   page: number;
   pageSize: number;
   sort: TicketSortKey;
   dir: SortDir;
   view?: string;
+  filters?: Filter[];
 }): Promise<{ rows: TicketsRow[]; total: number }> {
   const sortCol = SORT_COLUMN_MAP[sort];
   const orderBy = dir === "asc" ? asc(sortCol) : desc(sortCol);
-  const where = view ? ticketsViewWhere(view) : undefined;
+  const viewWhere = view ? ticketsViewWhere(view) : undefined;
+  const filterWhere = filters
+    ? compileListFilters(filters, TICKET_FILTER_FIELDS)
+    : undefined;
+  const where =
+    viewWhere && filterWhere
+      ? and(viewWhere, filterWhere)
+      : (viewWhere ?? filterWhere);
 
   const offset = (page - 1) * pageSize;
 

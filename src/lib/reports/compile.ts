@@ -1,4 +1,5 @@
 import { sql, type SQL } from "drizzle-orm";
+import { isRelativeValue, type Filter } from "@/lib/filters/types";
 import {
   BASE_TABLE,
   bucketSql,
@@ -9,7 +10,6 @@ import {
 import type {
   Aggregation,
   AxisField,
-  FilterDef,
   ReportConfig,
   ValueDef,
 } from "./types";
@@ -59,7 +59,7 @@ function axisGroupExpr(axis: AxisField, field: PivotField): string {
 }
 
 function buildFilter(
-  filter: FilterDef,
+  filter: Filter,
   field: PivotField,
 ): SQL | undefined {
   const col = sql.raw(field.groupExpr);
@@ -76,6 +76,40 @@ function buildFilter(
       return sql`${col} > ${filter.value}`;
     case "gte":
       return sql`${col} >= ${filter.value}`;
+    case "between": {
+      if (!Array.isArray(filter.value) || filter.value.length !== 2)
+        return undefined;
+      const [a, b] = filter.value as [unknown, unknown];
+      if (a == null || b == null) return undefined;
+      return sql`${col} BETWEEN ${a} AND ${b}`;
+    }
+    case "contains":
+      if (typeof filter.value !== "string" || filter.value === "")
+        return undefined;
+      return sql`${col} LIKE ${"%" + filter.value + "%"}`;
+    case "starts-with":
+      if (typeof filter.value !== "string" || filter.value === "")
+        return undefined;
+      return sql`${col} LIKE ${filter.value + "%"}`;
+    case "relative": {
+      // Date-relative — only meaningful when groupExpr is a millisecond
+      // timestamp column. We compare against (current epoch ms +/- delta).
+      if (!isRelativeValue(filter.value)) return undefined;
+      const { n, unit, dir } = filter.value;
+      const unitMs =
+        unit === "days"
+          ? 24 * 60 * 60 * 1000
+          : unit === "weeks"
+            ? 7 * 24 * 60 * 60 * 1000
+            : 30 * 24 * 60 * 60 * 1000; // months ~= 30 days; good enough for the prototype
+      const deltaMs = n * unitMs;
+      if (dir === "past") {
+        // Window: [now - delta, now]
+        return sql`${col} >= (CAST(strftime('%s','now') AS INTEGER) * 1000 - ${deltaMs}) AND ${col} <= (CAST(strftime('%s','now') AS INTEGER) * 1000)`;
+      }
+      // Future window: [now, now + delta]
+      return sql`${col} >= (CAST(strftime('%s','now') AS INTEGER) * 1000) AND ${col} <= (CAST(strftime('%s','now') AS INTEGER) * 1000 + ${deltaMs})`;
+    }
     case "isnull":
       return sql`${col} IS NULL`;
     case "notnull":

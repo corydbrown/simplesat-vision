@@ -23,7 +23,10 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import { FilterRow } from "@/components/shared/filter-row";
 import type { ReportResult } from "@/db/queries/reports";
+import { pivotFieldsToDescriptors } from "@/lib/filters/adapters";
+import type { Filter } from "@/lib/filters/types";
 import { runReportAction } from "@/lib/reports/actions";
 import { findField, type PivotField } from "@/lib/reports/pivot-fields";
 import {
@@ -34,7 +37,6 @@ import {
   type AxisField,
   type AxisFieldSort,
   type BaseEntity,
-  type FilterDef,
   type ReportConfig,
   type ValueDef,
 } from "@/lib/reports/types";
@@ -44,8 +46,6 @@ import { AxisChip } from "./axis-chip";
 import { AddFieldButton } from "./axis-zone";
 import { BaseEntityDropdown } from "./base-entity-dropdown";
 import { FieldIcon } from "./field-icon";
-import { FilterAdd } from "./filter-add";
-import { FilterChip } from "./filter-chips";
 import { InlineAxis } from "./inline-axis";
 import { PivotEmptyState } from "./pivot-empty-state";
 import { PivotTable } from "./pivot-table";
@@ -161,8 +161,12 @@ export function ReportBuilder({ initialConfig }: Props) {
     });
   };
 
-  const addFilter = useCallback((filter: FilterDef) => {
+  const addFilter = useCallback((filter: Filter) => {
     setConfig((prev) => ({ ...prev, filters: [...prev.filters, filter] }));
+  }, []);
+
+  const setFilters = useCallback((next: Filter[]) => {
+    setConfig((prev) => ({ ...prev, filters: next }));
   }, []);
 
   const updateAxis = (
@@ -220,13 +224,6 @@ export function ReportBuilder({ initialConfig }: Props) {
         columns: scrubAxis(prev.columns),
       };
     });
-  };
-
-  const removeFilter = (index: number) => {
-    setConfig((prev) => ({
-      ...prev,
-      filters: prev.filters.filter((_, i) => i !== index),
-    }));
   };
 
   const reset = () => setConfig(defaultConfig(config.base));
@@ -512,23 +509,16 @@ export function ReportBuilder({ initialConfig }: Props) {
               )}
             </InlineAxis>
 
-            <div className="self-stretch w-px bg-border" />
+          </div>
 
-            <InlineAxis
-              id="filters"
-              label="Filters"
-              current={config.filters.length}
-              trigger={<FilterAdd base={config.base} onAdd={addFilter} />}
-            >
-              {config.filters.map((f, i) => (
-                <FilterChip
-                  key={`${f.propertyId}-${i}`}
-                  base={config.base}
-                  filter={f}
-                  onRemove={() => removeFilter(i)}
-                />
-              ))}
-            </InlineAxis>
+          {/* Dedicated filter band — own visual weight, below the pivot strip */}
+          <div className="flex items-stretch border-b border-border bg-muted/10 px-3 py-1.5">
+            <FilterRow
+              fields={pivotFieldsToDescriptors(config.base)}
+              filters={config.filters}
+              onChange={setFilters}
+              droppableId="filters"
+            />
           </div>
 
           <div className="p-6">

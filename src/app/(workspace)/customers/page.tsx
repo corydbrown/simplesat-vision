@@ -2,6 +2,8 @@ import { Topbar } from "@/components/shell/topbar";
 import { EntityTable } from "@/components/shared/entity-table";
 import { EntityToolbar } from "@/components/shared/entity-toolbar";
 import { ColumnStateProvider } from "@/lib/column-prefs";
+import { CUSTOMER_GROUP_IDS } from "@/lib/group/fields/customers";
+import { groupFromSearchParam } from "@/lib/group/url-state";
 import { CUSTOMER_PROPERTIES } from "@/lib/properties/customers";
 import { parseSortParam } from "@/lib/sort/url-state";
 import { listCustomers } from "@/db/queries/customers";
@@ -11,7 +13,8 @@ export default async function CustomersPage(props: PageProps<"/customers">) {
   const sp = await props.searchParams;
   const view = typeof sp.view === "string" ? sp.view : undefined;
   const sorts = parseSortParam(typeof sp.sort === "string" ? sp.sort : undefined);
-  const { rows, total } = await listCustomers({ view, sorts });
+  const groupBy = groupFromSearchParam(sp.group, CUSTOMER_GROUP_IDS);
+  const { rows, total } = await listCustomers({ view, sorts, groupBy });
   const activeView = CUSTOMER_VIEWS.find((v) => v.id === (view ?? "all"));
 
   return (
@@ -33,6 +36,7 @@ export default async function CustomersPage(props: PageProps<"/customers">) {
         page={1}
         pageSize={total || 1}
         total={total}
+        groupBy={groupBy?.propertyId}
         basePath="/customers"
         drawerEntity="customer"
         serverSorted

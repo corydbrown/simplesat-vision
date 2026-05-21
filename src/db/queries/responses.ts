@@ -1,6 +1,9 @@
 import "server-only";
 import { asc, desc, eq, type AnyColumn, type SQL } from "drizzle-orm";
 import { db, schema } from "../client";
+import { compileGroupOrderBy } from "@/lib/group/compile";
+import { RESPONSE_GROUP_FIELDS } from "@/lib/group/fields/responses";
+import type { GroupSpec } from "@/lib/group/types";
 import type { SortSpec } from "@/lib/sort/url-state";
 import { responsesViewWhere } from "@/lib/view-predicates";
 import type { Response, SurveyAnswer } from "../schema";
@@ -48,11 +51,18 @@ export async function listResponses({
   view,
   limit = 200,
   sorts = [],
-}: { view?: string; limit?: number; sorts?: SortSpec[] } = {}): Promise<{
+  groupBy,
+}: {
+  view?: string;
+  limit?: number;
+  sorts?: SortSpec[];
+  groupBy?: GroupSpec | null;
+} = {}): Promise<{
   rows: ResponseListRow[];
   total: number;
 }> {
   const where = view ? responsesViewWhere(view) : undefined;
+  const groupOrderBy = compileGroupOrderBy(groupBy ?? null, RESPONSE_GROUP_FIELDS);
 
   const baseQuery = db
     .select({
@@ -88,7 +98,7 @@ export async function listResponses({
 
   const [rows, total] = await Promise.all([
     (where ? baseQuery.where(where) : baseQuery)
-      .orderBy(...buildResponseOrderBy(sorts))
+      .orderBy(...groupOrderBy, ...buildResponseOrderBy(sorts))
       .limit(limit),
     db.$count(schema.responses, where),
   ]);

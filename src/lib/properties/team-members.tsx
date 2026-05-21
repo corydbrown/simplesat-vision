@@ -31,6 +31,8 @@ const CORE_PROPERTIES: Property<TeamMemberListRow>[] = [
     defaultVisible: true,
     sortable: true,
     sortValue: (m) => m.role,
+    groupable: true,
+    groupValue: (m) => m.role,
     cell: (m) => <span className="text-muted-foreground">{m.role}</span>,
   },
   {
@@ -41,6 +43,9 @@ const CORE_PROPERTIES: Property<TeamMemberListRow>[] = [
     defaultVisible: true,
     sortable: true,
     sortValue: (m) => m.team,
+    groupable: true,
+    groupValue: (m) => m.team,
+    groupLabel: (v) => <TeamPill team={v} />,
     cell: (m) => <TeamPill team={m.team} />,
   },
   {
@@ -51,6 +56,9 @@ const CORE_PROPERTIES: Property<TeamMemberListRow>[] = [
     defaultVisible: true,
     sortable: true,
     sortValue: (m) => m.region,
+    groupable: true,
+    groupValue: (m) => m.region,
+    nullGroupLabel: "No region",
     cell: (m) =>
       m.region ? (
         <span className="text-muted-foreground">{m.region}</span>
@@ -66,6 +74,9 @@ const CORE_PROPERTIES: Property<TeamMemberListRow>[] = [
     defaultVisible: false,
     sortable: true,
     sortValue: (m) => m.language,
+    groupable: true,
+    groupValue: (m) => m.language,
+    nullGroupLabel: "No language",
     cell: (m) =>
       m.language ? (
         <span className="text-muted-foreground">{m.language}</span>
@@ -81,6 +92,10 @@ const CORE_PROPERTIES: Property<TeamMemberListRow>[] = [
     defaultVisible: true,
     sortable: true,
     sortValue: (m) => m.groupName,
+    groupable: true,
+    groupValue: (m) => m.groupName,
+    groupLabel: (v) => <TeamGroupPill name={v} />,
+    nullGroupLabel: "No group",
     cell: (m) =>
       m.groupName ? (
         <TeamGroupPill name={m.groupName} />

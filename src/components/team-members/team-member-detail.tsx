@@ -14,9 +14,11 @@ import {
   PropertiesHeader,
 } from "@/components/shared/detail-section";
 import { EntityTable } from "@/components/shared/entity-table";
+import { GroupControl } from "@/components/shared/group-control";
 import { RelationTabs } from "@/components/shared/relation-tabs";
 import { OpenInTable } from "@/components/shared/open-in-table";
 import { SortControl } from "@/components/shared/sort-control";
+import { decodeGroup } from "@/lib/group/url-state";
 import { initialsFromName } from "@/lib/color-from-name";
 import { recordEntityView } from "@/lib/recent-pages";
 import { formatNumber } from "@/lib/format";
@@ -188,15 +190,27 @@ export function TeamMemberDetailBody({
           trailing={
             <div className="flex items-center gap-1">
               {tab === "tickets" ? (
-                <SortControl
-                  properties={TICKET_PROPERTIES}
-                  paramPrefix={inDrawer ? "d" : ""}
-                />
+                <>
+                  <SortControl
+                    properties={TICKET_PROPERTIES}
+                    paramPrefix={inDrawer ? "d" : ""}
+                  />
+                  <GroupControl
+                    properties={TICKET_PROPERTIES}
+                    paramPrefix={inDrawer ? "d" : ""}
+                  />
+                </>
               ) : (
-                <SortControl
-                  properties={RESPONSE_PROPERTIES}
-                  paramPrefix={inDrawer ? "d" : ""}
-                />
+                <>
+                  <SortControl
+                    properties={RESPONSE_PROPERTIES}
+                    paramPrefix={inDrawer ? "d" : ""}
+                  />
+                  <GroupControl
+                    properties={RESPONSE_PROPERTIES}
+                    paramPrefix={inDrawer ? "d" : ""}
+                  />
+                </>
               )}
               <OpenInTable
                 href={tab === "tickets" ? "/tickets" : "/responses"}
@@ -217,6 +231,14 @@ export function TeamMemberDetailBody({
               page={1}
               pageSize={Math.max(tickets.length, 1)}
               total={tickets.length}
+              groupBy={
+                decodeGroup(
+                  searchParams.get(`${inDrawer ? "d" : ""}group`),
+                  TICKET_PROPERTIES.filter((p) => p.groupable === true).map(
+                    (p) => p.id,
+                  ),
+                )?.propertyId
+              }
               drawerEntity="ticket"
               paramPrefix={inDrawer ? "d" : ""}
               emptyMessage="No tickets handled yet."
@@ -234,6 +256,14 @@ export function TeamMemberDetailBody({
               page={1}
               pageSize={Math.max(responses.length, 1)}
               total={responses.length}
+              groupBy={
+                decodeGroup(
+                  searchParams.get(`${inDrawer ? "d" : ""}group`),
+                  RESPONSE_PROPERTIES.filter((p) => p.groupable === true).map(
+                    (p) => p.id,
+                  ),
+                )?.propertyId
+              }
               drawerEntity="response"
               paramPrefix={inDrawer ? "d" : ""}
               emptyMessage="No responses yet."

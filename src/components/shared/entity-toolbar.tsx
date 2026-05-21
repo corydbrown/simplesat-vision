@@ -1,9 +1,10 @@
 "use client";
 
-import { Download, Group, Plus, Search } from "lucide-react";
+import { Download, Plus, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ColumnsControl } from "./columns-control";
+import { GroupControl } from "./group-control";
 import { SortControl } from "./sort-control";
 import type { Property } from "@/lib/properties/types";
 
@@ -31,8 +32,8 @@ export function EntityToolbar<T>({
           disabled
         />
       </div>
-      <ToolbarButton icon={<Group size={13} />} label="Group by" />
       <SortControl properties={properties} paramPrefix={paramPrefix} />
+      <GroupControl properties={properties} paramPrefix={paramPrefix} />
       <ColumnsControl properties={properties} />
       <div className="flex-1" />
       {trailing}

@@ -4,6 +4,9 @@ import { db, schema } from "../client";
 import { compileListFilters } from "@/lib/filters/compile-list";
 import { TICKET_FILTER_FIELDS } from "@/lib/filters/fields/tickets";
 import type { Filter } from "@/lib/filters/types";
+import { compileGroupOrderBy } from "@/lib/group/compile";
+import { TICKET_GROUP_FIELDS } from "@/lib/group/fields/tickets";
+import type { GroupSpec } from "@/lib/group/types";
 import type { SortSpec } from "@/lib/sort/url-state";
 import { ticketsViewWhere } from "@/lib/view-predicates";
 import type {
@@ -96,14 +99,17 @@ export async function listTickets({
   sorts,
   view,
   filters,
+  groupBy,
 }: {
   page: number;
   pageSize: number;
   sorts: SortSpec[];
   view?: string;
   filters?: Filter[];
+  groupBy?: GroupSpec | null;
 }): Promise<{ rows: TicketsRow[]; total: number }> {
   const orderByList = buildTicketOrderBy(sorts);
+  const groupOrderBy = compileGroupOrderBy(groupBy ?? null, TICKET_GROUP_FIELDS);
   const viewWhere = view ? ticketsViewWhere(view) : undefined;
   const filterWhere = filters
     ? compileListFilters(filters, TICKET_FILTER_FIELDS)
@@ -152,7 +158,7 @@ export async function listTickets({
 
   const [rawRows, total] = await Promise.all([
     (where ? baseQuery.where(where) : baseQuery)
-      .orderBy(...orderByList)
+      .orderBy(...groupOrderBy, ...orderByList)
       .limit(pageSize)
       .offset(offset),
     db.$count(schema.tickets, where),

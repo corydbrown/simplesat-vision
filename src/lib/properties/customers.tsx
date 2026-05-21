@@ -41,6 +41,9 @@ const CORE_PROPERTIES: Property<CustomerListRow>[] = [
     defaultVisible: true,
     sortable: true,
     sortValue: (c) => c.tier,
+    groupable: true,
+    groupValue: (c) => c.tier,
+    groupLabel: (v) => <TierPill tier={v as CustomerListRow["tier"]} />,
     cell: (c) => <TierPill tier={c.tier} />,
   },
   {
@@ -51,6 +54,9 @@ const CORE_PROPERTIES: Property<CustomerListRow>[] = [
     defaultVisible: false,
     sortable: true,
     sortValue: (c) => c.language,
+    groupable: true,
+    groupValue: (c) => c.language,
+    nullGroupLabel: "No language",
     cell: (c) =>
       c.language ? (
         <span className="text-muted-foreground">{c.language}</span>
@@ -66,6 +72,9 @@ const CORE_PROPERTIES: Property<CustomerListRow>[] = [
     defaultVisible: true,
     sortable: true,
     sortValue: (c) => c.company,
+    groupable: true,
+    groupValue: (c) => c.company,
+    nullGroupLabel: "No company",
     cell: (c) => <CompanyPill name={c.company} />,
   },
   {

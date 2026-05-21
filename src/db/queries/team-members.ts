@@ -1,6 +1,11 @@
 import "server-only";
 import { and, asc, desc, eq, sql, type AnyColumn, type SQL } from "drizzle-orm";
 import { db, schema } from "../client";
+import { compileGroupOrderBy } from "@/lib/group/compile";
+import { TEAM_MEMBER_GROUP_FIELDS } from "@/lib/group/fields/team-members";
+import { TICKET_GROUP_FIELDS } from "@/lib/group/fields/tickets";
+import { RESPONSE_GROUP_FIELDS } from "@/lib/group/fields/responses";
+import type { GroupSpec } from "@/lib/group/types";
 import type { SortSpec } from "@/lib/sort/url-state";
 import { teamMembersViewWhere } from "@/lib/view-predicates";
 import type { TeamMember } from "../schema";
@@ -54,7 +59,12 @@ function buildTeamMemberOrderBy(sorts: SortSpec[]): SQL[] {
 export async function listTeamMembers({
   view,
   sorts = [],
-}: { view?: string; sorts?: SortSpec[] } = {}): Promise<{
+  groupBy,
+}: {
+  view?: string;
+  sorts?: SortSpec[];
+  groupBy?: GroupSpec | null;
+} = {}): Promise<{
   rows: TeamMemberListRow[];
   total: number;
 }> {
@@ -97,7 +107,12 @@ export async function listTeamMembers({
       eq(schema.teamMemberGroups.id, schema.teamMembers.groupId),
     );
 
+  const groupOrderBy = compileGroupOrderBy(
+    groupBy ?? null,
+    TEAM_MEMBER_GROUP_FIELDS,
+  );
   const rows = await (where ? baseQuery.where(where) : baseQuery).orderBy(
+    ...groupOrderBy,
     ...buildTeamMemberOrderBy(sorts),
   );
 
@@ -152,6 +167,7 @@ export async function getTeamMemberById(
 export async function getTeamMemberTickets(
   memberId: string,
   limit = 50,
+  groupBy?: GroupSpec | null,
 ): Promise<import("./tickets").TicketsRow[]> {
   const rawRows = await db
     .select({
@@ -188,7 +204,10 @@ export async function getTeamMemberTickets(
       eq(schema.responses.ticketId, schema.tickets.id),
     )
     .where(eq(schema.tickets.assignedTeamMemberId, memberId))
-    .orderBy(desc(schema.tickets.createdAt))
+    .orderBy(
+      ...compileGroupOrderBy(groupBy ?? null, TICKET_GROUP_FIELDS),
+      desc(schema.tickets.createdAt),
+    )
     .limit(limit);
 
   return rawRows.map((r) => ({
@@ -202,7 +221,9 @@ export async function getTeamMemberTickets(
 export async function getTeamMemberResponses(
   memberId: string,
   limit = 50,
+  groupBy?: GroupSpec | null,
 ): Promise<import("./responses").ResponseListRow[]> {
+  const groupOrderBy = compileGroupOrderBy(groupBy ?? null, RESPONSE_GROUP_FIELDS);
   return db
     .select({
       id: schema.responses.id,
@@ -235,7 +256,7 @@ export async function getTeamMemberResponses(
       eq(schema.teamMembers.id, schema.responses.teamMemberId),
     )
     .where(eq(schema.responses.teamMemberId, memberId))
-    .orderBy(desc(schema.responses.respondedAt))
+    .orderBy(...groupOrderBy, desc(schema.responses.respondedAt))
     .limit(limit);
 }
 

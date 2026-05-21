@@ -6,9 +6,11 @@ import { ColumnStateProvider } from "@/lib/column-prefs";
 import { CUSTOMER_PROPERTIES } from "@/lib/properties/customers";
 import { TICKET_PROPERTIES } from "@/lib/properties/tickets";
 import { RESPONSE_PROPERTIES } from "@/lib/properties/responses";
+import { decodeGroup } from "@/lib/group/url-state";
 import { PropertiesPanel } from "@/components/shared/properties-panel";
 import { PropertiesHeader } from "@/components/shared/detail-section";
 import { EntityTable } from "@/components/shared/entity-table";
+import { GroupControl } from "@/components/shared/group-control";
 import { RelationTabs } from "@/components/shared/relation-tabs";
 import { OpenInTable } from "@/components/shared/open-in-table";
 import { SortControl } from "@/components/shared/sort-control";
@@ -110,6 +112,17 @@ export function CustomerDetailBody({
     </ColumnStateProvider>
   );
 
+  const paramPrefix = inDrawer ? "d" : "";
+  const groupRaw = searchParams.get(`${paramPrefix}group`);
+  const ticketGroup = decodeGroup(
+    groupRaw,
+    TICKET_PROPERTIES.filter((p) => p.groupable === true).map((p) => p.id),
+  );
+  const responseGroup = decodeGroup(
+    groupRaw,
+    RESPONSE_PROPERTIES.filter((p) => p.groupable === true).map((p) => p.id),
+  );
+
   const tabsAndTable = (
     <>
       <RelationTabs
@@ -130,15 +143,27 @@ export function CustomerDetailBody({
         trailing={
           <div className="flex items-center gap-1">
             {tab === "tickets" ? (
-              <SortControl
-                properties={TICKET_PROPERTIES}
-                paramPrefix={inDrawer ? "d" : ""}
-              />
+              <>
+                <SortControl
+                  properties={TICKET_PROPERTIES}
+                  paramPrefix={paramPrefix}
+                />
+                <GroupControl
+                  properties={TICKET_PROPERTIES}
+                  paramPrefix={paramPrefix}
+                />
+              </>
             ) : (
-              <SortControl
-                properties={RESPONSE_PROPERTIES}
-                paramPrefix={inDrawer ? "d" : ""}
-              />
+              <>
+                <SortControl
+                  properties={RESPONSE_PROPERTIES}
+                  paramPrefix={paramPrefix}
+                />
+                <GroupControl
+                  properties={RESPONSE_PROPERTIES}
+                  paramPrefix={paramPrefix}
+                />
+              </>
             )}
             <OpenInTable
               href={tab === "tickets" ? "/tickets" : "/responses"}
@@ -159,8 +184,9 @@ export function CustomerDetailBody({
             page={1}
             pageSize={Math.max(tickets.length, 1)}
             total={tickets.length}
+            groupBy={ticketGroup?.propertyId}
             drawerEntity="ticket"
-            paramPrefix={inDrawer ? "d" : ""}
+            paramPrefix={paramPrefix}
             emptyMessage="No tickets yet."
           />
         </ColumnStateProvider>
@@ -176,8 +202,9 @@ export function CustomerDetailBody({
             page={1}
             pageSize={Math.max(responses.length, 1)}
             total={responses.length}
+            groupBy={responseGroup?.propertyId}
             drawerEntity="response"
-            paramPrefix={inDrawer ? "d" : ""}
+            paramPrefix={paramPrefix}
             emptyMessage="No responses yet."
           />
         </ColumnStateProvider>

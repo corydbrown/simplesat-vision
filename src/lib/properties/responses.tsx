@@ -19,6 +19,11 @@ export const RESPONSE_PROPERTIES: Property<ResponseListRow>[] = [
     alwaysVisible: true,
     sortable: true,
     sortValue: (r) => r.rating,
+    groupable: true,
+    groupValue: (r) => String(r.rating),
+    groupLabel: (v) => (
+      <span className="tabular-nums">{v} stars</span>
+    ),
     cell: (r) => (
       <ResponsePill id={r.id} rating={r.rating} scale={r.scale} />
     ),
@@ -65,6 +70,9 @@ export const RESPONSE_PROPERTIES: Property<ResponseListRow>[] = [
     defaultVisible: true,
     sortable: true,
     sortValue: (r) => r.customerName,
+    groupable: true,
+    groupValue: (r) => r.customerName,
+    nullGroupLabel: "Anonymous",
     cell: (r) =>
       r.customerId && r.customerName ? (
         <CustomerPill id={r.customerId} name={r.customerName} />
@@ -80,6 +88,9 @@ export const RESPONSE_PROPERTIES: Property<ResponseListRow>[] = [
     defaultVisible: true,
     sortable: true,
     sortValue: (r) => r.teamMemberName,
+    groupable: true,
+    groupValue: (r) => r.teamMemberName,
+    nullGroupLabel: "Unassigned",
     cell: (r) =>
       r.teamMemberId && r.teamMemberName && r.teamMemberAvatarColor ? (
         <TeamMemberPill

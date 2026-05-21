@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import { ColumnStateProvider } from "@/lib/column-prefs";
+import { decodeGroup } from "@/lib/group/url-state";
 import { recordEntityView } from "@/lib/recent-pages";
 import { SURVEY_PROPERTIES, SURVEY_METRIC_LABEL } from "@/lib/properties/surveys";
 import { RESPONSE_PROPERTIES } from "@/lib/properties/responses";
@@ -11,6 +13,7 @@ import {
   PropertiesHeader,
 } from "@/components/shared/detail-section";
 import { EntityTable } from "@/components/shared/entity-table";
+import { GroupControl } from "@/components/shared/group-control";
 import { SortControl } from "@/components/shared/sort-control";
 import type { SurveyDetail, SurveyRow } from "@/db/queries/surveys";
 import type { ResponseListRow } from "@/db/queries/responses";
@@ -27,6 +30,16 @@ export function SurveyDetailBody({
   responses: ResponseListRow[];
   inDrawer?: boolean;
 }) {
+  const searchParams = useSearchParams();
+  const paramPrefix = inDrawer ? "d" : "";
+  const responseGroupAllowed = RESPONSE_PROPERTIES.filter(
+    (p) => p.groupable === true,
+  ).map((p) => p.id);
+  const responseGroup = decodeGroup(
+    searchParams.get(`${paramPrefix}group`),
+    responseGroupAllowed,
+  );
+
   useEffect(() => {
     // Drawer side records via global-drawer.tsx; standalone records here.
     if (inDrawer) return;
@@ -106,10 +119,16 @@ export function SurveyDetailBody({
     <DetailSection
       title={`Recent responses (${responses.length})`}
       trailing={
-        <SortControl
-          properties={RESPONSE_PROPERTIES}
-          paramPrefix={inDrawer ? "d" : ""}
-        />
+        <div className="flex items-center gap-1">
+          <SortControl
+            properties={RESPONSE_PROPERTIES}
+            paramPrefix={paramPrefix}
+          />
+          <GroupControl
+            properties={RESPONSE_PROPERTIES}
+            paramPrefix={paramPrefix}
+          />
+        </div>
       }
     >
       <ColumnStateProvider
@@ -123,8 +142,9 @@ export function SurveyDetailBody({
           page={1}
           pageSize={Math.max(responses.length, 1)}
           total={responses.length}
+          groupBy={responseGroup?.propertyId}
           drawerEntity="response"
-          paramPrefix={inDrawer ? "d" : ""}
+          paramPrefix={paramPrefix}
           emptyMessage="No responses yet."
         />
       </ColumnStateProvider>

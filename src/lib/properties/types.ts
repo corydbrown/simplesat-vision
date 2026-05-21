@@ -25,6 +25,18 @@ export type Property<T> = {
   /** When present, this property can be filtered via the shared <FilterRow />.
    *  Drizzle column refs live in a parallel server-only field map per entity. */
   filter?: PropertyFilter;
+  /** When true, this property appears in the Group-by popover. Requires
+   *  groupValue. Drizzle column refs live in a parallel server-only field
+   *  map per entity (mirrors filter/sort). */
+  groupable?: boolean;
+  /** Extracts the raw grouping key from a row. Return null for the "(None)"
+   *  bucket. Must be defined when groupable is true. */
+  groupValue?: (row: T) => string | null;
+  /** Optional pretty rendering of a group value in the section header.
+   *  Defaults to the raw string value. */
+  groupLabel?: (value: string) => ReactNode;
+  /** Label for the null bucket. Defaults to "(None)". */
+  nullGroupLabel?: string;
 };
 
 export type ColumnState = {

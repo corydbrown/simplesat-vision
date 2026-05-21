@@ -68,9 +68,19 @@ Small concierge moves that compound. Apply unprompted:
 - **Mid-stream redirects are fine.** If Cory says "actually, let's do X first," roll with it. Don't re-explain the original sequence unless he asks.
 - **Offer cleanup after merge, don't auto-do.** Once a PR merges, the worktree is stale. Surface the cleanup step (`cleanup <feature>`) but don't run it unprompted — that's a destructive op.
 
-## Definition of done — end every implementation with a status block
+## Definition of done — status emoji + status block
 
-After any non-trivial implementation (a feature, a bug fix, anything that ends in a commit), end your final response with a short block in exactly this shape:
+For any non-trivial reply (one that ends in a commit, a handoff, or asks Cory to take an action):
+
+**Open with a status emoji** as the first character of the reply — a one-glyph at-a-glance signal:
+
+- 🟢 work is complete; Cory can take the next action (review / merge / paste-prompt / etc.)
+- 🟡 in progress / partial / awaiting a decision / multi-step still moving
+- 🔴 blocked, hit a real problem, or needs Cory's attention before continuing
+
+It's a *snapshot at send time*. Drift is fine — Cory understands the emoji reflects the moment, not the eventual outcome.
+
+**Close with a status block** in exactly this shape:
 
 ```
 **Status:** <where the code is — uncommitted / committed locally on `<branch>` / pushed to GitHub / PR #N open / merged>
@@ -92,8 +102,8 @@ Rules:
   - Include relevant URL params (e.g., `?view=detractors`, `?drawer=customer:cus_abc`) when they're load-bearing for what you want him to see.
 - **PR URL** line is just the `gh pr create` output — include it the first time you mention the PR. Cory can re-find it from `gh pr view` later, but stating it once upfront beats hunting.
 - "Next step" should be a single thing, phrased so Cory can copy-paste it back ("push and open a PR", "merge PR #N", "run /simplify on these files").
-- Skip the block for trivial work (typo fix, single-line tweak, pure questions). Use judgment.
-- This block goes AFTER the normal task summary, not instead of it.
+- Skip the emoji + block for trivial work (typo fix, single-line tweak, pure conversational replies). Use judgment — the pair is for anything someone might want to ship, revisit, or take an action on.
+- The status block goes AFTER the normal task summary, not instead of it. The emoji goes BEFORE everything.
 
 ## Stack lock-in
 

@@ -203,10 +203,10 @@ export function ResponsePill({
 }: CommonProps & { id?: string; rating: number; scale: number }) {
   const tone =
     rating <= 2
-      ? "text-red-600"
+      ? "text-red-dark"
       : rating === 3
-        ? "text-amber-600"
-        : "text-emerald-600";
+        ? "text-yellow-dark"
+        : "text-green-dark";
   const inner = (
     <>
       <Star size={11} className="fill-current" />
@@ -272,7 +272,7 @@ export function SurveyPill({
           className={basePillClass(size, className)}
         >
           {tag && (
-            <span className="inline-flex items-center justify-center rounded bg-muted px-1 text-[10px] font-medium text-muted-foreground">
+            <span className="inline-flex items-center justify-center rounded bg-muted px-1 text-xs font-medium text-muted-foreground">
               {tag}
             </span>
           )}

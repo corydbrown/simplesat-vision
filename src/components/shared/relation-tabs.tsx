@@ -53,7 +53,7 @@ export function RelationTabs({
             key={t.id}
             href={buildHref(t.id)}
             scroll={false}
-            className={`flex cursor-pointer items-center gap-1.5 rounded-full px-3 py-1.5 text-sm transition-colors ${
+            className={`flex cursor-pointer items-center gap-1.5 rounded-full px-3 py-1.5 text-base transition-colors ${
               active
                 ? "bg-accent text-foreground font-medium"
                 : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
@@ -62,7 +62,7 @@ export function RelationTabs({
             <span>{t.label}</span>
             {t.count !== undefined && (
               <span
-                className={`rounded px-1.5 py-0.5 text-[10px] tabular-nums ${
+                className={`rounded px-1.5 py-0.5 text-xs tabular-nums ${
                   active
                     ? "bg-foreground/10 text-foreground"
                     : "bg-muted text-muted-foreground"

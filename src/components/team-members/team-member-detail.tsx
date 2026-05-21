@@ -39,11 +39,11 @@ function RatingHistogram({
         const c = byRating.get(r) ?? 0;
         const pct = (c / max) * 100;
         const barTone =
-          r >= 4 ? "bg-emerald-400" : r === 3 ? "bg-amber-400" : "bg-red-400";
+          r >= 4 ? "bg-green" : r === 3 ? "bg-yellow" : "bg-red-light";
         return (
-          <div key={r} className="flex items-center gap-2 text-sm">
+          <div key={r} className="flex items-center gap-2 text-base">
             <span className="flex w-6 items-center gap-0.5 tabular-nums text-muted-foreground">
-              <Star size={10} className="fill-amber-400 text-amber-400" />
+              <Star size={10} className="fill-yellow text-yellow" />
               {r}
             </span>
             <div className="flex-1 h-2 rounded bg-muted overflow-hidden">
@@ -125,7 +125,7 @@ export function TeamMemberDetailBody({
         <h1 className="text-3xl font-semibold tracking-tight truncate">
           {member.name}
         </h1>
-        <div className="mt-0.5 text-sm text-muted-foreground truncate">
+        <div className="mt-0.5 text-base text-muted-foreground truncate">
           {member.role}
           <span className="mx-2 text-border">·</span>
           {member.team}
@@ -134,7 +134,7 @@ export function TeamMemberDetailBody({
         </div>
       </div>
       {isLowPerformer && (
-        <span className="ml-3 rounded bg-red-50 px-2 py-1 text-xs font-medium text-red-700 ring-1 ring-inset ring-red-200 dark:bg-red-500/15 dark:text-red-300 dark:ring-red-500/20">
+        <span className="ml-3 rounded bg-red-lighter px-2 py-1 text-sm font-medium text-red-darker">
           Low performer
         </span>
       )}
@@ -147,7 +147,7 @@ export function TeamMemberDetailBody({
       properties={TEAM_MEMBER_PROPERTIES}
     >
       <div className="flex items-center justify-between pb-2">
-        <h2 className="text-sm font-medium text-muted-foreground">
+        <h2 className="text-base font-medium text-muted-foreground">
           Properties
         </h2>
         <PropertiesHeader properties={TEAM_MEMBER_PROPERTIES} />

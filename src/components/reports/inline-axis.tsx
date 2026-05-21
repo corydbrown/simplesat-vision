@@ -34,7 +34,7 @@ export function InlineAxis({
             : "bg-card",
       )}
     >
-      <span className="text-[14px] font-medium text-muted-foreground shrink-0">
+      <span className="text-sm font-medium text-muted-foreground shrink-0">
         {label}
         {max != null && (
           <span className="ml-1 text-muted-foreground/60">

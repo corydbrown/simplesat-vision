@@ -162,7 +162,7 @@ function StatBlock({
 }) {
   return (
     <div>
-      <div className="text-[10px] uppercase tracking-wide text-muted-foreground">
+      <div className="text-sm text-muted-foreground">
         {label}
       </div>
       <div
@@ -176,7 +176,7 @@ function StatBlock({
 
 function ratingTone(r: number | null): string | undefined {
   if (r == null) return undefined;
-  return r < 3 ? "text-red-600" : r < 4 ? "text-amber-600" : "text-emerald-600";
+  return r < 3 ? "text-red-dark" : r < 4 ? "text-yellow-dark" : "text-green-dark";
 }
 
 function CustomerPopover({ data }: { data: CustomerData }) {
@@ -196,7 +196,7 @@ function CustomerPopover({ data }: { data: CustomerData }) {
                 {data.company}
               </span>
             ) : null}
-            <span className="ml-1 rounded-full bg-muted px-1.5 py-0.5 text-[10px]">
+            <span className="ml-1 rounded-full bg-muted px-1.5 py-0.5 text-xs">
               {tierLabel}
             </span>
           </div>
@@ -224,7 +224,7 @@ function CustomerPopover({ data }: { data: CustomerData }) {
         />
       </div>
       {data.lastSeen && (
-        <div className="px-4 py-2 text-[11px] text-muted-foreground border-t border-border">
+        <div className="px-4 py-2 text-sm text-muted-foreground border-t border-border">
           Last seen {formatDate(new Date(data.lastSeen))}
         </div>
       )}
@@ -233,13 +233,13 @@ function CustomerPopover({ data }: { data: CustomerData }) {
 }
 
 const TEAM_TONES: Record<string, string> = {
-  "Front line": "bg-blue-50 text-blue-700 dark:bg-blue-500/15 dark:text-blue-300",
-  Senior: "bg-violet-50 text-violet-700 dark:bg-violet-500/15 dark:text-violet-300",
-  Specialist: "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300",
+  "Front line": "bg-blue-lighter text-blue-darker",
+  Senior: "bg-purple-lighter text-purple-darker",
+  Specialist: "bg-green-lighter text-green-darker",
 };
 
 function TeamMemberPopover({ data }: { data: TeamMemberData }) {
-  const teamTone = TEAM_TONES[data.team] ?? "bg-zinc-100 text-zinc-700 dark:bg-zinc-500/15 dark:text-zinc-300";
+  const teamTone = TEAM_TONES[data.team] ?? "bg-grey-lighter text-grey-darker";
   return (
     <div>
       <div className="px-4 py-3 flex items-start gap-3">
@@ -250,7 +250,7 @@ function TeamMemberPopover({ data }: { data: TeamMemberData }) {
             {data.email}
           </div>
           <div className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
-            <span className={`rounded-full px-1.5 py-0.5 text-[10px] ${teamTone}`}>
+            <span className={`rounded-full px-1.5 py-0.5 text-xs ${teamTone}`}>
               {data.team}
             </span>
             <span>{data.role}</span>
@@ -292,7 +292,7 @@ function ResponsePopover({ data }: { data: ResponseData }) {
             <Star size={13} className="inline fill-current mr-0.5 -translate-y-0.5" />
             {data.rating}/{data.scale}
           </span>
-          <span className="text-[11px] text-muted-foreground tabular-nums">
+          <span className="text-sm text-muted-foreground tabular-nums">
             {formatDate(new Date(data.respondedAt))}
           </span>
         </div>
@@ -354,7 +354,7 @@ function SurveyPopover({ data }: { data: SurveyData }) {
   return (
     <div>
       <div className="px-4 py-3">
-        <div className="text-[10px] uppercase tracking-wide text-muted-foreground">
+        <div className="text-sm text-muted-foreground">
           {metricLabel} · {channelLabel}
         </div>
         <div className="mt-0.5 font-medium leading-tight">{data.name}</div>
@@ -376,7 +376,7 @@ function SurveyPopover({ data }: { data: SurveyData }) {
         />
       </div>
       {data.lastResponseAt && (
-        <div className="px-4 py-2 text-[11px] text-muted-foreground border-t border-border">
+        <div className="px-4 py-2 text-sm text-muted-foreground border-t border-border">
           Last response {formatDate(new Date(data.lastResponseAt))}
         </div>
       )}
@@ -388,7 +388,7 @@ function TicketPopover({ data }: { data: TicketData }) {
   return (
     <div>
       <div className="px-4 py-3">
-        <div className="font-mono text-[11px] text-muted-foreground">
+        <div className="font-mono text-sm text-muted-foreground">
           {data.externalId ?? data.id}
         </div>
         <div className="mt-0.5 font-medium leading-tight">{data.subject}</div>

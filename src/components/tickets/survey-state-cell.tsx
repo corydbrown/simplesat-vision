@@ -17,12 +17,12 @@ const META: Record<
   responded: {
     glyph: "●",
     label: "Responded",
-    color: "text-emerald-600",
+    color: "text-green-dark",
   },
-  sent_no_reply: { glyph: "○", label: "Sent, no reply", color: "text-blue-500" },
-  not_fired: { glyph: "⊘", label: "Not fired", color: "text-orange-500" },
+  sent_no_reply: { glyph: "○", label: "Sent, no reply", color: "text-blue" },
+  not_fired: { glyph: "⊘", label: "Not fired", color: "text-yellow-dark" },
   skipped: { glyph: "—", label: "Skipped", color: "text-muted-foreground" },
-  pending: { glyph: "⏳", label: "Pending", color: "text-amber-500" },
+  pending: { glyph: "⏳", label: "Pending", color: "text-yellow-dark" },
 };
 
 export function SurveyStateCell({ ticket }: { ticket: TicketsRow }) {

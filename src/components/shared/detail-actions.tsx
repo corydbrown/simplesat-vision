@@ -89,7 +89,7 @@ export function DetailActions({ entityHref }: { entityHref: string }) {
           <DropdownMenuItem disabled>Duplicate</DropdownMenuItem>
           <DropdownMenuItem disabled>Archive</DropdownMenuItem>
           <DropdownMenuSeparator />
-          <DropdownMenuItem disabled className="text-red-600">
+          <DropdownMenuItem disabled className="text-destructive">
             Delete
           </DropdownMenuItem>
         </DropdownMenuContent>

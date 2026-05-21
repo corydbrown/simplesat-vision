@@ -200,7 +200,7 @@ function FilterChip({
 
   if (!field) {
     return (
-      <div className="inline-flex items-center gap-1.5 rounded-md border border-border bg-muted/40 px-2 py-1 text-[14px] h-8 text-muted-foreground">
+      <div className="inline-flex items-center gap-1.5 rounded-md border border-border bg-muted/40 px-2 py-1 text-sm h-8 text-muted-foreground">
         Unknown field
         <button
           type="button"
@@ -219,7 +219,7 @@ function FilterChip({
       <PopoverTrigger asChild>
         <button
           type="button"
-          className="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-2.5 py-1 text-[14px] h-8 cursor-pointer outline-none hover:border-foreground/20 transition-colors"
+          className="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-2.5 py-1 text-sm h-8 cursor-pointer outline-none hover:border-foreground/20 transition-colors"
         >
           <span className="text-foreground">{field.label}</span>
           <span className="text-muted-foreground">
@@ -423,7 +423,7 @@ function FilterAddTrigger({
       <PopoverTrigger asChild>
         <button
           type="button"
-          className="flex items-center gap-1 rounded-md px-2 py-1 text-[14px] text-muted-foreground hover:bg-accent hover:text-foreground cursor-pointer h-8"
+          className="flex items-center gap-1 rounded-md px-2 py-1 text-sm text-muted-foreground hover:bg-accent hover:text-foreground cursor-pointer h-8"
         >
           <Plus size={14} />
           Add filter
@@ -473,7 +473,7 @@ function FilterEditor({
   return (
     <div className="flex flex-col gap-2 p-2">
       <div className="flex items-center gap-1">
-        <span className="text-[14px] font-medium text-foreground px-1.5 truncate">
+        <span className="text-sm font-medium text-foreground px-1.5 truncate">
           {field.label}
         </span>
         <OpDropdown field={field} op={filter.op} onChange={setOp} />
@@ -555,7 +555,7 @@ function FieldPicker({
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             autoFocus
-            className="w-full rounded-md border border-border bg-background pl-7 pr-2 py-1.5 text-[14px] outline-none focus:border-primary"
+            className="w-full rounded-md border border-border bg-background pl-7 pr-2 py-1.5 text-sm outline-none focus:border-primary"
           />
         </div>
       </div>
@@ -572,7 +572,7 @@ function FieldPicker({
                 key={f.id}
                 type="button"
                 onClick={() => onPick(f.id)}
-                className="flex items-center gap-2 rounded-md px-2 py-1.5 text-[14px] text-left hover:bg-accent cursor-pointer"
+                className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-left hover:bg-accent cursor-pointer"
               >
                 <span className="text-foreground truncate">{f.label}</span>
               </button>
@@ -580,7 +580,7 @@ function FieldPicker({
           </div>
         ))}
         {filtered.length === 0 && (
-          <div className="px-2 py-3 text-[14px] text-muted-foreground">
+          <div className="px-2 py-3 text-sm text-muted-foreground">
             No matching fields.
           </div>
         )}
@@ -607,7 +607,7 @@ function OpDropdown({
       <DropdownMenuTrigger asChild>
         <button
           type="button"
-          className="flex items-center gap-1 rounded-md px-1.5 py-1 text-[14px] cursor-pointer hover:bg-accent"
+          className="flex items-center gap-1 rounded-md px-1.5 py-1 text-sm cursor-pointer hover:bg-accent"
         >
           <span className="text-muted-foreground">
             {opLabel(op, field.dataType)}
@@ -731,7 +731,7 @@ function ToggleButton({
       type="button"
       onClick={onClick}
       className={cn(
-        "flex-1 rounded-md border px-2 py-1.5 text-[14px] cursor-pointer",
+        "flex-1 rounded-md border px-2 py-1.5 text-sm cursor-pointer",
         active
           ? "border-primary bg-primary/10 text-foreground"
           : "border-border text-muted-foreground hover:bg-accent",
@@ -812,7 +812,7 @@ function EnumMultiInput({
                 onChange([...value, o]);
                 setQuery("");
               }}
-              className="flex w-full items-center px-2 py-1.5 text-[14px] text-left hover:bg-accent cursor-pointer"
+              className="flex w-full items-center px-2 py-1.5 text-sm text-left hover:bg-accent cursor-pointer"
             >
               <span className="text-foreground truncate flex-1">
                 {formatEnumValue(propertyId, o)}
@@ -853,7 +853,7 @@ function PillsInputField({
       placeholder={placeholder}
       value={value}
       onChange={(e) => onChange(e.target.value)}
-      className="flex-1 min-w-[80px] bg-transparent text-[14px] outline-none placeholder:text-muted-foreground"
+      className="flex-1 min-w-[80px] bg-transparent text-sm outline-none placeholder:text-muted-foreground"
     />
   );
 }
@@ -868,7 +868,7 @@ function SelectedPill({
   onRemove: () => void;
 }) {
   return (
-    <span className="inline-flex items-center gap-1 rounded-md bg-muted px-1.5 py-0.5 text-[13px] text-foreground max-w-[14ch]">
+    <span className="inline-flex items-center gap-1 rounded-md bg-muted px-1.5 py-0.5 text-sm text-foreground max-w-[14ch]">
       {avatar}
       <span className="truncate">{label}</span>
       <button
@@ -910,7 +910,7 @@ function NumericBetweenInput({
         }
         autoFocus
         className={cn(
-          "w-1/2 rounded-md border border-border bg-background px-2 py-1.5 text-[14px] outline-none focus:border-primary",
+          "w-1/2 rounded-md border border-border bg-background px-2 py-1.5 text-sm outline-none focus:border-primary",
           NO_SPINNERS,
         )}
       />
@@ -925,7 +925,7 @@ function NumericBetweenInput({
           ] as never)
         }
         className={cn(
-          "w-1/2 rounded-md border border-border bg-background px-2 py-1.5 text-[14px] outline-none focus:border-primary",
+          "w-1/2 rounded-md border border-border bg-background px-2 py-1.5 text-sm outline-none focus:border-primary",
           NO_SPINNERS,
         )}
       />
@@ -972,7 +972,7 @@ function DateSingleInput({
 
   return (
     <div className="flex flex-col gap-1.5">
-      <div className="rounded-md border border-border bg-background px-2 py-1.5 text-[14px]">
+      <div className="rounded-md border border-border bg-background px-2 py-1.5 text-sm">
         {selected ? (
           <span className="text-foreground">{formatDateLabel(value as string)}</span>
         ) : (
@@ -1002,14 +1002,14 @@ function DateRangeInput({
   return (
     <div className="flex flex-col gap-1.5">
       <div className="flex items-center gap-2">
-        <div className="flex-1 rounded-md border border-border bg-background px-2 py-1.5 text-[14px]">
+        <div className="flex-1 rounded-md border border-border bg-background px-2 py-1.5 text-sm">
           {from ? (
             <span className="text-foreground">{formatDateLabel(isoFromDate(from))}</span>
           ) : (
             <span className="text-muted-foreground">Start</span>
           )}
         </div>
-        <div className="flex-1 rounded-md border border-border bg-background px-2 py-1.5 text-[14px]">
+        <div className="flex-1 rounded-md border border-border bg-background px-2 py-1.5 text-sm">
           {to ? (
             <span className="text-foreground">{formatDateLabel(isoFromDate(to))}</span>
           ) : (
@@ -1053,7 +1053,7 @@ function RelativeDateInput({
         onChange={(e) =>
           onChange({ ...rv, dir: e.target.value as RelativeDir })
         }
-        className="rounded-md border border-border bg-background px-2 py-1.5 text-[14px] cursor-pointer"
+        className="rounded-md border border-border bg-background px-2 py-1.5 text-sm cursor-pointer"
       >
         <option value="past">Last</option>
         <option value="next">Next</option>
@@ -1068,7 +1068,7 @@ function RelativeDateInput({
             onChange({ ...rv, n: Math.max(1, Number(e.target.value || 1)) })
           }
           className={cn(
-            "w-16 rounded-md border border-border bg-background px-2 py-1.5 text-[14px] outline-none focus:border-primary",
+            "w-16 rounded-md border border-border bg-background px-2 py-1.5 text-sm outline-none focus:border-primary",
             NO_SPINNERS,
           )}
         />
@@ -1078,7 +1078,7 @@ function RelativeDateInput({
         onChange={(e) =>
           onChange({ ...rv, unit: e.target.value as RelativeUnit })
         }
-        className="rounded-md border border-border bg-background px-2 py-1.5 text-[14px] cursor-pointer flex-1"
+        className="rounded-md border border-border bg-background px-2 py-1.5 text-sm cursor-pointer flex-1"
       >
         {isThis ? (
           <>
@@ -1124,7 +1124,7 @@ function TextOrNumberInput({
         }
         autoFocus
         className={cn(
-          "w-full rounded-md border border-border bg-background px-2 py-1.5 text-[14px] outline-none focus:border-primary",
+          "w-full rounded-md border border-border bg-background px-2 py-1.5 text-sm outline-none focus:border-primary",
           NO_SPINNERS,
         )}
       />
@@ -1137,7 +1137,7 @@ function TextOrNumberInput({
       value={typeof value === "string" ? value : ""}
       onChange={(e) => onChange(e.target.value)}
       autoFocus
-      className="w-full rounded-md border border-border bg-background px-2 py-1.5 text-[14px] outline-none focus:border-primary"
+      className="w-full rounded-md border border-border bg-background px-2 py-1.5 text-sm outline-none focus:border-primary"
     />
   );
 }
@@ -1188,7 +1188,7 @@ function RelationOptionRow({
     <button
       type="button"
       onClick={onClick}
-      className="flex w-full items-center gap-2 px-2 py-1.5 text-[14px] text-left hover:bg-accent cursor-pointer"
+      className="flex w-full items-center gap-2 px-2 py-1.5 text-sm text-left hover:bg-accent cursor-pointer"
     >
       {entityHasAvatar(entity) && (
         <Avatar
@@ -1234,12 +1234,12 @@ function RelationMultiInput({
       </PillsInputContainer>
       <div className="max-h-56 overflow-auto rounded-md border border-border bg-popover">
         {loading && remaining.length === 0 && (
-          <div className="px-2 py-2 text-[14px] text-muted-foreground">
+          <div className="px-2 py-2 text-sm text-muted-foreground">
             Searching…
           </div>
         )}
         {!loading && remaining.length === 0 && (
-          <div className="px-2 py-2 text-[14px] text-muted-foreground">
+          <div className="px-2 py-2 text-sm text-muted-foreground">
             No matches.
           </div>
         )}

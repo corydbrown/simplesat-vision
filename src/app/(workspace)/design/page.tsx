@@ -580,9 +580,9 @@ const UNDOCUMENTED_BUT_USED: string[] = [
 function DriftMark({ drift }: { drift: Drift }) {
   const tone =
     drift.kind === "drift"
-      ? "bg-negative text-negative-foreground"
+      ? "bg-red-lighter text-red-darker"
       : drift.kind === "doc-exception"
-        ? "bg-info text-info-foreground"
+        ? "bg-blue-lighter text-blue-darker"
         : "bg-muted text-muted-foreground";
   const label =
     drift.kind === "drift"
@@ -690,13 +690,13 @@ function BothModes({
   return (
     <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
       <div className={innerCls}>
-        <div className="mb-3 text-xs font-medium text-muted-foreground">
+        <div className="mb-3 text-sm font-medium text-muted-foreground">
           Light
         </div>
         {children}
       </div>
       <div className={`dark ${innerCls}`}>
-        <div className="mb-3 text-xs font-medium text-muted-foreground">
+        <div className="mb-3 text-sm font-medium text-muted-foreground">
           Dark
         </div>
         {children}
@@ -748,8 +748,12 @@ export default async function DesignAuditPage() {
             real, live components next to the documented rule so drift is
             visible at a glance.
           </p>
-          <p className="mt-3 max-w-prose text-sm text-muted-foreground">
-            Counts frozen 2026-05-21. Colors read live from{" "}
+          <p className="mt-3 max-w-prose text-base text-muted-foreground">
+            Counts frozen 2026-05-21 (pre-sweep). Most drift items in this audit
+            were resolved in the mechanical sweep that immediately followed —
+            see <span className="font-mono">DESIGN.md</span> →{" "}
+            &ldquo;Landed in the mechanical sweep&rdquo; for the changelog.
+            Colors read live from{" "}
             <span className="font-mono">var(--token)</span> in{" "}
             <span className="font-mono">globals.css</span> — swatches stay in
             sync with the token source.
@@ -774,9 +778,9 @@ export default async function DesignAuditPage() {
               § 3 Components
             </a>
             <span className="ml-auto inline-flex items-center gap-2 text-muted-foreground">
-              <span className="inline-flex size-2 rounded-full bg-negative" />
+              <span className="inline-flex size-2 rounded-full bg-red" />
               drift
-              <span className="ml-3 inline-flex size-2 rounded-full bg-info" />
+              <span className="ml-3 inline-flex size-2 rounded-full bg-blue" />
               doc exception
               <span className="ml-3 inline-flex size-2 rounded-full bg-muted-foreground/60" />
               unused
@@ -1414,7 +1418,7 @@ export default async function DesignAuditPage() {
                     <StatCard
                       label="Avg rating"
                       value="4.6"
-                      tone="text-positive"
+                      tone="text-green-dark"
                     />
                   </div>
                 </div>

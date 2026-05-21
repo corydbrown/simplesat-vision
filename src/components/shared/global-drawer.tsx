@@ -328,7 +328,7 @@ export function GlobalDrawer() {
     >
       <div>
         {error ? (
-          <div className="px-8 py-6 text-sm text-muted-foreground">
+          <div className="px-8 py-6 text-base text-muted-foreground">
             Failed to load.
           </div>
         ) : renderPayload == null ? (

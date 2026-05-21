@@ -268,12 +268,12 @@ function Bubble({
       ? "bg-muted text-foreground"
       : tone === "agent"
         ? "bg-primary/10 border border-primary/20 text-foreground"
-        : "bg-amber-50 border border-dashed border-amber-300 text-foreground dark:bg-amber-400/10 dark:border-amber-400/40";
+        : "bg-yellow-lighter border border-dashed border-yellow-light text-foreground";
 
   return (
     <div className="group/bubble relative max-w-[80%]">
       <div className={`${baseShape}${tailShape} ${toneClass}`}>
-        <p className="whitespace-pre-wrap text-base leading-relaxed">
+        <p className="whitespace-pre-wrap text-lg leading-relaxed">
           {message.body}
         </p>
       </div>
@@ -312,7 +312,7 @@ function MessageGroup({ group }: { group: Group }) {
       ? "bg-primary/10 text-primary"
       : tone === "customer"
         ? "bg-muted text-muted-foreground"
-        : "bg-amber-100 text-amber-900 dark:bg-amber-400/20 dark:text-amber-200";
+        : "bg-yellow-lighter text-yellow-darker";
 
   return (
     <div className="grid grid-cols-[40px_1fr_40px] gap-x-3">
@@ -350,14 +350,14 @@ function MessageGroup({ group }: { group: Group }) {
               <span className="text-muted-foreground/60">·</span>
               <ChannelTag channel={first.channel} />
               {tone === "note" ? (
-                <span className="inline-flex items-center gap-1 text-sm text-amber-700 dark:text-amber-300">
+                <span className="inline-flex items-center gap-1 text-sm text-yellow-darker">
                   <Lock className="size-3.5" />
                   Internal note
                 </span>
               ) : null}
               {roleLabel && tone !== "note" && (
                 <span
-                  className={`rounded px-1.5 py-0.5 text-xs font-medium ${roleClass}`}
+                  className={`rounded px-1.5 py-0.5 text-sm font-medium ${roleClass}`}
                 >
                   {roleLabel}
                 </span>
@@ -374,7 +374,7 @@ function MessageGroup({ group }: { group: Group }) {
               </span>
               {roleLabel && (
                 <span
-                  className={`rounded px-1.5 py-0.5 text-xs font-medium ${roleClass}`}
+                  className={`rounded px-1.5 py-0.5 text-sm font-medium ${roleClass}`}
                 >
                   {roleLabel}
                 </span>
@@ -441,8 +441,8 @@ type EventRender = {
 const STATUS_VALUE_CLASS: Record<string, string> = {
   new: "text-foreground",
   open: "text-foreground",
-  pending: "text-amber-600 dark:text-amber-400",
-  solved: "text-positive dark:text-positive",
+  pending: "text-yellow-dark",
+  solved: "text-green-dark",
   closed: "text-muted-foreground",
 };
 
@@ -469,7 +469,7 @@ function renderEvent(e: TicketEventView): EventRender {
             : Circle;
       const iconClass =
         e.newValue === "solved"
-          ? "text-positive"
+          ? "text-green-dark"
           : e.newValue === "closed"
             ? "text-muted-foreground"
             : "text-foreground";
@@ -527,9 +527,9 @@ function renderEvent(e: TicketEventView): EventRender {
         Icon: e.newValue === "urgent" ? TriangleAlert : CircleAlert,
         iconClass:
           e.newValue === "urgent"
-            ? "text-negative"
+            ? "text-red-dark"
             : e.newValue === "high"
-              ? "text-amber-600 dark:text-amber-400"
+              ? "text-yellow-dark"
               : "text-muted-foreground",
         description: (
           <>
@@ -590,19 +590,19 @@ function renderEvent(e: TicketEventView): EventRender {
     case "survey_response_received":
       return {
         Icon: Bell,
-        iconClass: "text-positive",
+        iconClass: "text-green-dark",
         description: <>Survey response received</>,
       };
     case "sla_breached":
       return {
         Icon: TriangleAlert,
-        iconClass: "text-negative",
+        iconClass: "text-red-dark",
         description: <>SLA breached</>,
       };
     case "ticket_reopened":
       return {
         Icon: Circle,
-        iconClass: "text-amber-600 dark:text-amber-400",
+        iconClass: "text-yellow-dark",
         description: <>Ticket reopened</>,
       };
   }
@@ -614,7 +614,7 @@ function EventRow({ event }: { event: TicketEventView }) {
     event.actor.kind === "system" ? "Bloom Automation" : event.actor.name;
   const isSystem = event.actor.kind === "system";
   return (
-    <div className="flex items-center gap-2 pl-12 text-sm text-muted-foreground">
+    <div className="flex items-center gap-2 pl-12 text-base text-muted-foreground">
       <Icon className={`size-3.5 shrink-0 ${iconClass ?? ""}`} />
       <span>{description}</span>
       <span className="text-muted-foreground/60">·</span>
@@ -645,14 +645,14 @@ function TerminalEventCard({ event }: { event: TicketEventView }) {
   const isSolved = event.newValue === "solved";
   const Icon = isSolved ? CheckCircle2 : CircleX;
   const containerClass = isSolved
-    ? "bg-positive/10 border-positive/30 text-positive dark:text-positive"
+    ? "bg-green-lighter border-green-light text-green-darker"
     : "bg-muted border-border text-muted-foreground";
   const actorName =
     event.actor.kind === "system" ? "Bloom Automation" : event.actor.name;
   return (
     <div className="flex justify-center pt-1">
       <div
-        className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm ${containerClass}`}
+        className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-base ${containerClass}`}
       >
         <Icon className="size-4 shrink-0" />
         <span className="font-medium">
@@ -678,7 +678,7 @@ function DayDivider({ date }: { date: Date }) {
   return (
     <div className="flex items-center gap-3 pt-3 pb-2">
       <div className="h-px flex-1 bg-border" />
-      <span className="text-sm font-medium text-muted-foreground">
+      <span className="text-base font-medium text-muted-foreground">
         {formatTimelineDay(date)}
       </span>
       <div className="h-px flex-1 bg-border" />
@@ -694,7 +694,7 @@ function ActivityFilter({
   onChange: (v: Filter) => void;
 }) {
   return (
-    <div className="inline-flex rounded-md border border-border bg-background p-0.5 text-sm">
+    <div className="inline-flex rounded-md border border-border bg-background p-0.5 text-base">
       <button
         type="button"
         onClick={() => onChange("all")}

@@ -243,7 +243,7 @@ export function PivotTable({ result, onSortChange }: PivotTableProps) {
 
   return (
     <div className="relative max-h-[calc(100vh-220px)] overflow-x-auto overflow-y-auto rounded-md border border-border bg-card">
-      <table className="w-auto min-w-full border-collapse text-sm">
+      <table className="w-auto min-w-full border-collapse text-base">
         <thead className="sticky top-0 z-30">
           {hasColumns ? (
             <>
@@ -252,7 +252,7 @@ export function PivotTable({ result, onSortChange }: PivotTableProps) {
                   <th
                     key={`rh-${i}`}
                     className={cn(
-                      "px-3 py-2 text-left text-xs font-medium text-muted-foreground bg-muted/40",
+                      "px-3 py-2 text-left text-base font-medium text-muted-foreground bg-muted/40",
                       i === 0 && "sticky left-0 z-10",
                     )}
                   >
@@ -287,7 +287,7 @@ export function PivotTable({ result, onSortChange }: PivotTableProps) {
                     <th
                       key={ck.key}
                       colSpan={valueCount}
-                      className="border-l border-border bg-muted/40 px-3 py-2 text-center text-xs font-medium text-foreground"
+                      className="border-l border-border bg-muted/40 px-3 py-2 text-center text-base font-medium text-foreground"
                     >
                       {hasEntity ? (
                         <div className="inline-flex items-center justify-center gap-1.5">
@@ -332,7 +332,7 @@ export function PivotTable({ result, onSortChange }: PivotTableProps) {
                 })}
                 <th
                   colSpan={valueCount}
-                  className="border-l border-border bg-muted/40 px-3 py-2 text-center text-xs font-medium text-muted-foreground"
+                  className="border-l border-border bg-muted/40 px-3 py-2 text-center text-base font-medium text-muted-foreground"
                 >
                   {!showValueHeaderRow && valueCount === 1 ? (
                     (() => {
@@ -372,7 +372,7 @@ export function PivotTable({ result, onSortChange }: PivotTableProps) {
                       <th
                         key={`${ck.key}-${vi}`}
                         className={cn(
-                          "bg-muted/20 px-3 py-1.5 text-right text-xs text-muted-foreground",
+                          "bg-muted/20 px-3 py-1.5 text-right text-base text-muted-foreground",
                           vi === 0 && "border-l border-border",
                         )}
                       >
@@ -389,7 +389,7 @@ export function PivotTable({ result, onSortChange }: PivotTableProps) {
                       <th
                         key={`tot-${vi}`}
                         className={cn(
-                          "bg-muted/20 px-3 py-1.5 text-right text-xs text-muted-foreground",
+                          "bg-muted/20 px-3 py-1.5 text-right text-base text-muted-foreground",
                           vi === 0 && "border-l border-border",
                         )}
                       >
@@ -413,7 +413,7 @@ export function PivotTable({ result, onSortChange }: PivotTableProps) {
                 <th
                   key={`rh-${i}`}
                   className={cn(
-                    "bg-muted/40 px-3 py-2 text-left text-xs font-medium text-muted-foreground",
+                    "bg-muted/40 px-3 py-2 text-left text-base font-medium text-muted-foreground",
                     i === 0 && "sticky left-0 z-10",
                   )}
                 >
@@ -451,7 +451,7 @@ export function PivotTable({ result, onSortChange }: PivotTableProps) {
                   <th
                     key={`v-${vi}`}
                     className={cn(
-                      "bg-muted/40 px-3 py-2 text-right text-xs font-medium text-foreground",
+                      "bg-muted/40 px-3 py-2 text-right text-base font-medium text-foreground",
                       vi === 0 && "border-l border-border",
                     )}
                   >
@@ -480,7 +480,7 @@ export function PivotTable({ result, onSortChange }: PivotTableProps) {
                     ? columnKeys.length * valueCount + valueCount
                     : valueCount)
                 }
-                className="px-3 py-8 text-center text-sm text-muted-foreground"
+                className="px-3 py-8 text-center text-base text-muted-foreground"
               >
                 No results.
               </td>
@@ -515,7 +515,7 @@ export function PivotTable({ result, onSortChange }: PivotTableProps) {
                             key={`${rk.key}-h-${i}`}
                             rowSpan={firstSpan}
                             className={cn(
-                              "sticky left-0 z-10 bg-card px-3 py-2 text-left text-sm font-medium text-foreground whitespace-nowrap align-top",
+                              "sticky left-0 z-10 bg-card px-3 py-2 text-left text-base font-medium text-foreground whitespace-nowrap align-top",
                               ri > 0 && "border-t border-border",
                             )}
                           >
@@ -527,7 +527,7 @@ export function PivotTable({ result, onSortChange }: PivotTableProps) {
                         <th
                           key={`${rk.key}-h-${i}`}
                           className={cn(
-                            "px-3 py-2 text-left text-sm font-normal text-foreground",
+                            "px-3 py-2 text-left text-base font-normal text-foreground",
                             i === 0 && "sticky left-0 z-10 bg-card font-medium",
                           )}
                         >
@@ -536,7 +536,7 @@ export function PivotTable({ result, onSortChange }: PivotTableProps) {
                       );
                     })
                   ) : (
-                    <th className="sticky left-0 z-10 bg-card px-3 py-2 text-left text-sm text-muted-foreground">
+                    <th className="sticky left-0 z-10 bg-card px-3 py-2 text-left text-base text-muted-foreground">
                       Total
                     </th>
                   )}
@@ -594,7 +594,7 @@ export function PivotTable({ result, onSortChange }: PivotTableProps) {
             <tr className="border-t border-border bg-accent/40">
               <th
                 colSpan={rowHeaderCols}
-                className="sticky left-0 z-10 bg-accent/40 px-3 py-2 text-left text-xs font-medium text-muted-foreground"
+                className="sticky left-0 z-10 bg-accent/40 px-3 py-2 text-left text-base font-medium text-muted-foreground"
               >
                 Total
               </th>

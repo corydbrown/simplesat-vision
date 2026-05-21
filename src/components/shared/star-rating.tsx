@@ -19,8 +19,8 @@ export function StarRating({
           size={starSize}
           className={
             n <= value
-              ? "fill-amber-400 text-amber-400"
-              : "fill-zinc-200 text-zinc-200"
+              ? "fill-yellow text-yellow"
+              : "fill-grey-light text-grey-light"
           }
         />
       ))}

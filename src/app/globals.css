@@ -66,16 +66,6 @@
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
-  --color-brand: var(--brand);
-  --color-brand-foreground: var(--brand-foreground);
-  --color-positive: var(--positive);
-  --color-positive-foreground: var(--positive-foreground);
-  --color-negative: var(--negative);
-  --color-negative-foreground: var(--negative-foreground);
-  --color-neutral: var(--neutral);
-  --color-neutral-foreground: var(--neutral-foreground);
-  --color-info: var(--info);
-  --color-info-foreground: var(--info-foreground);
   /* Production hue palette (Simplesat design system).
      Tier-1 raw hues — call sites consume `bg-blue`, `text-red-dark`, `border-grey-light`, etc.
      Tier-2 structural-semantic tokens (--foreground, --background, …) above will be migrated
@@ -132,64 +122,11 @@
 }
 
 :root {
-  --background: oklch(1 0 0);
-  /* Simplesat "Black" — text body color, not pure black. See DESIGN.md. */
-  --foreground: #373f46;
-  --foreground-light: #373f4673;
-  --foreground-disabled: #373f4633;
-  --card: oklch(1 0 0);
-  --card-foreground: var(--foreground);
-  --popover: oklch(1 0 0);
-  --popover-foreground: var(--foreground);
-  /* Page-canvas grey from Simplesat design system. Available as bg-canvas; not yet
-     applied to body — switch when ready to migrate stray bg-background panels to bg-card. */
-  --canvas: #f4f4f4;
-  /* Primary blue #007eff */
-  --primary: oklch(0.585 0.22 252);
-  --primary-foreground: oklch(0.985 0 0);
-  --primary-hover: #0066e6;
-  --primary-down: #0066cc;
-  /* Brand accent green #43BE64 — used sparingly for brand moments, not primary actions */
-  --brand: oklch(0.725 0.175 146);
-  --brand-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  /* Was #373f46a6 (65%). Bumped to 80% — Simplesat's `hoveredTextColor` tier — for a less-muted secondary text. */
-  --muted-foreground: #373f46cc;
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: #373f461a;
-  --border-strong: #373f4633;
-  --border-solid: #d4d4d5;
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.585 0.22 252);
-  --selection: #cce2ff;
-  --selection-foreground: var(--foreground);
-  /* Nav section icon palette. One color per primary nav entity — purely decorative,
-     no semantic weight beyond "this nav row is about responses / customers / etc.".
-     Sourced from Simplesat `Site Colors/Colors/*`. */
-  --icon-responses: #007eff;
-  --icon-customers: #e03997;
-  --icon-team-members: #804dc8;
-  --icon-tickets: #f2711c;
-  --icon-reports: #43be64;
-  --positive: #E8F7EC;
-  --positive-foreground: #1E7A36;
-  --negative: #FCE8E6;
-  --negative-foreground: #A02E26;
-  --neutral: #FEF4E0;
-  --neutral-foreground: #8B6A14;
-  --info: #E6F0FB;
-  --info-foreground: #1E5A9C;
-
   /* ─────────────────────────────────────────────────────────────────────────
-     Production hue palette (Simplesat design system).
-     Tier-1 raw hues. 7 chromatic colors × 5 shades + black/white + vanilla.
-     These do NOT change between light and dark mode — the structural-semantic
-     tokens above (--foreground, --background, --border, …) flip mode-appropriately
-     and will be migrated to alias these hues in a follow-up.
+     Production hue palette (Simplesat design system) — Tier 1.
+     Defined FIRST so structural-semantic tokens below can alias them.
+     7 chromatic colors × 5 shades + black/white + vanilla. These do NOT change
+     between light and dark mode — structural-semantic tokens below flip per mode.
      See DESIGN.md → "Production hue palette" and "Two-tier token system".
      ───────────────────────────────────────────────────────────────────────── */
   --black: #172B4D;
@@ -245,8 +182,52 @@
   --vanilla-light: #E6D87A;
   --vanilla-lighter: #FEFCD5;
 
-  /* Chart series — point at production hues (was greyscale shadcn defaults).
-     Order: primary blue, brand green, warning yellow, danger red, accent purple. */
+  /* ─────────────────────────────────────────────────────────────────────────
+     Structural-semantic aliases (Tier 2). Name *roles* (foreground, background,
+     border). Flip per mode. Alias Tier 1 hues where applicable; surface tokens
+     (background/card/popover/muted/secondary/accent) stay as their own values
+     so they can flip cleanly between light and dark.
+     ───────────────────────────────────────────────────────────────────────── */
+  --background: oklch(1 0 0);
+  --foreground: var(--black);
+  --foreground-light: #373f4673;
+  --foreground-disabled: #373f4633;
+  --card: oklch(1 0 0);
+  --card-foreground: var(--foreground);
+  --popover: oklch(1 0 0);
+  --popover-foreground: var(--foreground);
+  /* Page-canvas grey from Simplesat design system. Available as bg-canvas; not yet
+     applied to body — switch when ready to migrate stray bg-background panels to bg-card. */
+  --canvas: #f4f4f4;
+  --primary: var(--blue);
+  --primary-foreground: oklch(0.985 0 0);
+  --primary-hover: var(--blue-dark);
+  --primary-down: var(--blue-darker);
+  --secondary: oklch(0.97 0 0);
+  --secondary-foreground: oklch(0.205 0 0);
+  --muted: oklch(0.97 0 0);
+  /* `hoveredTextColor` tier — secondary text in muted-foreground sites. */
+  --muted-foreground: #373f46cc;
+  --accent: oklch(0.97 0 0);
+  --accent-foreground: oklch(0.205 0 0);
+  --destructive: var(--red-dark);
+  --border: #373f461a;
+  --border-strong: #373f4633;
+  --border-solid: #d4d4d5;
+  --input: oklch(0.922 0 0);
+  --ring: var(--blue);
+  --selection: #cce2ff;
+  --selection-foreground: var(--foreground);
+
+  /* Nav section icon palette — one production hue per primary nav entity.
+     Purely decorative, no semantic weight beyond "this nav row is about X". */
+  --icon-responses: var(--blue);
+  --icon-customers: var(--purple);
+  --icon-team-members: var(--teal);
+  --icon-tickets: var(--yellow-dark);
+  --icon-reports: var(--green);
+
+  /* Chart series — point at production hues (was greyscale shadcn defaults). */
   --chart-1: var(--blue);
   --chart-2: var(--green);
   --chart-3: var(--yellow);
@@ -265,51 +246,8 @@
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --foreground-light: #ffffffb2;
-  --foreground-disabled: #ffffff33;
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --canvas: oklch(0.12 0 0);
-  --primary: oklch(0.585 0.22 252);
-  --primary-foreground: oklch(0.985 0 0);
-  --primary-hover: #0066e6;
-  --primary-down: #0066cc;
-  --brand: oklch(0.725 0.175 146);
-  --brand-foreground: oklch(0.145 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --border-strong: oklch(1 0 0 / 20%);
-  --border-solid: #555555;
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.585 0.22 252);
-  --selection: #003a7a;
-  --selection-foreground: oklch(0.985 0 0);
-  --icon-responses: #007eff;
-  --icon-customers: #e03997;
-  --icon-team-members: #804dc8;
-  --icon-tickets: #f2711c;
-  --icon-reports: #43be64;
-  --positive: #1E7A36;
-  --positive-foreground: #E8F7EC;
-  --negative: #A02E26;
-  --negative-foreground: #FCE8E6;
-  --neutral: #8B6A14;
-  --neutral-foreground: #FEF4E0;
-  --info: #1E5A9C;
-  --info-foreground: #E6F0FB;
-
   /* Production hue palette — same values as :root. Hues don't flip per mode.
-     Structural-semantic tokens above (--foreground, --background, …) handle mode. */
+     Structural-semantic tokens below handle mode-specific surfaces/text. */
   --black: #172B4D;
   --white: #FFFFFF;
 
@@ -360,6 +298,43 @@
   --vanilla: #CCBB33;
   --vanilla-light: #E6D87A;
   --vanilla-lighter: #FEFCD5;
+
+  /* Structural-semantic aliases (Tier 2) — dark mode flips surfaces/text;
+     Tier-1 hue aliases (--primary, --ring, --destructive) stay the same since
+     hues don't flip per mode. */
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --foreground-light: #ffffffb2;
+  --foreground-disabled: #ffffff33;
+  --card: oklch(0.205 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+  --canvas: oklch(0.12 0 0);
+  --primary: var(--blue);
+  --primary-foreground: oklch(0.985 0 0);
+  --primary-hover: var(--blue-dark);
+  --primary-down: var(--blue-darker);
+  --secondary: oklch(0.269 0 0);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  --accent: oklch(0.269 0 0);
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: var(--red-dark);
+  --border: oklch(1 0 0 / 10%);
+  --border-strong: oklch(1 0 0 / 20%);
+  --border-solid: #555555;
+  --input: oklch(1 0 0 / 15%);
+  --ring: var(--blue);
+  --selection: #003a7a;
+  --selection-foreground: oklch(0.985 0 0);
+
+  --icon-responses: var(--blue);
+  --icon-customers: var(--purple);
+  --icon-team-members: var(--teal);
+  --icon-tickets: var(--yellow-dark);
+  --icon-reports: var(--green);
 
   --chart-1: var(--blue);
   --chart-2: var(--green);

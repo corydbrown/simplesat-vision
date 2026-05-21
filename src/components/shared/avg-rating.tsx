@@ -11,22 +11,13 @@ export function AvgRating({
 }) {
   if (value == null) return <span className="text-muted-foreground">-</span>;
 
-  // Customer threshold: <3 red, <4 amber, else green.
-  // Team member threshold: <3.5 red (their performance bar is higher),
-  // <4 amber, else green.
-  const dangerCutoff = threshold === "team-member" ? 3.5 : 3;
-  const tone =
-    value < dangerCutoff
-      ? "text-red-600"
-      : value < 4
-        ? "text-amber-600"
-        : "text-emerald-600";
+  const tone = ratingTone(value, threshold);
 
   return (
     <span
       className={`inline-flex items-center gap-1 ${
         size === "md" ? "text-base" : "text-sm"
-      } ${tone}`}
+      } ${tone ?? ""}`}
     >
       <Star size={size === "md" ? 14 : 11} className="fill-current" />
       <span className="tabular-nums font-medium">{value.toFixed(2)}</span>
@@ -39,10 +30,12 @@ export function ratingTone(
   threshold: "customer" | "team-member" = "customer",
 ): string | undefined {
   if (value == null) return undefined;
+  // Customer threshold: <3 red, <4 yellow, else green.
+  // Team-member bar is higher (<3.5 red, <4 yellow, else green).
   const dangerCutoff = threshold === "team-member" ? 3.5 : 3;
   return value < dangerCutoff
-    ? "text-red-600"
+    ? "text-red-dark"
     : value < 4
-      ? "text-amber-600"
-      : "text-emerald-600";
+      ? "text-yellow-dark"
+      : "text-green-dark";
 }

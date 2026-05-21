@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic";
 import Link from "next/link";
 import { ArrowRight, ShieldCheck, Star, TrendingDown } from "lucide-react";
 import { Topbar } from "@/components/shell/topbar";
+import { Badge } from "@/components/ui/badge";
 import {
   CompanyPill,
   CustomerPill,
@@ -41,16 +42,16 @@ function InsightCard({
         <div className="flex items-center gap-2">
           <span className="text-muted-foreground">{icon}</span>
           <div>
-            <div className="text-sm font-semibold">{title}</div>
+            <div className="text-base font-semibold">{title}</div>
             {subtitle && (
-              <div className="text-xs text-muted-foreground">{subtitle}</div>
+              <div className="text-base text-muted-foreground">{subtitle}</div>
             )}
           </div>
         </div>
         {href && (
           <Link
             href={href}
-            className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+            className="inline-flex items-center gap-1 text-base text-muted-foreground hover:text-foreground"
           >
             View all
             <ArrowRight size={12} />
@@ -65,10 +66,10 @@ function InsightCard({
 function RatingBadge({ value }: { value: number }) {
   const tone =
     value < 3
-      ? "text-red-600"
+      ? "text-red-dark"
       : value < 4
-        ? "text-amber-600"
-        : "text-emerald-600";
+        ? "text-yellow-dark"
+        : "text-green-dark";
   return (
     <span className={`inline-flex items-center gap-1 text-sm ${tone}`}>
       <Star size={12} className="fill-current" />
@@ -168,10 +169,10 @@ export default async function HomePage() {
             <span className="text-2xl font-semibold tabular-nums">
               {formatNumber(notFired.total)}
             </span>
-            <span className="text-sm text-muted-foreground">total</span>
+            <span className="text-base text-muted-foreground">total</span>
           </div>
           {notFired.byReason.length === 0 ? (
-            <div className="text-sm text-muted-foreground">
+            <div className="text-base text-muted-foreground">
               Nothing this week.
             </div>
           ) : (
@@ -181,7 +182,7 @@ export default async function HomePage() {
                 .map((r) => (
                   <li
                     key={r.reason}
-                    className="flex items-center justify-between text-sm"
+                    className="flex items-center justify-between text-base"
                   >
                     <span className="text-muted-foreground">
                       {REASON_LABEL[r.reason] ?? r.reason}
@@ -195,14 +196,12 @@ export default async function HomePage() {
           )}
         </InsightCard>
 
-        <div className="rounded-lg border border-dashed border-purple-300 bg-purple-50/40 px-5 py-4 dark:border-purple-500/30 dark:bg-purple-500/10">
-          <div className="flex items-center gap-2 text-sm font-medium text-purple-900 dark:text-purple-200">
+        <div className="rounded-lg border border-dashed border-purple-light bg-purple-lighter/40 px-5 py-4">
+          <div className="flex items-center gap-2 text-base font-medium text-purple-darker">
             QA Evaluations
-            <span className="rounded bg-purple-200/60 px-1.5 py-0.5 text-[10px] uppercase tracking-wider text-purple-900 dark:bg-purple-500/20 dark:text-purple-200">
-              Soon
-            </span>
+            <Badge variant="secondary">Soon</Badge>
           </div>
-          <p className="mt-1 text-sm text-purple-900/80">
+          <p className="mt-1 text-base text-purple-darker/80">
             Coming next: independent third-party scoring of every conversation -
             human or AI agent.
           </p>

@@ -128,14 +128,14 @@ export function PrimaryNavClient({ sections }: { sections: NavSection[] }) {
         transition: resizing ? "none" : "width 200ms ease-out",
       }}
       aria-hidden={collapsed}
-      className="relative shrink-0 overflow-hidden border-r border-border bg-sidebar sticky top-0 h-screen text-sm"
+      className="relative shrink-0 overflow-hidden border-r border-border bg-sidebar sticky top-0 h-screen text-base"
     >
       <div
         style={{ width }}
         className="flex h-full flex-col px-2 py-3"
       >
         <div className="flex items-center gap-2 px-2 pb-3">
-          <div className="flex h-6 w-6 items-center justify-center rounded bg-foreground text-background text-sm font-semibold">
+          <div className="flex h-6 w-6 items-center justify-center rounded bg-foreground text-background text-base font-semibold">
             B
           </div>
           <span className="font-medium text-foreground">Bloom Beauty</span>
@@ -269,7 +269,7 @@ function Section({
         type="button"
         onClick={onToggle}
         aria-expanded={!isCollapsed}
-        className="group flex h-7 cursor-pointer items-center gap-1.5 rounded px-2 text-left text-sm font-medium text-muted-foreground/80 transition-colors hover:bg-accent/60 hover:text-foreground"
+        className="group flex h-7 cursor-pointer items-center gap-1.5 rounded px-2 text-left text-base font-medium text-muted-foreground/80 transition-colors hover:bg-accent/60 hover:text-foreground"
       >
         <Icon size={14} className={`shrink-0 ${section.iconClass ?? ""}`} />
         <span className="truncate">{section.label}</span>

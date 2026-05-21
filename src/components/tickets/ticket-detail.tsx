@@ -11,6 +11,7 @@ import {
   PropertiesHeader,
 } from "@/components/shared/detail-section";
 import { ResponsePill } from "@/components/shared/entity-pill";
+import { Badge } from "@/components/ui/badge";
 import { DetailActions } from "@/components/shared/detail-actions";
 import { TicketActivitySection } from "@/components/tickets/ticket-activity";
 import type { TicketDetail } from "@/db/queries/tickets";
@@ -41,7 +42,7 @@ export function TicketDetailBody({
         {ticket.subject}
       </h1>
       {ticket.helpdeskExternalId && (
-        <div className="mt-0.5 text-sm text-muted-foreground">
+        <div className="mt-0.5 text-base text-muted-foreground">
           External ID: {ticket.helpdeskExternalId}
         </div>
       )}
@@ -51,7 +52,7 @@ export function TicketDetailBody({
   const properties = (
     <>
       <div className="flex items-center justify-between pb-2">
-        <h2 className="text-sm font-medium text-muted-foreground">
+        <h2 className="text-base font-medium text-muted-foreground">
           Properties
         </h2>
         <PropertiesHeader properties={TICKET_PROPERTIES} />
@@ -84,13 +85,13 @@ export function TicketDetailBody({
               />
             </div>
             {ticket.response.comment && (
-              <p className="mt-2 text-sm text-muted-foreground">
+              <p className="mt-2 text-base text-muted-foreground">
                 &ldquo;{ticket.response.comment}&rdquo;
               </p>
             )}
           </div>
         ) : (
-          <div className="rounded-md border border-dashed border-border bg-muted/30 px-5 py-4 text-sm text-muted-foreground">
+          <div className="rounded-md border border-dashed border-border bg-muted/30 px-5 py-4 text-base text-muted-foreground">
             {ticket.surveyNotSentReason
               ? `Survey not fired (reason: ${ticket.surveyNotSentReason.replace(/_/g, " ")})`
               : ticket.surveySentAt
@@ -100,14 +101,12 @@ export function TicketDetailBody({
         )}
       </DetailSection>
 
-      <section className="mt-6 rounded-lg border border-dashed border-purple-300 bg-purple-50/40 px-5 py-4 dark:border-purple-500/30 dark:bg-purple-500/10">
-        <div className="flex items-center gap-2 text-sm font-medium text-purple-900 dark:text-purple-200">
+      <section className="mt-6 rounded-lg border border-dashed border-purple-light bg-purple-lighter/40 px-5 py-4">
+        <div className="flex items-center gap-2 text-base font-medium text-purple-darker">
           QA Evaluation
-          <span className="rounded bg-purple-200/60 px-1.5 py-0.5 text-[10px] tracking-wider text-purple-900 dark:bg-purple-500/20 dark:text-purple-200">
-            Soon
-          </span>
+          <Badge variant="secondary">Soon</Badge>
         </div>
-        <p className="mt-1 text-sm text-purple-900/80">
+        <p className="mt-1 text-base text-purple-darker/80">
           Independent quality scoring for this conversation. Rubric-based,
           model-graded, comparable across human and AI agents.
         </p>

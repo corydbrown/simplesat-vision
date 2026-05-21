@@ -47,7 +47,7 @@ function Group({
   return (
     <div className="pb-4 last:pb-0">
       {label && (
-        <div className="pb-2 text-sm font-medium text-muted-foreground">
+        <div className="pb-2 text-base font-medium text-muted-foreground">
           {label}
         </div>
       )}
@@ -68,8 +68,8 @@ function Row({
   if (layout === "stacked") {
     return (
       <div className="-mx-2 rounded px-2 py-1 hover:bg-accent/40">
-        <dt className="text-sm text-muted-foreground">{label}</dt>
-        <dd className="mt-0.5 text-sm text-foreground break-words">
+        <dt className="text-base text-muted-foreground">{label}</dt>
+        <dd className="mt-0.5 text-base text-foreground break-words">
           {children}
         </dd>
       </div>
@@ -78,8 +78,8 @@ function Row({
 
   return (
     <div className="grid grid-cols-[110px_1fr] -mx-2 items-baseline gap-3 rounded px-2 py-1 hover:bg-accent/40">
-      <dt className="text-sm text-muted-foreground break-words">{label}</dt>
-      <dd className="min-w-0 text-sm text-foreground break-words">{children}</dd>
+      <dt className="text-base text-muted-foreground break-words">{label}</dt>
+      <dd className="min-w-0 text-base text-foreground break-words">{children}</dd>
     </div>
   );
 }

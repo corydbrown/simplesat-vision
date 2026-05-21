@@ -84,7 +84,9 @@ export function SortControl<T>({
 
   function addSort(key: string) {
     if (sorts.some((s) => s.key === key)) return;
-    commit([...sorts, { key, dir: "desc" }]);
+    const p = propsById[key];
+    const isDate = p?.filter?.dataType === "date";
+    commit([...sorts, { key, dir: isDate ? "desc" : "asc" }]);
   }
   function removeSort(key: string) {
     commit(sorts.filter((s) => s.key !== key));
@@ -212,6 +214,36 @@ export function SortControl<T>({
   );
 }
 
+/** Shared grouping + iteration for the two property pickers (PropertyPicker
+ *  and AddSortMenu). Each caller controls its own chrome via render props. */
+function GroupedPropertyList<T>({
+  properties,
+  renderLabel,
+  renderItem,
+}: {
+  properties: Property<T>[];
+  renderLabel: (label: string, index: number) => React.ReactNode;
+  renderItem: (p: Property<T>) => React.ReactNode;
+}) {
+  const groups = new Map<string, Property<T>[]>();
+  for (const p of properties) {
+    const g = p.group ?? "Other";
+    const arr = groups.get(g) ?? [];
+    arr.push(p);
+    groups.set(g, arr);
+  }
+  return (
+    <>
+      {[...groups.entries()].map(([groupLabel, props], i) => (
+        <div key={groupLabel}>
+          {renderLabel(groupLabel, i)}
+          {props.map((p) => renderItem(p))}
+        </div>
+      ))}
+    </>
+  );
+}
+
 /** Picker rendered directly inside the popover for the empty state. */
 function PropertyPicker<T>({
   available,
@@ -220,32 +252,26 @@ function PropertyPicker<T>({
   available: Property<T>[];
   onPick: (key: string) => void;
 }) {
-  const groups = new Map<string, Property<T>[]>();
-  for (const p of available) {
-    const g = p.group ?? "Other";
-    const arr = groups.get(g) ?? [];
-    arr.push(p);
-    groups.set(g, arr);
-  }
   return (
     <div className="max-h-[60vh] overflow-y-auto">
-      {[...groups.entries()].map(([groupLabel, props]) => (
-        <div key={groupLabel} className="pb-1">
-          <div className="px-2 py-1 text-[10px] font-medium uppercase tracking-wide text-muted-foreground/80">
-            {groupLabel}
+      <GroupedPropertyList
+        properties={available}
+        renderLabel={(label) => (
+          <div className="px-2 py-1 text-xs font-medium text-muted-foreground/80">
+            {label}
           </div>
-          {props.map((p) => (
-            <button
-              key={p.id}
-              type="button"
-              onClick={() => onPick(p.id)}
-              className="block w-full cursor-pointer rounded px-2 py-1 text-left text-sm hover:bg-accent"
-            >
-              {p.label}
-            </button>
-          ))}
-        </div>
-      ))}
+        )}
+        renderItem={(p) => (
+          <button
+            key={p.id}
+            type="button"
+            onClick={() => onPick(p.id)}
+            className="block w-full cursor-pointer rounded px-2 py-1 text-left text-sm hover:bg-accent"
+          >
+            {p.label}
+          </button>
+        )}
+      />
     </div>
   );
 }
@@ -276,15 +302,6 @@ function SortRow<T>({
   const pickerOptions = currentProperty
     ? [currentProperty, ...otherAvailable]
     : [...sortable];
-
-  // Group the picker options by Property.group.
-  const groups = new Map<string, Property<T>[]>();
-  for (const p of pickerOptions) {
-    const g = p.group ?? "Other";
-    const arr = groups.get(g) ?? [];
-    arr.push(p);
-    groups.set(g, arr);
-  }
 
   return (
     <div
@@ -318,23 +335,26 @@ function SortRow<T>({
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start" className="max-h-[60vh] w-56 overflow-y-auto">
-          {[...groups.entries()].map(([groupLabel, props], i) => (
-            <div key={groupLabel}>
-              {i > 0 && <DropdownMenuSeparator />}
-              <DropdownMenuLabel className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground/80">
-                {groupLabel}
-              </DropdownMenuLabel>
-              {props.map((p) => (
-                <DropdownMenuItem
-                  key={p.id}
-                  onSelect={() => onChangeKey(p.id)}
-                  className={p.id === spec.key ? "bg-accent/50" : ""}
-                >
-                  {p.label}
-                </DropdownMenuItem>
-              ))}
-            </div>
-          ))}
+          <GroupedPropertyList
+            properties={pickerOptions}
+            renderLabel={(groupLabel, i) => (
+              <>
+                {i > 0 && <DropdownMenuSeparator />}
+                <DropdownMenuLabel className="text-xs font-medium text-muted-foreground/80">
+                  {groupLabel}
+                </DropdownMenuLabel>
+              </>
+            )}
+            renderItem={(p) => (
+              <DropdownMenuItem
+                key={p.id}
+                onSelect={() => onChangeKey(p.id)}
+                className={p.id === spec.key ? "bg-accent/50" : ""}
+              >
+                {p.label}
+              </DropdownMenuItem>
+            )}
+          />
         </DropdownMenuContent>
       </DropdownMenu>
 
@@ -375,14 +395,6 @@ function AddSortMenu<T>({
   onPick: (key: string) => void;
   disabled: boolean;
 }) {
-  const groups = new Map<string, Property<T>[]>();
-  for (const p of available) {
-    const g = p.group ?? "Other";
-    const arr = groups.get(g) ?? [];
-    arr.push(p);
-    groups.set(g, arr);
-  }
-
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -397,19 +409,22 @@ function AddSortMenu<T>({
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="max-h-[60vh] w-56 overflow-y-auto">
-        {[...groups.entries()].map(([groupLabel, props], i) => (
-          <div key={groupLabel}>
-            {i > 0 && <DropdownMenuSeparator />}
-            <DropdownMenuLabel className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground/80">
-              {groupLabel}
-            </DropdownMenuLabel>
-            {props.map((p) => (
-              <DropdownMenuItem key={p.id} onSelect={() => onPick(p.id)}>
-                {p.label}
-              </DropdownMenuItem>
-            ))}
-          </div>
-        ))}
+        <GroupedPropertyList
+          properties={available}
+          renderLabel={(groupLabel, i) => (
+            <>
+              {i > 0 && <DropdownMenuSeparator />}
+              <DropdownMenuLabel className="text-xs font-medium text-muted-foreground/80">
+                {groupLabel}
+              </DropdownMenuLabel>
+            </>
+          )}
+          renderItem={(p) => (
+            <DropdownMenuItem key={p.id} onSelect={() => onPick(p.id)}>
+              {p.label}
+            </DropdownMenuItem>
+          )}
+        />
       </DropdownMenuContent>
     </DropdownMenu>
   );

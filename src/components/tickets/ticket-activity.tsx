@@ -37,53 +37,160 @@ import {
   formatTimelineDay,
 } from "@/lib/format";
 
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
+
 type Filter = "all" | "messages";
+type Side = "left" | "right";
+type Tone = "customer" | "agent" | "note";
+type BubblePosition = "solo" | "first" | "middle" | "last";
 
-type RawItem =
-  | { kind: "message"; item: TicketMessageView; at: number }
-  | { kind: "event"; item: TicketEventView; at: number };
+type DayMarker = { kind: "day"; date: Date };
+type Group = {
+  kind: "group";
+  side: Side;
+  tone: Tone;
+  items: TicketMessageView[];
+  groupKey: string;
+};
+type EventItem = { kind: "event"; event: TicketEventView };
+type TerminalEventItem = { kind: "terminal"; event: TicketEventView };
+type RenderItem = DayMarker | Group | EventItem | TerminalEventItem;
 
-type RenderItem = RawItem | { kind: "day"; date: Date; at: number };
+const FIVE_MINUTES = 5 * 60 * 1000;
+
+// ---------------------------------------------------------------------------
+// Timeline builder. Two passes: (1) chronologically interleave + insert day
+// dividers, (2) collapse consecutive same-author messages into groups and
+// promote the closing status_changed event (if any) to a terminal pill.
+// ---------------------------------------------------------------------------
+
+function toneFor(m: TicketMessageView): Tone {
+  if (!m.isPublic) return "note";
+  return m.authorRole === "agent" ? "agent" : "customer";
+}
+
+function sideFor(tone: Tone): Side {
+  // Customer LEFT, agent + internal note RIGHT.
+  return tone === "customer" ? "left" : "right";
+}
+
+function authorIdOf(m: TicketMessageView): string {
+  return m.customer?.id ?? m.teamMember?.id ?? "anon";
+}
+
+function groupKeyOf(m: TicketMessageView): string {
+  return `${toneFor(m)}|${authorIdOf(m)}|${m.channel}|${m.isPublic ? 1 : 0}`;
+}
+
+function isTerminalEvent(e: TicketEventView): boolean {
+  return (
+    e.verb === "status_changed" &&
+    (e.newValue === "solved" || e.newValue === "closed")
+  );
+}
 
 function buildTimeline(
   messages: TicketMessageView[],
   events: TicketEventView[],
   filter: Filter,
 ): RenderItem[] {
-  const raw: RawItem[] = [
+  type Raw =
+    | { kind: "message"; item: TicketMessageView; at: number }
+    | { kind: "event"; item: TicketEventView; at: number };
+
+  const raw: Raw[] = [
     ...messages.map(
-      (m): RawItem => ({
-        kind: "message",
-        item: m,
-        at: m.createdAt.getTime(),
-      }),
+      (m): Raw => ({ kind: "message", item: m, at: m.createdAt.getTime() }),
     ),
     ...(filter === "all"
       ? events.map(
-          (e): RawItem => ({
-            kind: "event",
-            item: e,
-            at: e.createdAt.getTime(),
-          }),
+          (e): Raw => ({ kind: "event", item: e, at: e.createdAt.getTime() }),
         )
       : []),
   ];
   raw.sort((a, b) => a.at - b.at);
 
-  // Day-divider markers between items that fall on different days.
+  // Identify the closing-beat status event. We look for the LAST
+  // status_changed event that lands on solved/closed — survey_* events
+  // typically fire after the resolution and shouldn't preempt the pill.
+  let terminalIdx = -1;
+  for (let i = raw.length - 1; i >= 0; i--) {
+    const r = raw[i];
+    if (r.kind === "event" && isTerminalEvent(r.item)) {
+      terminalIdx = i;
+      break;
+    }
+  }
+
+  // Build the render list. `openGroup` is the in-progress group container;
+  // when we need to emit it we splice it into `out` and start fresh. Using
+  // an array slot rather than a let-binding closure to keep TS control-flow
+  // analysis happy (closures over re-assignable refs widen narrowing in
+  // surprising ways).
   const out: RenderItem[] = [];
   let prevDay = "";
-  for (const r of raw) {
-    const d = new Date(r.at);
+  let openGroup: Group | undefined;
+
+  for (let i = 0; i < raw.length; i++) {
+    const it = raw[i];
+    const d = new Date(it.at);
     const dayKey = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+
     if (dayKey !== prevDay) {
-      out.push({ kind: "day", date: d, at: r.at - 1 });
+      if (openGroup) {
+        out.push(openGroup);
+        openGroup = undefined;
+      }
+      out.push({ kind: "day", date: d });
       prevDay = dayKey;
     }
-    out.push(r);
+
+    if (it.kind === "event") {
+      if (openGroup) {
+        out.push(openGroup);
+        openGroup = undefined;
+      }
+      if (i === terminalIdx) {
+        out.push({ kind: "terminal", event: it.item });
+      } else {
+        out.push({ kind: "event", event: it.item });
+      }
+      continue;
+    }
+
+    const m = it.item;
+    const key = groupKeyOf(m);
+    if (openGroup && openGroup.groupKey === key) {
+      const lastInGroup = openGroup.items[openGroup.items.length - 1];
+      if (it.at - lastInGroup.createdAt.getTime() <= FIVE_MINUTES) {
+        openGroup.items.push(m);
+        continue;
+      }
+    }
+    if (openGroup) {
+      out.push(openGroup);
+    }
+    const tone = toneFor(m);
+    openGroup = {
+      kind: "group",
+      side: sideFor(tone),
+      tone,
+      items: [m],
+      groupKey: key,
+    };
   }
+  if (openGroup) {
+    out.push(openGroup);
+  }
+
   return out;
 }
+
+// ---------------------------------------------------------------------------
+// Shared presentation helpers
+// ---------------------------------------------------------------------------
 
 const CHANNEL_ICONS = {
   email: Mail,
@@ -115,104 +222,215 @@ function ChannelTag({
   );
 }
 
-/** Row wrapper. Lays out a fixed-width rail gutter on the left and the
- *  content body on the right. The shared rail line is provided by the
- *  outer container; each row's gutter just hosts the per-item marker. */
-function Row({
-  marker,
-  children,
+function metaForGroup(g: Group): {
+  name: string;
+  avatarColor: string;
+} {
+  const first = g.items[0];
+  if (g.tone === "customer") {
+    const name = first.customer?.name ?? "Customer";
+    return { name, avatarColor: colorFromName(name) };
+  }
+  const name = first.teamMember?.name ?? "Agent";
+  return {
+    name,
+    avatarColor: first.teamMember?.avatarColor ?? colorFromName(name),
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Bubble — presentational. The asymmetric "tail" corner sits at the top
+// near the avatar (Intercom convention), and only on the first bubble of
+// a group; follow-ups are fully rounded.
+// ---------------------------------------------------------------------------
+
+function Bubble({
+  side,
+  tone,
+  position,
+  message,
 }: {
-  marker: React.ReactNode;
-  children: React.ReactNode;
+  side: Side;
+  tone: Tone;
+  position: BubblePosition;
+  message: TicketMessageView;
 }) {
+  const showTail = position === "first" || position === "solo";
+  const baseShape = "rounded-2xl px-4 py-2.5";
+  const tailShape =
+    showTail && side === "left"
+      ? " rounded-tl-md"
+      : showTail && side === "right"
+        ? " rounded-tr-md"
+        : "";
+  const toneClass =
+    tone === "customer"
+      ? "bg-muted text-foreground"
+      : tone === "agent"
+        ? "bg-primary/10 border border-primary/20 text-foreground"
+        : "bg-amber-50 border border-dashed border-amber-300 text-foreground dark:bg-amber-400/10 dark:border-amber-400/40";
+
   return (
-    <div className="grid grid-cols-[44px_1fr] gap-4">
-      <div className="relative flex justify-center pt-0.5">
-        {/* Solid disc so the rail line behind the marker is hidden */}
-        <span className="absolute top-0 z-0 size-10 -translate-y-0.5 rounded-full bg-background" />
-        <span className="relative z-10">{marker}</span>
+    <div className="group/bubble relative max-w-[80%]">
+      <div className={`${baseShape}${tailShape} ${toneClass}`}>
+        <p className="whitespace-pre-wrap text-base leading-relaxed">
+          {message.body}
+        </p>
       </div>
-      <div className="min-w-0">{children}</div>
+      {/* Follow-up hover timestamp — surfaces per-message time without
+       *  cluttering the meta row above. Solo and first bubbles already show
+       *  the time in the meta row, so suppress for those. */}
+      {position !== "solo" && position !== "first" && (
+        <span
+          className={`pointer-events-none absolute top-2.5 ${
+            side === "left" ? "left-full ml-2" : "right-full mr-2"
+          } whitespace-nowrap text-xs text-muted-foreground opacity-0 transition-opacity group-hover/bubble:opacity-100`}
+          title={formatDateTime(message.createdAt)}
+        >
+          {formatSmartTime(message.createdAt)}
+        </span>
+      )}
     </div>
   );
 }
 
-function MessageRow({ message }: { message: TicketMessageView }) {
-  const isAgent = message.authorRole === "agent";
-  const name =
-    (isAgent ? message.teamMember?.name : message.customer?.name) ??
-    (isAgent ? "Agent" : "Customer");
-  const color = isAgent
-    ? (message.teamMember?.avatarColor ?? colorFromName(name))
-    : colorFromName(name);
-  const bubbleClass = isAgent
-    ? "rounded-2xl rounded-tl-sm border border-primary/20 bg-primary/8 px-4 py-3 dark:border-primary/30 dark:bg-primary/15"
-    : "rounded-2xl rounded-tl-sm border border-border bg-background px-4 py-3";
-  const roleLabel = isAgent ? "Agent" : "Customer";
+// ---------------------------------------------------------------------------
+// MessageGroup — 3-column grid with avatar in the LEFT or RIGHT gutter and
+// the bubble stack in the middle column. Meta row + first bubble share the
+// avatar-aligned row; follow-ups stack below.
+// ---------------------------------------------------------------------------
+
+function MessageGroup({ group }: { group: Group }) {
+  const { side, tone, items } = group;
+  const { name, avatarColor } = metaForGroup(group);
+  const first = items[0];
+
+  const roleLabel =
+    tone === "agent" ? "Agent" : tone === "customer" ? "Customer" : null;
+  const roleClass =
+    tone === "agent"
+      ? "bg-primary/10 text-primary"
+      : tone === "customer"
+        ? "bg-muted text-muted-foreground"
+        : "bg-amber-100 text-amber-900 dark:bg-amber-400/20 dark:text-amber-200";
+
   return (
-    <Row
-      marker={
-        <Avatar bg={color} initials={initialsFromName(name)} size="lg" />
-      }
-    >
-      <div className="mb-1.5 flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-        <span className="text-sm font-semibold text-foreground">{name}</span>
-        <span
-          className={`rounded px-1.5 py-0.5 text-xs font-medium ${
-            isAgent
-              ? "bg-primary/10 text-primary"
-              : "bg-muted text-muted-foreground"
+    <div className="grid grid-cols-[40px_1fr_40px] gap-x-3">
+      {/* Left gutter */}
+      <div>
+        {side === "left" ? (
+          <Avatar
+            bg={avatarColor}
+            initials={initialsFromName(name)}
+            size="lg"
+          />
+        ) : null}
+      </div>
+
+      {/* Content column */}
+      <div
+        className={`flex flex-col gap-1 min-w-0 ${
+          side === "left" ? "items-start" : "items-end"
+        }`}
+      >
+        {/* Meta row (first bubble only) */}
+        <div
+          className={`mb-0.5 flex flex-wrap items-baseline gap-x-2 gap-y-0.5 ${
+            side === "right" ? "justify-end" : ""
           }`}
         >
-          {roleLabel}
-        </span>
-        <ChannelTag channel={message.channel} />
-        <span
-          className="text-sm text-muted-foreground"
-          title={formatDateTime(message.createdAt)}
-        >
-          · {formatSmartTime(message.createdAt)}
-        </span>
+          {side === "right" && (
+            <>
+              <span
+                className="text-sm text-muted-foreground"
+                title={formatDateTime(first.createdAt)}
+              >
+                {formatSmartTime(first.createdAt)}
+              </span>
+              <span className="text-muted-foreground/60">·</span>
+              <ChannelTag channel={first.channel} />
+              {tone === "note" ? (
+                <span className="inline-flex items-center gap-1 text-sm text-amber-700 dark:text-amber-300">
+                  <Lock className="size-3.5" />
+                  Internal note
+                </span>
+              ) : null}
+              {roleLabel && tone !== "note" && (
+                <span
+                  className={`rounded px-1.5 py-0.5 text-xs font-medium ${roleClass}`}
+                >
+                  {roleLabel}
+                </span>
+              )}
+              <span className="text-sm font-semibold text-foreground">
+                {name}
+              </span>
+            </>
+          )}
+          {side === "left" && (
+            <>
+              <span className="text-sm font-semibold text-foreground">
+                {name}
+              </span>
+              {roleLabel && (
+                <span
+                  className={`rounded px-1.5 py-0.5 text-xs font-medium ${roleClass}`}
+                >
+                  {roleLabel}
+                </span>
+              )}
+              <ChannelTag channel={first.channel} />
+              <span className="text-muted-foreground/60">·</span>
+              <span
+                className="text-sm text-muted-foreground"
+                title={formatDateTime(first.createdAt)}
+              >
+                {formatSmartTime(first.createdAt)}
+              </span>
+            </>
+          )}
+        </div>
+
+        {/* Bubbles */}
+        {items.map((m, i) => {
+          const position: BubblePosition =
+            items.length === 1
+              ? "solo"
+              : i === 0
+                ? "first"
+                : i === items.length - 1
+                  ? "last"
+                  : "middle";
+          return (
+            <Bubble
+              key={m.id}
+              side={side}
+              tone={tone}
+              position={position}
+              message={m}
+            />
+          );
+        })}
       </div>
-      <div className={bubbleClass}>
-        <p className="whitespace-pre-wrap text-base leading-relaxed text-foreground">
-          {message.body}
-        </p>
+
+      {/* Right gutter */}
+      <div>
+        {side === "right" ? (
+          <Avatar
+            bg={avatarColor}
+            initials={initialsFromName(name)}
+            size="lg"
+          />
+        ) : null}
       </div>
-    </Row>
+    </div>
   );
 }
 
-function InternalNoteRow({ message }: { message: TicketMessageView }) {
-  const name = message.teamMember?.name ?? "Agent";
-  return (
-    <Row
-      marker={
-        <span className="flex size-10 items-center justify-center rounded-full border border-amber-300 bg-amber-100 dark:border-amber-400/40 dark:bg-amber-400/20">
-          <Lock className="size-4 text-amber-700 dark:text-amber-300" />
-        </span>
-      }
-    >
-      <div className="rounded-md border border-dashed border-amber-300/70 bg-amber-50/70 px-4 py-3 dark:border-amber-400/40 dark:bg-amber-400/5">
-        <div className="mb-1 flex items-baseline justify-between gap-2 text-sm text-amber-900/80 dark:text-amber-200/80">
-          <span>
-            <span className="font-semibold">Internal note</span>
-            <span className="ml-1">from {name}</span>
-          </span>
-          <span
-            className="tabular-nums"
-            title={formatDateTime(message.createdAt)}
-          >
-            {formatSmartTime(message.createdAt)}
-          </span>
-        </div>
-        <p className="whitespace-pre-wrap text-base leading-relaxed text-foreground">
-          {message.body}
-        </p>
-      </div>
-    </Row>
-  );
-}
+// ---------------------------------------------------------------------------
+// Event row — thin muted inline row. Icon carries the only color; the rest
+// is `text-muted-foreground` except value spans which bump to foreground.
+// ---------------------------------------------------------------------------
 
 type EventRender = {
   Icon: typeof Circle;
@@ -393,47 +611,72 @@ function renderEvent(e: TicketEventView): EventRender {
 function EventRow({ event }: { event: TicketEventView }) {
   const { Icon, iconClass, description } = renderEvent(event);
   const actorName =
-    event.actor.kind === "system"
-      ? "Bloom Automation"
-      : event.actor.name;
+    event.actor.kind === "system" ? "Bloom Automation" : event.actor.name;
   const isSystem = event.actor.kind === "system";
   return (
-    <Row
-      marker={
-        <span className="flex size-7 items-center justify-center rounded-full border border-border bg-background">
-          <Icon className={`size-4 ${iconClass ?? ""}`} />
-        </span>
-      }
-    >
-      <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 py-1.5">
-        <span className="text-sm text-foreground">{description}</span>
-        <span className="inline-flex items-center gap-1 text-sm text-muted-foreground">
-          {isSystem ? (
-            <>
-              <Bot className="size-3.5" />
-              {actorName}
-            </>
-          ) : (
-            <>by {actorName}</>
-          )}
-        </span>
-        <span
-          className="text-sm text-muted-foreground"
-          title={formatDateTime(event.createdAt)}
-        >
-          · {formatSmartTime(event.createdAt)}
-        </span>
-      </div>
-    </Row>
+    <div className="flex items-center gap-2 pl-12 text-sm text-muted-foreground">
+      <Icon className={`size-3.5 shrink-0 ${iconClass ?? ""}`} />
+      <span>{description}</span>
+      <span className="text-muted-foreground/60">·</span>
+      <span className="inline-flex items-center gap-1">
+        {isSystem ? (
+          <>
+            <Bot className="size-3.5" />
+            {actorName}
+          </>
+        ) : (
+          <>by {actorName}</>
+        )}
+      </span>
+      <span className="text-muted-foreground/60">·</span>
+      <span title={formatDateTime(event.createdAt)}>
+        {formatSmartTime(event.createdAt)}
+      </span>
+    </div>
   );
 }
 
-function DayDivider({ date }: { date: Date }) {
-  // Day labels break out of the rail grid so the rail visually pauses
-  // (no marker dot) on day boundaries. The label sits centered with
-  // hairline rules on both sides so the rail "resumes" below.
+// ---------------------------------------------------------------------------
+// Terminal-state pill — the closing beat for the timeline. Renders centered
+// when the LAST item is a status_changed event landing on solved or closed.
+// ---------------------------------------------------------------------------
+
+function TerminalEventCard({ event }: { event: TicketEventView }) {
+  const isSolved = event.newValue === "solved";
+  const Icon = isSolved ? CheckCircle2 : CircleX;
+  const containerClass = isSolved
+    ? "bg-positive/10 border-positive/30 text-positive dark:text-positive"
+    : "bg-muted border-border text-muted-foreground";
+  const actorName =
+    event.actor.kind === "system" ? "Bloom Automation" : event.actor.name;
   return (
-    <div className="flex items-center gap-3 py-2">
+    <div className="flex justify-center pt-1">
+      <div
+        className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm ${containerClass}`}
+      >
+        <Icon className="size-4 shrink-0" />
+        <span className="font-medium">
+          {isSolved ? "Solved" : "Closed"} by {actorName}
+        </span>
+        <span className="text-muted-foreground/80">·</span>
+        <span
+          className="text-muted-foreground"
+          title={formatDateTime(event.createdAt)}
+        >
+          {formatSmartTime(event.createdAt)}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Day divider, filter toggle
+// ---------------------------------------------------------------------------
+
+function DayDivider({ date }: { date: Date }) {
+  return (
+    <div className="flex items-center gap-3 pt-3 pb-2">
       <div className="h-px flex-1 bg-border" />
       <span className="text-sm font-medium text-muted-foreground">
         {formatTimelineDay(date)}
@@ -478,6 +721,34 @@ function ActivityFilter({
   );
 }
 
+// ---------------------------------------------------------------------------
+// Top-level section. Owns filter state + builds the timeline + renders.
+// Inter-item spacing uses Tailwind utilities directly rather than space-y on
+// the parent so events / day-dividers / groups can use distinct gaps.
+// ---------------------------------------------------------------------------
+
+function gapClass(prev: RenderItem | undefined, curr: RenderItem): string {
+  if (!prev) return "";
+  // Day dividers carry their own padding internally.
+  if (prev.kind === "day" || curr.kind === "day") return "";
+  // Between two groups: comfortable gap.
+  if (prev.kind === "group" && curr.kind === "group") return "mt-5";
+  // Between a group and an event / terminal (and vice versa): tighter.
+  if (
+    (prev.kind === "group" &&
+      (curr.kind === "event" || curr.kind === "terminal")) ||
+    ((prev.kind === "event" || prev.kind === "terminal") &&
+      curr.kind === "group")
+  ) {
+    return "mt-2.5";
+  }
+  // Between events: tight stack.
+  if (prev.kind === "event" && curr.kind === "event") return "mt-1.5";
+  // Group + terminal closing beat: a touch more breathing.
+  if (prev.kind === "event" && curr.kind === "terminal") return "mt-2.5";
+  return "mt-2";
+}
+
 export function TicketActivitySection({
   messages,
   events,
@@ -495,34 +766,32 @@ export function TicketActivitySection({
       title="Activity"
       trailing={<ActivityFilter value={filter} onChange={setFilter} />}
     >
-      {/* The rail: a single absolutely-positioned vertical line down the
-       *  center of the 44px gutter. Rows draw a small bg disc behind each
-       *  marker so the rail visually disappears under each icon/avatar. */}
-      <div className="relative">
-        <div
-          aria-hidden
-          className="pointer-events-none absolute left-[21px] top-1 bottom-1 w-px bg-border"
-        />
-        <div className="relative space-y-3">
-          {items.map((it, i) => {
-            if (it.kind === "day") {
-              return (
-                <DayDivider
-                  key={`d-${it.date.toISOString()}-${i}`}
-                  date={it.date}
-                />
-              );
-            }
-            if (it.kind === "event") {
-              return <EventRow key={`e-${it.item.id}`} event={it.item} />;
-            }
-            const m = it.item;
-            if (!m.isPublic) {
-              return <InternalNoteRow key={`m-${m.id}`} message={m} />;
-            }
-            return <MessageRow key={`m-${m.id}`} message={m} />;
-          })}
-        </div>
+      <div>
+        {items.map((it, i) => {
+          const prev = i > 0 ? items[i - 1] : undefined;
+          const gap = gapClass(prev, it);
+          const wrap = (node: React.ReactNode, key: string) => (
+            <div key={key} className={gap}>
+              {node}
+            </div>
+          );
+          if (it.kind === "day") {
+            return wrap(
+              <DayDivider date={it.date} />,
+              `d-${it.date.toISOString()}-${i}`,
+            );
+          }
+          if (it.kind === "event") {
+            return wrap(<EventRow event={it.event} />, `e-${it.event.id}`);
+          }
+          if (it.kind === "terminal") {
+            return wrap(
+              <TerminalEventCard event={it.event} />,
+              `t-${it.event.id}`,
+            );
+          }
+          return wrap(<MessageGroup group={it} />, `g-${it.items[0].id}`);
+        })}
       </div>
     </DetailSection>
   );

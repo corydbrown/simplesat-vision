@@ -193,10 +193,33 @@ export function ReportBuilder({ initialConfig }: Props) {
   };
 
   const removeValue = (index: number) => {
-    setConfig((prev) => ({
-      ...prev,
-      values: prev.values.filter((_, i) => i !== index),
-    }));
+    setConfig((prev) => {
+      // Drop any axis sort that referenced the removed value, and shift down
+      // indexes that point past it so they keep referring to the same chip.
+      const scrubAxis = (axes: AxisField[]): AxisField[] =>
+        axes.map((axis) => {
+          const sort = axis.sort;
+          if (!sort || sort.by !== "value") return axis;
+          if (sort.valueIndex === index) {
+            const next = { ...axis };
+            delete next.sort;
+            return next;
+          }
+          if (sort.valueIndex > index) {
+            return {
+              ...axis,
+              sort: { ...sort, valueIndex: sort.valueIndex - 1 },
+            };
+          }
+          return axis;
+        });
+      return {
+        ...prev,
+        values: prev.values.filter((_, i) => i !== index),
+        rows: scrubAxis(prev.rows),
+        columns: scrubAxis(prev.columns),
+      };
+    });
   };
 
   const removeFilter = (index: number) => {

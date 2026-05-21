@@ -2,7 +2,7 @@
 
 Single source of truth for color, typography, and state values. Every visual change should be a token edit here (and a CSS var edit in [`src/app/globals.css`](src/app/globals.css)) — **never** a component edit.
 
-Pairs with [`CLAUDE.md`](CLAUDE.md) → **Visual tokens** (philosophy) and **Conventions** → "Font sizes" / "Value font color rule" (per-element typography rules).
+Pairs with [`CLAUDE.md`](CLAUDE.md) → **Conventions** → "Font sizes" / "Value font color rule" (per-element typography rules) and [`ARCHITECTURE.md`](ARCHITECTURE.md) (where the tokens get consumed).
 
 ## Architecture
 
@@ -106,9 +106,54 @@ Purely decorative palette — one hue per primary nav entity so the sidebar read
 
 Sourced from Simplesat `Site Colors/Colors/*`. Consumed via `text-icon-<section>` Tailwind utilities — the nav data definition in `src/components/shell/primary-nav.tsx` carries an `iconClass` field per section.
 
-### Chart palette
+### Chart palette (Recharts)
 
-Lives in [`CLAUDE.md`](CLAUDE.md) → **Visual tokens** → "Chart palette". Recharts series colors are hardcoded in chart components there (single use site).
+Multi-series order:
+1. `#007eff` primary blue
+2. `#43BE64` brand green
+3. `#F4B942` neutral yellow
+4. `#E4574C` negative red
+5. `#9F7AEA` purple (only if 5+ series)
+6. `#8D9399` muted grey
+
+Grid lines: `var(--border)`. Axis labels: `text-muted-foreground text-xs`. Tooltip: white, `rounded-lg`, default border. No titles inside charts — title lives in the card header.
+
+## Usage philosophy
+
+The token tables above own *values*. This section owns *when to reach for which token* — guidance that doesn't fit a table.
+
+### Brand vs primary
+
+Two tokens, distinct roles — don't conflate.
+
+- **`--primary`** (blue `#007eff`) is the workhorse action color: primary buttons, active nav, focus rings (`ring-primary/30`), informational/neutral links. `--ring` mirrors `--primary`.
+- **`--brand`** (green `#43BE64`) is a brand-moment accent: logo flourish, marketing-flavored emphasis. **Not** for primary actions, decoration, or hover tints.
+
+Positive metrics and success states use `--positive` (the soft-green badge pair), **not** `--brand`. Neutral hover stays `bg-accent/40` (existing pill pattern).
+
+### Spacing rhythm
+
+Base unit 4px. **Allowed values only:** `4, 8, 12, 16, 20, 24, 32, 40, 48, 64`. No `6`, `10`, `14`. Pick the nearest allowed value.
+
+Defaults:
+- Page outer padding: `24` (`32` on `≥xl`)
+- Card padding: `20`
+- Section vertical gap: `32`
+- Form field gap: `16`
+- Drawer padding: `24`
+- Detail page padding: `px-14 py-10` standalone / `px-10 py-7` in drawer
+
+### Shadows
+
+Borders-first product. Shadows only on Radix portals: HoverCard, Popover, DropdownMenu, Dialog, Toast. **Never on inline cards, table rows, list items, or pills.** Shadcn's portal defaults already match — don't override with new shadow utilities.
+
+### When in doubt
+
+1. Look at Notion or Slack first.
+2. Check the prototype for an analogous pattern.
+3. More whitespace over less.
+4. Fewer font sizes over more.
+5. Border over shadow.
 
 ## Figma → token mapping
 
@@ -141,7 +186,7 @@ No Tailwind config, no theme provider, no codegen — Tailwind v4 reads the `@th
 
 ## See also
 
-- [`CLAUDE.md`](CLAUDE.md) → **Visual tokens** — usage philosophy (when to reach for `--primary` vs `--brand` vs `--positive`)
 - [`CLAUDE.md`](CLAUDE.md) → **Conventions** → "Font sizes" / "Value font color rule" — per-element type and color rules
+- [`ARCHITECTURE.md`](ARCHITECTURE.md) — where the tokens get consumed (Property registry, EntityTable, Drawer, etc.)
 - [`src/app/globals.css`](src/app/globals.css) — the actual var declarations
 - [`src/app/layout.tsx`](src/app/layout.tsx) — `next/font/google` font loader

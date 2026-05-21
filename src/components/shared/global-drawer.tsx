@@ -9,6 +9,7 @@ import { TeamMemberDetailBody } from "@/components/team-members/team-member-deta
 import { ResponseDetailBody } from "@/components/responses/response-detail";
 import { SurveyDetailBody } from "@/components/surveys/survey-detail";
 import { Skeleton } from "@/components/ui/skeleton";
+import { SURVEY_METRIC_LABEL } from "@/lib/properties/surveys";
 import {
   recordEntityView,
   type RecentEntityEntry,
@@ -119,14 +120,6 @@ type DrawerData =
 
 const cache = new Map<string, DrawerData>();
 
-const METRIC_LABEL: Record<SurveyDetail["metric"], string> = {
-  csat: "CSAT",
-  nps: "NPS",
-  ces: "CES",
-  five_star: "5-Star",
-  custom: "Custom",
-};
-
 function buildEntryFromDrawerPayload(
   payload: DrawerData,
 ): Omit<RecentEntityEntry, "kind" | "viewedAt"> {
@@ -183,7 +176,7 @@ function buildEntryFromDrawerPayload(
     entity: "survey",
     id: s.id,
     label: s.name,
-    secondary: METRIC_LABEL[s.metric],
+    secondary: SURVEY_METRIC_LABEL[s.metric],
   };
 }
 

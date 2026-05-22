@@ -288,8 +288,8 @@ The audit page surfaced patterns where the design system was bypassed rather tha
 - DEMO "Soon" inline spans replaced with `<Badge variant="secondary">` (workspace home + ticket detail). Outer purple-tinted wrappers migrated from raw Tailwind hues to `--purple-light` / `--purple-lighter` / `--purple-darker`.
 - Star-rating + Avg-rating components migrated off raw Tailwind hues (`text-amber-400` → `text-yellow`; `text-red-600 / text-amber-600 / text-emerald-600` → `text-red-dark / text-yellow-dark / text-green-dark`).
 
-**Body bg-canvas migration (separate, deferred):**
-- `--canvas: #f4f4f4` exists but body still uses `bg-background` (white). To switch to layered grey-canvas + white-cards: (1) change body to `bg-canvas` in `src/app/layout.tsx`, (2) audit `bg-background` panels (`src/app/(workspace)/page.tsx` dashboard section, `src/components/shell/topbar.tsx`) — they should become `bg-card`. Holding off until we've decided we want that look.
+**Body bg-canvas migration (declined 2026-05-22, SVP-18 — token retained):**
+- `--canvas: #f4f4f4` exists but body intentionally stays on `bg-background` (flat-white). Layered grey-canvas + white-card was evaluated and declined — Simplesat is a data product; flat-white serves table-dense surfaces better. See DECISIONS.md → "Design system decisions". Token stays available so future re-evaluation is cheap.
 
 ## How to change a color
 

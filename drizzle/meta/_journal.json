@@ -43,6 +43,13 @@
       "when": 1779433160613,
       "tag": "0005_cool_the_hunter",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1779434195152,
+      "tag": "0006_huge_xorn",
+      "breakpoints": true
     }
   ]
 }

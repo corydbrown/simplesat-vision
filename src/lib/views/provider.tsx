@@ -57,37 +57,44 @@ export function ViewsProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     let cancelled = false;
-    (async () => {
-      const next = emptyByEntity();
-      for (const entity of ENTITY_KEYS) {
-        const stored = await loadSavedViews(entity);
-        if (cancelled) return;
+    // Per-entity try/catch keeps a failure on one entity from killing the
+    // seed for the rest — and surfaces the error in dev rather than dropping
+    // it as an unhandled promise rejection.
+    async function hydrate(entity: EntityKey): Promise<SavedView[]> {
+      const stored = await loadSavedViews(entity);
+      if (stored.length > 0) return stored;
 
-        if (stored.length > 0) {
-          next[entity] = stored;
-          continue;
-        }
-
-        // Server is empty for this entity. One-shot migrate any pre-SVP-30
-        // localStorage rows, then clear the legacy key so this branch only
-        // fires once per browser.
-        const legacy = readLegacyLocalStorage(entity);
-        if (legacy && legacy.length > 0) {
-          await saveSavedViews(entity, legacy);
-          if (cancelled) return;
-          clearLegacyLocalStorage(entity);
-          next[entity] = legacy;
-          continue;
-        }
-        if (legacy !== null) clearLegacyLocalStorage(entity);
-
-        // Fresh prototype: seed Insider / Detractors / Unassigned / etc. so
-        // a `db:reset` still leaves a populated sidebar.
-        await saveSavedViews(entity, SEED_VIEWS[entity]);
-        if (cancelled) return;
-        next[entity] = SEED_VIEWS[entity];
+      const legacy = readLegacyLocalStorage(entity);
+      if (legacy && legacy.length > 0) {
+        await saveSavedViews(entity, legacy);
+        clearLegacyLocalStorage(entity);
+        return legacy;
       }
+      if (legacy !== null) clearLegacyLocalStorage(entity);
+
+      // Fresh prototype: seed Insider / Detractors / Unassigned / etc. so
+      // a `db:reset` still leaves a populated sidebar.
+      await saveSavedViews(entity, SEED_VIEWS[entity]);
+      return SEED_VIEWS[entity];
+    }
+
+    (async () => {
+      const results = await Promise.all(
+        ENTITY_KEYS.map(async (entity) => {
+          try {
+            return [entity, await hydrate(entity)] as const;
+          } catch (err) {
+            console.error(
+              `[ViewsProvider] failed to hydrate "${entity}", falling back to in-memory seed`,
+              err,
+            );
+            return [entity, SEED_VIEWS[entity]] as const;
+          }
+        }),
+      );
       if (cancelled) return;
+      const next = emptyByEntity();
+      for (const [entity, views] of results) next[entity] = views;
       setViews(next);
       setHydrated(true);
     })();

@@ -2,6 +2,7 @@ import { sql } from "drizzle-orm";
 import {
   index,
   integer,
+  primaryKey,
   sqliteTable,
   text,
 } from "drizzle-orm/sqlite-core";
@@ -520,7 +521,11 @@ export const qaEvaluations = sqliteTable(
 export const savedViews = sqliteTable(
   "saved_views",
   {
-    id: text("id").primaryKey(),
+    /** Slug identifier, unique per (workspace_id, entity). Stays human-
+     *  readable so it can appear in `?v=<id>` URLs. Cross-entity collisions
+     *  are expected (`tickets.detractors` vs `responses.detractors`), which
+     *  is why the primary key is composite. */
+    id: text("id").notNull(),
     workspaceId: text("workspace_id").notNull(),
     entity: text("entity", {
       enum: ["tickets", "customers", "responses", "team-members"],
@@ -541,7 +546,7 @@ export const savedViews = sqliteTable(
       .default(sql`(unixepoch() * 1000)`),
   },
   (t) => [
-    index("saved_views_workspace_entity_idx").on(t.workspaceId, t.entity),
+    primaryKey({ columns: [t.workspaceId, t.entity, t.id] }),
   ],
 );
 

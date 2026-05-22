@@ -18,7 +18,7 @@ Three layers, top to bottom. Each layer has a single responsibility; the chain i
 
 Layer 1 above splits into **two tiers**:
 
-- **Tier 1 — Production hue palette.** Raw color values. Seven chromatic hues × 5 shades, plus `--black` / `--white`. These are the source of truth. They do NOT change between light and dark mode. Call sites can consume them directly (`bg-blue-lighter`, `text-red-dark`) for any decorative or descriptive use.
+- **Tier 1 — Production hue palette.** Raw color values. Seven chromatic hues × 5 shades, plus `--black` / `--white`. These are the source of truth. Most shades are absolute (no dark-mode override); the `-lighter` / `-darker` pair flips in dark mode because they back the pill bg+fg pair (`bg-{hue}-lighter text-{hue}-darker`). Call sites can consume any shade directly (`bg-blue-lighter`, `text-red-dark`).
 - **Tier 2 — Structural-semantic aliases.** Tokens like `--foreground`, `--background`, `--border`, `--card` that name a *structural role* rather than a *color*. These flip per mode (light vs dark). They alias to Tier 1 hues — when you change a hue, the alias updates everywhere.
 
 **State-semantic tokens are intentionally avoided.** Earlier iterations had `--positive` / `--negative` / `--neutral` / `--info` aliasing to mood-bearing values. That conflated "what state this is" with "what color this is" — and forced the codebase to label green as "positive" even when green was just being decorative. Pills and status indicators now reach into the hue palette directly (`bg-green-lighter` for solved, `bg-red-lighter` for urgent). If a true alias becomes worthwhile later (e.g., a `--success` token used in 20+ sites), revisit then.
@@ -61,79 +61,83 @@ const lato = Lato({ subsets: ["latin"], weight: ["400", "700"], variable: "--fon
 
 Seven chromatic hues × five shades + black + white. Source of truth — every other color token aliases or composes from these.
 
-Tailwind utilities are generated for each: `bg-blue`, `text-blue-dark`, `border-red-lighter`, `ring-purple`, etc. Hues do NOT flip per mode — they are absolute values. Structural-semantic tokens (next section) flip per mode and alias these.
+Tailwind utilities are generated for each: `bg-blue`, `text-blue-dark`, `border-red-lighter`, `ring-purple`, etc.
+
+**Most shades are absolute** — base, `-light`, `-dark` do NOT flip per mode. They power charts, icons, and primary actions that already work on a dark canvas.
+
+**Exception: `-lighter` and `-darker` flip in dark mode.** They're consumed as pill bg+fg pairs (`bg-{hue}-lighter text-{hue}-darker`). Without the flip, stateful pills would render as light pastels on a dark canvas — washed-out and low-contrast. The pill components themselves contain zero conditionals; the variables resolve differently per theme.
 
 ### Neutral
 
-| Token | Hex | Notes |
-|---|---|---|
-| `--black` | `#373F46` | Production "Black" — primary text body. Intentionally not pure `#000`. |
-| `--white` | `#FFFFFF` | Pure white. |
-| `--grey-darker` | `#4E616C` | Heaviest non-black text/border. |
-| `--grey-dark` | `#596A82` | Secondary text alternative. |
-| `--grey` | `#8D9399` | Tertiary text, mid-strength borders. |
-| `--grey-light` | `#DEE6F0` | Soft borders, inactive elements. |
-| `--grey-lighter` | `#F4F7F9` | Section backgrounds, hover tints. |
+| Token | Light | Dark | Notes |
+|---|---|---|---|
+| `--black` | `#373F46` | (same) | Production "Black" — primary text body. Intentionally not pure `#000`. |
+| `--white` | `#FFFFFF` | (same) | Pure white. |
+| `--grey-darker` | `#4E616C` | `#C5CDD5` | Heaviest non-black text/border. Flips in dark mode (pill fg). |
+| `--grey-dark` | `#596A82` | (same) | Secondary text alternative. |
+| `--grey` | `#8D9399` | (same) | Tertiary text, mid-strength borders. |
+| `--grey-light` | `#DEE6F0` | (same) | Soft borders, inactive elements. |
+| `--grey-lighter` | `#F4F7F9` | `#2E353D` | Section backgrounds, pill bg. Flips in dark mode. |
 
 ### Blue
 
-| Token | Hex |
-|---|---|
-| `--blue-darker` | `#003F80` |
-| `--blue-dark` | `#0071E6` |
-| `--blue` | `#007EFF` |
-| `--blue-light` | `#66B2FF` |
-| `--blue-lighter` | `#E6F2FF` |
+| Token | Light | Dark |
+|---|---|---|
+| `--blue-darker` | `#003F80` | `#99C7FF` |
+| `--blue-dark` | `#0071E6` | (same) |
+| `--blue` | `#007EFF` | (same) |
+| `--blue-light` | `#66B2FF` | (same) |
+| `--blue-lighter` | `#E6F2FF` | `#0A2640` |
 
 ### Green
 
-| Token | Hex |
-|---|---|
-| `--green-darker` | `#1E5D33` |
-| `--green-dark` | `#2A8449` |
-| `--green` | `#43BE64` |
-| `--green-light` | `#7AD99A` |
-| `--green-lighter` | `#D3F8DF` |
+| Token | Light | Dark |
+|---|---|---|
+| `--green-darker` | `#1E5D33` | `#A5E4B8` |
+| `--green-dark` | `#2A8449` | (same) |
+| `--green` | `#43BE64` | (same) |
+| `--green-light` | `#7AD99A` | (same) |
+| `--green-lighter` | `#D3F8DF` | `#1A3D26` |
 
 ### Red
 
-| Token | Hex |
-|---|---|
-| `--red-darker` | `#920111` |
-| `--red-dark` | `#B70215` |
-| `--red` | `#D00218` |
-| `--red-light` | `#FF7989` |
-| `--red-lighter` | `#FFD5E1` |
+| Token | Light | Dark |
+|---|---|---|
+| `--red-darker` | `#920111` | `#FFA5B0` |
+| `--red-dark` | `#B70215` | (same) |
+| `--red` | `#D00218` | (same) |
+| `--red-light` | `#FF7989` | (same) |
+| `--red-lighter` | `#FFD5E1` | `#4D0814` |
 
 ### Purple
 
-| Token | Hex |
-|---|---|
-| `--purple-darker` | `#4D2E78` |
-| `--purple-dark` | `#723BC0` |
-| `--purple` | `#804DC8` |
-| `--purple-light` | `#BE9AF5` |
-| `--purple-lighter` | `#F0E3F9` |
+| Token | Light | Dark |
+|---|---|---|
+| `--purple-darker` | `#4D2E78` | `#C7AAF5` |
+| `--purple-dark` | `#723BC0` | (same) |
+| `--purple` | `#804DC8` | (same) |
+| `--purple-light` | `#BE9AF5` | (same) |
+| `--purple-lighter` | `#F0E3F9` | `#2E1A4D` |
 
 ### Teal
 
-| Token | Hex |
-|---|---|
-| `--teal-darker` | `#008DA6` |
-| `--teal-dark` | `#00A8C2` |
-| `--teal` | `#00C7E6` |
-| `--teal-light` | `#83F5FF` |
-| `--teal-lighter` | `#E6FCFF` |
+| Token | Light | Dark |
+|---|---|---|
+| `--teal-darker` | `#008DA6` | `#99E0EB` |
+| `--teal-dark` | `#00A8C2` | (same) |
+| `--teal` | `#00C7E6` | (same) |
+| `--teal-light` | `#83F5FF` | (same) |
+| `--teal-lighter` | `#E6FCFF` | `#0A3640` |
 
 ### Yellow
 
-| Token | Hex |
-|---|---|
-| `--yellow-darker` | `#664400` |
-| `--yellow-dark` | `#F2A200` |
-| `--yellow` | `#FBBD08` |
-| `--yellow-light` | `#FFC86D` |
-| `--yellow-lighter` | `#FFEED5` |
+| Token | Light | Dark |
+|---|---|---|
+| `--yellow-darker` | `#664400` | `#FFD68A` |
+| `--yellow-dark` | `#F2A200` | (same) |
+| `--yellow` | `#FBBD08` | (same) |
+| `--yellow-light` | `#FFC86D` | (same) |
+| `--yellow-lighter` | `#FFEED5` | `#3D2B00` |
 
 ### Hover / pressed states
 

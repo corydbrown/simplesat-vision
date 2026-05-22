@@ -82,7 +82,7 @@ const CORE_PROPERTIES: Property<CustomerListRow>[] = [
       c.language ? (
         <span className="text-muted-foreground">{c.language}</span>
       ) : (
-        <span className="text-muted-foreground">-</span>
+        <span className="text-muted-foreground/40">—</span>
       ),
   },
   {
@@ -116,13 +116,13 @@ const CORE_PROPERTIES: Property<CustomerListRow>[] = [
           {c.companyExternalId}
         </span>
       ) : (
-        <span className="text-muted-foreground">-</span>
+        <span className="text-muted-foreground/40">—</span>
       ),
     detail: (c) =>
       c.companyExternalId ? (
         <span className="text-muted-foreground">{c.companyExternalId}</span>
       ) : (
-        <span className="text-muted-foreground">-</span>
+        <span className="text-muted-foreground/40">—</span>
       ),
   },
   {
@@ -139,7 +139,7 @@ const CORE_PROPERTIES: Property<CustomerListRow>[] = [
       c.companyDomain ? (
         <span className="text-muted-foreground">{c.companyDomain}</span>
       ) : (
-        <span className="text-muted-foreground">-</span>
+        <span className="text-muted-foreground/40">—</span>
       ),
   },
   {

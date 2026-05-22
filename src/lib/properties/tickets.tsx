@@ -112,7 +112,7 @@ export const TICKET_PROPERTIES: Property<TicketsRow>[] = [
       t.customer ? (
         <CustomerPill id={t.customer.id} name={t.customer.name} />
       ) : (
-        <span className="text-muted-foreground">-</span>
+        <span className="text-muted-foreground/40">—</span>
       ),
   },
   {
@@ -131,7 +131,7 @@ export const TICKET_PROPERTIES: Property<TicketsRow>[] = [
       t.customer?.company ? (
         <CompanyPill name={t.customer.company} />
       ) : (
-        <span className="text-muted-foreground">-</span>
+        <span className="text-muted-foreground/40">—</span>
       ),
   },
   {
@@ -236,7 +236,7 @@ export const TICKET_PROPERTIES: Property<TicketsRow>[] = [
           scale={t.response.scale}
         />
       ) : (
-        <span className="text-muted-foreground">-</span>
+        <span className="text-muted-foreground/40">—</span>
       ),
   },
   {

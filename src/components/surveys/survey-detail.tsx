@@ -10,7 +10,7 @@ import { RESPONSE_PROPERTIES } from "@/lib/properties/responses";
 import { PropertiesPanel } from "@/components/shared/properties-panel";
 import {
   DetailSection,
-  PropertiesHeader,
+  PropertiesPanelHeader,
   PropertiesSidebar,
 } from "@/components/shared/detail-section";
 import { EntityTable } from "@/components/shared/entity-table";
@@ -74,10 +74,10 @@ export function SurveyDetailBody({
 
   const properties = (
     <ColumnStateProvider tableId="survey-detail" properties={SURVEY_PROPERTIES}>
-      <div className="flex items-center justify-between pb-2">
-        <h2 className="text-sm font-medium text-muted-foreground">Properties</h2>
-        <PropertiesHeader properties={SURVEY_PROPERTIES} />
-      </div>
+      <PropertiesPanelHeader
+        properties={SURVEY_PROPERTIES}
+        layout={inDrawer ? "inline" : "stacked"}
+      />
       <PropertiesPanel
         row={surveyRow}
         properties={SURVEY_PROPERTIES}

@@ -8,7 +8,7 @@ import { TICKET_PROPERTIES } from "@/lib/properties/tickets";
 import { PropertiesPanel } from "@/components/shared/properties-panel";
 import {
   DetailSection,
-  PropertiesHeader,
+  PropertiesPanelHeader,
   PropertiesSidebar,
 } from "@/components/shared/detail-section";
 import { ResponsePill } from "@/components/shared/entity-pill";
@@ -52,12 +52,10 @@ export function TicketDetailBody({
 
   const properties = (
     <>
-      <div className="flex items-center justify-between pb-2">
-        <h2 className="text-base font-medium text-muted-foreground">
-          Properties
-        </h2>
-        <PropertiesHeader properties={TICKET_PROPERTIES} />
-      </div>
+      <PropertiesPanelHeader
+        properties={TICKET_PROPERTIES}
+        layout={inDrawer ? "inline" : "stacked"}
+      />
       <PropertiesPanel
         row={ticket}
         properties={TICKET_PROPERTIES}

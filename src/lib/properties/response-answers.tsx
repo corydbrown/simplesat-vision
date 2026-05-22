@@ -57,7 +57,7 @@ function AnswerValue({ answer }: { answer: SurveyAnswer }) {
       return (
         <div className="flex flex-wrap gap-1">
           {answer.value.length === 0 ? (
-            <span className="text-muted-foreground">-</span>
+            <span className="text-muted-foreground/40">—</span>
           ) : (
             answer.value.map((v) => (
               <span
@@ -146,7 +146,7 @@ export const ANSWER_PROPERTIES: Property<AnswerRow>[] = [
           subject={r.ticketSubject ?? undefined}
         />
       ) : (
-        <span className="text-muted-foreground">-</span>
+        <span className="text-muted-foreground/40">—</span>
       ),
   },
   {
@@ -165,7 +165,7 @@ export const ANSWER_PROPERTIES: Property<AnswerRow>[] = [
       r.customerId && r.customerName ? (
         <CustomerPill id={r.customerId} name={r.customerName} />
       ) : (
-        <span className="text-muted-foreground">-</span>
+        <span className="text-muted-foreground/40">—</span>
       ),
   },
   {
@@ -188,7 +188,7 @@ export const ANSWER_PROPERTIES: Property<AnswerRow>[] = [
           avatarColor={r.teamMemberAvatarColor}
         />
       ) : (
-        <span className="text-muted-foreground">-</span>
+        <span className="text-muted-foreground/40">—</span>
       ),
   },
   {

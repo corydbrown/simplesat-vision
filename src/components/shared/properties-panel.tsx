@@ -1,5 +1,6 @@
 "use client";
 
+import { ChevronDown, ChevronUp } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { PropertyList } from "@/components/shared/property-list";
@@ -62,9 +63,10 @@ export function PropertiesPanel<T>({
           <Button
             variant="ghost"
             size="sm"
-            className="h-8 cursor-pointer px-2 text-base text-muted-foreground hover:text-foreground"
+            className="h-7 cursor-pointer gap-1.5 px-2 text-sm font-normal text-muted-foreground/70 hover:bg-transparent hover:text-foreground"
             onClick={() => setExpanded((v) => !v)}
           >
+            {expanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
             {expanded
               ? `Hide ${hidden.length} ${hidden.length === 1 ? "property" : "properties"}`
               : `${hidden.length} more ${hidden.length === 1 ? "property" : "properties"}`}

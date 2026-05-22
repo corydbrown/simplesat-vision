@@ -85,7 +85,7 @@ const CORE_PROPERTIES: Property<TeamMemberListRow>[] = [
       m.region ? (
         <span className="text-muted-foreground">{m.region}</span>
       ) : (
-        <span className="text-muted-foreground">-</span>
+        <span className="text-muted-foreground/40">—</span>
       ),
   },
   {
@@ -105,7 +105,7 @@ const CORE_PROPERTIES: Property<TeamMemberListRow>[] = [
       m.language ? (
         <span className="text-muted-foreground">{m.language}</span>
       ) : (
-        <span className="text-muted-foreground">-</span>
+        <span className="text-muted-foreground/40">—</span>
       ),
   },
   {
@@ -126,7 +126,7 @@ const CORE_PROPERTIES: Property<TeamMemberListRow>[] = [
       m.groupName ? (
         <TeamGroupPill name={m.groupName} />
       ) : (
-        <span className="text-muted-foreground">-</span>
+        <span className="text-muted-foreground/40">—</span>
       ),
   },
   {

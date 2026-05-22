@@ -23,12 +23,31 @@ export function DetailSection({
   );
 }
 
-export function PropertiesHeader<T>({
+/** Header row above the PropertiesPanel. Renders the "Properties" section
+ *  title with the SlidersHorizontal trigger inline (drawer) or right-justified
+ *  (standalone). The trigger is icon-only — the heading already names the
+ *  affordance. */
+export function PropertiesPanelHeader<T>({
   properties,
+  layout,
 }: {
   properties: Property<T>[];
+  layout: "inline" | "stacked";
 }) {
-  return <ColumnsControl properties={properties} />;
+  return (
+    <div
+      className={
+        layout === "stacked"
+          ? "flex items-center justify-between pb-2"
+          : "flex items-center gap-1.5 pb-2"
+      }
+    >
+      <h2 className="text-base font-medium text-muted-foreground">
+        Properties
+      </h2>
+      <ColumnsControl properties={properties} iconOnly />
+    </div>
+  );
 }
 
 /** Sidebar wrapper for the standalone (single-entity) detail page.

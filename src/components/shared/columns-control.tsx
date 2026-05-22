@@ -32,11 +32,18 @@ import type { Property } from "@/lib/properties/types";
  *    - Search input filtering by label
  *    - Show all / Hide all toggle (skips alwaysVisible)
  *    - Drag handle (dnd-kit) to reorder
- *    - Per-row visibility checkbox */
+ *    - Per-row visibility checkbox
+ *
+ *  `iconOnly` renders just the SlidersHorizontal glyph (no label). Use this
+ *  inside the PropertiesPanel header where the adjacent "Properties" title
+ *  already names the affordance. The default (with label) is for entity
+ *  toolbars where the trigger needs to read on its own. */
 export function ColumnsControl<T>({
   properties,
+  iconOnly = false,
 }: {
   properties: Property<T>[];
+  iconOnly?: boolean;
 }) {
   const { state, setVisibility, setOrder } = useColumnState();
   const [query, setQuery] = useState("");
@@ -96,14 +103,25 @@ export function ColumnsControl<T>({
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="h-8 cursor-pointer gap-1.5 text-base text-muted-foreground"
-        >
-          <SlidersHorizontal size={13} />
-          Properties
-        </Button>
+        {iconOnly ? (
+          <Button
+            variant="ghost"
+            size="sm"
+            aria-label="Properties"
+            className="h-7 w-7 cursor-pointer p-0 text-muted-foreground hover:text-foreground"
+          >
+            <SlidersHorizontal size={14} />
+          </Button>
+        ) : (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-8 cursor-pointer gap-1.5 text-base text-muted-foreground"
+          >
+            <SlidersHorizontal size={13} />
+            Properties
+          </Button>
+        )}
       </PopoverTrigger>
       <PopoverContent align="end" className="w-72 p-0">
         <div className="flex items-center gap-2 border-b border-border px-2 py-2">

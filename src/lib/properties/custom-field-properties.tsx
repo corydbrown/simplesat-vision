@@ -21,7 +21,7 @@ function renderValue(
   raw: unknown,
 ): ReactNode {
   if (raw === undefined || raw === null || raw === "") {
-    return <span className="text-muted-foreground">-</span>;
+    return <span className="text-muted-foreground/40">—</span>;
   }
   switch (def.dataType) {
     case "number":

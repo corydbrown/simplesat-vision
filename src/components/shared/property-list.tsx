@@ -47,10 +47,15 @@ function Group({
   label?: string;
   children: React.ReactNode;
 }) {
+  // Group headers sit under the panel's "Properties" title. Smaller +
+  // semibold + muted gives them a clear sub-section feel without violating
+  // the de-emphasis-via-color rule (size delta is hierarchy, not
+  // de-emphasis). The /40 placeholder dash inside values is left alone by
+  // the dd value-color override below.
   return (
     <div className="pb-4 last:pb-0">
       {label && (
-        <div className="pb-2 text-base font-medium text-muted-foreground">
+        <div className="pb-2 text-sm font-semibold text-muted-foreground">
           {label}
         </div>
       )}
@@ -70,6 +75,12 @@ function Row({
 }) {
   const layout = useContext(LayoutContext);
 
+  // Value override: `[&_.text-muted-foreground]:text-foreground` promotes any
+  // muted-text descendants (which are normal in tables for secondary metadata
+  // like emails, IDs, dates) back to foreground inside the panel. Empty-value
+  // placeholders use `text-muted-foreground/40` — a distinct class — so they
+  // remain visibly faint. Stateful pills don't use the muted class at all, so
+  // they're untouched.
   if (layout === "stacked") {
     return (
       <div className="-mx-2 rounded px-2 py-1 hover:bg-accent/40">
@@ -77,7 +88,7 @@ function Row({
           <Icon size={14} className="shrink-0 text-muted-foreground/70" />
           <span className="truncate">{label}</span>
         </dt>
-        <dd className="mt-0.5 text-base text-foreground break-words">
+        <dd className="mt-0.5 text-base text-foreground break-words [&_.text-muted-foreground]:text-foreground">
           {children}
         </dd>
       </div>
@@ -93,7 +104,9 @@ function Row({
         />
         <span className="truncate">{label}</span>
       </dt>
-      <dd className="min-w-0 text-base text-foreground break-words">{children}</dd>
+      <dd className="min-w-0 text-base text-foreground break-words [&_.text-muted-foreground]:text-foreground">
+        {children}
+      </dd>
     </div>
   );
 }

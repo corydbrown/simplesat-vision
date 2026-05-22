@@ -54,7 +54,7 @@ export const RESPONSE_PROPERTIES: Property<ResponseListRow>[] = [
       r.comment ? (
         <span className="text-foreground">{r.comment}</span>
       ) : (
-        <span className="text-muted-foreground">-</span>
+        <span className="text-muted-foreground/40">—</span>
       ),
   },
   {
@@ -74,7 +74,7 @@ export const RESPONSE_PROPERTIES: Property<ResponseListRow>[] = [
           subject={r.ticketSubject ?? undefined}
         />
       ) : (
-        <span className="text-muted-foreground">-</span>
+        <span className="text-muted-foreground/40">—</span>
       ),
   },
   {
@@ -93,7 +93,7 @@ export const RESPONSE_PROPERTIES: Property<ResponseListRow>[] = [
       r.customerId && r.customerName ? (
         <CustomerPill id={r.customerId} name={r.customerName} />
       ) : (
-        <span className="text-muted-foreground">-</span>
+        <span className="text-muted-foreground/40">—</span>
       ),
   },
   {
@@ -116,7 +116,7 @@ export const RESPONSE_PROPERTIES: Property<ResponseListRow>[] = [
           avatarColor={r.teamMemberAvatarColor}
         />
       ) : (
-        <span className="text-muted-foreground">-</span>
+        <span className="text-muted-foreground/40">—</span>
       ),
   },
   {

@@ -8,7 +8,7 @@ import { RESPONSE_PROPERTIES } from "@/lib/properties/responses";
 import { PropertiesPanel } from "@/components/shared/properties-panel";
 import {
   DetailSection,
-  PropertiesHeader,
+  PropertiesPanelHeader,
   PropertiesSidebar,
 } from "@/components/shared/detail-section";
 import { StarRating } from "@/components/shared/star-rating";
@@ -142,12 +142,10 @@ export function ResponseDetailBody({
       tableId="response-detail"
       properties={RESPONSE_PROPERTIES}
     >
-      <div className="flex items-center justify-between pb-2">
-        <h2 className="text-base font-medium text-muted-foreground">
-          Properties
-        </h2>
-        <PropertiesHeader properties={RESPONSE_PROPERTIES} />
-      </div>
+      <PropertiesPanelHeader
+        properties={RESPONSE_PROPERTIES}
+        layout={inDrawer ? "inline" : "stacked"}
+      />
       <PropertiesPanel
         row={responseRow}
         properties={RESPONSE_PROPERTIES}

@@ -11,7 +11,7 @@ import { RESPONSE_PROPERTIES } from "@/lib/properties/responses";
 import { PropertiesPanel } from "@/components/shared/properties-panel";
 import {
   DetailSection,
-  PropertiesHeader,
+  PropertiesPanelHeader,
   PropertiesSidebar,
 } from "@/components/shared/detail-section";
 import { EntityTable } from "@/components/shared/entity-table";
@@ -150,12 +150,10 @@ export function TeamMemberDetailBody({
       tableId="team-member-detail"
       properties={TEAM_MEMBER_PROPERTIES}
     >
-      <div className="flex items-center justify-between pb-2">
-        <h2 className="text-base font-medium text-muted-foreground">
-          Properties
-        </h2>
-        <PropertiesHeader properties={TEAM_MEMBER_PROPERTIES} />
-      </div>
+      <PropertiesPanelHeader
+        properties={TEAM_MEMBER_PROPERTIES}
+        layout={inDrawer ? "inline" : "stacked"}
+      />
       <PropertiesPanel
         row={memberRow}
         properties={TEAM_MEMBER_PROPERTIES}

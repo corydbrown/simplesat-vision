@@ -9,7 +9,7 @@ import { RESPONSE_PROPERTIES } from "@/lib/properties/responses";
 import { decodeGroup } from "@/lib/group/url-state";
 import { PropertiesPanel } from "@/components/shared/properties-panel";
 import {
-  PropertiesHeader,
+  PropertiesPanelHeader,
   PropertiesSidebar,
 } from "@/components/shared/detail-section";
 import { EntityTable } from "@/components/shared/entity-table";
@@ -101,12 +101,10 @@ export function CustomerDetailBody({
       tableId="customer-detail"
       properties={CUSTOMER_PROPERTIES}
     >
-      <div className="flex items-center justify-between pb-2">
-        <h2 className="text-base font-medium text-muted-foreground">
-          Properties
-        </h2>
-        <PropertiesHeader properties={CUSTOMER_PROPERTIES} />
-      </div>
+      <PropertiesPanelHeader
+        properties={CUSTOMER_PROPERTIES}
+        layout={inDrawer ? "inline" : "stacked"}
+      />
       <PropertiesPanel
         row={customerRow}
         properties={CUSTOMER_PROPERTIES}

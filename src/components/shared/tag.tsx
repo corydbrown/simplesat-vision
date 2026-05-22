@@ -7,7 +7,7 @@ export function Tag({ children }: { children: React.ReactNode }) {
 }
 
 export function TagList({ tags }: { tags: string[] }) {
-  if (!tags.length) return <span className="text-muted-foreground">-</span>;
+  if (!tags.length) return <span className="text-muted-foreground/40">—</span>;
   return (
     <div className="flex gap-1 truncate">
       {tags.map((t) => (

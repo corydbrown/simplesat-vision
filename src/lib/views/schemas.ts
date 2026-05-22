@@ -100,6 +100,7 @@ export const SavedViewSchema = z
     id: ViewIdSchema,
     name: ViewNameSchema,
     state: ViewStateSchema,
+    position: z.number().int().min(0).optional(),
   })
   .strict();
 
@@ -137,5 +138,12 @@ export const ReplaceAllInputSchema = z
   .object({
     entity: EntitySchema,
     views: z.array(SavedViewSchema),
+  })
+  .strict();
+
+export const ReorderInputSchema = z
+  .object({
+    entity: EntitySchema,
+    ids: z.array(ViewIdSchema).min(1).max(200),
   })
   .strict();

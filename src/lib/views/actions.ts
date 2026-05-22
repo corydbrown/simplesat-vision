@@ -6,6 +6,7 @@ import {
   deleteSavedView as deleteSavedViewQuery,
   listSavedViews as listSavedViewsQuery,
   renameSavedView as renameSavedViewQuery,
+  reorderSavedViews as reorderSavedViewsQuery,
   replaceSavedViews as replaceSavedViewsQuery,
   updateSavedView as updateSavedViewQuery,
 } from "@/db/queries/saved-views";
@@ -14,6 +15,7 @@ import {
   DeleteInputSchema,
   EntitySchema,
   RenameInputSchema,
+  ReorderInputSchema,
   ReplaceAllInputSchema,
   UpdateInputSchema,
 } from "./schemas";
@@ -81,4 +83,12 @@ export async function replaceSavedViews(
 ): Promise<void> {
   const input = validate(ReplaceAllInputSchema, { entity, views });
   return replaceSavedViewsQuery(input.entity, input.views);
+}
+
+export async function reorderSavedViews(
+  entity: EntityKey,
+  ids: string[],
+): Promise<void> {
+  const input = validate(ReorderInputSchema, { entity, ids });
+  return reorderSavedViewsQuery(input.entity, input.ids);
 }

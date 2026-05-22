@@ -21,6 +21,11 @@ export type SavedView = {
   id: string;
   name: string;
   state: ViewState;
+  /** Manual sidebar ordering; ascending. Optional in the type because the
+   *  legacy localStorage shape didn't carry it — anything hydrated from the
+   *  server today has a number. Sort by `position ?? Infinity` then name so
+   *  any stray un-positioned views still render alphabetically at the end. */
+  position?: number;
 };
 
 /** Hardcoded id reserved for the immutable "All ENTITY" view. Never appears

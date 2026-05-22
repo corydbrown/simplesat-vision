@@ -1,6 +1,21 @@
 "use client";
 
 import {
+  DndContext,
+  PointerSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  arrayMove,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import {
   BarChart3,
   ChevronDown,
   Home,
@@ -30,7 +45,7 @@ import {
 } from "./sidebar-context";
 import { useSearch } from "./search-context";
 import { useModKey } from "@/lib/platform";
-import { useEntityViews } from "@/lib/views/provider";
+import { useEntityViews, useViews } from "@/lib/views/provider";
 import { ALL_VIEW_LABEL, ENTITY_BASE_PATH } from "@/lib/views/seed";
 import {
   ALL_VIEW_ID,
@@ -345,45 +360,123 @@ function EntityViewList({
   currentViewId: string;
 }) {
   const saved = useEntityViews(entityKey);
+  const { reorderViews } = useViews();
   const basePath = ENTITY_BASE_PATH[entityKey];
   const allLabel = ALL_VIEW_LABEL[entityKey];
 
-  const rows = useMemo(() => {
-    const sorted = [...saved].sort((a, b) => a.name.localeCompare(b.name));
-    return [
-      {
-        nav: { id: ALL_VIEW_ID, label: allLabel, href: basePath },
-        view: null as SavedView | null,
-      },
-      ...sorted.map((v) => ({
-        nav: { id: v.id, label: v.name, href: viewHref(basePath, v.id, v.state) },
-        view: v,
-      })),
-    ];
-  }, [saved, basePath, allLabel]);
+  // Sort by manual `position` then alphabetical fallback — anything missing
+  // a position (legacy localStorage rows that haven't round-tripped through
+  // the server) drops to the end alphabetically.
+  const sorted = useMemo(() => {
+    return [...saved].sort((a, b) => {
+      const ap = a.position ?? Number.POSITIVE_INFINITY;
+      const bp = b.position ?? Number.POSITIVE_INFINITY;
+      if (ap !== bp) return ap - bp;
+      return a.name.localeCompare(b.name);
+    });
+  }, [saved]);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+  );
+
+  const onDragEnd = useCallback(
+    (e: DragEndEvent) => {
+      const { active, over } = e;
+      if (!over || active.id === over.id) return;
+      const ids = sorted.map((v) => v.id);
+      const oldIndex = ids.indexOf(String(active.id));
+      const newIndex = ids.indexOf(String(over.id));
+      if (oldIndex < 0 || newIndex < 0) return;
+      reorderViews(entityKey, arrayMove(ids, oldIndex, newIndex));
+    },
+    [sorted, entityKey, reorderViews],
+  );
+
+  const allNav: NavView = { id: ALL_VIEW_ID, label: allLabel, href: basePath };
+  const allActive = inSection && currentViewId === ALL_VIEW_ID;
 
   return (
     <div className="flex flex-col gap-0.5">
-      {rows.map(({ nav, view }) => {
-        const active = inSection && currentViewId === nav.id;
-        return (
-          <ViewLink
-            key={nav.id}
-            view={nav}
-            active={active}
-            action={
-              view ? (
-                <SidebarViewKebab
-                  entity={entityKey}
-                  view={view}
-                  isActive={active}
-                  basePath={basePath}
-                />
-              ) : null
-            }
+      {/* "All ENTITY" is hardcoded and stays pinned above the drag list. */}
+      <ViewLink view={allNav} active={allActive} />
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragEnd={onDragEnd}
+      >
+        <SortableContext
+          items={sorted.map((v) => v.id)}
+          strategy={verticalListSortingStrategy}
+        >
+          {sorted.map((v) => {
+            const active = inSection && currentViewId === v.id;
+            return (
+              <SortableViewRow
+                key={v.id}
+                view={v}
+                nav={{
+                  id: v.id,
+                  label: v.name,
+                  href: viewHref(basePath, v.id, v.state),
+                }}
+                active={active}
+                entity={entityKey}
+                basePath={basePath}
+              />
+            );
+          })}
+        </SortableContext>
+      </DndContext>
+    </div>
+  );
+}
+
+function SortableViewRow({
+  view,
+  nav,
+  active,
+  entity,
+  basePath,
+}: {
+  view: SavedView;
+  nav: NavView;
+  active: boolean;
+  entity: EntityKey;
+  basePath: string;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
+    useSortable({ id: view.id });
+  // Drag activates only after the pointer travels the sensor's 6px threshold,
+  // so a click on the row still navigates via the inner <Link>. tabIndex={-1}
+  // pulls the wrapper out of the natural tab cycle — the Link inside is the
+  // primary keyboard target. dnd-kit's keyboard sort activator stays on the
+  // wrapper for screen-reader users who route to it directly.
+  return (
+    <div
+      ref={setNodeRef}
+      {...attributes}
+      {...listeners}
+      tabIndex={-1}
+      style={{
+        transform: CSS.Transform.toString(transform),
+        transition,
+        opacity: isDragging ? 0.5 : 1,
+        cursor: isDragging ? "grabbing" : undefined,
+      }}
+    >
+      <ViewLink
+        view={nav}
+        active={active}
+        action={
+          <SidebarViewKebab
+            entity={entity}
+            view={view}
+            isActive={active}
+            basePath={basePath}
           />
-        );
-      })}
+        }
+      />
     </div>
   );
 }

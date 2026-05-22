@@ -9,6 +9,7 @@ function rowToView(row: typeof schema.savedViews.$inferSelect): SavedView {
     id: row.id,
     name: row.name,
     state: row.state as unknown as ViewState,
+    position: row.position,
   };
 }
 
@@ -29,8 +30,9 @@ export async function listSavedViews(entity: EntityKey): Promise<SavedView[]> {
   return rows.map(rowToView);
 }
 
-/** Append-at-end create. Position is MAX(position)+1 so future reorder UI
- *  (SVP-48) has a stable starting layout. */
+/** Append-at-end create. Position is MAX(position)+1 so the sidebar drag-
+ *  reorder UI (SVP-33) keeps newly created views below the existing manual
+ *  order instead of shuffling them in alphabetically. */
 export async function createSavedView(
   entity: EntityKey,
   view: SavedView,
@@ -46,15 +48,16 @@ export async function createSavedView(
         eq(schema.savedViews.entity, entity),
       ),
     );
+  const position = Number(maxPos) + 1;
   await db.insert(schema.savedViews).values({
     id: view.id,
     workspaceId: WORKSPACE_ID,
     entity,
     name: view.name,
     state: view.state as unknown as Record<string, unknown>,
-    position: Number(maxPos) + 1,
+    position,
   });
-  return view;
+  return { ...view, position };
 }
 
 export async function updateSavedView(
@@ -109,6 +112,31 @@ export async function deleteSavedView(
         eq(schema.savedViews.id, id),
       ),
     );
+}
+
+/** Rewrites every row's `position` for `entity` based on its index in `ids`.
+ *  Runs in a transaction so a partial reorder can't leave the sidebar in a
+ *  half-applied state. Rows not present in `ids` are left at their existing
+ *  position — callers (the views provider) always pass the full list. */
+export async function reorderSavedViews(
+  entity: EntityKey,
+  ids: string[],
+): Promise<void> {
+  if (ids.length === 0) return;
+  await db.transaction(async (tx) => {
+    for (let i = 0; i < ids.length; i++) {
+      await tx
+        .update(schema.savedViews)
+        .set({ position: i, updatedAt: new Date() })
+        .where(
+          and(
+            eq(schema.savedViews.workspaceId, WORKSPACE_ID),
+            eq(schema.savedViews.entity, entity),
+            eq(schema.savedViews.id, ids[i]),
+          ),
+        );
+    }
+  });
 }
 
 /** Bulk replace used by the seed and localStorage-migration paths. Deletes

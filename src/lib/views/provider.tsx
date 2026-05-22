@@ -11,6 +11,7 @@ import {
   createSavedView as createSavedViewAction,
   deleteSavedView as deleteSavedViewAction,
   renameSavedView as renameSavedViewAction,
+  reorderSavedViews as reorderSavedViewsAction,
   updateSavedView as updateSavedViewAction,
 } from "./actions";
 import { SEED_VIEWS } from "./seed";
@@ -40,6 +41,10 @@ type ViewsContextValue = {
   updateViewState: (entity: EntityKey, id: string, state: ViewState) => void;
   renameView: (entity: EntityKey, id: string, name: string) => void;
   deleteView: (entity: EntityKey, id: string) => void;
+  /** Apply the supplied id order to the entity's saved views. The list must
+   *  cover every view currently in state — partial reorders aren't supported.
+   *  Updates local state optimistically, then writes positions to the server. */
+  reorderViews: (entity: EntityKey, ids: string[]) => void;
 };
 
 const ViewsContext = createContext<ViewsContextValue | null>(null);
@@ -115,7 +120,18 @@ export function ViewsProvider({ children }: { children: React.ReactNode }) {
     (entity: EntityKey, name: string, state: ViewState): SavedView => {
       const trimmed = name.trim() || "Untitled view";
       const id = nextViewId(views[entity], trimmed);
-      const view: SavedView = { id, name: trimmed, state };
+      // Land at the end of the manual order so existing positions don't
+      // shuffle. Mirrors the server-side MAX(position)+1 in createSavedView.
+      const maxPos = views[entity].reduce(
+        (m, v) => (v.position !== undefined && v.position > m ? v.position : m),
+        -1,
+      );
+      const view: SavedView = {
+        id,
+        name: trimmed,
+        state,
+        position: maxPos + 1,
+      };
       setViews((prev) => ({ ...prev, [entity]: [...prev[entity], view] }));
       void createSavedViewAction(entity, view);
       return view;
@@ -159,6 +175,26 @@ export function ViewsProvider({ children }: { children: React.ReactNode }) {
     void deleteSavedViewAction(entity, id);
   }, []);
 
+  const reorderViews = useCallback((entity: EntityKey, ids: string[]) => {
+    setViews((prev) => {
+      const byId = new Map(prev[entity].map((v) => [v.id, v] as const));
+      const next: SavedView[] = [];
+      ids.forEach((id, i) => {
+        const v = byId.get(id);
+        if (v) next.push({ ...v, position: i });
+      });
+      // Append anything the caller missed so we never drop a row from state
+      // mid-reorder. Shouldn't happen in practice — UI always passes the
+      // full list — but cheap insurance against future call sites.
+      let tail = ids.length;
+      for (const v of prev[entity]) {
+        if (!ids.includes(v.id)) next.push({ ...v, position: tail++ });
+      }
+      return { ...prev, [entity]: next };
+    });
+    void reorderSavedViewsAction(entity, ids);
+  }, []);
+
   return (
     <ViewsContext.Provider
       value={{
@@ -169,6 +205,7 @@ export function ViewsProvider({ children }: { children: React.ReactNode }) {
         updateViewState,
         renameView,
         deleteView,
+        reorderViews,
       }}
     >
       {children}

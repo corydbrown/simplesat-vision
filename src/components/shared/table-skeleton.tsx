@@ -3,7 +3,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 export function TableSkeleton({ rows = 12 }: { rows?: number }) {
   return (
     <div className="flex flex-1 flex-col min-h-0">
-      <div className="border-b border-border px-5 py-1.5">
+      <div className="border-b border-border px-3 py-1.5">
         <Skeleton className="h-4 w-48" />
       </div>
       <div className="flex-1 overflow-hidden">

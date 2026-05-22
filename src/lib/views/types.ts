@@ -3,14 +3,7 @@ import type { GroupSpec } from "@/lib/group/types";
 import type { ColumnState } from "@/lib/properties/types";
 import type { SortSpec } from "@/lib/sort/url-state";
 
-export type EntityKey = "tickets" | "customers" | "responses" | "team-members";
-
-export const ENTITY_KEYS: readonly EntityKey[] = [
-  "tickets",
-  "customers",
-  "responses",
-  "team-members",
-] as const;
+export { ENTITY_KEYS, type EntityKey } from "./schemas";
 
 /** Captures everything a saved view encapsulates. Sort/group/filter/layout
  *  are URL-encoded; column state (visibility, order, widths) is too large

@@ -4,6 +4,8 @@
 
 A clean-room prototype of the future Simplesat product (customer-feedback platform). Not connected to production. Intended as a high-fidelity team alignment artifact, NOT a hacked demo — every change should reinforce a pattern you'd want a team of engineers to copy.
 
+**Trajectory.** This codebase is the seed of the real product, not a throwaway demo. Eventually it gains auth, multi-user, and multi-workspace concerns. When you defer "production-shape" work today (e.g. server-side storage, workspace scoping), capture the seam cleanly so the migration is incremental, not a rewrite. Don't default-dismiss those tasks as overkill — evaluate the cost/benefit of doing them now vs the cost of porting later.
+
 **Seed narrative**: mid-market B2C beauty retailer "Bloom Beauty" (Sephora-style). Three-tier loyalty program (Insider / Gold / Elite). ~95% individual consumers, ~5% B2B accounts (wholesale / corporate gifting / influencer). Simplesat is the underlying product — Bloom Beauty is the demo brand whose customer data flows through it.
 
 ## File map
@@ -27,14 +29,13 @@ Cory is non-technical. Operate accordingly:
 - **Options-first, not commands-first.** When there's a choice to make, present it as a short menu via `AskUserQuestion`. Don't dump terminal commands at him and expect him to run them — translate every action into a chat phrase he can say back to you.
 - **Never end a turn at a "what now?" cliff.** After any action, name the next concrete step, even if it's "you're done — prod deploys in ~60s."
 - **Don't auto-do destructive things** (`worktree remove --force`, `branch -D`, `git reset --hard`, force-push, dropping tables) without an explicit yes.
-- **When you spawn a worker session for him, give him the exact paste-able prompt** for the new Claude window. Example:
+- **When you spawn a worker session for him, give him the exact paste-able prompt** for the new Claude window. After `nw <feature>` succeeds, also run `code <worktree-path>` to auto-open the folder in a new VS Code window — Cory uses the VS Code Claude Code extension, not a terminal `claude`, so the manual step left for him is the smallest possible: `Cmd+Shift+P` → "View: Show Claude Code" → New Session → paste. Example:
 
-  > Worktree ready at `<path>`.
+  > Worktree ready at `<path>`. VS Code window opened.
   >
-  > **In a new VS Code window:**
-  > 1. File → Open Folder → that path
-  > 2. Open the terminal, type `claude`
-  > 3. Paste this into the new Claude session:
+  > **In the new window:**
+  > 1. `Cmd+Shift+P` → "View: Show Claude Code" → New Session
+  > 2. Paste this into the new Claude session:
   >
   > ```
   > /start
@@ -62,6 +63,7 @@ Always detect which role the current session is playing before suggesting action
 - **Cap at 3 active workers.** Cory's context-switching ceiling. If 3 worktrees are already running and a 4th is requested, recommend waiting for one to ship first.
 - **Check collision risk before spawning** when one or more workers are active. Scan the planned scope of the new feature against the surfaces active workers touch. Same surface (toolbar, EntityTable, queries, property registries, shared component) = collision guaranteed → recommend sequential. Different surfaces (CSS tokens vs SQL queries, `/reports` vs list pages, schema additions vs UI) = parallel is safe.
 - **When in doubt, ask Cory before spawning.** Name the active workers, name the surfaces the new one would touch, recommend go or wait.
+- **After `nw <feature>` succeeds, immediately run `code <worktree-path>`** to auto-open the folder in a new VS Code window. Cory uses the VS Code Claude Code extension — opening the folder for him saves the "File → Open Folder" step. Then in the handoff message, only ask him to: (1) `Cmd+Shift+P` → "View: Show Claude Code" → New Session, (2) paste the worker brief.
 
 ### Spoiling Cory
 
@@ -142,7 +144,6 @@ Rules:
 - **URL is the state container** for sort, pagination, view filter, tab, layout toggle, drawer open/closed, in-drawer tab, ad-hoc filters (`?f=`), report config (`?r=`). localStorage is for *preferences* (column widths/visibility/order, drawer width, sidebar width/collapsed, section collapsed-state, recent pages).
 - **No `<a>` tags** for internal navigation. Use Next `Link`.
 - **No date/number libraries**. Use `Intl.*` via `src/lib/format.ts` (includes `formatRelative`, `formatSmartTime`, `formatTimelineDay`).
-- **No em dashes** in user-facing copy.
 - **Font sizes** (production ladder — accessibility over density; see [DESIGN.md](DESIGN.md) → Typography for the full table):
   - Body, nav, detail values, property labels, table cells & headers, drawer body, feed card content, ticket message bubble body: `text-base` (15px — Tailwind's `text-base` is **overridden** from its default 16px in [`globals.css`](src/app/globals.css))
   - Stateful pills (status, priority, channel, tier), chat-message metadata: `text-sm` (14px — Tailwind default)

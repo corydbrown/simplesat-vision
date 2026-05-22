@@ -239,7 +239,7 @@ The tables above own *values*. This section owns *when to reach for which token*
 Base unit 4px. **Allowed values only:** `4, 8, 12, 16, 20, 24, 32, 40, 48, 64`. No `6`, `10`, `14`. Pick the nearest allowed value.
 
 Defaults:
-- Page outer padding: `24` (`32` on `≥xl`)
+- Page outer padding: `24` (`32` on `≥xl`) — exposed as the `--spacing-gutter` token → `px-gutter` utility. Every workspace page-edge surface (topbar, list toolbar, filter row, table cells & headers, group bands, pagination, table skeleton) uses `px-gutter` so all left edges stack on the same vertical. Tune the value in [globals.css](src/app/globals.css), not in callsites.
 - Card padding: `20`
 - Section vertical gap: `32`
 - Form field gap: `16`

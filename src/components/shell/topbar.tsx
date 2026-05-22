@@ -20,7 +20,7 @@ export function Topbar({
   actions?: React.ReactNode;
 }) {
   return (
-    <header className="sticky top-0 z-10 flex h-11 items-center gap-2 border-b border-border bg-background/95 backdrop-blur px-3 text-base">
+    <header className="sticky top-0 z-10 flex h-11 items-center gap-2 border-b border-border bg-background/95 backdrop-blur px-gutter text-base">
       <SidebarToggle />
       <HistoryNav />
       <div className="flex flex-1 items-center gap-1 px-1 min-w-0">

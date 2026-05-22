@@ -203,7 +203,7 @@ export function EntityTable<T>({
                 minWidth: width,
                 maxWidth: width,
               }}
-              className={`px-3 py-3 border-b border-border align-middle bg-background group-hover:bg-accent/50 ${
+              className={`px-gutter py-3 border-b border-border align-middle bg-background group-hover:bg-accent/50 ${
                 p.truncate !== false ? "truncate" : ""
               } ${p.align === "right" ? "text-right" : ""}`}
             >
@@ -217,7 +217,7 @@ export function EntityTable<T>({
 
   return (
     <div className="flex flex-1 flex-col min-h-0">
-      <div className="flex items-center justify-between border-b border-border bg-background px-5 py-1.5">
+      <div className="flex items-center justify-between border-b border-border bg-background px-gutter py-1.5">
         <div className="text-base text-muted-foreground tabular-nums">
           {total === 0
             ? "0 rows"
@@ -260,7 +260,7 @@ export function EntityTable<T>({
               <tr>
                 <td
                   colSpan={visibleOrdered.length}
-                  className="px-3 py-8 text-center text-base text-muted-foreground border-b border-border"
+                  className="px-gutter py-8 text-center text-base text-muted-foreground border-b border-border"
                 >
                   {emptyMessage}
                 </td>
@@ -270,7 +270,7 @@ export function EntityTable<T>({
                 <tr key={`__group:${section.key ?? "__null__"}`}>
                   <td
                     colSpan={visibleOrdered.length}
-                    className="bg-muted/40 px-5 py-2 border-b border-border"
+                    className="bg-muted/40 px-gutter py-2 border-b border-border"
                   >
                     <span className="text-base">
                       <span className="text-muted-foreground/80">
@@ -297,7 +297,7 @@ export function EntityTable<T>({
         </table>
       </div>
 
-      <div className="flex items-center justify-between border-t border-border bg-background px-5 py-2">
+      <div className="flex items-center justify-between border-t border-border bg-background px-gutter py-2">
         <div className="text-base text-muted-foreground">
           Page {formatNumber(page)} of {formatNumber(totalPages)}
         </div>
@@ -384,7 +384,7 @@ function HeaderCell<T>({
         opacity: isDragging ? 0.5 : 1,
         zIndex: isDragging ? 25 : 20,
       }}
-      className={`px-3 py-3 text-left font-medium text-base text-muted-foreground border-b border-border bg-background sticky top-0 ${
+      className={`px-gutter py-3 text-left font-medium text-base text-muted-foreground border-b border-border bg-background sticky top-0 ${
         property.align === "right" ? "text-right" : ""
       }`}
     >

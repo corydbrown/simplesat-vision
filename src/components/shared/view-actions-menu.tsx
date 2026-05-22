@@ -1,7 +1,7 @@
 "use client";
 
 import { Pencil, Trash2 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -120,10 +120,15 @@ function RenameViewDialog({
 }) {
   const [name, setName] = useState(initialName);
 
-  function handleOpenChange(next: boolean) {
-    onOpenChange(next);
-    if (next) setName(initialName);
-  }
+  // The dialog stays mounted across opens, so useState's initial value
+  // would freeze the input on whatever the first opened view's name was.
+  // Resync each time the dialog opens — also handles the topbar case
+  // where `initialName` changes as the user navigates between views
+  // without ever closing the menu component.
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (open) setName(initialName);
+  }, [open, initialName]);
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -137,7 +142,7 @@ function RenameViewDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Rename view</DialogTitle>

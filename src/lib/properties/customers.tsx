@@ -7,17 +7,11 @@ import {
 import { AvgRating } from "@/components/shared/avg-rating";
 import { TierPill } from "@/components/shared/tier-pill";
 import type { CustomerListRow } from "@/db/queries/customers";
-import {
-  ENUM_OPS,
-  NUMERIC_OPS,
-  STRING_OPS,
-} from "@/lib/filters/types";
+import { CUSTOMER_FILTER_SPECS } from "@/lib/filters/specs/customers";
 import { formatDate, formatNumber } from "@/lib/format";
 import { CUSTOMER_CUSTOM_FIELDS } from "./custom-fields";
 import { customFieldProperties } from "./custom-field-properties";
 import type { Property } from "./types";
-
-const CUSTOMER_TIERS = ["insider", "gold", "elite"];
 
 const CORE_PROPERTIES: Property<CustomerListRow>[] = [
   {
@@ -28,7 +22,7 @@ const CORE_PROPERTIES: Property<CustomerListRow>[] = [
     alwaysVisible: true,
     sortable: true,
     sortValue: (c) => c.name,
-    filter: { dataType: "string", ops: STRING_OPS },
+    filter: CUSTOMER_FILTER_SPECS.name,
     cell: (c) => <CustomerPill id={c.id} name={c.name} />,
   },
   {
@@ -39,7 +33,7 @@ const CORE_PROPERTIES: Property<CustomerListRow>[] = [
     defaultVisible: true,
     sortable: true,
     sortValue: (c) => c.email,
-    filter: { dataType: "string", ops: STRING_OPS },
+    filter: CUSTOMER_FILTER_SPECS.email,
     cell: (c) => <span className="text-muted-foreground">{c.email}</span>,
   },
   {
@@ -50,7 +44,7 @@ const CORE_PROPERTIES: Property<CustomerListRow>[] = [
     defaultVisible: true,
     sortable: true,
     sortValue: (c) => c.tier,
-    filter: { dataType: "enum", ops: ENUM_OPS, enumValues: CUSTOMER_TIERS },
+    filter: CUSTOMER_FILTER_SPECS.tier,
     groupable: true,
     groupValue: (c) => c.tier,
     groupLabel: (v) => <TierPill tier={v as CustomerListRow["tier"]} />,
@@ -64,7 +58,7 @@ const CORE_PROPERTIES: Property<CustomerListRow>[] = [
     defaultVisible: false,
     sortable: true,
     sortValue: (c) => c.language,
-    filter: { dataType: "string", ops: STRING_OPS },
+    filter: CUSTOMER_FILTER_SPECS.language,
     groupable: true,
     groupValue: (c) => c.language,
     nullGroupLabel: "No language",
@@ -83,7 +77,7 @@ const CORE_PROPERTIES: Property<CustomerListRow>[] = [
     defaultVisible: true,
     sortable: true,
     sortValue: (c) => c.company,
-    filter: { dataType: "string", ops: STRING_OPS },
+    filter: CUSTOMER_FILTER_SPECS.company,
     groupable: true,
     groupValue: (c) => c.company,
     nullGroupLabel: "No company",
@@ -97,7 +91,7 @@ const CORE_PROPERTIES: Property<CustomerListRow>[] = [
     defaultVisible: false,
     sortable: true,
     sortValue: (c) => c.companyExternalId,
-    filter: { dataType: "string", ops: STRING_OPS },
+    filter: CUSTOMER_FILTER_SPECS.company_external_id,
     cell: (c) =>
       c.companyExternalId ? (
         <span className="font-mono text-xs text-muted-foreground">
@@ -121,7 +115,7 @@ const CORE_PROPERTIES: Property<CustomerListRow>[] = [
     defaultVisible: false,
     sortable: true,
     sortValue: (c) => c.companyDomain,
-    filter: { dataType: "string", ops: STRING_OPS },
+    filter: CUSTOMER_FILTER_SPECS.company_domain,
     cell: (c) =>
       c.companyDomain ? (
         <span className="text-muted-foreground">{c.companyDomain}</span>
@@ -138,7 +132,7 @@ const CORE_PROPERTIES: Property<CustomerListRow>[] = [
     align: "right",
     sortable: true,
     sortValue: (c) => c.totalTickets,
-    filter: { dataType: "number", ops: NUMERIC_OPS },
+    filter: CUSTOMER_FILTER_SPECS.total_tickets,
     cell: (c) => (
       <span className="tabular-nums text-muted-foreground">
         {formatNumber(c.totalTickets)}
@@ -153,7 +147,7 @@ const CORE_PROPERTIES: Property<CustomerListRow>[] = [
     defaultVisible: true,
     sortable: true,
     sortValue: (c) => c.avgRating,
-    filter: { dataType: "number", ops: NUMERIC_OPS },
+    filter: CUSTOMER_FILTER_SPECS.avg_rating,
     cell: (c) => <AvgRating value={c.avgRating} threshold="customer" />,
   },
   {

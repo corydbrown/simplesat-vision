@@ -7,11 +7,7 @@ import {
   TicketPill,
 } from "@/components/shared/entity-pill";
 import type { ResponseListRow } from "@/db/queries/responses";
-import {
-  DATE_OPS,
-  NUMERIC_OPS,
-  STRING_OPS,
-} from "@/lib/filters/types";
+import { RESPONSE_FILTER_SPECS } from "@/lib/filters/specs/responses";
 import { formatDateTime } from "@/lib/format";
 import type { Property } from "./types";
 
@@ -24,7 +20,7 @@ export const RESPONSE_PROPERTIES: Property<ResponseListRow>[] = [
     alwaysVisible: true,
     sortable: true,
     sortValue: (r) => r.rating,
-    filter: { dataType: "number", ops: NUMERIC_OPS },
+    filter: RESPONSE_FILTER_SPECS.rating,
     groupable: true,
     groupValue: (r) => String(r.rating),
     groupLabel: (v) => (
@@ -42,7 +38,7 @@ export const RESPONSE_PROPERTIES: Property<ResponseListRow>[] = [
     defaultVisible: true,
     sortable: true,
     sortValue: (r) => r.comment,
-    filter: { dataType: "string", ops: STRING_OPS },
+    filter: RESPONSE_FILTER_SPECS.comment,
     cell: (r) =>
       r.comment ? (
         <span className="text-foreground">{r.comment}</span>
@@ -117,7 +113,7 @@ export const RESPONSE_PROPERTIES: Property<ResponseListRow>[] = [
     defaultVisible: true,
     sortable: true,
     sortValue: (r) => r.respondedAt,
-    filter: { dataType: "date", ops: DATE_OPS },
+    filter: RESPONSE_FILTER_SPECS.responded_at,
     cell: (r) => (
       <span className="tabular-nums text-muted-foreground">
         {formatDateTime(r.respondedAt)}

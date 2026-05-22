@@ -237,52 +237,35 @@
 }
 
 .dark {
-  /* Production hue palette — same values as :root. Hues don't flip per mode.
-     Structural-semantic tokens below handle mode-specific surfaces/text. */
-  --black: #373F46;
-  --white: #FFFFFF;
+  /* Production hue palette — Tier 1.
+     Structural hues (--black, --white, base, -light, -dark) stay identical to
+     :root; they're consumed by charts, icons, and primary actions that already
+     work on a dark canvas.
+     EXCEPTION: --{hue}-lighter and --{hue}-darker flip in dark mode because
+     they're consumed as pill bg+fg pairs (`bg-{hue}-lighter text-{hue}-darker`).
+     Without the flip, stateful pills render as light pastels on a dark canvas —
+     washed-out, low-contrast, brand-incoherent. The pill components themselves
+     need zero changes: same className strings, the variables resolve per theme. */
+  --grey-lighter: #2E353D;
+  --grey-darker: #C5CDD5;
 
-  --grey-darker: #4E616C;
-  --grey-dark: #596A82;
-  --grey: #8D9399;
-  --grey-light: #DEE6F0;
-  --grey-lighter: #F4F7F9;
+  --green-lighter: #1A3D26;
+  --green-darker: #A5E4B8;
 
-  --green-darker: #1E5D33;
-  --green-dark: #2A8449;
-  --green: #43BE64;
-  --green-light: #7AD99A;
-  --green-lighter: #D3F8DF;
+  --red-lighter: #4D0814;
+  --red-darker: #FFA5B0;
 
-  --red-darker: #920111;
-  --red-dark: #B70215;
-  --red: #D00218;
-  --red-light: #FF7989;
-  --red-lighter: #FFD5E1;
+  --blue-lighter: #0A2640;
+  --blue-darker: #99C7FF;
 
-  --blue-darker: #003F80;
-  --blue-dark: #0071E6;
-  --blue: #007EFF;
-  --blue-light: #66B2FF;
-  --blue-lighter: #E6F2FF;
+  --purple-lighter: #2E1A4D;
+  --purple-darker: #C7AAF5;
 
-  --purple-darker: #4D2E78;
-  --purple-dark: #723BC0;
-  --purple: #804DC8;
-  --purple-light: #BE9AF5;
-  --purple-lighter: #F0E3F9;
+  --teal-lighter: #0A3640;
+  --teal-darker: #99E0EB;
 
-  --teal-darker: #008DA6;
-  --teal-dark: #00A8C2;
-  --teal: #00C7E6;
-  --teal-light: #83F5FF;
-  --teal-lighter: #E6FCFF;
-
-  --yellow-darker: #664400;
-  --yellow-dark: #F2A200;
-  --yellow: #FBBD08;
-  --yellow-light: #FFC86D;
-  --yellow-lighter: #FFEED5;
+  --yellow-lighter: #3D2B00;
+  --yellow-darker: #FFD68A;
 
   /* Structural-semantic aliases (Tier 2) — dark mode flips surfaces/text;
      Tier-1 hue aliases (--primary, --ring, --destructive) stay the same since

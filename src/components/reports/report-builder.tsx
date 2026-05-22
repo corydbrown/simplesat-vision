@@ -41,7 +41,7 @@ import {
   type ValueDef,
 } from "@/lib/reports/types";
 import { encodeConfig } from "@/lib/reports/url-state";
-import { AiPromptDialog } from "./ai-prompt-dialog";
+import { AiPromptInline } from "./ai-prompt-inline";
 import { AxisChip } from "./axis-chip";
 import { AddFieldButton } from "./axis-zone";
 import { BaseEntityDropdown } from "./base-entity-dropdown";
@@ -380,10 +380,6 @@ export function ReportBuilder({ initialConfig }: Props) {
                 <RotateCcw size={14} />
                 Reset
               </Button>
-              <AiPromptDialog
-                base={config.base}
-                onResult={(next) => setConfig(next)}
-              />
             </div>
           </div>
 
@@ -509,6 +505,12 @@ export function ReportBuilder({ initialConfig }: Props) {
               )}
             </InlineAxis>
 
+            <div className="ml-auto self-center">
+              <AiPromptInline
+                base={config.base}
+                onResult={(next) => setConfig(next)}
+              />
+            </div>
           </div>
 
           {/* Dedicated filter band — own visual weight, below the pivot strip */}

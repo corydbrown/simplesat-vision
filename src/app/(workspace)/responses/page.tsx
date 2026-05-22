@@ -3,6 +3,7 @@ import { EntityTable } from "@/components/shared/entity-table";
 import { EntityToolbar } from "@/components/shared/entity-toolbar";
 import { LayoutToggle } from "@/components/shared/layout-toggle";
 import { ListFilterRow } from "@/components/shared/list-filter-row";
+import { ListPageActions } from "@/components/shared/list-page-actions";
 import { ViewBreadcrumb } from "@/components/shared/view-breadcrumb";
 import { ResponseFeedCard } from "@/components/responses/response-feed-card";
 import { ColumnStateProvider } from "@/lib/column-prefs";
@@ -84,7 +85,12 @@ export default async function ResponsesPage(props: PageProps<"/responses">) {
         properties={RESPONSE_PROPERTIES}
         entityKey="responses"
       >
-        <Topbar crumbs={crumbs} />
+        <Topbar
+          crumbs={crumbs}
+          actions={
+            <ListPageActions entityKey="responses" basePath="/responses" />
+          }
+        />
         <EntityToolbar
           properties={RESPONSE_PROPERTIES}
           searchPlaceholder="Search responses..."
@@ -131,7 +137,12 @@ export default async function ResponsesPage(props: PageProps<"/responses">) {
         tableId="response-answers"
         properties={ANSWER_PROPERTIES}
       >
-        <Topbar crumbs={crumbs} />
+        <Topbar
+          crumbs={crumbs}
+          actions={
+            <ListPageActions entityKey="responses" basePath="/responses" />
+          }
+        />
         <EntityToolbar
           properties={ANSWER_PROPERTIES}
           searchPlaceholder="Search answers..."
@@ -163,7 +174,12 @@ export default async function ResponsesPage(props: PageProps<"/responses">) {
       properties={RESPONSE_PROPERTIES}
       entityKey="responses"
     >
-      <Topbar crumbs={crumbs} />
+      <Topbar
+        crumbs={crumbs}
+        actions={
+          <ListPageActions entityKey="responses" basePath="/responses" />
+        }
+      />
       <EntityToolbar
         properties={RESPONSE_PROPERTIES}
         searchPlaceholder="Search responses..."

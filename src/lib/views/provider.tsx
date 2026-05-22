@@ -9,6 +9,7 @@ import {
 } from "react";
 import {
   createSavedView as createSavedViewAction,
+  deleteSavedView as deleteSavedViewAction,
   renameSavedView as renameSavedViewAction,
   updateSavedView as updateSavedViewAction,
 } from "./actions";
@@ -38,6 +39,7 @@ type ViewsContextValue = {
   createView: (entity: EntityKey, name: string, state: ViewState) => SavedView;
   updateViewState: (entity: EntityKey, id: string, state: ViewState) => void;
   renameView: (entity: EntityKey, id: string, name: string) => void;
+  deleteView: (entity: EntityKey, id: string) => void;
 };
 
 const ViewsContext = createContext<ViewsContextValue | null>(null);
@@ -149,6 +151,14 @@ export function ViewsProvider({ children }: { children: React.ReactNode }) {
     [],
   );
 
+  const deleteView = useCallback((entity: EntityKey, id: string) => {
+    setViews((prev) => ({
+      ...prev,
+      [entity]: prev[entity].filter((v) => v.id !== id),
+    }));
+    void deleteSavedViewAction(entity, id);
+  }, []);
+
   return (
     <ViewsContext.Provider
       value={{
@@ -158,6 +168,7 @@ export function ViewsProvider({ children }: { children: React.ReactNode }) {
         createView,
         updateViewState,
         renameView,
+        deleteView,
       }}
     >
       {children}

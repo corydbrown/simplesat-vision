@@ -2,6 +2,7 @@ import { Topbar } from "@/components/shell/topbar";
 import { EntityTable } from "@/components/shared/entity-table";
 import { EntityToolbar } from "@/components/shared/entity-toolbar";
 import { ListFilterRow } from "@/components/shared/list-filter-row";
+import { ListPageActions } from "@/components/shared/list-page-actions";
 import { ViewBreadcrumb } from "@/components/shared/view-breadcrumb";
 import { ColumnStateProvider } from "@/lib/column-prefs";
 import { filtersFromSearchParam } from "@/lib/filters/url-state";
@@ -48,6 +49,9 @@ export default async function TicketsPage(props: PageProps<"/tickets">) {
             node: <ViewBreadcrumb entityKey="tickets" />,
           },
         ]}
+        actions={
+          <ListPageActions entityKey="tickets" basePath="/tickets" />
+        }
       />
       <EntityToolbar
         properties={TICKET_PROPERTIES}

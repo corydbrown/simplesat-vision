@@ -1,14 +1,12 @@
-import {
-  CUSTOMER_VIEWS,
-  RESPONSE_VIEWS,
-  TEAM_MEMBER_VIEWS,
-  TICKET_VIEWS,
-} from "@/lib/views";
 import { PrimaryNavClient } from "./primary-nav-client";
 import type { NavSection } from "./primary-nav-client";
 
-// Server-rendered nav data. Counts removed per Notion-style cleanliness —
-// users get totals on the list page header instead.
+// Server-rendered nav metadata. Per-entity saved views are filled in
+// client-side from localStorage via ViewsProvider — keeping that read out of
+// the SSR boundary avoids hydration mismatches when the user has customized
+// their view list. `entityKey` tells the client which entity's saved views
+// to render below the section header; sections without it (Reports) render
+// their static `views` array as before.
 
 const SECTIONS: NavSection[] = [
   {
@@ -17,11 +15,7 @@ const SECTIONS: NavSection[] = [
     icon: "MessageCircleMore",
     iconClass: "text-icon-responses",
     href: "/responses",
-    views: RESPONSE_VIEWS.map((v) => ({
-      id: v.id,
-      label: v.label,
-      href: v.id === "all" ? "/responses" : `/responses?view=${v.id}`,
-    })),
+    entityKey: "responses",
   },
   {
     id: "customers",
@@ -29,11 +23,7 @@ const SECTIONS: NavSection[] = [
     icon: "UserSquare2",
     iconClass: "text-icon-customers",
     href: "/customers",
-    views: CUSTOMER_VIEWS.map((v) => ({
-      id: v.id,
-      label: v.label,
-      href: v.id === "all" ? "/customers" : `/customers?view=${v.id}`,
-    })),
+    entityKey: "customers",
   },
   {
     id: "team-members",
@@ -41,11 +31,7 @@ const SECTIONS: NavSection[] = [
     icon: "Users",
     iconClass: "text-icon-team-members",
     href: "/team-members",
-    views: TEAM_MEMBER_VIEWS.map((v) => ({
-      id: v.id,
-      label: v.label,
-      href: v.id === "all" ? "/team-members" : `/team-members?view=${v.id}`,
-    })),
+    entityKey: "team-members",
   },
   {
     id: "tickets",
@@ -53,11 +39,7 @@ const SECTIONS: NavSection[] = [
     icon: "Inbox",
     iconClass: "text-icon-tickets",
     href: "/tickets",
-    views: TICKET_VIEWS.map((v) => ({
-      id: v.id,
-      label: v.label,
-      href: v.id === "all" ? "/tickets" : `/tickets?view=${v.id}`,
-    })),
+    entityKey: "tickets",
   },
   {
     id: "reports",

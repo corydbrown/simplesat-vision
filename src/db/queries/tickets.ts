@@ -1,5 +1,5 @@
 import "server-only";
-import { and, asc, desc, eq, sql, type AnyColumn, type SQL } from "drizzle-orm";
+import { asc, desc, eq, sql, type AnyColumn, type SQL } from "drizzle-orm";
 import { db, schema } from "../client";
 import { compileListFilters } from "@/lib/filters/compile-list";
 import { TICKET_FILTER_FIELDS } from "@/lib/filters/fields/tickets";
@@ -8,7 +8,6 @@ import { compileGroupOrderBy } from "@/lib/group/compile";
 import { TICKET_GROUP_FIELDS } from "@/lib/group/fields/tickets";
 import type { GroupSpec } from "@/lib/group/types";
 import type { SortSpec } from "@/lib/sort/url-state";
-import { ticketsViewWhere } from "@/lib/view-predicates";
 import type {
   Ticket,
   TicketMessageAuthorRole,
@@ -97,27 +96,20 @@ export async function listTickets({
   page,
   pageSize,
   sorts,
-  view,
   filters,
   groupBy,
 }: {
   page: number;
   pageSize: number;
   sorts: SortSpec[];
-  view?: string;
   filters?: Filter[];
   groupBy?: GroupSpec | null;
 }): Promise<{ rows: TicketsRow[]; total: number }> {
   const orderByList = buildTicketOrderBy(sorts);
   const groupOrderBy = compileGroupOrderBy(groupBy ?? null, TICKET_GROUP_FIELDS);
-  const viewWhere = view ? ticketsViewWhere(view) : undefined;
-  const filterWhere = filters
+  const where = filters
     ? compileListFilters(filters, TICKET_FILTER_FIELDS)
     : undefined;
-  const where =
-    viewWhere && filterWhere
-      ? and(viewWhere, filterWhere)
-      : (viewWhere ?? filterWhere);
 
   const offset = (page - 1) * pageSize;
 

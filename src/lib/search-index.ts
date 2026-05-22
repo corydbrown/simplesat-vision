@@ -8,12 +8,6 @@ import {
   Users,
   type LucideIcon,
 } from "lucide-react";
-import {
-  CUSTOMER_VIEWS,
-  RESPONSE_VIEWS,
-  TEAM_MEMBER_VIEWS,
-  TICKET_VIEWS,
-} from "@/lib/views";
 
 export type SearchCategory =
   | "Pages"
@@ -36,22 +30,21 @@ export type SearchEntry = {
   keywords?: string[];
 };
 
-type Section = {
+// Section-level pages only. Per-entity saved views are now dynamic
+// (localStorage via ViewsProvider) so the palette renders them through a
+// separate dynamic group rather than baking them into the static index.
+const SECTIONS: {
   id: string;
   label: string;
   icon: LucideIcon;
   href: string;
-  views: { id: string; label: string }[];
   keywords?: string[];
-};
-
-const SECTIONS: Section[] = [
+}[] = [
   {
     id: "responses",
     label: "Responses",
     icon: Star,
     href: "/responses",
-    views: RESPONSE_VIEWS,
     keywords: ["surveys", "ratings", "feedback"],
   },
   {
@@ -59,7 +52,6 @@ const SECTIONS: Section[] = [
     label: "Customers",
     icon: UserSquare2,
     href: "/customers",
-    views: CUSTOMER_VIEWS,
     keywords: ["accounts", "users"],
   },
   {
@@ -67,7 +59,6 @@ const SECTIONS: Section[] = [
     label: "Team members",
     icon: Users,
     href: "/team-members",
-    views: TEAM_MEMBER_VIEWS,
     keywords: ["agents", "staff", "people"],
   },
   {
@@ -75,7 +66,6 @@ const SECTIONS: Section[] = [
     label: "Tickets",
     icon: Inbox,
     href: "/tickets",
-    views: TICKET_VIEWS,
     keywords: ["conversations", "issues"],
   },
   {
@@ -83,14 +73,9 @@ const SECTIONS: Section[] = [
     label: "Reports",
     icon: BarChart3,
     href: "/reports",
-    views: [{ id: "new", label: "New report" }],
     keywords: ["analytics", "dashboard"],
   },
 ];
-
-function viewHref(sectionHref: string, viewId: string): string {
-  return viewId === "all" ? sectionHref : `${sectionHref}?view=${viewId}`;
-}
 
 function buildIndex(): SearchEntry[] {
   const entries: SearchEntry[] = [
@@ -128,17 +113,6 @@ function buildIndex(): SearchEntry[] {
       href: s.href,
       keywords: s.keywords,
     });
-    for (const v of s.views) {
-      if (v.id === "all") continue; // section entry above already covers /responses, /tickets, etc.
-      entries.push({
-        id: `view:${s.id}:${v.id}`,
-        category: "Pages",
-        label: v.label,
-        secondary: s.label,
-        icon: s.icon,
-        href: viewHref(s.href, v.id),
-      });
-    }
   }
 
   return entries;

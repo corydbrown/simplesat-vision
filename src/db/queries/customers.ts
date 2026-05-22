@@ -1,5 +1,5 @@
 import "server-only";
-import { and, asc, desc, eq, sql, type AnyColumn, type SQL } from "drizzle-orm";
+import { asc, desc, eq, sql, type AnyColumn, type SQL } from "drizzle-orm";
 import { db, schema } from "../client";
 import { compileListFilters } from "@/lib/filters/compile-list";
 import {
@@ -15,7 +15,6 @@ import { TICKET_GROUP_FIELDS } from "@/lib/group/fields/tickets";
 import { RESPONSE_GROUP_FIELDS } from "@/lib/group/fields/responses";
 import type { GroupSpec } from "@/lib/group/types";
 import type { SortSpec } from "@/lib/sort/url-state";
-import { customersViewWhere } from "@/lib/view-predicates";
 import type { Customer, CustomerTier } from "../schema";
 
 export type CustomerListRow = {
@@ -66,34 +65,17 @@ function buildCustomerOrderBy(sorts: SortSpec[]): SQL[] {
 }
 
 export async function listCustomers({
-  view,
   sorts = [],
   groupBy,
   filters,
 }: {
-  view?: string;
   sorts?: SortSpec[];
   groupBy?: GroupSpec | null;
   filters?: Filter[];
 } = {}): Promise<{ rows: CustomerListRow[]; total: number }> {
-  const tierWhere = view ? customersViewWhere(view) : undefined;
-  const atRiskWhere =
-    view === "at-risk"
-      ? sql`(SELECT COUNT(*) FROM responses WHERE responses.customer_id = customers.id) >= 3 AND (SELECT AVG(CAST(rating as REAL)) FROM responses WHERE responses.customer_id = customers.id) < 3`
-      : undefined;
-  const filterWhere = filters
+  const where = filters
     ? compileListFilters(filters, CUSTOMER_FILTER_FIELDS)
     : undefined;
-
-  const conditions = [tierWhere, atRiskWhere, filterWhere].filter(
-    (c): c is SQL => c !== undefined,
-  );
-  const where =
-    conditions.length === 0
-      ? undefined
-      : conditions.length === 1
-        ? conditions[0]
-        : and(...conditions);
 
   const baseQuery = db
     .select({

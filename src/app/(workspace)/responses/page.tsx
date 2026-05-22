@@ -1,8 +1,9 @@
-import { Topbar } from "@/components/shell/topbar";
+import { Topbar, type Crumb } from "@/components/shell/topbar";
 import { EntityTable } from "@/components/shared/entity-table";
 import { EntityToolbar } from "@/components/shared/entity-toolbar";
 import { LayoutToggle } from "@/components/shared/layout-toggle";
 import { ListFilterRow } from "@/components/shared/list-filter-row";
+import { ViewBreadcrumb } from "@/components/shared/view-breadcrumb";
 import { ResponseFeedCard } from "@/components/responses/response-feed-card";
 import { ColumnStateProvider } from "@/lib/column-prefs";
 import { filtersFromSearchParam } from "@/lib/filters/url-state";
@@ -15,7 +16,6 @@ import {
 } from "@/lib/properties/response-answers";
 import { parseSortParam } from "@/lib/sort/url-state";
 import { listResponses } from "@/db/queries/responses";
-import { RESPONSE_VIEWS } from "@/lib/views";
 
 // Three layouts. Feed is default — it's the most scannable view for what
 // is fundamentally a stream of human-authored feedback.
@@ -32,9 +32,14 @@ function parseLayout(raw: string | string[] | undefined): Layout {
   return "feed";
 }
 
+const VIEW_CONTEXT = {
+  entityKey: "responses" as const,
+  basePath: "/responses",
+  allowedGroupIds: RESPONSE_GROUP_IDS,
+};
+
 export default async function ResponsesPage(props: PageProps<"/responses">) {
   const sp = await props.searchParams;
-  const view = typeof sp.view === "string" ? sp.view : undefined;
   const layout: Layout = parseLayout(
     typeof sp.layout === "string" ? sp.layout : undefined,
   );
@@ -55,17 +60,18 @@ export default async function ResponsesPage(props: PageProps<"/responses">) {
   const sorts = layout === "answer" ? [] : parseSortParam(sortParam);
   const filters = filtersFromSearchParam(sp.f);
   const { rows, total } = await listResponses({
-    view,
     limit: 500,
     sorts,
     groupBy: layout === "response" ? responseGroupBy : null,
     filters,
   });
-  const activeView = RESPONSE_VIEWS.find((v) => v.id === (view ?? "all"));
 
-  const crumbs = [
+  const crumbs: Crumb[] = [
     { label: "Responses", href: "/responses" },
-    { label: activeView?.label ?? "All responses" },
+    {
+      label: "All responses",
+      node: <ViewBreadcrumb entityKey="responses" />,
+    },
   ];
   const toolbarTrailing = (
     <LayoutToggle basePath="/responses" options={LAYOUT_OPTIONS} />
@@ -79,6 +85,7 @@ export default async function ResponsesPage(props: PageProps<"/responses">) {
           properties={RESPONSE_PROPERTIES}
           searchPlaceholder="Search responses..."
           trailing={toolbarTrailing}
+          viewContext={VIEW_CONTEXT}
         />
         <ListFilterRow properties={RESPONSE_PROPERTIES} />
         <main className="mx-auto w-full max-w-3xl px-6 py-6">
@@ -125,6 +132,7 @@ export default async function ResponsesPage(props: PageProps<"/responses">) {
           properties={ANSWER_PROPERTIES}
           searchPlaceholder="Search answers..."
           trailing={toolbarTrailing}
+          viewContext={VIEW_CONTEXT}
         />
         <ListFilterRow properties={RESPONSE_PROPERTIES} />
         <EntityTable
@@ -152,6 +160,7 @@ export default async function ResponsesPage(props: PageProps<"/responses">) {
         properties={RESPONSE_PROPERTIES}
         searchPlaceholder="Search responses..."
         trailing={toolbarTrailing}
+        viewContext={VIEW_CONTEXT}
       />
       <ListFilterRow properties={RESPONSE_PROPERTIES} />
       <EntityTable

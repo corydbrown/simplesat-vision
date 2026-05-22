@@ -1,8 +1,12 @@
 import {
+  ENUM_OPS,
   NUMERIC_OPS,
   STRING_OPS,
 } from "@/lib/filters/types";
 import type { PropertyFilter } from "@/lib/properties/types";
+
+// Mirrors src/db/seed.ts TEAMS — keep in sync.
+export const TEAM_MEMBER_TEAMS = ["Front line", "Senior", "Specialist"];
 
 /** Per-property filter metadata for team members. Single source of truth —
  *  the server-only field map in `../fields/team-members.ts` adds Drizzle
@@ -13,7 +17,9 @@ export const TEAM_MEMBER_FILTER_SPECS = {
   name: { dataType: "string", ops: STRING_OPS },
   email: { dataType: "string", ops: STRING_OPS },
   role: { dataType: "string", ops: STRING_OPS },
-  team: { dataType: "string", ops: STRING_OPS },
+  // Enum so the Front line / Senior / Specialist seeded views can express
+  // themselves as `team in [...]` instead of fragile substring matching.
+  team: { dataType: "enum", ops: ENUM_OPS, enumValues: TEAM_MEMBER_TEAMS },
   region: { dataType: "string", ops: STRING_OPS },
   language: { dataType: "string", ops: STRING_OPS },
   group: { dataType: "string", ops: STRING_OPS },

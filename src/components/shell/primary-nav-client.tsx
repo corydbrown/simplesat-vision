@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Tooltip,
   TooltipContent,
@@ -28,6 +28,10 @@ import {
 } from "./sidebar-context";
 import { useSearch } from "./search-context";
 import { useModKey } from "@/lib/platform";
+import { useEntityViews } from "@/lib/views/provider";
+import { ALL_VIEW_LABEL, ENTITY_BASE_PATH } from "@/lib/views/seed";
+import { ALL_VIEW_ID, type EntityKey } from "@/lib/views/types";
+import { VIEW_ID_PARAM, viewHref } from "@/lib/views/url";
 
 export type NavView = {
   id: string;
@@ -42,6 +46,11 @@ export type NavSection = {
   /** Tailwind text color utility for the icon, e.g. `text-icon-responses`. Token in globals.css. */
   iconClass?: string;
   href: string;
+  /** When set, the section's view list is sourced from ViewsProvider for
+   *  the named entity. The hardcoded "All ENTITY" view is materialized
+   *  client-side and always pinned first. */
+  entityKey?: EntityKey;
+  /** Static view list, used for sections without an entity binding (Reports). */
   views?: NavView[];
 };
 
@@ -189,7 +198,7 @@ export function PrimaryNavClient({ sections }: { sections: NavSection[] }) {
               key={s.id}
               section={s}
               pathname={pathname}
-              currentView={searchParams.get("view") ?? "all"}
+              currentViewId={searchParams.get(VIEW_ID_PARAM) ?? ALL_VIEW_ID}
               isCollapsed={!sectionsExpanded.has(s.id)}
               onToggle={() => toggleSection(s.id)}
             />
@@ -265,13 +274,13 @@ function TopLink({
 function Section({
   section,
   pathname,
-  currentView,
+  currentViewId,
   isCollapsed,
   onToggle,
 }: {
   section: NavSection;
   pathname: string;
-  currentView: string;
+  currentViewId: string;
   isCollapsed: boolean;
   onToggle: () => void;
 }) {
@@ -294,20 +303,66 @@ function Section({
             isCollapsed ? "-rotate-90" : ""
           }`}
         />
-        {/* Future: per-section action icons (+ to add view, etc.) render
-            on the right edge with `ml-auto opacity-0 group-hover:opacity-100`. */}
       </button>
-      {!isCollapsed && section.views && section.views.length > 0 && (
-        <div className="flex flex-col gap-0.5">
-          {section.views.map((v) => (
-            <ViewLink
-              key={v.id}
-              view={v}
-              active={inSection && currentView === v.id}
-            />
-          ))}
-        </div>
+      {!isCollapsed && section.entityKey && (
+        <EntityViewList
+          entityKey={section.entityKey}
+          inSection={inSection}
+          currentViewId={currentViewId}
+        />
       )}
+      {!isCollapsed &&
+        !section.entityKey &&
+        section.views &&
+        section.views.length > 0 && (
+          <div className="flex flex-col gap-0.5">
+            {section.views.map((v) => (
+              <ViewLink
+                key={v.id}
+                view={v}
+                active={inSection && currentViewId === v.id}
+              />
+            ))}
+          </div>
+        )}
+    </div>
+  );
+}
+
+function EntityViewList({
+  entityKey,
+  inSection,
+  currentViewId,
+}: {
+  entityKey: EntityKey;
+  inSection: boolean;
+  currentViewId: string;
+}) {
+  const saved = useEntityViews(entityKey);
+  const basePath = ENTITY_BASE_PATH[entityKey];
+  const allLabel = ALL_VIEW_LABEL[entityKey];
+
+  const views: NavView[] = useMemo(() => {
+    const sorted = [...saved].sort((a, b) => a.name.localeCompare(b.name));
+    return [
+      { id: ALL_VIEW_ID, label: allLabel, href: basePath },
+      ...sorted.map((v) => ({
+        id: v.id,
+        label: v.name,
+        href: viewHref(basePath, v.id, v.state),
+      })),
+    ];
+  }, [saved, basePath, allLabel]);
+
+  return (
+    <div className="flex flex-col gap-0.5">
+      {views.map((v) => (
+        <ViewLink
+          key={v.id}
+          view={v}
+          active={inSection && currentViewId === v.id}
+        />
+      ))}
     </div>
   );
 }

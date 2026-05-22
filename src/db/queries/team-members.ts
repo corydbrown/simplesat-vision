@@ -1,5 +1,5 @@
 import "server-only";
-import { and, asc, desc, eq, sql, type AnyColumn, type SQL } from "drizzle-orm";
+import { asc, desc, eq, sql, type AnyColumn, type SQL } from "drizzle-orm";
 import { db, schema } from "../client";
 import { compileListFilters } from "@/lib/filters/compile-list";
 import {
@@ -15,7 +15,6 @@ import { TICKET_GROUP_FIELDS } from "@/lib/group/fields/tickets";
 import { RESPONSE_GROUP_FIELDS } from "@/lib/group/fields/responses";
 import type { GroupSpec } from "@/lib/group/types";
 import type { SortSpec } from "@/lib/sort/url-state";
-import { teamMembersViewWhere } from "@/lib/view-predicates";
 import type { TeamMember } from "../schema";
 
 export type TeamMemberListRow = {
@@ -68,12 +67,10 @@ function buildTeamMemberOrderBy(sorts: SortSpec[]): SQL[] {
 }
 
 export async function listTeamMembers({
-  view,
   sorts = [],
   groupBy,
   filters,
 }: {
-  view?: string;
   sorts?: SortSpec[];
   groupBy?: GroupSpec | null;
   filters?: Filter[];
@@ -81,24 +78,9 @@ export async function listTeamMembers({
   rows: TeamMemberListRow[];
   total: number;
 }> {
-  const teamWhere = view ? teamMembersViewWhere(view) : undefined;
-  const lowPerfWhere =
-    view === "low-performers"
-      ? sql`(SELECT COUNT(*) FROM responses WHERE responses.team_member_id = team_members.id) >= 20 AND (SELECT AVG(CAST(rating as REAL)) FROM responses WHERE responses.team_member_id = team_members.id) < 3.5`
-      : undefined;
-  const filterWhere = filters
+  const where = filters
     ? compileListFilters(filters, TEAM_MEMBER_FILTER_FIELDS)
     : undefined;
-
-  const conditions = [teamWhere, lowPerfWhere, filterWhere].filter(
-    (c): c is SQL => c !== undefined,
-  );
-  const where =
-    conditions.length === 0
-      ? undefined
-      : conditions.length === 1
-        ? conditions[0]
-        : and(...conditions);
 
   const baseQuery = db
     .select({

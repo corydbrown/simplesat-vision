@@ -18,7 +18,6 @@ import { CSS } from "@dnd-kit/utilities";
 import {
   BarChart3,
   ChevronDown,
-  GripVertical,
   Home,
   Inbox,
   MessageCircleMore,
@@ -448,29 +447,27 @@ function SortableViewRow({
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: view.id });
+  // Drag activates only after the pointer travels the sensor's 6px threshold,
+  // so a click on the row still navigates via the inner <Link>. tabIndex={-1}
+  // pulls the wrapper out of the natural tab cycle — the Link inside is the
+  // primary keyboard target. dnd-kit's keyboard sort activator stays on the
+  // wrapper for screen-reader users who route to it directly.
   return (
     <div
       ref={setNodeRef}
+      {...attributes}
+      {...listeners}
+      tabIndex={-1}
       style={{
         transform: CSS.Transform.toString(transform),
         transition,
         opacity: isDragging ? 0.5 : 1,
+        cursor: isDragging ? "grabbing" : undefined,
       }}
     >
       <ViewLink
         view={nav}
         active={active}
-        leading={
-          <button
-            {...attributes}
-            {...listeners}
-            type="button"
-            aria-label={`Reorder ${view.name}`}
-            className="flex h-7 w-4 shrink-0 cursor-grab items-center justify-center text-muted-foreground/40 opacity-0 transition-opacity hover:text-muted-foreground group-hover:opacity-100 active:cursor-grabbing"
-          >
-            <GripVertical size={12} />
-          </button>
-        }
         action={
           <SidebarViewKebab
             entity={entity}
@@ -487,12 +484,10 @@ function SortableViewRow({
 function ViewLink({
   view,
   active,
-  leading,
   action,
 }: {
   view: NavView;
   active: boolean;
-  leading?: React.ReactNode;
   action?: React.ReactNode;
 }) {
   const rowClass = active
@@ -502,12 +497,9 @@ function ViewLink({
     <div
       className={`group flex h-7 items-center rounded transition-colors ${rowClass}`}
     >
-      {leading}
       <Link
         href={view.href}
-        className={`flex h-full min-w-0 flex-1 cursor-pointer items-center ${
-          leading ? "pr-2" : "px-2"
-        }`}
+        className="flex h-full min-w-0 flex-1 cursor-pointer items-center px-2"
       >
         <span className="truncate">{view.label}</span>
       </Link>

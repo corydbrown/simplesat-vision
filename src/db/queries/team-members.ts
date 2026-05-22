@@ -15,6 +15,7 @@ import { TICKET_GROUP_FIELDS } from "@/lib/group/fields/tickets";
 import { RESPONSE_GROUP_FIELDS } from "@/lib/group/fields/responses";
 import type { GroupSpec } from "@/lib/group/types";
 import type { SortSpec } from "@/lib/sort/url-state";
+import { TEAM_MEMBER_CUSTOM_FIELDS_BY_ID } from "@/lib/properties/custom-fields";
 import type { TeamMember } from "../schema";
 
 export type TeamMemberListRow = {
@@ -55,10 +56,27 @@ const TEAM_MEMBER_SORT_MAP: Record<string, AnyColumn | SQL> = {
   avg_rating: avgRatingExpr,
 };
 
+function teamMemberCustomFieldOrderExpr(defId: string): SQL | null {
+  const def = TEAM_MEMBER_CUSTOM_FIELDS_BY_ID[defId];
+  if (!def) return null;
+  // Path is bound as a parameter (not interpolated into the SQL string) so
+  // the def id can't influence SQL parsing even though ids are curated today.
+  const path = `$.${defId}`;
+  if (def.dataType === "number") {
+    return sql`CAST(json_extract(team_members.custom_properties, ${path}) AS REAL)`;
+  }
+  return sql`json_extract(team_members.custom_properties, ${path})`;
+}
+
 function buildTeamMemberOrderBy(sorts: SortSpec[]): SQL[] {
   const out: SQL[] = [];
   for (const s of sorts) {
-    const col = TEAM_MEMBER_SORT_MAP[s.key];
+    let col: AnyColumn | SQL | null | undefined;
+    if (s.key.startsWith("cf_")) {
+      col = teamMemberCustomFieldOrderExpr(s.key.slice(3));
+    } else {
+      col = TEAM_MEMBER_SORT_MAP[s.key];
+    }
     if (!col) continue;
     out.push(s.dir === "asc" ? asc(col) : desc(col));
   }

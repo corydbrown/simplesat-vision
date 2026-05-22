@@ -16,6 +16,21 @@ const WIDTH_BY_TYPE: Record<CustomFieldDef["dataType"], number> = {
   enum: 150,
 };
 
+function customFieldSortValue(
+  def: CustomFieldDef,
+  raw: unknown,
+): string | number | Date | null {
+  if (raw === undefined || raw === null || raw === "") return null;
+  switch (def.dataType) {
+    case "number":
+      return typeof raw === "number" ? raw : Number(raw);
+    case "boolean":
+      return raw ? 1 : 0;
+    default:
+      return String(raw);
+  }
+}
+
 function renderValue(
   def: CustomFieldDef,
   raw: unknown,
@@ -70,6 +85,8 @@ export function customFieldProperties<T extends WithCustomProps>(
       sourceEntity,
       defaultVisible: def.defaultVisible,
       align: def.dataType === "number" ? "right" : "left",
+      sortable: true,
+      sortValue: (row) => customFieldSortValue(def, row.customProperties?.[def.id]),
       cell: (row) => renderValue(def, row.customProperties?.[def.id]),
     }));
 }

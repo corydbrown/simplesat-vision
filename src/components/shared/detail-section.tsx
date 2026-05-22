@@ -24,24 +24,18 @@ export function DetailSection({
 }
 
 /** Header row above the PropertiesPanel. Renders the "Properties" section
- *  title with the SlidersHorizontal trigger inline (drawer) or right-justified
- *  (standalone). The trigger is icon-only — the heading already names the
- *  affordance. */
+ *  title with the SlidersHorizontal trigger right-justified on the same row.
+ *  The trigger is icon-only — the heading already names the affordance.
+ *  Layout argument is reserved for future per-surface tweaks; both layouts
+ *  share the right-justified placement today. */
 export function PropertiesPanelHeader<T>({
   properties,
-  layout,
 }: {
   properties: Property<T>[];
-  layout: "inline" | "stacked";
+  layout?: "inline" | "stacked";
 }) {
   return (
-    <div
-      className={
-        layout === "stacked"
-          ? "flex items-center justify-between pb-2"
-          : "flex items-center gap-1.5 pb-2"
-      }
-    >
+    <div className="flex items-center justify-between pb-2">
       <h2 className="text-base font-medium text-muted-foreground">
         Properties
       </h2>

@@ -63,7 +63,7 @@ export function PropertiesPanel<T>({
           <Button
             variant="ghost"
             size="sm"
-            className="h-7 cursor-pointer gap-1.5 px-2 text-sm font-normal text-muted-foreground/70 hover:bg-transparent hover:text-foreground"
+            className="-mx-2 h-7 cursor-pointer gap-1.5 px-2 text-sm font-normal text-muted-foreground/70 hover:bg-transparent hover:text-foreground"
             onClick={() => setExpanded((v) => !v)}
           >
             {expanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}

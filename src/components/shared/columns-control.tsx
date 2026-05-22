@@ -139,30 +139,25 @@ export function ColumnsControl<T>({
             />
           </div>
         </div>
-        <div className="flex items-center justify-between gap-1 px-2 py-1.5 border-b border-border">
-          <span className="text-sm text-muted-foreground">
-            {filtered.length} of {properties.length}
-          </span>
-          <div className="flex items-center gap-0.5">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-7 cursor-pointer px-2 text-xs"
-              onClick={showAll}
-              disabled={toggleableIds.length === 0}
-            >
-              Show all
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-7 cursor-pointer px-2 text-xs"
-              onClick={hideAll}
-              disabled={toggleableIds.length === 0 || !anyVisible}
-            >
-              Hide all
-            </Button>
-          </div>
+        <div className="flex items-center justify-end gap-0.5 px-2 py-1.5 border-b border-border">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-7 cursor-pointer px-2 text-xs"
+            onClick={showAll}
+            disabled={toggleableIds.length === 0}
+          >
+            Show all
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-7 cursor-pointer px-2 text-xs"
+            onClick={hideAll}
+            disabled={toggleableIds.length === 0 || !anyVisible}
+          >
+            Hide all
+          </Button>
         </div>
         <div className="max-h-[60vh] overflow-y-auto py-1">
           {filtered.length === 0 ? (

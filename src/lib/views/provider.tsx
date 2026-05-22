@@ -22,6 +22,7 @@ import {
   saveSavedViews,
 } from "./storage";
 import {
+  ALL_VIEW_ID,
   ENTITY_KEYS,
   type EntityKey,
   type SavedView,
@@ -235,6 +236,7 @@ function nextViewId(existing: SavedView[], name: string): string {
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/^-+|-+$/g, "") || "view";
   const used = new Set(existing.map((v) => v.id));
+  used.add(ALL_VIEW_ID);
   if (!used.has(base)) return base;
   let n = 2;
   while (used.has(`${base}-${n}`)) n++;

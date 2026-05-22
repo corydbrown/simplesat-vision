@@ -3,7 +3,14 @@ import Link from "next/link";
 import { HistoryNav } from "./back-button";
 import { SidebarToggle } from "./sidebar-toggle";
 
-export type Crumb = { label: string; href?: string };
+export type Crumb = {
+  label: string;
+  href?: string;
+  /** When provided, replaces the rendered text — used for interactive
+   *  crumbs (e.g. click-to-rename view name). `label` is still required
+   *  as a fallback for screen readers and SSR. */
+  node?: React.ReactNode;
+};
 
 export function Topbar({
   crumbs,
@@ -25,7 +32,9 @@ export function Topbar({
                 className="shrink-0 text-muted-foreground"
               />
             )}
-            {c.href ? (
+            {c.node ? (
+              c.node
+            ) : c.href ? (
               <Link
                 href={c.href}
                 className="truncate text-muted-foreground hover:text-foreground"

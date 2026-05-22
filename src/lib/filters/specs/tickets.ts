@@ -2,6 +2,7 @@ import {
   DATE_OPS,
   ENUM_OPS,
   NUMERIC_OPS,
+  RELATION_OPS,
   STRING_OPS,
 } from "@/lib/filters/types";
 import type { PropertyFilter } from "@/lib/properties/types";
@@ -28,6 +29,13 @@ export const TICKET_FILTER_SPECS = {
   first_response_at: { dataType: "date", ops: DATE_OPS },
   solved_at: { dataType: "date", ops: DATE_OPS },
   closed_at: { dataType: "date", ops: DATE_OPS },
+  // Assignment + survey status — power the Unassigned and "Survey not fired"
+  // saved views. Only isnull/notnull surface meaningfully today.
+  assignee_id: { dataType: "relation", ops: RELATION_OPS },
+  survey_not_sent_reason: { dataType: "string", ops: STRING_OPS },
+  // Response rating via correlated subquery — powers the Detractors view.
+  // Numeric so users can express other rating cutoffs.
+  response_rating: { dataType: "number", ops: NUMERIC_OPS },
 } as const satisfies Record<string, PropertyFilter>;
 
 export type TicketFilterSpecId = keyof typeof TICKET_FILTER_SPECS;

@@ -6,18 +6,28 @@ import { Input } from "@/components/ui/input";
 import { ColumnsControl } from "./columns-control";
 import { GroupControl } from "./group-control";
 import { SortControl } from "./sort-control";
+import { ViewActions } from "./view-actions";
 import type { Property } from "@/lib/properties/types";
+import type { EntityKey } from "@/lib/views/types";
+
+export type ViewToolbarContext = {
+  entityKey: EntityKey;
+  basePath: string;
+  allowedGroupIds: readonly string[];
+};
 
 export function EntityToolbar<T>({
   properties,
   searchPlaceholder = "Search...",
   paramPrefix = "",
   trailing,
+  viewContext,
 }: {
   properties: Property<T>[];
   searchPlaceholder?: string;
   paramPrefix?: string;
   trailing?: React.ReactNode;
+  viewContext?: ViewToolbarContext;
 }) {
   return (
     <div className="flex items-center gap-2 border-b border-border bg-background px-5 py-2">
@@ -37,6 +47,13 @@ export function EntityToolbar<T>({
       <ColumnsControl properties={properties} />
       <div className="flex-1" />
       {trailing}
+      {viewContext && (
+        <ViewActions
+          entityKey={viewContext.entityKey}
+          basePath={viewContext.basePath}
+          allowedGroupIds={viewContext.allowedGroupIds}
+        />
+      )}
       <ToolbarButton icon={<Download size={13} />} label="Export" />
       <Button size="sm" className="h-8 cursor-pointer gap-1.5">
         <Plus size={13} />

@@ -59,7 +59,7 @@ export function ListFilterRow<T>({
   );
 
   return (
-    <div className="flex items-stretch border-b border-border bg-muted/10 px-3 py-1.5">
+    <div className="flex items-stretch border-b border-border bg-muted/10 px-gutter py-1.5">
       <FilterRow fields={fields} filters={filters} onChange={onChange} />
     </div>
   );

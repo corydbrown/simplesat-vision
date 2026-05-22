@@ -30,7 +30,7 @@ export function EntityToolbar<T>({
   viewContext?: ViewToolbarContext;
 }) {
   return (
-    <div className="flex items-center gap-2 border-b border-border bg-background px-3 py-2">
+    <div className="flex items-center gap-2 border-b border-border bg-background px-gutter py-2">
       <div className="relative w-72">
         <Search
           size={14}

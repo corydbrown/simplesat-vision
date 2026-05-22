@@ -37,7 +37,7 @@ export function propertiesToDescriptors<T>(
     out.push({
       id: p.id,
       label: p.label,
-      group: p.group,
+      group: p.sourceEntity,
       dataType: p.filter.dataType,
       ops: p.filter.ops,
       enumValues: p.filter.enumValues,

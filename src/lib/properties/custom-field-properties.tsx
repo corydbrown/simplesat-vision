@@ -1,5 +1,6 @@
 "use client";
 
+import { ArrowRightLeft } from "lucide-react";
 import type { ReactNode } from "react";
 import { formatDate, formatNumber } from "@/lib/format";
 import type { CustomFieldDef } from "./custom-fields";
@@ -51,10 +52,13 @@ function renderValue(
 
 /** Converts a list of CustomFieldDef into Property entries that read from a
  *  row's `customProperties` JSON. Importance drives default order (higher
- *  first) and default visibility (>=4 visible). Spread after the entity's
- *  core properties so they sort under the semantic-group buckets. */
+ *  first) and default visibility (>=4 visible). All custom fields share the
+ *  ArrowRightLeft icon — they all came from an integration sync — and are
+ *  tagged with the host entity's `sourceEntity` so they render inside that
+ *  entity's section in PropertiesPanel. */
 export function customFieldProperties<T extends WithCustomProps>(
   defs: CustomFieldDef[],
+  sourceEntity: string,
 ): Property<T>[] {
   return [...defs]
     .sort((a, b) => b.importance - a.importance)
@@ -62,7 +66,8 @@ export function customFieldProperties<T extends WithCustomProps>(
       id: `cf_${def.id}`,
       label: def.label,
       width: WIDTH_BY_TYPE[def.dataType],
-      group: def.group,
+      icon: ArrowRightLeft,
+      sourceEntity,
       defaultVisible: def.defaultVisible,
       align: def.dataType === "number" ? "right" : "left",
       cell: (row) => renderValue(def, row.customProperties?.[def.id]),

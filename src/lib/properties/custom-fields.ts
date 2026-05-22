@@ -14,14 +14,15 @@ import { faker } from "@faker-js/faker";
  *  defs with a `source` attribute, and we do NOT render "Synced from X" in
  *  the UI — that would be a fiction.
  *
- *  The optional `group` is a user-facing semantic category (Profile, Loyalty,
- *  Engagement) for organizing the PropertiesPanel and the EntityTable column
- *  picker. It's curated taxonomy, not provenance.
+ *  Custom attributes render inside the entity's direct properties section
+ *  (alongside email, name, company, etc.) — there is no separate UI grouping
+ *  for custom attributes. They're distinguished from core fields by the
+ *  arrows icon, not by a bespoke section header.
  *
  *  These power three things:
- *  - The PropertiesPanel groups on detail pages (collapsed by default for
- *    groups with mostly importance <4 items)
- *  - EntityTable's column picker (search + group-by-category)
+ *  - The PropertiesPanel on detail pages (rendered under the entity's own
+ *    section)
+ *  - EntityTable's column picker (search + drag-to-reorder)
  *  - Reports pivot fields (via json_extract on custom_properties)
  *
  *  The list is intentionally large + sparse: any given customer carries
@@ -40,9 +41,6 @@ export type CustomFieldDataType =
 export type CustomFieldDef = {
   id: string;
   label: string;
-  /** Semantic category for UI grouping. Free-text — curated taxonomy, not
-   *  integration provenance. */
-  group: string;
   dataType: CustomFieldDataType;
   importance: 1 | 2 | 3 | 4 | 5;
   defaultVisible: boolean;
@@ -222,7 +220,6 @@ export const CUSTOMER_CUSTOM_FIELDS: CustomFieldDef[] = [
   {
     id: "gender",
     label: "Gender",
-    group: "Profile",
     dataType: "enum",
     enumValues: GENDER,
     importance: 3,
@@ -238,7 +235,6 @@ export const CUSTOMER_CUSTOM_FIELDS: CustomFieldDef[] = [
   {
     id: "age_bracket",
     label: "Age bracket",
-    group: "Profile",
     dataType: "enum",
     enumValues: AGE_BRACKET,
     importance: 3,
@@ -256,7 +252,6 @@ export const CUSTOMER_CUSTOM_FIELDS: CustomFieldDef[] = [
   {
     id: "city",
     label: "City",
-    group: "Profile",
     dataType: "string",
     importance: 3,
     defaultVisible: false,
@@ -265,7 +260,6 @@ export const CUSTOMER_CUSTOM_FIELDS: CustomFieldDef[] = [
   {
     id: "state",
     label: "State / region",
-    group: "Profile",
     dataType: "string",
     importance: 2,
     defaultVisible: false,
@@ -274,7 +268,6 @@ export const CUSTOMER_CUSTOM_FIELDS: CustomFieldDef[] = [
   {
     id: "postal_code",
     label: "Postal code",
-    group: "Profile",
     dataType: "string",
     importance: 2,
     defaultVisible: false,
@@ -283,7 +276,6 @@ export const CUSTOMER_CUSTOM_FIELDS: CustomFieldDef[] = [
   {
     id: "country",
     label: "Country",
-    group: "Profile",
     dataType: "string",
     importance: 3,
     defaultVisible: false,
@@ -302,7 +294,6 @@ export const CUSTOMER_CUSTOM_FIELDS: CustomFieldDef[] = [
   {
     id: "preferred_contact_method",
     label: "Preferred contact",
-    group: "Profile",
     dataType: "enum",
     enumValues: CONTACT_METHOD,
     importance: 3,
@@ -318,7 +309,6 @@ export const CUSTOMER_CUSTOM_FIELDS: CustomFieldDef[] = [
   {
     id: "birthday_month",
     label: "Birthday month",
-    group: "Profile",
     dataType: "enum",
     enumValues: [
       "Jan",
@@ -344,7 +334,6 @@ export const CUSTOMER_CUSTOM_FIELDS: CustomFieldDef[] = [
   {
     id: "skin_type",
     label: "Skin type",
-    group: "Beauty profile",
     dataType: "enum",
     enumValues: SKIN_TYPE,
     importance: 5,
@@ -354,7 +343,6 @@ export const CUSTOMER_CUSTOM_FIELDS: CustomFieldDef[] = [
   {
     id: "skin_tone",
     label: "Skin tone",
-    group: "Beauty profile",
     dataType: "enum",
     enumValues: SKIN_TONE,
     importance: 4,
@@ -364,7 +352,6 @@ export const CUSTOMER_CUSTOM_FIELDS: CustomFieldDef[] = [
   {
     id: "undertone",
     label: "Undertone",
-    group: "Beauty profile",
     dataType: "enum",
     enumValues: UNDERTONE,
     importance: 3,
@@ -374,7 +361,6 @@ export const CUSTOMER_CUSTOM_FIELDS: CustomFieldDef[] = [
   {
     id: "foundation_shade",
     label: "Foundation shade",
-    group: "Beauty profile",
     dataType: "string",
     importance: 4,
     defaultVisible: true,
@@ -383,7 +369,6 @@ export const CUSTOMER_CUSTOM_FIELDS: CustomFieldDef[] = [
   {
     id: "hair_type",
     label: "Hair type",
-    group: "Beauty profile",
     dataType: "enum",
     enumValues: HAIR_TYPE,
     importance: 3,
@@ -393,7 +378,6 @@ export const CUSTOMER_CUSTOM_FIELDS: CustomFieldDef[] = [
   {
     id: "skin_concerns",
     label: "Skin concerns",
-    group: "Beauty profile",
     dataType: "string",
     importance: 4,
     defaultVisible: true,
@@ -405,7 +389,6 @@ export const CUSTOMER_CUSTOM_FIELDS: CustomFieldDef[] = [
   {
     id: "hair_concerns",
     label: "Hair concerns",
-    group: "Beauty profile",
     dataType: "string",
     importance: 2,
     defaultVisible: false,
@@ -417,7 +400,6 @@ export const CUSTOMER_CUSTOM_FIELDS: CustomFieldDef[] = [
   {
     id: "fragrance_preferences",
     label: "Fragrance preferences",
-    group: "Beauty profile",
     dataType: "string",
     importance: 3,
     defaultVisible: false,
@@ -429,7 +411,6 @@ export const CUSTOMER_CUSTOM_FIELDS: CustomFieldDef[] = [
   {
     id: "allergies",
     label: "Allergies / restrictions",
-    group: "Beauty profile",
     dataType: "string",
     importance: 4,
     defaultVisible: true,
@@ -441,7 +422,6 @@ export const CUSTOMER_CUSTOM_FIELDS: CustomFieldDef[] = [
   {
     id: "sample_preferences",
     label: "Sample preferences",
-    group: "Beauty profile",
     dataType: "string",
     importance: 3,
     defaultVisible: false,
@@ -453,7 +433,6 @@ export const CUSTOMER_CUSTOM_FIELDS: CustomFieldDef[] = [
   {
     id: "favorite_brands",
     label: "Favorite brands",
-    group: "Beauty profile",
     dataType: "string",
     importance: 4,
     defaultVisible: true,
@@ -465,7 +444,6 @@ export const CUSTOMER_CUSTOM_FIELDS: CustomFieldDef[] = [
   {
     id: "pro_member",
     label: "Pro / beauty industry",
-    group: "Beauty profile",
     dataType: "boolean",
     importance: 3,
     defaultVisible: false,
@@ -474,7 +452,6 @@ export const CUSTOMER_CUSTOM_FIELDS: CustomFieldDef[] = [
   {
     id: "product_focus",
     label: "Product focus",
-    group: "Beauty profile",
     dataType: "enum",
     enumValues: PRODUCT_FOCUS,
     importance: 3,
@@ -484,7 +461,6 @@ export const CUSTOMER_CUSTOM_FIELDS: CustomFieldDef[] = [
   {
     id: "primary_store",
     label: "Primary store",
-    group: "Beauty profile",
     dataType: "string",
     importance: 3,
     defaultVisible: false,
@@ -495,7 +471,6 @@ export const CUSTOMER_CUSTOM_FIELDS: CustomFieldDef[] = [
   {
     id: "loyalty_points_balance",
     label: "Loyalty points",
-    group: "Loyalty",
     dataType: "number",
     importance: 5,
     defaultVisible: true,
@@ -504,7 +479,6 @@ export const CUSTOMER_CUSTOM_FIELDS: CustomFieldDef[] = [
   {
     id: "loyalty_tier_since",
     label: "Tier since",
-    group: "Loyalty",
     dataType: "date",
     importance: 3,
     defaultVisible: false,
@@ -513,7 +487,6 @@ export const CUSTOMER_CUSTOM_FIELDS: CustomFieldDef[] = [
   {
     id: "lifetime_spend",
     label: "Lifetime spend",
-    group: "Loyalty",
     dataType: "number",
     importance: 5,
     defaultVisible: true,
@@ -528,7 +501,6 @@ export const CUSTOMER_CUSTOM_FIELDS: CustomFieldDef[] = [
   {
     id: "ytd_spend",
     label: "YTD spend",
-    group: "Loyalty",
     dataType: "number",
     importance: 4,
     defaultVisible: true,
@@ -537,7 +509,6 @@ export const CUSTOMER_CUSTOM_FIELDS: CustomFieldDef[] = [
   {
     id: "birthday_gift_redeemed",
     label: "Birthday gift redeemed",
-    group: "Loyalty",
     dataType: "boolean",
     importance: 2,
     defaultVisible: false,
@@ -546,7 +517,6 @@ export const CUSTOMER_CUSTOM_FIELDS: CustomFieldDef[] = [
   {
     id: "referrals_made",
     label: "Referrals made",
-    group: "Loyalty",
     dataType: "number",
     importance: 3,
     defaultVisible: false,
@@ -561,7 +531,6 @@ export const CUSTOMER_CUSTOM_FIELDS: CustomFieldDef[] = [
   {
     id: "last_tier_change_at",
     label: "Last tier change",
-    group: "Loyalty",
     dataType: "date",
     importance: 3,
     defaultVisible: false,
@@ -572,7 +541,6 @@ export const CUSTOMER_CUSTOM_FIELDS: CustomFieldDef[] = [
   {
     id: "account_created_at",
     label: "Account created",
-    group: "Engagement",
     dataType: "date",
     importance: 3,
     defaultVisible: false,
@@ -581,7 +549,6 @@ export const CUSTOMER_CUSTOM_FIELDS: CustomFieldDef[] = [
   {
     id: "app_installed",
     label: "App installed",
-    group: "Engagement",
     dataType: "boolean",
     importance: 4,
     defaultVisible: true,
@@ -590,7 +557,6 @@ export const CUSTOMER_CUSTOM_FIELDS: CustomFieldDef[] = [
   {
     id: "app_last_opened_at",
     label: "App last opened",
-    group: "Engagement",
     dataType: "date",
     importance: 4,
     defaultVisible: true,
@@ -599,7 +565,6 @@ export const CUSTOMER_CUSTOM_FIELDS: CustomFieldDef[] = [
   {
     id: "email_subscribed",
     label: "Email subscribed",
-    group: "Engagement",
     dataType: "boolean",
     importance: 4,
     defaultVisible: true,
@@ -608,7 +573,6 @@ export const CUSTOMER_CUSTOM_FIELDS: CustomFieldDef[] = [
   {
     id: "sms_subscribed",
     label: "SMS subscribed",
-    group: "Engagement",
     dataType: "boolean",
     importance: 3,
     defaultVisible: false,
@@ -617,7 +581,6 @@ export const CUSTOMER_CUSTOM_FIELDS: CustomFieldDef[] = [
   {
     id: "push_notifications_enabled",
     label: "Push notifications",
-    group: "Engagement",
     dataType: "boolean",
     importance: 2,
     defaultVisible: false,
@@ -626,7 +589,6 @@ export const CUSTOMER_CUSTOM_FIELDS: CustomFieldDef[] = [
   {
     id: "marketing_segment",
     label: "Marketing segment",
-    group: "Engagement",
     dataType: "enum",
     enumValues: MARKETING_SEGMENT,
     importance: 4,
@@ -644,7 +606,6 @@ export const CUSTOMER_CUSTOM_FIELDS: CustomFieldDef[] = [
   {
     id: "last_email_opened_at",
     label: "Last email opened",
-    group: "Engagement",
     dataType: "date",
     importance: 2,
     defaultVisible: false,
@@ -653,7 +614,6 @@ export const CUSTOMER_CUSTOM_FIELDS: CustomFieldDef[] = [
   {
     id: "last_email_clicked_at",
     label: "Last email clicked",
-    group: "Engagement",
     dataType: "date",
     importance: 3,
     defaultVisible: false,
@@ -662,7 +622,6 @@ export const CUSTOMER_CUSTOM_FIELDS: CustomFieldDef[] = [
   {
     id: "signup_source",
     label: "Signup source",
-    group: "Engagement",
     dataType: "enum",
     enumValues: SIGNUP_SOURCE,
     importance: 3,
@@ -682,7 +641,6 @@ export const CUSTOMER_CUSTOM_FIELDS: CustomFieldDef[] = [
   {
     id: "last_in_store_visit_at",
     label: "Last in-store visit",
-    group: "Engagement",
     dataType: "date",
     importance: 3,
     defaultVisible: false,
@@ -693,7 +651,6 @@ export const CUSTOMER_CUSTOM_FIELDS: CustomFieldDef[] = [
   {
     id: "last_purchase_at",
     label: "Last purchase",
-    group: "Purchase behavior",
     dataType: "date",
     importance: 5,
     defaultVisible: true,
@@ -702,7 +659,6 @@ export const CUSTOMER_CUSTOM_FIELDS: CustomFieldDef[] = [
   {
     id: "last_purchase_amount",
     label: "Last purchase amount",
-    group: "Purchase behavior",
     dataType: "number",
     importance: 4,
     defaultVisible: true,
@@ -712,7 +668,6 @@ export const CUSTOMER_CUSTOM_FIELDS: CustomFieldDef[] = [
   {
     id: "total_orders",
     label: "Total orders",
-    group: "Purchase behavior",
     dataType: "number",
     importance: 4,
     defaultVisible: true,
@@ -727,7 +682,6 @@ export const CUSTOMER_CUSTOM_FIELDS: CustomFieldDef[] = [
   {
     id: "avg_order_value",
     label: "Avg order value",
-    group: "Purchase behavior",
     dataType: "number",
     importance: 3,
     defaultVisible: false,
@@ -736,7 +690,6 @@ export const CUSTOMER_CUSTOM_FIELDS: CustomFieldDef[] = [
   {
     id: "preferred_category",
     label: "Preferred category",
-    group: "Purchase behavior",
     dataType: "enum",
     enumValues: PREFERRED_CATEGORY,
     importance: 4,
@@ -755,7 +708,6 @@ export const CUSTOMER_CUSTOM_FIELDS: CustomFieldDef[] = [
   {
     id: "returns_count_ytd",
     label: "Returns (YTD)",
-    group: "Purchase behavior",
     dataType: "number",
     importance: 3,
     defaultVisible: false,
@@ -770,7 +722,6 @@ export const CUSTOMER_CUSTOM_FIELDS: CustomFieldDef[] = [
   {
     id: "last_return_at",
     label: "Last return",
-    group: "Purchase behavior",
     dataType: "date",
     importance: 2,
     defaultVisible: false,
@@ -779,7 +730,6 @@ export const CUSTOMER_CUSTOM_FIELDS: CustomFieldDef[] = [
   {
     id: "preferred_payment_method",
     label: "Preferred payment",
-    group: "Purchase behavior",
     dataType: "enum",
     enumValues: PAYMENT_METHOD,
     importance: 2,
@@ -798,7 +748,6 @@ export const CUSTOMER_CUSTOM_FIELDS: CustomFieldDef[] = [
   {
     id: "wishlist_count",
     label: "Wishlist items",
-    group: "Purchase behavior",
     dataType: "number",
     importance: 2,
     defaultVisible: false,
@@ -807,7 +756,6 @@ export const CUSTOMER_CUSTOM_FIELDS: CustomFieldDef[] = [
   {
     id: "reviews_written",
     label: "Reviews written",
-    group: "Purchase behavior",
     dataType: "number",
     importance: 2,
     defaultVisible: false,
@@ -822,7 +770,6 @@ export const CUSTOMER_CUSTOM_FIELDS: CustomFieldDef[] = [
   {
     id: "abandoned_cart_count",
     label: "Abandoned carts (90d)",
-    group: "Purchase behavior",
     dataType: "number",
     importance: 2,
     defaultVisible: false,
@@ -831,7 +778,6 @@ export const CUSTOMER_CUSTOM_FIELDS: CustomFieldDef[] = [
   {
     id: "uses_bopis",
     label: "Uses BOPIS",
-    group: "Purchase behavior",
     dataType: "boolean",
     importance: 2,
     defaultVisible: false,
@@ -842,7 +788,6 @@ export const CUSTOMER_CUSTOM_FIELDS: CustomFieldDef[] = [
   {
     id: "corporate_account_type",
     label: "Account type (B2B)",
-    group: "B2B",
     dataType: "enum",
     enumValues: CORPORATE_ACCOUNT_TYPE,
     importance: 3,
@@ -852,7 +797,6 @@ export const CUSTOMER_CUSTOM_FIELDS: CustomFieldDef[] = [
   {
     id: "corporate_buyer_role",
     label: "Buyer role",
-    group: "B2B",
     dataType: "string",
     importance: 2,
     defaultVisible: false,
@@ -868,7 +812,6 @@ export const CUSTOMER_CUSTOM_FIELDS: CustomFieldDef[] = [
   {
     id: "account_manager_name",
     label: "Account manager",
-    group: "B2B",
     dataType: "string",
     importance: 3,
     defaultVisible: false,
@@ -877,7 +820,6 @@ export const CUSTOMER_CUSTOM_FIELDS: CustomFieldDef[] = [
   {
     id: "purchase_order_count",
     label: "POs YTD",
-    group: "B2B",
     dataType: "number",
     importance: 2,
     defaultVisible: false,
@@ -886,7 +828,6 @@ export const CUSTOMER_CUSTOM_FIELDS: CustomFieldDef[] = [
   {
     id: "influencer_handle",
     label: "Influencer handle",
-    group: "B2B",
     dataType: "string",
     importance: 2,
     defaultVisible: false,
@@ -942,7 +883,6 @@ export const TEAM_MEMBER_CUSTOM_FIELDS: CustomFieldDef[] = [
   {
     id: "pronouns",
     label: "Pronouns",
-    group: "Profile",
     dataType: "string",
     importance: 3,
     defaultVisible: false,
@@ -951,7 +891,6 @@ export const TEAM_MEMBER_CUSTOM_FIELDS: CustomFieldDef[] = [
   {
     id: "hired_at",
     label: "Hired",
-    group: "Profile",
     dataType: "date",
     importance: 4,
     defaultVisible: true,
@@ -960,7 +899,6 @@ export const TEAM_MEMBER_CUSTOM_FIELDS: CustomFieldDef[] = [
   {
     id: "manager",
     label: "Manager",
-    group: "Profile",
     dataType: "string",
     importance: 4,
     defaultVisible: true,
@@ -969,7 +907,6 @@ export const TEAM_MEMBER_CUSTOM_FIELDS: CustomFieldDef[] = [
   {
     id: "store_assignment",
     label: "Store assignment",
-    group: "Profile",
     dataType: "string",
     importance: 4,
     defaultVisible: true,
@@ -982,7 +919,6 @@ export const TEAM_MEMBER_CUSTOM_FIELDS: CustomFieldDef[] = [
   {
     id: "office_location",
     label: "Office location",
-    group: "Profile",
     dataType: "string",
     importance: 2,
     defaultVisible: false,
@@ -994,7 +930,6 @@ export const TEAM_MEMBER_CUSTOM_FIELDS: CustomFieldDef[] = [
   {
     id: "shift",
     label: "Shift",
-    group: "Schedule",
     dataType: "enum",
     enumValues: SHIFT,
     importance: 4,
@@ -1004,7 +939,6 @@ export const TEAM_MEMBER_CUSTOM_FIELDS: CustomFieldDef[] = [
   {
     id: "schedule_type",
     label: "Schedule type",
-    group: "Schedule",
     dataType: "enum",
     enumValues: SCHEDULE_TYPE,
     importance: 3,
@@ -1019,7 +953,6 @@ export const TEAM_MEMBER_CUSTOM_FIELDS: CustomFieldDef[] = [
   {
     id: "weekly_hours",
     label: "Weekly hours",
-    group: "Schedule",
     dataType: "number",
     importance: 2,
     defaultVisible: false,
@@ -1030,7 +963,6 @@ export const TEAM_MEMBER_CUSTOM_FIELDS: CustomFieldDef[] = [
   {
     id: "specialties",
     label: "Specialties",
-    group: "Skills",
     dataType: "string",
     importance: 4,
     defaultVisible: true,
@@ -1042,7 +974,6 @@ export const TEAM_MEMBER_CUSTOM_FIELDS: CustomFieldDef[] = [
   {
     id: "languages_spoken",
     label: "Languages spoken",
-    group: "Skills",
     dataType: "string",
     importance: 3,
     defaultVisible: false,
@@ -1054,7 +985,6 @@ export const TEAM_MEMBER_CUSTOM_FIELDS: CustomFieldDef[] = [
   {
     id: "beauty_advisor_level",
     label: "Beauty Advisor level",
-    group: "Skills",
     dataType: "enum",
     enumValues: BEAUTY_ADVISOR_LEVEL,
     importance: 4,
@@ -1070,7 +1000,6 @@ export const TEAM_MEMBER_CUSTOM_FIELDS: CustomFieldDef[] = [
   {
     id: "certifications",
     label: "Certifications",
-    group: "Skills",
     dataType: "string",
     importance: 3,
     defaultVisible: false,
@@ -1082,7 +1011,6 @@ export const TEAM_MEMBER_CUSTOM_FIELDS: CustomFieldDef[] = [
   {
     id: "fragrance_expert",
     label: "Fragrance expert",
-    group: "Skills",
     dataType: "boolean",
     importance: 2,
     defaultVisible: false,
@@ -1091,7 +1019,6 @@ export const TEAM_MEMBER_CUSTOM_FIELDS: CustomFieldDef[] = [
   {
     id: "skincare_consultant",
     label: "Skincare consultant",
-    group: "Skills",
     dataType: "boolean",
     importance: 2,
     defaultVisible: false,
@@ -1100,7 +1027,6 @@ export const TEAM_MEMBER_CUSTOM_FIELDS: CustomFieldDef[] = [
   {
     id: "makeup_artist_cert",
     label: "Makeup artist cert",
-    group: "Skills",
     dataType: "boolean",
     importance: 2,
     defaultVisible: false,
@@ -1111,7 +1037,6 @@ export const TEAM_MEMBER_CUSTOM_FIELDS: CustomFieldDef[] = [
   {
     id: "monthly_review_score",
     label: "Monthly review",
-    group: "Performance",
     dataType: "number",
     importance: 4,
     defaultVisible: true,
@@ -1120,7 +1045,6 @@ export const TEAM_MEMBER_CUSTOM_FIELDS: CustomFieldDef[] = [
   {
     id: "qa_reviewer",
     label: "QA reviewer",
-    group: "Performance",
     dataType: "boolean",
     importance: 3,
     defaultVisible: false,
@@ -1129,7 +1053,6 @@ export const TEAM_MEMBER_CUSTOM_FIELDS: CustomFieldDef[] = [
   {
     id: "training_hours_ytd",
     label: "Training hours (YTD)",
-    group: "Performance",
     dataType: "number",
     importance: 2,
     defaultVisible: false,
@@ -1138,7 +1061,6 @@ export const TEAM_MEMBER_CUSTOM_FIELDS: CustomFieldDef[] = [
   {
     id: "onboarding_buddy",
     label: "Onboarding buddy",
-    group: "Performance",
     dataType: "boolean",
     importance: 2,
     defaultVisible: false,
@@ -1147,7 +1069,6 @@ export const TEAM_MEMBER_CUSTOM_FIELDS: CustomFieldDef[] = [
   {
     id: "mentors_count",
     label: "People mentored",
-    group: "Performance",
     dataType: "number",
     importance: 2,
     defaultVisible: false,
@@ -1156,7 +1077,6 @@ export const TEAM_MEMBER_CUSTOM_FIELDS: CustomFieldDef[] = [
   {
     id: "tickets_handled_ytd",
     label: "Tickets handled (YTD)",
-    group: "Performance",
     dataType: "number",
     importance: 3,
     defaultVisible: false,

@@ -9,6 +9,7 @@ import { PropertiesPanel } from "@/components/shared/properties-panel";
 import {
   DetailSection,
   PropertiesHeader,
+  PropertiesSidebar,
 } from "@/components/shared/detail-section";
 import { StarRating } from "@/components/shared/star-rating";
 import type { ResponseDetail } from "@/db/queries/responses";
@@ -150,6 +151,7 @@ export function ResponseDetailBody({
       <PropertiesPanel
         row={responseRow}
         properties={RESPONSE_PROPERTIES}
+        rowEntity="Response"
         layout={inDrawer ? "inline" : "stacked"}
       />
     </ColumnStateProvider>
@@ -182,9 +184,9 @@ export function ResponseDetailBody({
   return (
     <main className="px-14 py-10">
       {header}
-      <div className="mt-8 grid grid-cols-[1fr_260px] gap-10">
+      <div className="mt-8 grid grid-cols-[1fr_auto] gap-10">
         <div className="min-w-0">{content}</div>
-        <aside className="sticky top-14 self-start">{properties}</aside>
+        <PropertiesSidebar>{properties}</PropertiesSidebar>
       </div>
     </main>
   );

@@ -9,6 +9,7 @@ import { PropertiesPanel } from "@/components/shared/properties-panel";
 import {
   DetailSection,
   PropertiesHeader,
+  PropertiesSidebar,
 } from "@/components/shared/detail-section";
 import { ResponsePill } from "@/components/shared/entity-pill";
 import { Badge } from "@/components/ui/badge";
@@ -60,6 +61,7 @@ export function TicketDetailBody({
       <PropertiesPanel
         row={ticket}
         properties={TICKET_PROPERTIES}
+        rowEntity="Ticket"
         layout={inDrawer ? "inline" : "stacked"}
       />
     </>
@@ -130,9 +132,9 @@ export function TicketDetailBody({
     <ColumnStateProvider tableId="ticket-detail" properties={TICKET_PROPERTIES}>
       <main className="px-14 py-10">
         {header}
-        <div className="mt-8 grid grid-cols-[1fr_260px] gap-10">
+        <div className="mt-8 grid grid-cols-[1fr_auto] gap-10">
           <div className="min-w-0">{content}</div>
-          <aside className="sticky top-14 self-start">{properties}</aside>
+          <PropertiesSidebar>{properties}</PropertiesSidebar>
         </div>
       </main>
     </ColumnStateProvider>

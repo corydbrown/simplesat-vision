@@ -30,3 +30,18 @@ export function PropertiesHeader<T>({
 }) {
   return <ColumnsControl properties={properties} />;
 }
+
+/** Sidebar wrapper for the standalone (single-entity) detail page.
+ *  Bordered container, responsive width clamped between 260 and 300px.
+ *  Drawer layouts skip this — the drawer's own chrome already provides
+ *  enclosure. */
+export function PropertiesSidebar({ children }: { children: React.ReactNode }) {
+  return (
+    <aside
+      style={{ width: "clamp(260px, 22vw, 300px)" }}
+      className="sticky top-14 self-start rounded-lg border border-border bg-background px-4 py-3"
+    >
+      {children}
+    </aside>
+  );
+}

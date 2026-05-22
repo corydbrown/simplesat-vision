@@ -1,5 +1,6 @@
 "use server";
 
+import { z } from "zod";
 import {
   createSavedView as createSavedViewQuery,
   deleteSavedView as deleteSavedViewQuery,
@@ -8,17 +9,44 @@ import {
   replaceSavedViews as replaceSavedViewsQuery,
   updateSavedView as updateSavedViewQuery,
 } from "@/db/queries/saved-views";
+import {
+  CreateInputSchema,
+  DeleteInputSchema,
+  EntitySchema,
+  RenameInputSchema,
+  ReplaceAllInputSchema,
+  UpdateInputSchema,
+} from "./schemas";
 import type { EntityKey, SavedView, ViewState } from "./types";
 
+/** Run input through a zod schema before it reaches Drizzle. On ZodError we
+ *  surface a generic message so server-side validation details never leak to
+ *  the client — but log the full issue list to the server console for
+ *  debugging. Set the validation rail NOW so future server actions in this
+ *  codebase copy the pattern as auth + multi-tenant land. */
+function validate<T>(schema: z.ZodType<T>, input: unknown): T {
+  try {
+    return schema.parse(input);
+  } catch (err) {
+    if (err instanceof z.ZodError) {
+      console.error("[saved-views action] invalid input", err.issues);
+      throw new Error("Invalid input");
+    }
+    throw err;
+  }
+}
+
 export async function listSavedViews(entity: EntityKey): Promise<SavedView[]> {
-  return listSavedViewsQuery(entity);
+  const validated = validate(EntitySchema, entity);
+  return listSavedViewsQuery(validated);
 }
 
 export async function createSavedView(
   entity: EntityKey,
   view: SavedView,
 ): Promise<SavedView> {
-  return createSavedViewQuery(entity, view);
+  const input = validate(CreateInputSchema, { entity, view });
+  return createSavedViewQuery(input.entity, input.view);
 }
 
 export async function updateSavedView(
@@ -26,7 +54,8 @@ export async function updateSavedView(
   id: string,
   state: ViewState,
 ): Promise<void> {
-  return updateSavedViewQuery(entity, id, state);
+  const input = validate(UpdateInputSchema, { entity, id, state });
+  return updateSavedViewQuery(input.entity, input.id, input.state);
 }
 
 export async function renameSavedView(
@@ -34,19 +63,22 @@ export async function renameSavedView(
   id: string,
   name: string,
 ): Promise<void> {
-  return renameSavedViewQuery(entity, id, name);
+  const input = validate(RenameInputSchema, { entity, id, name });
+  return renameSavedViewQuery(input.entity, input.id, input.name);
 }
 
 export async function deleteSavedView(
   entity: EntityKey,
   id: string,
 ): Promise<void> {
-  return deleteSavedViewQuery(entity, id);
+  const input = validate(DeleteInputSchema, { entity, id });
+  return deleteSavedViewQuery(input.entity, input.id);
 }
 
 export async function replaceSavedViews(
   entity: EntityKey,
   views: SavedView[],
 ): Promise<void> {
-  return replaceSavedViewsQuery(entity, views);
+  const input = validate(ReplaceAllInputSchema, { entity, views });
+  return replaceSavedViewsQuery(input.entity, input.views);
 }

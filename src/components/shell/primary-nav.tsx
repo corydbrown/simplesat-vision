@@ -1,5 +1,7 @@
 import { PrimaryNavClient } from "./primary-nav-client";
 import type { NavSection } from "./primary-nav-client";
+import { NAV_SECTION_ORDER } from "@/lib/views/seed";
+import type { EntityKey } from "@/lib/views/types";
 
 // Server-rendered nav metadata. Per-entity saved views are filled in
 // client-side from localStorage via ViewsProvider — keeping that read out of
@@ -8,8 +10,8 @@ import type { NavSection } from "./primary-nav-client";
 // to render below the section header; sections without it (Reports) render
 // their static `views` array as before.
 
-const SECTIONS: NavSection[] = [
-  {
+const ENTITY_SECTIONS: Record<EntityKey, NavSection> = {
+  responses: {
     id: "responses",
     label: "Responses",
     icon: "MessageCircleMore",
@@ -17,7 +19,7 @@ const SECTIONS: NavSection[] = [
     href: "/responses",
     entityKey: "responses",
   },
-  {
+  customers: {
     id: "customers",
     label: "Customers",
     icon: "UserSquare2",
@@ -25,7 +27,7 @@ const SECTIONS: NavSection[] = [
     href: "/customers",
     entityKey: "customers",
   },
-  {
+  "team-members": {
     id: "team-members",
     label: "Team members",
     icon: "Users",
@@ -33,7 +35,7 @@ const SECTIONS: NavSection[] = [
     href: "/team-members",
     entityKey: "team-members",
   },
-  {
+  tickets: {
     id: "tickets",
     label: "Tickets",
     icon: "Inbox",
@@ -41,6 +43,10 @@ const SECTIONS: NavSection[] = [
     href: "/tickets",
     entityKey: "tickets",
   },
+};
+
+const SECTIONS: NavSection[] = [
+  ...NAV_SECTION_ORDER.map((key) => ENTITY_SECTIONS[key]),
   {
     id: "reports",
     label: "Reports",

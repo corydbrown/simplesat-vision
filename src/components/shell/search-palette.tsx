@@ -27,7 +27,11 @@ import {
 } from "@/lib/recent-pages";
 import type { SearchResponse, SearchResult } from "@/lib/search-types";
 import { useViews } from "@/lib/views/provider";
-import { ALL_VIEW_LABEL, ENTITY_BASE_PATH } from "@/lib/views/seed";
+import {
+  ALL_VIEW_LABEL,
+  ENTITY_BASE_PATH,
+  NAV_SECTION_ORDER,
+} from "@/lib/views/seed";
 import {
   ALL_VIEW_ID,
   ENTITY_KEYS,
@@ -82,15 +86,6 @@ const VIEW_ENTITY_META: Record<
     basePath: ENTITY_BASE_PATH.tickets,
   },
 };
-
-// Nav order — keeps the "All X" head block in the same order the sidebar
-// renders sections, so palette and sidebar feel cohesive.
-const VIEW_NAV_ORDER: readonly EntityKey[] = [
-  "responses",
-  "customers",
-  "team-members",
-  "tickets",
-];
 
 type ViewEntry = {
   key: string;
@@ -178,7 +173,7 @@ export function SearchPalette({ open, onOpenChange }: Props) {
   // alphabetical for `position` once view reordering lands.
   const viewEntries = useMemo<ViewEntry[]>(() => {
     const entries: ViewEntry[] = [];
-    for (const entity of VIEW_NAV_ORDER) {
+    for (const entity of NAV_SECTION_ORDER) {
       const meta = VIEW_ENTITY_META[entity];
       entries.push({
         key: `view:${entity}:${ALL_VIEW_ID}`,

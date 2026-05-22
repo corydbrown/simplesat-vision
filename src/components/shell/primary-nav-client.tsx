@@ -2,6 +2,7 @@
 
 import {
   DndContext,
+  KeyboardSensor,
   PointerSensor,
   closestCenter,
   useSensor,
@@ -11,6 +12,7 @@ import {
 import {
   SortableContext,
   arrayMove,
+  sortableKeyboardCoordinates,
   useSortable,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
@@ -18,6 +20,7 @@ import { CSS } from "@dnd-kit/utilities";
 import {
   BarChart3,
   ChevronDown,
+  GripVertical,
   Home,
   Inbox,
   MessageCircleMore,
@@ -378,6 +381,7 @@ function EntityViewList({
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
 
   const onDragEnd = useCallback(
@@ -399,7 +403,13 @@ function EntityViewList({
   return (
     <div className="flex flex-col gap-0.5">
       {/* "All ENTITY" is hardcoded and stays pinned above the drag list. */}
-      <ViewLink view={allNav} active={allActive} />
+      {/* Spacer in `leading` keeps the label aligned with saved-view labels, */}
+      {/* whose grip handle occupies the same gutter. */}
+      <ViewLink
+        view={allNav}
+        active={allActive}
+        leading={<span aria-hidden className="ml-0.5 h-5 w-4 shrink-0" />}
+      />
       <DndContext
         sensors={sensors}
         collisionDetection={closestCenter}
@@ -447,27 +457,33 @@ function SortableViewRow({
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: view.id });
-  // Drag activates only after the pointer travels the sensor's 6px threshold,
-  // so a click on the row still navigates via the inner <Link>. tabIndex={-1}
-  // pulls the wrapper out of the natural tab cycle — the Link inside is the
-  // primary keyboard target. dnd-kit's keyboard sort activator stays on the
-  // wrapper for screen-reader users who route to it directly.
+  // Drag activator is the grip handle (not the row body), so clicks on the
+  // row navigate via the inner <Link> without any pointer threshold. The grip
+  // is the keyboard-a11y target: Tab focuses it, Space picks up, arrows move,
+  // Space drops, Escape cancels (KeyboardSensor + sortableKeyboardCoordinates).
   return (
     <div
       ref={setNodeRef}
-      {...attributes}
-      {...listeners}
-      tabIndex={-1}
       style={{
         transform: CSS.Transform.toString(transform),
         transition,
         opacity: isDragging ? 0.5 : 1,
-        cursor: isDragging ? "grabbing" : undefined,
       }}
     >
       <ViewLink
         view={nav}
         active={active}
+        leading={
+          <button
+            {...attributes}
+            {...listeners}
+            type="button"
+            aria-label={`Reorder ${view.name}`}
+            className="ml-0.5 flex h-5 w-4 shrink-0 cursor-grab items-center justify-center rounded text-muted-foreground/60 opacity-0 transition-opacity hover:text-foreground focus-visible:opacity-100 group-hover:opacity-100 active:cursor-grabbing"
+          >
+            <GripVertical size={13} />
+          </button>
+        }
         action={
           <SidebarViewKebab
             entity={entity}
@@ -485,10 +501,12 @@ function ViewLink({
   view,
   active,
   action,
+  leading,
 }: {
   view: NavView;
   active: boolean;
   action?: React.ReactNode;
+  leading?: React.ReactNode;
 }) {
   const rowClass = active
     ? "bg-accent text-foreground font-medium"
@@ -497,9 +515,10 @@ function ViewLink({
     <div
       className={`group flex h-7 items-center rounded transition-colors ${rowClass}`}
     >
+      {leading}
       <Link
         href={view.href}
-        className="flex h-full min-w-0 flex-1 cursor-pointer items-center px-2"
+        className={`flex h-full min-w-0 flex-1 cursor-pointer items-center pr-2 ${leading ? "pl-1" : "pl-2"}`}
       >
         <span className="truncate">{view.label}</span>
       </Link>

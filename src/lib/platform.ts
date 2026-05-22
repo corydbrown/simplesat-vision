@@ -8,7 +8,7 @@ export function isMac(): boolean {
     userAgentData?: { platform?: string };
   }).userAgentData;
   const source = uaData?.platform || navigator.platform || navigator.userAgent;
-  return /Mac|iPhone|iPad|iPod/.test(source);
+  return /mac|iphone|ipad|ipod/i.test(source);
 }
 
 function subscribe() {

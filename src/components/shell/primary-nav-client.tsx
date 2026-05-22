@@ -6,6 +6,7 @@ import {
   Home,
   Inbox,
   MessageCircleMore,
+  MoreHorizontal,
   Search,
   Settings,
   UserSquare2,
@@ -13,8 +14,9 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import Link from "next/link";
-import { usePathname, useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { ViewActionsMenu } from "@/components/shared/view-actions-menu";
 import {
   Tooltip,
   TooltipContent,
@@ -30,7 +32,11 @@ import { useSearch } from "./search-context";
 import { useModKey } from "@/lib/platform";
 import { useEntityViews } from "@/lib/views/provider";
 import { ALL_VIEW_LABEL, ENTITY_BASE_PATH } from "@/lib/views/seed";
-import { ALL_VIEW_ID, type EntityKey } from "@/lib/views/types";
+import {
+  ALL_VIEW_ID,
+  type EntityKey,
+  type SavedView,
+} from "@/lib/views/types";
 import { VIEW_ID_PARAM, viewHref } from "@/lib/views/url";
 
 export type NavView = {
@@ -342,42 +348,101 @@ function EntityViewList({
   const basePath = ENTITY_BASE_PATH[entityKey];
   const allLabel = ALL_VIEW_LABEL[entityKey];
 
-  const views: NavView[] = useMemo(() => {
+  const rows = useMemo(() => {
     const sorted = [...saved].sort((a, b) => a.name.localeCompare(b.name));
     return [
-      { id: ALL_VIEW_ID, label: allLabel, href: basePath },
+      {
+        nav: { id: ALL_VIEW_ID, label: allLabel, href: basePath },
+        view: null as SavedView | null,
+      },
       ...sorted.map((v) => ({
-        id: v.id,
-        label: v.name,
-        href: viewHref(basePath, v.id, v.state),
+        nav: { id: v.id, label: v.name, href: viewHref(basePath, v.id, v.state) },
+        view: v,
       })),
     ];
   }, [saved, basePath, allLabel]);
 
   return (
     <div className="flex flex-col gap-0.5">
-      {views.map((v) => (
-        <ViewLink
-          key={v.id}
-          view={v}
-          active={inSection && currentViewId === v.id}
-        />
-      ))}
+      {rows.map(({ nav, view }) => {
+        const active = inSection && currentViewId === nav.id;
+        return (
+          <ViewLink
+            key={nav.id}
+            view={nav}
+            active={active}
+            action={
+              view ? (
+                <SidebarViewKebab
+                  entity={entityKey}
+                  view={view}
+                  isActive={active}
+                  basePath={basePath}
+                />
+              ) : null
+            }
+          />
+        );
+      })}
     </div>
   );
 }
 
-function ViewLink({ view, active }: { view: NavView; active: boolean }) {
+function ViewLink({
+  view,
+  active,
+  action,
+}: {
+  view: NavView;
+  active: boolean;
+  action?: React.ReactNode;
+}) {
+  const rowClass = active
+    ? "bg-accent text-foreground font-medium"
+    : "text-foreground/75 hover:bg-accent/60 hover:text-foreground";
   return (
-    <Link
-      href={view.href}
-      className={`flex h-7 cursor-pointer items-center rounded px-2 transition-colors ${
-        active
-          ? "bg-accent text-foreground font-medium"
-          : "text-foreground/75 hover:bg-accent/60 hover:text-foreground"
-      }`}
+    <div
+      className={`group flex h-7 items-center rounded transition-colors ${rowClass}`}
     >
-      <span className="truncate">{view.label}</span>
-    </Link>
+      <Link
+        href={view.href}
+        className="flex h-full min-w-0 flex-1 cursor-pointer items-center px-2"
+      >
+        <span className="truncate">{view.label}</span>
+      </Link>
+      {action}
+    </div>
+  );
+}
+
+function SidebarViewKebab({
+  entity,
+  view,
+  isActive,
+  basePath,
+}: {
+  entity: EntityKey;
+  view: SavedView;
+  isActive: boolean;
+  basePath: string;
+}) {
+  const router = useRouter();
+  return (
+    <ViewActionsMenu
+      entity={entity}
+      view={view}
+      align="end"
+      onDeleted={() => {
+        if (isActive) router.push(basePath, { scroll: false });
+      }}
+    >
+      <button
+        type="button"
+        aria-label={`Actions for ${view.name}`}
+        className="mr-1 flex h-5 w-5 cursor-pointer items-center justify-center rounded text-muted-foreground/70 opacity-0 transition-opacity hover:bg-accent hover:text-foreground group-hover:opacity-100 data-[state=open]:opacity-100"
+      >
+        <MoreHorizontal size={14} />
+      </button>
+    </ViewActionsMenu>
   );
 }

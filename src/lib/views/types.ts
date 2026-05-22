@@ -1,7 +1,5 @@
-import type { Filter } from "@/lib/filters/types";
-import type { GroupSpec } from "@/lib/group/types";
-import type { ColumnState } from "@/lib/properties/types";
-import type { SortSpec } from "@/lib/sort/url-state";
+import type { z } from "zod";
+import type { SavedViewSchema, ViewStateSchema } from "./schemas";
 
 export { ENTITY_KEYS, type EntityKey } from "./schemas";
 
@@ -9,24 +7,9 @@ export { ENTITY_KEYS, type EntityKey } from "./schemas";
  *  are URL-encoded; column state (visibility, order, widths) is too large
  *  for the URL so it lives only inside the view's localStorage record. A
  *  view without `columns` falls back to the entity's per-tableId default. */
-export type ViewState = {
-  sorts: SortSpec[];
-  group: GroupSpec | null;
-  filters: Filter[];
-  layout: string | null;
-  columns?: ColumnState;
-};
+export type ViewState = z.infer<typeof ViewStateSchema>;
 
-export type SavedView = {
-  id: string;
-  name: string;
-  state: ViewState;
-  /** Manual sidebar ordering; ascending. Optional in the type because the
-   *  legacy localStorage shape didn't carry it — anything hydrated from the
-   *  server today has a number. Sort by `position ?? Infinity` then name so
-   *  any stray un-positioned views still render alphabetically at the end. */
-  position?: number;
-};
+export type SavedView = z.infer<typeof SavedViewSchema>;
 
 /** Hardcoded id reserved for the immutable "All ENTITY" view. Never appears
  *  in localStorage — it is materialized in-memory by the views provider. */

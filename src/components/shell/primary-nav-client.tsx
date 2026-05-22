@@ -16,6 +16,12 @@ import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { Kbd } from "@/components/ui/kbd";
+import {
   SIDEBAR_MAX_WIDTH,
   SIDEBAR_MIN_WIDTH,
   useSidebar,
@@ -47,12 +53,15 @@ const ICONS = {
   BarChart3,
 } satisfies Record<string, LucideIcon>;
 
-const COLLAPSED_KEY = "simplesat:nav:collapsed";
+// Stores the set of *expanded* section ids so an empty/missing value collapses
+// everything by default. Old `simplesat:nav:collapsed` key (set of collapsed
+// ids) had the opposite semantics and is intentionally not migrated.
+const EXPANDED_KEY = "simplesat:nav:expanded";
 
-function loadCollapsed(): Set<string> {
+function loadExpanded(): Set<string> {
   if (typeof window === "undefined") return new Set();
   try {
-    const raw = window.localStorage.getItem(COLLAPSED_KEY);
+    const raw = window.localStorage.getItem(EXPANDED_KEY);
     if (!raw) return new Set();
     const arr = JSON.parse(raw);
     return Array.isArray(arr) ? new Set(arr) : new Set();
@@ -61,10 +70,10 @@ function loadCollapsed(): Set<string> {
   }
 }
 
-function saveCollapsed(set: Set<string>) {
+function saveExpanded(set: Set<string>) {
   if (typeof window === "undefined") return;
   try {
-    window.localStorage.setItem(COLLAPSED_KEY, JSON.stringify([...set]));
+    window.localStorage.setItem(EXPANDED_KEY, JSON.stringify([...set]));
   } catch {
     // ignore
   }
@@ -76,23 +85,22 @@ export function PrimaryNavClient({ sections }: { sections: NavSection[] }) {
   const { width, collapsed, setWidth } = useSidebar();
   const { open: openSearch } = useSearch();
   const mod = useModKey();
-  const searchHint = `Search (${mod}K)`;
   const [resizing, setResizing] = useState(false);
-  const [sectionsCollapsed, setSectionsCollapsed] = useState<Set<string>>(
+  const [sectionsExpanded, setSectionsExpanded] = useState<Set<string>>(
     new Set(),
   );
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    setSectionsCollapsed(loadCollapsed());
+    setSectionsExpanded(loadExpanded());
   }, []);
 
   function toggleSection(id: string) {
-    setSectionsCollapsed((prev) => {
+    setSectionsExpanded((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
       else next.add(id);
-      saveCollapsed(next);
+      saveExpanded(next);
       return next;
     });
   }
@@ -139,15 +147,22 @@ export function PrimaryNavClient({ sections }: { sections: NavSection[] }) {
             B
           </div>
           <span className="font-medium text-foreground">Bloom Beauty</span>
-          <button
-            type="button"
-            onClick={openSearch}
-            aria-label={searchHint}
-            title={searchHint}
-            className="ml-auto flex h-6 w-6 cursor-pointer items-center justify-center rounded text-muted-foreground/70 transition-colors hover:bg-accent/60 hover:text-foreground"
-          >
-            <Search size={14} />
-          </button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                onClick={openSearch}
+                aria-label="Search"
+                className="ml-auto flex h-6 w-6 cursor-pointer items-center justify-center rounded text-muted-foreground/70 transition-colors hover:bg-accent/60 hover:text-foreground"
+              >
+                <Search size={14} />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">
+              Search <Kbd>{mod}</Kbd>
+              <Kbd>K</Kbd>
+            </TooltipContent>
+          </Tooltip>
         </div>
 
         <div className="flex flex-col gap-0.5">
@@ -175,7 +190,7 @@ export function PrimaryNavClient({ sections }: { sections: NavSection[] }) {
               section={s}
               pathname={pathname}
               currentView={searchParams.get("view") ?? "all"}
-              isCollapsed={sectionsCollapsed.has(s.id)}
+              isCollapsed={!sectionsExpanded.has(s.id)}
               onToggle={() => toggleSection(s.id)}
             />
           ))}

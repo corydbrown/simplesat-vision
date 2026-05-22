@@ -264,6 +264,13 @@ export function GlobalDrawer() {
   const [isOpenAnim, setIsOpenAnim] = useState(false);
   const prevParsedKey = useRef<string | null>(null);
 
+  // The block below reads and writes a ref during render and drives state
+  // transitions via render-phase setState. This is intentional — the early
+  // return on `!active` (further down) happens before any effect runs, so
+  // a useEffect-based capture would unmount the drawer before its exit
+  // animation could play. See CLAUDE.md "Don't reach for useEffect for
+  // the drawer close animation".
+  /* eslint-disable react-hooks/refs */
   // Open→close transition: capture the exit snapshot synchronously so
   // the early return below doesn't fire before we can paint the
   // outgoing drawer.
@@ -283,22 +290,29 @@ export function GlobalDrawer() {
   if (!currentKey && !exiting && isOpenAnim) {
     setIsOpenAnim(false);
   }
+  // Reopen during a pending exit: cancel the exit snapshot so the open
+  // animation isn't fighting the close timeout.
+  if (currentKey && exiting) {
+    setExiting(null);
+  }
+  // Drive the close animation as soon as an exit snapshot exists.
+  // The cleanup timeout that clears the snapshot stays in an effect.
+  if (exiting && isOpenAnim) {
+    setIsOpenAnim(false);
+  }
   prevParsedKey.current = currentKey;
+  /* eslint-enable react-hooks/refs */
 
-  // Trigger open animation on the frame after mount. Also cancels any
-  // pending exit (user re-opens before the exit animation finishes).
+  // Trigger open animation on the frame after mount.
   useEffect(() => {
     if (!parsed) return;
-    setExiting((curr) => (curr ? null : curr));
     const raf = requestAnimationFrame(() => setIsOpenAnim(true));
     return () => cancelAnimationFrame(raf);
   }, [parsed]);
 
-  // Drive close animation + cleanup the exit snapshot after the
-  // transition completes.
+  // Clear the exit snapshot once the close transition has completed.
   useEffect(() => {
     if (!exiting) return;
-    setIsOpenAnim(false);
     const t = window.setTimeout(() => setExiting(null), 220);
     return () => window.clearTimeout(t);
   }, [exiting]);

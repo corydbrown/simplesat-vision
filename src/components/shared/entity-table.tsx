@@ -105,10 +105,11 @@ export function EntityTable<T>({
     return applyMultiSort(rows, sorts, properties);
   }, [rows, serverSorted, searchParams, sortKeyParam, properties]);
 
-  const groupProp =
-    groupBy && propertyMap[groupBy]?.groupable && propertyMap[groupBy]?.groupValue
-      ? propertyMap[groupBy]
-      : null;
+  const groupProp = useMemo(() => {
+    if (!groupBy) return null;
+    const prop = properties.find((p) => p.id === groupBy);
+    return prop?.groupable && prop?.groupValue ? prop : null;
+  }, [groupBy, properties]);
 
   // Bucket the post-sort rows by groupValue. Insertion order preserves the
   // server's (or client multi-sort's) ordering of group keys; null bucket is

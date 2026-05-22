@@ -44,7 +44,14 @@ export function SidebarProvider({ children }: { children: React.ReactNode }) {
   const [width, setWidthState] = useState<number>(SIDEBAR_DEFAULT_WIDTH);
   const [collapsed, setCollapsed] = useState<boolean>(false);
 
-  // Hydrate from localStorage after mount to avoid SSR mismatch.
+  // One-shot hydration from localStorage after mount. Can't use lazy
+  // useState init because localStorage is unavailable during SSR, and
+  // useSyncExternalStore doesn't fit because this component also writes
+  // to localStorage (setWidth, toggle). The setState calls below run
+  // exactly once per mount, not on every state change — this is the
+  // documented "initialize React state from an external system" case,
+  // not the state-mirroring antipattern the rule guards against.
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     try {
       const w = window.localStorage.getItem(STORAGE_WIDTH);
@@ -58,6 +65,7 @@ export function SidebarProvider({ children }: { children: React.ReactNode }) {
       // ignore
     }
   }, []);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   const setWidth = useCallback((n: number) => {
     const w = clampWidth(n);

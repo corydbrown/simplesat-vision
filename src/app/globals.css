@@ -107,11 +107,6 @@
   --color-yellow: var(--yellow);
   --color-yellow-light: var(--yellow-light);
   --color-yellow-lighter: var(--yellow-lighter);
-  --color-vanilla-darker: var(--vanilla-darker);
-  --color-vanilla-dark: var(--vanilla-dark);
-  --color-vanilla: var(--vanilla);
-  --color-vanilla-light: var(--vanilla-light);
-  --color-vanilla-lighter: var(--vanilla-lighter);
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
@@ -125,62 +120,54 @@
   /* ─────────────────────────────────────────────────────────────────────────
      Production hue palette (Simplesat design system) — Tier 1.
      Defined FIRST so structural-semantic tokens below can alias them.
-     7 chromatic colors × 5 shades + black/white + vanilla. These do NOT change
+     7 chromatic colors × 5 shades + black/white. These do NOT change
      between light and dark mode — structural-semantic tokens below flip per mode.
      See DESIGN.md → "Production hue palette" and "Two-tier token system".
      ───────────────────────────────────────────────────────────────────────── */
-  --black: #172B4D;
+  --black: #373F46;
   --white: #FFFFFF;
 
   --grey-darker: #4E616C;
   --grey-dark: #596A82;
-  --grey: #A5ADBA;
+  --grey: #8D9399;
   --grey-light: #DEE6F0;
   --grey-lighter: #F4F7F9;
 
   --green-darker: #1E5D33;
   --green-dark: #2A8449;
-  --green: #4EC677;
+  --green: #43BE64;
   --green-light: #7AD99A;
   --green-lighter: #D3F8DF;
 
   --red-darker: #920111;
-  --red-dark: #B10214;
+  --red-dark: #B70215;
   --red: #D00218;
   --red-light: #FF7989;
-  --red-lighter: #FFDDE1;
+  --red-lighter: #FFD5E1;
 
   --blue-darker: #003F80;
-  --blue-dark: #0058B3;
+  --blue-dark: #0071E6;
   --blue: #007EFF;
   --blue-light: #66B2FF;
   --blue-lighter: #E6F2FF;
 
   --purple-darker: #4D2E78;
-  --purple-dark: #663EA0;
+  --purple-dark: #723BC0;
   --purple: #804DC8;
   --purple-light: #BE9AF5;
-  --purple-lighter: #F0ECF9;
+  --purple-lighter: #F0E3F9;
 
   --teal-darker: #008DA6;
-  --teal-dark: #00B8D9;
+  --teal-dark: #00A8C2;
   --teal: #00C7E6;
-  --teal-light: #B3F5FF;
+  --teal-light: #83F5FF;
   --teal-lighter: #E6FCFF;
 
   --yellow-darker: #664400;
   --yellow-dark: #F2A200;
   --yellow: #FBBD08;
   --yellow-light: #FFC86D;
-  --yellow-lighter: #FFEFD5;
-
-  /* Vanilla — production shipped only --vanilla-darker + --vanilla-lighter.
-     Middle three are interpolated guesses (Claude). Tune in review. */
-  --vanilla-darker: #666100;
-  --vanilla-dark: #998C00;
-  --vanilla: #CCBB33;
-  --vanilla-light: #E6D87A;
-  --vanilla-lighter: #FEFCD5;
+  --yellow-lighter: #FFEED5;
 
   /* ─────────────────────────────────────────────────────────────────────────
      Structural-semantic aliases (Tier 2). Name *roles* (foreground, background,
@@ -248,56 +235,50 @@
 .dark {
   /* Production hue palette — same values as :root. Hues don't flip per mode.
      Structural-semantic tokens below handle mode-specific surfaces/text. */
-  --black: #172B4D;
+  --black: #373F46;
   --white: #FFFFFF;
 
   --grey-darker: #4E616C;
   --grey-dark: #596A82;
-  --grey: #A5ADBA;
+  --grey: #8D9399;
   --grey-light: #DEE6F0;
   --grey-lighter: #F4F7F9;
 
   --green-darker: #1E5D33;
   --green-dark: #2A8449;
-  --green: #4EC677;
+  --green: #43BE64;
   --green-light: #7AD99A;
   --green-lighter: #D3F8DF;
 
   --red-darker: #920111;
-  --red-dark: #B10214;
+  --red-dark: #B70215;
   --red: #D00218;
   --red-light: #FF7989;
-  --red-lighter: #FFDDE1;
+  --red-lighter: #FFD5E1;
 
   --blue-darker: #003F80;
-  --blue-dark: #0058B3;
+  --blue-dark: #0071E6;
   --blue: #007EFF;
   --blue-light: #66B2FF;
   --blue-lighter: #E6F2FF;
 
   --purple-darker: #4D2E78;
-  --purple-dark: #663EA0;
+  --purple-dark: #723BC0;
   --purple: #804DC8;
   --purple-light: #BE9AF5;
-  --purple-lighter: #F0ECF9;
+  --purple-lighter: #F0E3F9;
 
   --teal-darker: #008DA6;
-  --teal-dark: #00B8D9;
+  --teal-dark: #00A8C2;
   --teal: #00C7E6;
-  --teal-light: #B3F5FF;
+  --teal-light: #83F5FF;
   --teal-lighter: #E6FCFF;
 
   --yellow-darker: #664400;
   --yellow-dark: #F2A200;
   --yellow: #FBBD08;
   --yellow-light: #FFC86D;
-  --yellow-lighter: #FFEFD5;
-
-  --vanilla-darker: #666100;
-  --vanilla-dark: #998C00;
-  --vanilla: #CCBB33;
-  --vanilla-light: #E6D87A;
-  --vanilla-lighter: #FEFCD5;
+  --yellow-lighter: #FFEED5;
 
   /* Structural-semantic aliases (Tier 2) — dark mode flips surfaces/text;
      Tier-1 hue aliases (--primary, --ring, --destructive) stay the same since

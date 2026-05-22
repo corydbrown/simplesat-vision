@@ -18,7 +18,7 @@ Three layers, top to bottom. Each layer has a single responsibility; the chain i
 
 Layer 1 above splits into **two tiers**:
 
-- **Tier 1 — Production hue palette.** Raw color values. Seven chromatic hues × 5 shades, plus `--black` / `--white` / `--vanilla`. These are the source of truth. They do NOT change between light and dark mode. Call sites can consume them directly (`bg-blue-lighter`, `text-red-dark`) for any decorative or descriptive use.
+- **Tier 1 — Production hue palette.** Raw color values. Seven chromatic hues × 5 shades, plus `--black` / `--white`. These are the source of truth. They do NOT change between light and dark mode. Call sites can consume them directly (`bg-blue-lighter`, `text-red-dark`) for any decorative or descriptive use.
 - **Tier 2 — Structural-semantic aliases.** Tokens like `--foreground`, `--background`, `--border`, `--card` that name a *structural role* rather than a *color*. These flip per mode (light vs dark). They alias to Tier 1 hues — when you change a hue, the alias updates everywhere.
 
 **State-semantic tokens are intentionally avoided.** Earlier iterations had `--positive` / `--negative` / `--neutral` / `--info` aliasing to mood-bearing values. That conflated "what state this is" with "what color this is" — and forced the codebase to label green as "positive" even when green was just being decorative. Pills and status indicators now reach into the hue palette directly (`bg-green-lighter` for solved, `bg-red-lighter` for urgent). If a true alias becomes worthwhile later (e.g., a `--success` token used in 20+ sites), revisit then.
@@ -67,11 +67,11 @@ Tailwind utilities are generated for each: `bg-blue`, `text-blue-dark`, `border-
 
 | Token | Hex | Notes |
 |---|---|---|
-| `--black` | `#172B4D` | Production "Black" — primary text body. Intentionally not pure `#000`. |
+| `--black` | `#373F46` | Production "Black" — primary text body. Intentionally not pure `#000`. |
 | `--white` | `#FFFFFF` | Pure white. |
 | `--grey-darker` | `#4E616C` | Heaviest non-black text/border. |
 | `--grey-dark` | `#596A82` | Secondary text alternative. |
-| `--grey` | `#A5ADBA` | Tertiary text, mid-strength borders. |
+| `--grey` | `#8D9399` | Tertiary text, mid-strength borders. |
 | `--grey-light` | `#DEE6F0` | Soft borders, inactive elements. |
 | `--grey-lighter` | `#F4F7F9` | Section backgrounds, hover tints. |
 
@@ -80,7 +80,7 @@ Tailwind utilities are generated for each: `bg-blue`, `text-blue-dark`, `border-
 | Token | Hex |
 |---|---|
 | `--blue-darker` | `#003F80` |
-| `--blue-dark` | `#0058B3` |
+| `--blue-dark` | `#0071E6` |
 | `--blue` | `#007EFF` |
 | `--blue-light` | `#66B2FF` |
 | `--blue-lighter` | `#E6F2FF` |
@@ -91,7 +91,7 @@ Tailwind utilities are generated for each: `bg-blue`, `text-blue-dark`, `border-
 |---|---|
 | `--green-darker` | `#1E5D33` |
 | `--green-dark` | `#2A8449` |
-| `--green` | `#4EC677` |
+| `--green` | `#43BE64` |
 | `--green-light` | `#7AD99A` |
 | `--green-lighter` | `#D3F8DF` |
 
@@ -100,29 +100,29 @@ Tailwind utilities are generated for each: `bg-blue`, `text-blue-dark`, `border-
 | Token | Hex |
 |---|---|
 | `--red-darker` | `#920111` |
-| `--red-dark` | `#B10214` |
+| `--red-dark` | `#B70215` |
 | `--red` | `#D00218` |
 | `--red-light` | `#FF7989` |
-| `--red-lighter` | `#FFDDE1` |
+| `--red-lighter` | `#FFD5E1` |
 
 ### Purple
 
 | Token | Hex |
 |---|---|
 | `--purple-darker` | `#4D2E78` |
-| `--purple-dark` | `#663EA0` |
+| `--purple-dark` | `#723BC0` |
 | `--purple` | `#804DC8` |
 | `--purple-light` | `#BE9AF5` |
-| `--purple-lighter` | `#F0ECF9` |
+| `--purple-lighter` | `#F0E3F9` |
 
 ### Teal
 
 | Token | Hex |
 |---|---|
 | `--teal-darker` | `#008DA6` |
-| `--teal-dark` | `#00B8D9` |
+| `--teal-dark` | `#00A8C2` |
 | `--teal` | `#00C7E6` |
-| `--teal-light` | `#B3F5FF` |
+| `--teal-light` | `#83F5FF` |
 | `--teal-lighter` | `#E6FCFF` |
 
 ### Yellow
@@ -133,19 +133,7 @@ Tailwind utilities are generated for each: `bg-blue`, `text-blue-dark`, `border-
 | `--yellow-dark` | `#F2A200` |
 | `--yellow` | `#FBBD08` |
 | `--yellow-light` | `#FFC86D` |
-| `--yellow-lighter` | `#FFEFD5` |
-
-### Vanilla
-
-Production shipped only `--vanilla-darker` and `--vanilla-lighter`. The middle three are interpolated guesses (Claude) for symmetry with the other hues — tune as needed.
-
-| Token | Hex | Note |
-|---|---|---|
-| `--vanilla-darker` | `#666100` | Production value. |
-| `--vanilla-dark` | `#998C00` | Guess — interpolated. |
-| `--vanilla` | `#CCBB33` | Guess — interpolated. |
-| `--vanilla-light` | `#E6D87A` | Guess — interpolated. |
-| `--vanilla-lighter` | `#FEFCD5` | Production value. |
+| `--yellow-lighter` | `#FFEED5` |
 
 ### Hover / pressed states
 
@@ -282,7 +270,7 @@ The audit page surfaced patterns where the design system was bypassed rather tha
 ## Migration notes
 
 **Landed in the codification PR (#13):**
-- Production hue palette (`--black`, `--white`, 7 hues × 5 shades, vanilla 5-shade) added to `:root` and `.dark`.
+- Production hue palette (`--black`, `--white`, 7 hues × 5 shades) added to `:root` and `.dark`.
 - `@theme inline` exposes Tailwind utilities for every hue (`bg-blue`, `text-grey-dark`, etc.).
 - Type ladder shifted: `text-base` overridden to 15px; `text-sm` reverts to Tailwind default 14px; `text-xs` stays at 12px.
 - Chart series (`--chart-1..5` + new `--chart-6`) now alias the production hues. Previously greyscale shadcn defaults.

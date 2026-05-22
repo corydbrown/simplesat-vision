@@ -9,7 +9,7 @@ import {
   type DragEndEvent,
   type DragStartEvent,
 } from "@dnd-kit/core";
-import { RotateCcw } from "lucide-react";
+import { RotateCcw, Sparkles } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import {
@@ -41,7 +41,7 @@ import {
   type ValueDef,
 } from "@/lib/reports/types";
 import { encodeConfig } from "@/lib/reports/url-state";
-import { AiPromptInline } from "./ai-prompt-inline";
+import { AiPromptDialog } from "./ai-prompt-dialog";
 import { AxisChip } from "./axis-chip";
 import { AddFieldButton } from "./axis-zone";
 import { BaseEntityDropdown } from "./base-entity-dropdown";
@@ -77,6 +77,7 @@ export function ReportBuilder({ initialConfig }: Props) {
     null,
   );
   const [pendingBase, setPendingBase] = useState<BaseEntity | null>(null);
+  const [aiPromptOpen, setAiPromptOpen] = useState(false);
   const railRef = useRef<HTMLDivElement>(null);
 
   // Load persisted rail width
@@ -505,13 +506,24 @@ export function ReportBuilder({ initialConfig }: Props) {
               )}
             </InlineAxis>
 
-            <div className="ml-auto self-center">
-              <AiPromptInline
-                base={config.base}
-                onResult={(next) => setConfig(next)}
-              />
-            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setAiPromptOpen(true)}
+              className="ml-auto self-center gap-1.5 cursor-pointer"
+            >
+              <Sparkles size={14} className="text-primary" />
+              Build with AI
+            </Button>
           </div>
+
+          <AiPromptDialog
+            open={aiPromptOpen}
+            onOpenChange={setAiPromptOpen}
+            initialPrompt=""
+            base={config.base}
+            onResult={(next) => setConfig(next)}
+          />
 
           {/* Dedicated filter band — own visual weight, below the pivot strip */}
           <div className="flex items-stretch border-b border-border bg-muted/10 px-3 py-1.5">

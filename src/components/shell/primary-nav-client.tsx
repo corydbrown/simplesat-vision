@@ -1,8 +1,24 @@
 "use client";
 
 import {
+  DndContext,
+  PointerSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  arrayMove,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import {
   BarChart3,
   ChevronDown,
+  GripVertical,
   Home,
   Inbox,
   MessageCircleMore,
@@ -30,7 +46,7 @@ import {
 } from "./sidebar-context";
 import { useSearch } from "./search-context";
 import { useModKey } from "@/lib/platform";
-import { useEntityViews } from "@/lib/views/provider";
+import { useEntityViews, useViews } from "@/lib/views/provider";
 import { ALL_VIEW_LABEL, ENTITY_BASE_PATH } from "@/lib/views/seed";
 import {
   ALL_VIEW_ID,
@@ -345,45 +361,125 @@ function EntityViewList({
   currentViewId: string;
 }) {
   const saved = useEntityViews(entityKey);
+  const { reorderViews } = useViews();
   const basePath = ENTITY_BASE_PATH[entityKey];
   const allLabel = ALL_VIEW_LABEL[entityKey];
 
-  const rows = useMemo(() => {
-    const sorted = [...saved].sort((a, b) => a.name.localeCompare(b.name));
-    return [
-      {
-        nav: { id: ALL_VIEW_ID, label: allLabel, href: basePath },
-        view: null as SavedView | null,
-      },
-      ...sorted.map((v) => ({
-        nav: { id: v.id, label: v.name, href: viewHref(basePath, v.id, v.state) },
-        view: v,
-      })),
-    ];
-  }, [saved, basePath, allLabel]);
+  // Sort by manual `position` then alphabetical fallback — anything missing
+  // a position (legacy localStorage rows that haven't round-tripped through
+  // the server) drops to the end alphabetically.
+  const sorted = useMemo(() => {
+    return [...saved].sort((a, b) => {
+      const ap = a.position ?? Number.POSITIVE_INFINITY;
+      const bp = b.position ?? Number.POSITIVE_INFINITY;
+      if (ap !== bp) return ap - bp;
+      return a.name.localeCompare(b.name);
+    });
+  }, [saved]);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+  );
+
+  const onDragEnd = useCallback(
+    (e: DragEndEvent) => {
+      const { active, over } = e;
+      if (!over || active.id === over.id) return;
+      const ids = sorted.map((v) => v.id);
+      const oldIndex = ids.indexOf(String(active.id));
+      const newIndex = ids.indexOf(String(over.id));
+      if (oldIndex < 0 || newIndex < 0) return;
+      reorderViews(entityKey, arrayMove(ids, oldIndex, newIndex));
+    },
+    [sorted, entityKey, reorderViews],
+  );
+
+  const allNav: NavView = { id: ALL_VIEW_ID, label: allLabel, href: basePath };
+  const allActive = inSection && currentViewId === ALL_VIEW_ID;
 
   return (
     <div className="flex flex-col gap-0.5">
-      {rows.map(({ nav, view }) => {
-        const active = inSection && currentViewId === nav.id;
-        return (
-          <ViewLink
-            key={nav.id}
-            view={nav}
-            active={active}
-            action={
-              view ? (
-                <SidebarViewKebab
-                  entity={entityKey}
-                  view={view}
-                  isActive={active}
-                  basePath={basePath}
-                />
-              ) : null
-            }
+      {/* "All ENTITY" is hardcoded and stays pinned above the drag list. */}
+      <ViewLink view={allNav} active={allActive} />
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragEnd={onDragEnd}
+      >
+        <SortableContext
+          items={sorted.map((v) => v.id)}
+          strategy={verticalListSortingStrategy}
+        >
+          {sorted.map((v) => {
+            const active = inSection && currentViewId === v.id;
+            return (
+              <SortableViewRow
+                key={v.id}
+                view={v}
+                nav={{
+                  id: v.id,
+                  label: v.name,
+                  href: viewHref(basePath, v.id, v.state),
+                }}
+                active={active}
+                entity={entityKey}
+                basePath={basePath}
+              />
+            );
+          })}
+        </SortableContext>
+      </DndContext>
+    </div>
+  );
+}
+
+function SortableViewRow({
+  view,
+  nav,
+  active,
+  entity,
+  basePath,
+}: {
+  view: SavedView;
+  nav: NavView;
+  active: boolean;
+  entity: EntityKey;
+  basePath: string;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
+    useSortable({ id: view.id });
+  return (
+    <div
+      ref={setNodeRef}
+      style={{
+        transform: CSS.Transform.toString(transform),
+        transition,
+        opacity: isDragging ? 0.5 : 1,
+      }}
+    >
+      <ViewLink
+        view={nav}
+        active={active}
+        leading={
+          <button
+            {...attributes}
+            {...listeners}
+            type="button"
+            aria-label={`Reorder ${view.name}`}
+            className="flex h-7 w-4 shrink-0 cursor-grab items-center justify-center text-muted-foreground/40 opacity-0 transition-opacity hover:text-muted-foreground group-hover:opacity-100 active:cursor-grabbing"
+          >
+            <GripVertical size={12} />
+          </button>
+        }
+        action={
+          <SidebarViewKebab
+            entity={entity}
+            view={view}
+            isActive={active}
+            basePath={basePath}
           />
-        );
-      })}
+        }
+      />
     </div>
   );
 }
@@ -391,10 +487,12 @@ function EntityViewList({
 function ViewLink({
   view,
   active,
+  leading,
   action,
 }: {
   view: NavView;
   active: boolean;
+  leading?: React.ReactNode;
   action?: React.ReactNode;
 }) {
   const rowClass = active
@@ -404,9 +502,12 @@ function ViewLink({
     <div
       className={`group flex h-7 items-center rounded transition-colors ${rowClass}`}
     >
+      {leading}
       <Link
         href={view.href}
-        className="flex h-full min-w-0 flex-1 cursor-pointer items-center px-2"
+        className={`flex h-full min-w-0 flex-1 cursor-pointer items-center ${
+          leading ? "pr-2" : "px-2"
+        }`}
       >
         <span className="truncate">{view.label}</span>
       </Link>

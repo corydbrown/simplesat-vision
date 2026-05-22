@@ -191,12 +191,12 @@
   --primary-hover: var(--blue-dark);
   --primary-down: var(--blue-darker);
   --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
+  --secondary-foreground: var(--black);
   --muted: oklch(0.97 0 0);
   /* `hoveredTextColor` tier — secondary text in muted-foreground sites. */
   --muted-foreground: #373f46cc;
   --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
+  --accent-foreground: var(--black);
   --destructive: var(--red-dark);
   --border: #373f461a;
   --border-strong: #373f4633;
@@ -297,11 +297,11 @@
   --primary-hover: var(--blue-dark);
   --primary-down: var(--blue-darker);
   --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
+  --secondary-foreground: var(--white);
   --muted: oklch(0.269 0 0);
   --muted-foreground: oklch(0.708 0 0);
   --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
+  --accent-foreground: var(--white);
   --destructive: var(--red-dark);
   --border: oklch(1 0 0 / 10%);
   --border-strong: oklch(1 0 0 / 20%);

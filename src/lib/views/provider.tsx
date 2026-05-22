@@ -7,8 +7,18 @@ import {
   useEffect,
   useState,
 } from "react";
-import { loadSavedViews, saveSavedViews } from "./storage";
+import {
+  createSavedView as createSavedViewAction,
+  renameSavedView as renameSavedViewAction,
+  updateSavedView as updateSavedViewAction,
+} from "./actions";
 import { SEED_VIEWS } from "./seed";
+import {
+  clearLegacyLocalStorage,
+  loadSavedViews,
+  readLegacyLocalStorage,
+  saveSavedViews,
+} from "./storage";
 import {
   ENTITY_KEYS,
   type EntityKey,
@@ -21,9 +31,8 @@ type ViewsByEntity = Record<EntityKey, SavedView[]>;
 type ViewsContextValue = {
   /** Snapshot of editable (i.e. non-"All") views per entity. */
   views: ViewsByEntity;
-  /** True once localStorage has been read; before this the snapshot is the
-   *  seed defaults. Sidebar uses this to suppress link flashing if needed,
-   *  but mostly relies on view equality checks instead. */
+  /** True once server storage has been read; before this the snapshot is the
+   *  seed defaults so SSR and the first client paint agree. */
   hydrated: boolean;
   getView: (entity: EntityKey, id: string) => SavedView | null;
   createView: (entity: EntityKey, name: string, state: ViewState) => SavedView;
@@ -43,38 +52,56 @@ function emptyByEntity(): ViewsByEntity {
 }
 
 export function ViewsProvider({ children }: { children: React.ReactNode }) {
-  // Initial state is the seed so SSR and the first client paint agree. After
-  // mount we reconcile with localStorage (and write the seed if the user has
-  // never customized).
   const [views, setViews] = useState<ViewsByEntity>(() => emptyByEntity());
   const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
-    const next = emptyByEntity();
-    for (const entity of ENTITY_KEYS) {
-      const stored = loadSavedViews(entity);
-      if (stored) {
-        next[entity] = stored;
-      } else {
-        next[entity] = SEED_VIEWS[entity];
-        saveSavedViews(entity, SEED_VIEWS[entity]);
-      }
-    }
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setViews(next);
-    setHydrated(true);
-  }, []);
+    let cancelled = false;
+    // Per-entity try/catch keeps a failure on one entity from killing the
+    // seed for the rest — and surfaces the error in dev rather than dropping
+    // it as an unhandled promise rejection.
+    async function hydrate(entity: EntityKey): Promise<SavedView[]> {
+      const stored = await loadSavedViews(entity);
+      if (stored.length > 0) return stored;
 
-  const persist = useCallback(
-    (entity: EntityKey, updater: (prev: SavedView[]) => SavedView[]) => {
-      setViews((prev) => {
-        const nextEntity = updater(prev[entity]);
-        saveSavedViews(entity, nextEntity);
-        return { ...prev, [entity]: nextEntity };
-      });
-    },
-    [],
-  );
+      const legacy = readLegacyLocalStorage(entity);
+      if (legacy && legacy.length > 0) {
+        await saveSavedViews(entity, legacy);
+        clearLegacyLocalStorage(entity);
+        return legacy;
+      }
+      if (legacy !== null) clearLegacyLocalStorage(entity);
+
+      // Fresh prototype: seed Insider / Detractors / Unassigned / etc. so
+      // a `db:reset` still leaves a populated sidebar.
+      await saveSavedViews(entity, SEED_VIEWS[entity]);
+      return SEED_VIEWS[entity];
+    }
+
+    (async () => {
+      const results = await Promise.all(
+        ENTITY_KEYS.map(async (entity) => {
+          try {
+            return [entity, await hydrate(entity)] as const;
+          } catch (err) {
+            console.error(
+              `[ViewsProvider] failed to hydrate "${entity}", falling back to in-memory seed`,
+              err,
+            );
+            return [entity, SEED_VIEWS[entity]] as const;
+          }
+        }),
+      );
+      if (cancelled) return;
+      const next = emptyByEntity();
+      for (const [entity, views] of results) next[entity] = views;
+      setViews(next);
+      setHydrated(true);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const getView = useCallback(
     (entity: EntityKey, id: string): SavedView | null =>
@@ -87,30 +114,39 @@ export function ViewsProvider({ children }: { children: React.ReactNode }) {
       const trimmed = name.trim() || "Untitled view";
       const id = nextViewId(views[entity], trimmed);
       const view: SavedView = { id, name: trimmed, state };
-      persist(entity, (prev) => [...prev, view]);
+      setViews((prev) => ({ ...prev, [entity]: [...prev[entity], view] }));
+      void createSavedViewAction(entity, view);
       return view;
     },
-    [views, persist],
+    [views],
   );
 
   const updateViewState = useCallback(
     (entity: EntityKey, id: string, state: ViewState) => {
-      persist(entity, (prev) =>
-        prev.map((v) => (v.id === id ? { ...v, state } : v)),
-      );
+      setViews((prev) => ({
+        ...prev,
+        [entity]: prev[entity].map((v) =>
+          v.id === id ? { ...v, state } : v,
+        ),
+      }));
+      void updateSavedViewAction(entity, id, state);
     },
-    [persist],
+    [],
   );
 
   const renameView = useCallback(
     (entity: EntityKey, id: string, name: string) => {
       const trimmed = name.trim();
       if (!trimmed) return;
-      persist(entity, (prev) =>
-        prev.map((v) => (v.id === id ? { ...v, name: trimmed } : v)),
-      );
+      setViews((prev) => ({
+        ...prev,
+        [entity]: prev[entity].map((v) =>
+          v.id === id ? { ...v, name: trimmed } : v,
+        ),
+      }));
+      void renameSavedViewAction(entity, id, trimmed);
     },
-    [persist],
+    [],
   );
 
   return (

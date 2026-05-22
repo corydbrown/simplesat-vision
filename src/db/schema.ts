@@ -2,6 +2,7 @@ import { sql } from "drizzle-orm";
 import {
   index,
   integer,
+  primaryKey,
   sqliteTable,
   text,
 } from "drizzle-orm/sqlite-core";
@@ -510,6 +511,47 @@ export const qaEvaluations = sqliteTable(
     index("qa_evaluations_evaluated_at_idx").on(t.evaluatedAt),
   ],
 );
+
+/** Server-side storage for saved views. Carries `workspace_id` from day one so
+ *  the eventual auth cutover is a value-source change, not a schema migration.
+ *  Today the column is always the demo constant (see src/lib/workspace.ts).
+ *  `position` is reserved for SVP-48 drag-to-reorder; new rows append at
+ *  MAX(position)+1. The "All ENTITY" view is hardcoded in the provider and
+ *  never written here. */
+export const savedViews = sqliteTable(
+  "saved_views",
+  {
+    /** Slug identifier, unique per (workspace_id, entity). Stays human-
+     *  readable so it can appear in `?v=<id>` URLs. Cross-entity collisions
+     *  are expected (`tickets.detractors` vs `responses.detractors`), which
+     *  is why the primary key is composite. */
+    id: text("id").notNull(),
+    workspaceId: text("workspace_id").notNull(),
+    entity: text("entity", {
+      enum: ["tickets", "customers", "responses", "team-members"],
+    }).notNull(),
+    name: text("name").notNull(),
+    /** JSON-encoded ViewState (sorts, group, filters, layout, columns).
+     *  Cast to the ViewState type at the query layer; kept loose here so
+     *  schema stays free of feature-layer imports. */
+    state: text("state", { mode: "json" })
+      .$type<Record<string, unknown>>()
+      .notNull(),
+    position: integer("position").notNull().default(0),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+    updatedAt: integer("updated_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+  },
+  (t) => [
+    primaryKey({ columns: [t.workspaceId, t.entity, t.id] }),
+  ],
+);
+
+export type SavedViewRow = typeof savedViews.$inferSelect;
+export type NewSavedViewRow = typeof savedViews.$inferInsert;
 
 export type Customer = typeof customers.$inferSelect;
 export type NewCustomer = typeof customers.$inferInsert;

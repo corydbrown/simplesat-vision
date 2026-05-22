@@ -15,8 +15,8 @@ export default function WorkspaceLayout({
 }) {
   return (
     <SidebarProvider>
-      <SearchProvider>
-        <ViewsProvider>
+      <ViewsProvider>
+        <SearchProvider>
           <ToastProvider>
             <div className="flex min-h-screen">
               <PrimaryNav />
@@ -25,8 +25,8 @@ export default function WorkspaceLayout({
               <RecentPageTracker />
             </div>
           </ToastProvider>
-        </ViewsProvider>
-      </SearchProvider>
+        </SearchProvider>
+      </ViewsProvider>
     </SidebarProvider>
   );
 }

@@ -64,11 +64,15 @@ function sanitizeFilter(raw: unknown): Filter | null {
   if (typeof f.op !== "string") return null;
   if (!(ALL_FILTER_OPS as readonly string[]).includes(f.op)) return null;
   const op = f.op as FilterOp;
-  const value = sanitizeValue(op, f.value);
   const out: Filter = { propertyId: f.propertyId, op };
-  if (value !== undefined) out.value = value;
-  // Ops that require a value but didn't sanitize one — drop them.
-  if (value === undefined && op !== "isnull" && op !== "notnull") return null;
+  if (op === "isnull" || op === "notnull") return out;
+  // Keep the chip even when no value is set yet — the UI renders an incomplete
+  // chip and the compiler skips it until the user fills the value. Drop only
+  // values that were provided but malformed.
+  if (f.value !== undefined) {
+    const sanitized = sanitizeValue(op, f.value);
+    if (sanitized !== undefined) out.value = sanitized;
+  }
   return out;
 }
 

@@ -2,8 +2,10 @@ import { Topbar } from "@/components/shell/topbar";
 import { EntityTable } from "@/components/shared/entity-table";
 import { EntityToolbar } from "@/components/shared/entity-toolbar";
 import { LayoutToggle } from "@/components/shared/layout-toggle";
+import { ListFilterRow } from "@/components/shared/list-filter-row";
 import { ResponseFeedCard } from "@/components/responses/response-feed-card";
 import { ColumnStateProvider } from "@/lib/column-prefs";
+import { filtersFromSearchParam } from "@/lib/filters/url-state";
 import { RESPONSE_GROUP_IDS } from "@/lib/group/fields/responses";
 import { groupFromSearchParam } from "@/lib/group/url-state";
 import { RESPONSE_PROPERTIES } from "@/lib/properties/responses";
@@ -51,11 +53,13 @@ export default async function ResponsesPage(props: PageProps<"/responses">) {
   // to listResponses columns — let the table client-sort there. Other
   // layouts can sort on the server.
   const sorts = layout === "answer" ? [] : parseSortParam(sortParam);
+  const filters = filtersFromSearchParam(sp.f);
   const { rows, total } = await listResponses({
     view,
     limit: 500,
     sorts,
     groupBy: layout === "response" ? responseGroupBy : null,
+    filters,
   });
   const activeView = RESPONSE_VIEWS.find((v) => v.id === (view ?? "all"));
 
@@ -76,6 +80,7 @@ export default async function ResponsesPage(props: PageProps<"/responses">) {
           searchPlaceholder="Search responses..."
           trailing={toolbarTrailing}
         />
+        <ListFilterRow properties={RESPONSE_PROPERTIES} />
         <main className="mx-auto w-full max-w-3xl px-6 py-6">
           <div className="space-y-3">
             {rows.length === 0 ? (
@@ -121,6 +126,7 @@ export default async function ResponsesPage(props: PageProps<"/responses">) {
           searchPlaceholder="Search answers..."
           trailing={toolbarTrailing}
         />
+        <ListFilterRow properties={RESPONSE_PROPERTIES} />
         <EntityTable
           rows={answerRows}
           idField="id"
@@ -147,6 +153,7 @@ export default async function ResponsesPage(props: PageProps<"/responses">) {
         searchPlaceholder="Search responses..."
         trailing={toolbarTrailing}
       />
+      <ListFilterRow properties={RESPONSE_PROPERTIES} />
       <EntityTable
         rows={rows}
         idField="id"

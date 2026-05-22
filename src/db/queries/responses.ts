@@ -1,6 +1,9 @@
 import "server-only";
-import { asc, desc, eq, type AnyColumn, type SQL } from "drizzle-orm";
+import { and, asc, desc, eq, type AnyColumn, type SQL } from "drizzle-orm";
 import { db, schema } from "../client";
+import { compileListFilters } from "@/lib/filters/compile-list";
+import { RESPONSE_FILTER_FIELDS } from "@/lib/filters/fields/responses";
+import type { Filter } from "@/lib/filters/types";
 import { compileGroupOrderBy } from "@/lib/group/compile";
 import { RESPONSE_GROUP_FIELDS } from "@/lib/group/fields/responses";
 import type { GroupSpec } from "@/lib/group/types";
@@ -52,16 +55,25 @@ export async function listResponses({
   limit = 200,
   sorts = [],
   groupBy,
+  filters,
 }: {
   view?: string;
   limit?: number;
   sorts?: SortSpec[];
   groupBy?: GroupSpec | null;
+  filters?: Filter[];
 } = {}): Promise<{
   rows: ResponseListRow[];
   total: number;
 }> {
-  const where = view ? responsesViewWhere(view) : undefined;
+  const viewWhere = view ? responsesViewWhere(view) : undefined;
+  const filterWhere = filters
+    ? compileListFilters(filters, RESPONSE_FILTER_FIELDS)
+    : undefined;
+  const where =
+    viewWhere && filterWhere
+      ? and(viewWhere, filterWhere)
+      : (viewWhere ?? filterWhere);
   const groupOrderBy = compileGroupOrderBy(groupBy ?? null, RESPONSE_GROUP_FIELDS);
 
   const baseQuery = db

@@ -21,7 +21,7 @@ The Simplesat Vision prototype's backlog lives in a Notion database. Single sour
 | Property | Type | Values / notes |
 |---|---|---|
 | Task | title | One-sentence task description |
-| Status | select | Backlog / Ready / In Progress / Blocked / Done |
+| Status | select | Backlog / Ready / In Progress / Blocked / Done / Declined |
 | Type | select | Feature / Bug / Design tweak / Performance / Refactor / Research/Spike / Docs |
 | Area | select | Frontend / Backend / AI/Prompts / Data model / Integrations / Mock data / Cross-cutting |
 | Priority | select | P0 / P1 / P2 / P3 |
@@ -84,6 +84,12 @@ Append to the task's `## Claude Code notes`: `- YYYY-MM-DD: Spawned worktree fea
 Append to the task's `## Claude Code notes`: `- YYYY-MM-DD: PR #N merged. <one-line of what shipped>.` Set `Status=Done`, `Completed at=<today>`, and `Repo link=<PR URL>` as properties.
 
 There is no "In Review" status — tasks stay `In Progress` through review and flip to `Done` only on merge.
+
+### On decline (decided against, not executed)
+
+When a task is evaluated and rejected — *not* shipped, *not* deferred — set `Status=Declined` and clear `Completed at`. Append a `## Claude Code notes` bullet with the rationale and (if applicable) a link to the DECISIONS.md entry capturing the architectural reasoning. **Done is reserved for work that shipped to main.** A declined design proposal in Done conflates "we did this" with "we explicitly chose not to," which corrupts the Done log as a record.
+
+If the decision might be revisited later (e.g., gated on a different surface landing), prefer `Backlog` over `Declined` — Declined signals a settled "no," not a "not yet."
 
 ### Round-trip DECISIONS.md deferrals
 

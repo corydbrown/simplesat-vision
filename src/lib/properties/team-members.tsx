@@ -5,10 +5,7 @@ import { AvgRating } from "@/components/shared/avg-rating";
 import { TeamPill } from "@/components/shared/team-pill";
 import { TeamGroupPill } from "@/components/shared/team-group-pill";
 import type { TeamMemberListRow } from "@/db/queries/team-members";
-import {
-  NUMERIC_OPS,
-  STRING_OPS,
-} from "@/lib/filters/types";
+import { TEAM_MEMBER_FILTER_SPECS } from "@/lib/filters/specs/team-members";
 import { formatNumber } from "@/lib/format";
 import { TEAM_MEMBER_CUSTOM_FIELDS } from "./custom-fields";
 import { customFieldProperties } from "./custom-field-properties";
@@ -23,7 +20,7 @@ const CORE_PROPERTIES: Property<TeamMemberListRow>[] = [
     alwaysVisible: true,
     sortable: true,
     sortValue: (m) => m.name,
-    filter: { dataType: "string", ops: STRING_OPS },
+    filter: TEAM_MEMBER_FILTER_SPECS.name,
     cell: (m) => (
       <TeamMemberPill id={m.id} name={m.name} avatarColor={m.avatarColor} />
     ),
@@ -36,7 +33,7 @@ const CORE_PROPERTIES: Property<TeamMemberListRow>[] = [
     defaultVisible: true,
     sortable: true,
     sortValue: (m) => m.role,
-    filter: { dataType: "string", ops: STRING_OPS },
+    filter: TEAM_MEMBER_FILTER_SPECS.role,
     groupable: true,
     groupValue: (m) => m.role,
     cell: (m) => <span className="text-muted-foreground">{m.role}</span>,
@@ -49,7 +46,7 @@ const CORE_PROPERTIES: Property<TeamMemberListRow>[] = [
     defaultVisible: true,
     sortable: true,
     sortValue: (m) => m.team,
-    filter: { dataType: "string", ops: STRING_OPS },
+    filter: TEAM_MEMBER_FILTER_SPECS.team,
     groupable: true,
     groupValue: (m) => m.team,
     groupLabel: (v) => <TeamPill team={v} />,
@@ -63,7 +60,7 @@ const CORE_PROPERTIES: Property<TeamMemberListRow>[] = [
     defaultVisible: true,
     sortable: true,
     sortValue: (m) => m.region,
-    filter: { dataType: "string", ops: STRING_OPS },
+    filter: TEAM_MEMBER_FILTER_SPECS.region,
     groupable: true,
     groupValue: (m) => m.region,
     nullGroupLabel: "No region",
@@ -82,7 +79,7 @@ const CORE_PROPERTIES: Property<TeamMemberListRow>[] = [
     defaultVisible: false,
     sortable: true,
     sortValue: (m) => m.language,
-    filter: { dataType: "string", ops: STRING_OPS },
+    filter: TEAM_MEMBER_FILTER_SPECS.language,
     groupable: true,
     groupValue: (m) => m.language,
     nullGroupLabel: "No language",
@@ -101,7 +98,7 @@ const CORE_PROPERTIES: Property<TeamMemberListRow>[] = [
     defaultVisible: true,
     sortable: true,
     sortValue: (m) => m.groupName,
-    filter: { dataType: "string", ops: STRING_OPS },
+    filter: TEAM_MEMBER_FILTER_SPECS.group,
     groupable: true,
     groupValue: (m) => m.groupName,
     groupLabel: (v) => <TeamGroupPill name={v} />,
@@ -121,7 +118,7 @@ const CORE_PROPERTIES: Property<TeamMemberListRow>[] = [
     defaultVisible: false,
     sortable: true,
     sortValue: (m) => m.email,
-    filter: { dataType: "string", ops: STRING_OPS },
+    filter: TEAM_MEMBER_FILTER_SPECS.email,
     cell: (m) => <span className="text-muted-foreground">{m.email}</span>,
   },
   {
@@ -133,7 +130,7 @@ const CORE_PROPERTIES: Property<TeamMemberListRow>[] = [
     align: "right",
     sortable: true,
     sortValue: (m) => m.totalTickets,
-    filter: { dataType: "number", ops: NUMERIC_OPS },
+    filter: TEAM_MEMBER_FILTER_SPECS.total_tickets,
     cell: (m) => (
       <span className="tabular-nums">{formatNumber(m.totalTickets)}</span>
     ),
@@ -147,7 +144,7 @@ const CORE_PROPERTIES: Property<TeamMemberListRow>[] = [
     align: "right",
     sortable: true,
     sortValue: (m) => m.totalResponses,
-    filter: { dataType: "number", ops: NUMERIC_OPS },
+    filter: TEAM_MEMBER_FILTER_SPECS.total_responses,
     cell: (m) => (
       <span className="tabular-nums text-muted-foreground">
         {formatNumber(m.totalResponses)}
@@ -162,7 +159,7 @@ const CORE_PROPERTIES: Property<TeamMemberListRow>[] = [
     defaultVisible: true,
     sortable: true,
     sortValue: (m) => m.avgRating,
-    filter: { dataType: "number", ops: NUMERIC_OPS },
+    filter: TEAM_MEMBER_FILTER_SPECS.avg_rating,
     cell: (m) => <AvgRating value={m.avgRating} threshold="team-member" />,
   },
   {

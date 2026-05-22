@@ -1,6 +1,14 @@
 import "server-only";
 import { and, asc, desc, eq, sql, type AnyColumn, type SQL } from "drizzle-orm";
 import { db, schema } from "../client";
+import { compileListFilters } from "@/lib/filters/compile-list";
+import {
+  TEAM_MEMBER_FILTER_FIELDS,
+  teamMemberAvgRatingExpr,
+  teamMemberTotalResponsesExpr,
+  teamMemberTotalTicketsExpr,
+} from "@/lib/filters/fields/team-members";
+import type { Filter } from "@/lib/filters/types";
 import { compileGroupOrderBy } from "@/lib/group/compile";
 import { TEAM_MEMBER_GROUP_FIELDS } from "@/lib/group/fields/team-members";
 import { TICKET_GROUP_FIELDS } from "@/lib/group/fields/tickets";
@@ -27,9 +35,12 @@ export type TeamMemberListRow = {
   totalResponses: number;
 };
 
-const totalTicketsExpr = sql<number>`(SELECT COUNT(*) FROM tickets WHERE tickets.assigned_team_member_id = team_members.id)`;
-const avgRatingExpr = sql<number | null>`(SELECT AVG(CAST(rating as REAL)) FROM responses WHERE responses.team_member_id = team_members.id)`;
-const totalResponsesExpr = sql<number>`(SELECT COUNT(*) FROM responses WHERE responses.team_member_id = team_members.id)`;
+// Local aliases (existing callsites used the short names). Expressions live
+// in the filter field map to break the import cycle (the field map must not
+// depend on this file).
+const totalTicketsExpr = teamMemberTotalTicketsExpr;
+const avgRatingExpr = teamMemberAvgRatingExpr;
+const totalResponsesExpr = teamMemberTotalResponsesExpr;
 
 const TEAM_MEMBER_SORT_MAP: Record<string, AnyColumn | SQL> = {
   name: schema.teamMembers.name,
@@ -60,10 +71,12 @@ export async function listTeamMembers({
   view,
   sorts = [],
   groupBy,
+  filters,
 }: {
   view?: string;
   sorts?: SortSpec[];
   groupBy?: GroupSpec | null;
+  filters?: Filter[];
 } = {}): Promise<{
   rows: TeamMemberListRow[];
   total: number;
@@ -73,8 +86,11 @@ export async function listTeamMembers({
     view === "low-performers"
       ? sql`(SELECT COUNT(*) FROM responses WHERE responses.team_member_id = team_members.id) >= 20 AND (SELECT AVG(CAST(rating as REAL)) FROM responses WHERE responses.team_member_id = team_members.id) < 3.5`
       : undefined;
+  const filterWhere = filters
+    ? compileListFilters(filters, TEAM_MEMBER_FILTER_FIELDS)
+    : undefined;
 
-  const conditions = [teamWhere, lowPerfWhere].filter(
+  const conditions = [teamWhere, lowPerfWhere, filterWhere].filter(
     (c): c is SQL => c !== undefined,
   );
   const where =

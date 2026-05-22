@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { FilterRow } from "@/components/shared/filter-row";
 import { propertiesToDescriptors } from "@/lib/filters/adapters";
 import {
@@ -11,7 +11,10 @@ import {
 import type { Filter } from "@/lib/filters/types";
 import type { Property } from "@/lib/properties/types";
 
-/** URL-driven controller around FilterRow for list pages. Reads/writes `?f=`. */
+/** URL-driven controller around FilterRow for list pages. Reads/writes `?f=`.
+ *  Holds the chip list in local state so chips mount synchronously when added
+ *  — the URL update (and the server refetch it triggers) happens behind the
+ *  already-rendered chip rather than gating it. */
 export function ListFilterRow<T>({
   properties,
 }: {
@@ -19,7 +22,22 @@ export function ListFilterRow<T>({
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const filters = decodeFilters(searchParams.get("f"));
+  const urlEncoded = searchParams.get("f") ?? "";
+  const [filters, setFilters] = useState<Filter[]>(() =>
+    decodeFilters(urlEncoded),
+  );
+  // Tracks the encoded URL value we last wrote ourselves. When the URL changes
+  // to something different (back/forward, deep link, external nav), reconcile
+  // local state from the URL.
+  const lastSyncedRef = useRef<string>(urlEncoded);
+
+  useEffect(() => {
+    if (urlEncoded !== lastSyncedRef.current) {
+      lastSyncedRef.current = urlEncoded;
+      setFilters(decodeFilters(urlEncoded));
+    }
+  }, [urlEncoded]);
+
   const fields = useMemo(
     () => propertiesToDescriptors(properties),
     [properties],
@@ -27,12 +45,12 @@ export function ListFilterRow<T>({
 
   const onChange = useCallback(
     (next: Filter[]) => {
+      setFilters(next);
+      const encoded = next.length === 0 ? "" : encodeFilters(next);
+      lastSyncedRef.current = encoded;
       const params = new URLSearchParams(searchParams.toString());
-      if (next.length === 0) {
-        params.delete("f");
-      } else {
-        params.set("f", encodeFilters(next));
-      }
+      if (encoded) params.set("f", encoded);
+      else params.delete("f");
       params.delete("page");
       const qs = params.toString();
       router.replace(qs ? `?${qs}` : "?", { scroll: false });

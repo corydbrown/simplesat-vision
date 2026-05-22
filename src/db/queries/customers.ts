@@ -1,6 +1,14 @@
 import "server-only";
 import { and, asc, desc, eq, sql, type AnyColumn, type SQL } from "drizzle-orm";
 import { db, schema } from "../client";
+import { compileListFilters } from "@/lib/filters/compile-list";
+import {
+  CUSTOMER_FILTER_FIELDS,
+  customerAvgRatingExpr,
+  customerLastSeenExpr,
+  customerTotalTicketsExpr,
+} from "@/lib/filters/fields/customers";
+import type { Filter } from "@/lib/filters/types";
 import { compileGroupOrderBy } from "@/lib/group/compile";
 import { CUSTOMER_GROUP_FIELDS } from "@/lib/group/fields/customers";
 import { TICKET_GROUP_FIELDS } from "@/lib/group/fields/tickets";
@@ -25,9 +33,12 @@ export type CustomerListRow = {
   lastSeen: Date | null;
 };
 
-const totalTicketsExpr = sql<number>`(SELECT COUNT(*) FROM tickets WHERE tickets.customer_id = customers.id)`;
-const avgRatingExpr = sql<number | null>`(SELECT AVG(CAST(rating as REAL)) FROM responses WHERE responses.customer_id = customers.id)`;
-const lastSeenExpr = sql<number | null>`(SELECT MAX(tickets.created_at) FROM tickets WHERE tickets.customer_id = customers.id)`;
+// Local aliases (existing callsites used the short names). Expressions live
+// in the filter field map to break the import cycle (the field map must not
+// depend on this file).
+const totalTicketsExpr = customerTotalTicketsExpr;
+const avgRatingExpr = customerAvgRatingExpr;
+const lastSeenExpr = customerLastSeenExpr;
 
 const CUSTOMER_SORT_MAP: Record<string, AnyColumn | SQL> = {
   name: schema.customers.name,
@@ -58,18 +69,23 @@ export async function listCustomers({
   view,
   sorts = [],
   groupBy,
+  filters,
 }: {
   view?: string;
   sorts?: SortSpec[];
   groupBy?: GroupSpec | null;
+  filters?: Filter[];
 } = {}): Promise<{ rows: CustomerListRow[]; total: number }> {
   const tierWhere = view ? customersViewWhere(view) : undefined;
   const atRiskWhere =
     view === "at-risk"
       ? sql`(SELECT COUNT(*) FROM responses WHERE responses.customer_id = customers.id) >= 3 AND (SELECT AVG(CAST(rating as REAL)) FROM responses WHERE responses.customer_id = customers.id) < 3`
       : undefined;
+  const filterWhere = filters
+    ? compileListFilters(filters, CUSTOMER_FILTER_FIELDS)
+    : undefined;
 
-  const conditions = [tierWhere, atRiskWhere].filter(
+  const conditions = [tierWhere, atRiskWhere, filterWhere].filter(
     (c): c is SQL => c !== undefined,
   );
   const where =

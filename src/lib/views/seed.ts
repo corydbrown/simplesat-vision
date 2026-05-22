@@ -38,7 +38,7 @@ export const SEED_VIEWS: Record<EntityKey, SavedView[]> = {
       },
     },
     {
-      id: "b2b",
+      id: "b2b-accounts",
       name: "B2B accounts",
       state: {
         sorts: [],
@@ -93,7 +93,7 @@ export const SEED_VIEWS: Record<EntityKey, SavedView[]> = {
       },
     },
     {
-      id: "not-fired",
+      id: "survey-not-fired",
       name: "Survey not fired",
       state: {
         sorts: [],

@@ -4,6 +4,7 @@ import { Bookmark, ChevronDown, Plus, RotateCcw } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { ButtonGroup } from "@/components/ui/button-group";
 import {
   Dialog,
   DialogContent,
@@ -195,8 +196,9 @@ export function ViewActions({
 }
 
 /** Primary-color split button: the wide left half saves; the narrow right
- *  half opens a dropdown with secondary actions. Standard Linear / Notion
- *  pattern for "default action + close cousins". */
+ *  half opens a dropdown with secondary actions. Uses shadcn's ButtonGroup
+ *  so border-radius and adjacent-border handling come straight from the
+ *  design system instead of getting hand-rolled. */
 function SaveSplitButton({
   onSave,
   onCreate,
@@ -207,10 +209,10 @@ function SaveSplitButton({
   saveTitle: string;
 }) {
   return (
-    <div className="flex items-center">
+    <ButtonGroup>
       <Button
         size="sm"
-        className="h-8 cursor-pointer gap-1.5 rounded-r-none border-r border-primary-foreground/20 pr-2.5 text-sm"
+        className="h-8 cursor-pointer gap-1.5 text-sm"
         onClick={onSave}
         title={saveTitle}
       >
@@ -221,7 +223,7 @@ function SaveSplitButton({
         <DropdownMenuTrigger asChild>
           <Button
             size="sm"
-            className="h-8 cursor-pointer rounded-l-none px-1.5"
+            className="h-8 cursor-pointer px-1.5"
             aria-label="More save options"
           >
             <ChevronDown size={13} />
@@ -234,7 +236,7 @@ function SaveSplitButton({
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
-    </div>
+    </ButtonGroup>
   );
 }
 

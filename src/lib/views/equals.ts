@@ -23,6 +23,24 @@ function canonical(value: unknown): string {
   return JSON.stringify(value);
 }
 
+/** Compare only the URL-encoded fields (sort, group, filters, layout).
+ *  Column state is persisted per-view as the user resizes / reorders / toggles
+ *  visibility, so it is always in sync by the time the toolbar evaluates
+ *  dirty — including it here would leave the Reset / Save buttons visible
+ *  forever after the first column tweak. */
 export function viewStateEquals(a: ViewState, b: ViewState): boolean {
-  return canonical(a) === canonical(b);
+  return (
+    canonical({
+      sorts: a.sorts,
+      group: a.group,
+      filters: a.filters,
+      layout: a.layout,
+    }) ===
+    canonical({
+      sorts: b.sorts,
+      group: b.group,
+      filters: b.filters,
+      layout: b.layout,
+    })
+  );
 }

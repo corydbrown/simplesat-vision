@@ -45,6 +45,8 @@ export function EntityToolbar<T>({
       <SortControl properties={properties} paramPrefix={paramPrefix} />
       <GroupControl properties={properties} paramPrefix={paramPrefix} />
       <ColumnsControl properties={properties} />
+      <div className="flex-1" />
+      {trailing}
       {viewContext && (
         <ViewActions
           entityKey={viewContext.entityKey}
@@ -52,8 +54,6 @@ export function EntityToolbar<T>({
           allowedGroupIds={viewContext.allowedGroupIds}
         />
       )}
-      <div className="flex-1" />
-      {trailing}
       <ToolbarButton icon={<Download size={13} />} label="Export" />
       <Button size="sm" className="h-8 cursor-pointer gap-1.5">
         <Plus size={13} />

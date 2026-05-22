@@ -35,7 +35,11 @@ export default async function TicketsPage(props: PageProps<"/tickets">) {
   });
 
   return (
-    <ColumnStateProvider tableId="tickets" properties={TICKET_PROPERTIES}>
+    <ColumnStateProvider
+      tableId="tickets"
+      properties={TICKET_PROPERTIES}
+      entityKey="tickets"
+    >
       <Topbar
         crumbs={[
           { label: "Tickets", href: "/tickets" },

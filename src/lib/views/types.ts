@@ -1,5 +1,6 @@
 import type { Filter } from "@/lib/filters/types";
 import type { GroupSpec } from "@/lib/group/types";
+import type { ColumnState } from "@/lib/properties/types";
 import type { SortSpec } from "@/lib/sort/url-state";
 
 export type EntityKey = "tickets" | "customers" | "responses" | "team-members";
@@ -11,14 +12,16 @@ export const ENTITY_KEYS: readonly EntityKey[] = [
   "team-members",
 ] as const;
 
-/** Captures everything a saved view encapsulates: sort, group, filters, and
- *  layout. `layout === null` means "page default" (Responses uses this for
- *  feed layout; other entities have no concept of layout today). */
+/** Captures everything a saved view encapsulates. Sort/group/filter/layout
+ *  are URL-encoded; column state (visibility, order, widths) is too large
+ *  for the URL so it lives only inside the view's localStorage record. A
+ *  view without `columns` falls back to the entity's per-tableId default. */
 export type ViewState = {
   sorts: SortSpec[];
   group: GroupSpec | null;
   filters: Filter[];
   layout: string | null;
+  columns?: ColumnState;
 };
 
 export type SavedView = {

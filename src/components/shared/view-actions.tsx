@@ -1,6 +1,6 @@
 "use client";
 
-import { Bookmark, Plus, RotateCcw } from "lucide-react";
+import { Bookmark, ChevronDown, Plus, RotateCcw } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -11,7 +11,14 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
+import { useColumnStateMaybe } from "@/lib/column-prefs";
 import { useToast } from "./toast";
 import { viewStateEquals } from "@/lib/views/equals";
 import { ALL_VIEW_LABEL } from "@/lib/views/seed";
@@ -29,7 +36,9 @@ import {
  *
  *  - "All ENTITY" (hardcoded, immutable): only Reset surfaces, since the
  *    user can mutate URL state but cannot overwrite the underlying view.
- *  - A saved editable view: Reset + Save + Create-new all surface.
+ *  - A saved editable view: Reset + split-button [Save current view ▾]
+ *    (dropdown surfaces "Create new view"). The split-button is primary
+ *    color to read as the obvious affordance once a change has been made.
  *  - Either case: nothing renders when the URL matches the saved state. */
 export function ViewActions({
   entityKey,
@@ -44,6 +53,7 @@ export function ViewActions({
   const searchParams = useSearchParams();
   const toast = useToast();
   const { getView, updateViewState, createView } = useViews();
+  const columnCtx = useColumnStateMaybe();
   const [createOpen, setCreateOpen] = useState(false);
 
   const viewId = searchParams.get(VIEW_ID_PARAM) ?? ALL_VIEW_ID;
@@ -54,7 +64,10 @@ export function ViewActions({
 
   const savedView = viewId === ALL_VIEW_ID ? null : getView(entityKey, viewId);
   const savedState = useMemo(
-    () => (viewId === ALL_VIEW_ID ? emptyViewState() : savedView?.state ?? null),
+    () =>
+      viewId === ALL_VIEW_ID
+        ? emptyViewState()
+        : (savedView?.state ?? null),
     [viewId, savedView],
   );
 
@@ -78,11 +91,28 @@ export function ViewActions({
     params.set(VIEW_ID_PARAM, viewId);
     params.delete("page");
     router.push(`${basePath}?${params.toString()}`, { scroll: false });
-  }, [treatAsAll, savedState, searchParams, router, basePath, viewId]);
+    // Column state lives outside the URL; replay it from the saved view
+    // when present, otherwise leave the per-tableId defaults alone.
+    if (savedState.columns) columnCtx?.replace(savedState.columns);
+  }, [
+    treatAsAll,
+    savedState,
+    searchParams,
+    router,
+    basePath,
+    viewId,
+    columnCtx,
+  ]);
 
   const handleSave = useCallback(() => {
     if (treatAsAll || !savedView) return;
-    updateViewState(entityKey, savedView.id, currentState);
+    // Capture the live column layout into the view so navigating away and
+    // back restores the same column widths / order / visibility.
+    const next = {
+      ...currentState,
+      columns: columnCtx?.state ?? savedView.state.columns,
+    };
+    updateViewState(entityKey, savedView.id, next);
     toast(`Saved changes to "${savedView.name}"`);
   }, [
     treatAsAll,
@@ -90,12 +120,16 @@ export function ViewActions({
     updateViewState,
     entityKey,
     currentState,
+    columnCtx,
     toast,
   ]);
 
   const handleCreate = useCallback(
     (name: string) => {
-      const created = createView(entityKey, name, currentState);
+      const created = createView(entityKey, name, {
+        ...currentState,
+        columns: columnCtx?.state,
+      });
       const params = new URLSearchParams(searchParams.toString());
       writeViewState(params, created.state);
       params.set(VIEW_ID_PARAM, created.id);
@@ -103,7 +137,16 @@ export function ViewActions({
       router.push(`${basePath}?${params.toString()}`, { scroll: false });
       toast(`Created view "${created.name}"`);
     },
-    [createView, entityKey, currentState, searchParams, router, basePath, toast],
+    [
+      createView,
+      entityKey,
+      currentState,
+      columnCtx,
+      searchParams,
+      router,
+      basePath,
+      toast,
+    ],
   );
 
   if (!dirty) return null;
@@ -125,27 +168,22 @@ export function ViewActions({
           <RotateCcw size={13} />
           Reset
         </Button>
-        {!treatAsAll && savedView && (
+        {!treatAsAll && savedView ? (
+          <SaveSplitButton
+            onSave={handleSave}
+            onCreate={() => setCreateOpen(true)}
+            saveTitle={`Save changes to "${savedView.name}"`}
+          />
+        ) : (
           <Button
-            variant="outline"
             size="sm"
             className="h-8 cursor-pointer gap-1.5 text-sm"
-            onClick={handleSave}
-            title={`Save changes to "${savedView.name}"`}
+            onClick={() => setCreateOpen(true)}
           >
-            <Bookmark size={13} />
-            Save current view
+            <Plus size={13} />
+            Create new view
           </Button>
         )}
-        <Button
-          variant="outline"
-          size="sm"
-          className="h-8 cursor-pointer gap-1.5 text-sm"
-          onClick={() => setCreateOpen(true)}
-        >
-          <Plus size={13} />
-          Create new view
-        </Button>
       </div>
       <CreateViewDialog
         open={createOpen}
@@ -153,6 +191,50 @@ export function ViewActions({
         onCreate={handleCreate}
       />
     </>
+  );
+}
+
+/** Primary-color split button: the wide left half saves; the narrow right
+ *  half opens a dropdown with secondary actions. Standard Linear / Notion
+ *  pattern for "default action + close cousins". */
+function SaveSplitButton({
+  onSave,
+  onCreate,
+  saveTitle,
+}: {
+  onSave: () => void;
+  onCreate: () => void;
+  saveTitle: string;
+}) {
+  return (
+    <div className="flex items-center">
+      <Button
+        size="sm"
+        className="h-8 cursor-pointer gap-1.5 rounded-r-none border-r border-primary-foreground/20 pr-2.5 text-sm"
+        onClick={onSave}
+        title={saveTitle}
+      >
+        <Bookmark size={13} />
+        Save current view
+      </Button>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            size="sm"
+            className="h-8 cursor-pointer rounded-l-none px-1.5"
+            aria-label="More save options"
+          >
+            <ChevronDown size={13} />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-48">
+          <DropdownMenuItem onSelect={onCreate} className="cursor-pointer">
+            <Plus size={13} />
+            Create new view
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
   );
 }
 
@@ -167,7 +249,6 @@ function CreateViewDialog({
 }) {
   const [name, setName] = useState("");
 
-  // Reset the input each time the dialog closes so the next open is fresh.
   function handleOpenChange(next: boolean) {
     onOpenChange(next);
     if (!next) setName("");

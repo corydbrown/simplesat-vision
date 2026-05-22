@@ -28,6 +28,7 @@ export default async function TeamMembersPage(
     <ColumnStateProvider
       tableId="team-members"
       properties={TEAM_MEMBER_PROPERTIES}
+      entityKey="team-members"
     >
       <Topbar
         crumbs={[

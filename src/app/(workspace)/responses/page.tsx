@@ -79,7 +79,11 @@ export default async function ResponsesPage(props: PageProps<"/responses">) {
 
   if (layout === "feed") {
     return (
-      <ColumnStateProvider tableId="responses" properties={RESPONSE_PROPERTIES}>
+      <ColumnStateProvider
+        tableId="responses"
+        properties={RESPONSE_PROPERTIES}
+        entityKey="responses"
+      >
         <Topbar crumbs={crumbs} />
         <EntityToolbar
           properties={RESPONSE_PROPERTIES}
@@ -154,7 +158,11 @@ export default async function ResponsesPage(props: PageProps<"/responses">) {
   }
 
   return (
-    <ColumnStateProvider tableId="responses" properties={RESPONSE_PROPERTIES}>
+    <ColumnStateProvider
+      tableId="responses"
+      properties={RESPONSE_PROPERTIES}
+      entityKey="responses"
+    >
       <Topbar crumbs={crumbs} />
       <EntityToolbar
         properties={RESPONSE_PROPERTIES}

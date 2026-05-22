@@ -19,7 +19,11 @@ export default async function CustomersPage(props: PageProps<"/customers">) {
   const { rows, total } = await listCustomers({ sorts, groupBy, filters });
 
   return (
-    <ColumnStateProvider tableId="customers" properties={CUSTOMER_PROPERTIES}>
+    <ColumnStateProvider
+      tableId="customers"
+      properties={CUSTOMER_PROPERTIES}
+      entityKey="customers"
+    >
       <Topbar
         crumbs={[
           { label: "Customers", href: "/customers" },

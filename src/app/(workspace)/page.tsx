@@ -15,6 +15,14 @@ import {
   getSurveysNotFiredThisWeek,
 } from "@/db/queries/insights";
 import { formatNumber } from "@/lib/format";
+import { SEED_VIEWS } from "@/lib/views/seed";
+import { viewHref } from "@/lib/views/url";
+
+// Resolve once at module scope — the at-risk seed is stable.
+const AT_RISK_HREF = (() => {
+  const view = SEED_VIEWS.customers.find((v) => v.id === "at-risk");
+  return view ? viewHref("/customers", view.id, view.state) : "/customers";
+})();
 
 const REASON_LABEL: Record<string, string> = {
   tag_excluded: "Tag excluded",
@@ -102,7 +110,7 @@ export default async function HomePage() {
           icon={<TrendingDown size={16} />}
           title="Customers trending down"
           subtitle="Lowest avg rating across at least 5 responses"
-          href="/customers?view=at-risk"
+          href={AT_RISK_HREF}
         >
           <ul className="divide-y divide-border">
             {declining.map((c) => (

@@ -1,6 +1,16 @@
 "use client";
 
-import { Check, Star } from "lucide-react";
+import {
+  Calendar,
+  Check,
+  HelpCircle,
+  MessageSquare,
+  Star,
+  Tag as TagIcon,
+  Ticket as TicketIcon,
+  User,
+  UserCircle2,
+} from "lucide-react";
 import {
   CustomerPill,
   TeamMemberPill,
@@ -47,7 +57,7 @@ function AnswerValue({ answer }: { answer: SurveyAnswer }) {
       return (
         <div className="flex flex-wrap gap-1">
           {answer.value.length === 0 ? (
-            <span className="text-muted-foreground">-</span>
+            <span className="text-muted-foreground/40">—</span>
           ) : (
             answer.value.map((v) => (
               <span
@@ -78,7 +88,8 @@ export const ANSWER_PROPERTIES: Property<AnswerRow>[] = [
     id: "question",
     label: "Question",
     width: 320,
-    group: "Answer",
+    icon: HelpCircle,
+    sourceEntity: "Answer",
     alwaysVisible: true,
     sortable: true,
     sortValue: (r) => r.answer.question,
@@ -88,7 +99,8 @@ export const ANSWER_PROPERTIES: Property<AnswerRow>[] = [
     id: "type",
     label: "Type",
     width: 130,
-    group: "Answer",
+    icon: TagIcon,
+    sourceEntity: "Answer",
     defaultVisible: true,
     sortable: true,
     sortValue: (r) => r.answer.type,
@@ -105,7 +117,8 @@ export const ANSWER_PROPERTIES: Property<AnswerRow>[] = [
     id: "value",
     label: "Answer",
     width: 360,
-    group: "Answer",
+    icon: MessageSquare,
+    sourceEntity: "Answer",
     defaultVisible: true,
     sortable: true,
     sortValue: (r) => {
@@ -120,7 +133,8 @@ export const ANSWER_PROPERTIES: Property<AnswerRow>[] = [
     id: "ticket",
     label: "Ticket",
     width: 200,
-    group: "Relations",
+    icon: TicketIcon,
+    sourceEntity: "Ticket",
     defaultVisible: true,
     sortable: true,
     sortValue: (r) => r.ticketSubject ?? r.ticketExternalId,
@@ -132,14 +146,15 @@ export const ANSWER_PROPERTIES: Property<AnswerRow>[] = [
           subject={r.ticketSubject ?? undefined}
         />
       ) : (
-        <span className="text-muted-foreground">-</span>
+        <span className="text-muted-foreground/40">—</span>
       ),
   },
   {
     id: "customer",
     label: "Customer",
     width: 200,
-    group: "Relations",
+    icon: User,
+    sourceEntity: "Customer",
     defaultVisible: true,
     sortable: true,
     sortValue: (r) => r.customerName,
@@ -150,14 +165,15 @@ export const ANSWER_PROPERTIES: Property<AnswerRow>[] = [
       r.customerId && r.customerName ? (
         <CustomerPill id={r.customerId} name={r.customerName} />
       ) : (
-        <span className="text-muted-foreground">-</span>
+        <span className="text-muted-foreground/40">—</span>
       ),
   },
   {
     id: "team_member",
     label: "Team member",
     width: 200,
-    group: "Relations",
+    icon: UserCircle2,
+    sourceEntity: "Team member",
     defaultVisible: true,
     sortable: true,
     sortValue: (r) => r.teamMemberName,
@@ -172,14 +188,15 @@ export const ANSWER_PROPERTIES: Property<AnswerRow>[] = [
           avatarColor={r.teamMemberAvatarColor}
         />
       ) : (
-        <span className="text-muted-foreground">-</span>
+        <span className="text-muted-foreground/40">—</span>
       ),
   },
   {
     id: "responded_at",
     label: "Responded",
     width: 170,
-    group: "Activity",
+    icon: Calendar,
+    sourceEntity: "Answer",
     defaultVisible: true,
     sortable: true,
     sortValue: (r) => r.respondedAt,
@@ -193,7 +210,8 @@ export const ANSWER_PROPERTIES: Property<AnswerRow>[] = [
     id: "response_id",
     label: "Response ID",
     width: 156,
-    group: "Identity",
+    icon: MessageSquare,
+    sourceEntity: "Response",
     defaultVisible: false,
     sortable: true,
     sortValue: (r) => r.responseId,

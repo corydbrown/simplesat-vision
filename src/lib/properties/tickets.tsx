@@ -1,5 +1,24 @@
 "use client";
 
+import {
+  Building2,
+  Calendar,
+  CalendarCheck,
+  CalendarClock,
+  CheckCircle2,
+  CircleDot,
+  ClipboardCheck,
+  Flag,
+  Hash,
+  Headphones,
+  Inbox,
+  Star,
+  Tag as TagIcon,
+  Timer,
+  Type,
+  User,
+  UserCircle2,
+} from "lucide-react";
 import { ChannelPill } from "@/components/tickets/channel-pill";
 import { PriorityPill } from "@/components/tickets/priority-pill";
 import { StatusPill } from "@/components/tickets/status-pill";
@@ -21,7 +40,8 @@ export const TICKET_PROPERTIES: Property<TicketsRow>[] = [
     id: "external_id",
     label: "External ID",
     width: 130,
-    group: "Identity",
+    icon: Hash,
+    sourceEntity: "Ticket",
     alwaysVisible: true,
     sortable: true,
     sortValue: (t) => t.helpdeskExternalId,
@@ -41,7 +61,8 @@ export const TICKET_PROPERTIES: Property<TicketsRow>[] = [
     id: "subject",
     label: "Subject",
     width: 320,
-    group: "Identity",
+    icon: Type,
+    sourceEntity: "Ticket",
     alwaysVisible: true,
     sortable: true,
     sortValue: (t) => t.subject,
@@ -52,7 +73,8 @@ export const TICKET_PROPERTIES: Property<TicketsRow>[] = [
     id: "status",
     label: "Status",
     width: 120,
-    group: "State",
+    icon: CircleDot,
+    sourceEntity: "Ticket",
     defaultVisible: true,
     sortable: true,
     sortValue: (t) => t.status,
@@ -66,7 +88,8 @@ export const TICKET_PROPERTIES: Property<TicketsRow>[] = [
     id: "priority",
     label: "Priority",
     width: 110,
-    group: "State",
+    icon: Flag,
+    sourceEntity: "Ticket",
     defaultVisible: true,
     sortable: true,
     sortValue: (t) => t.priority,
@@ -80,7 +103,8 @@ export const TICKET_PROPERTIES: Property<TicketsRow>[] = [
     id: "customer",
     label: "Customer",
     width: 200,
-    group: "Relations",
+    icon: User,
+    sourceEntity: "Customer",
     defaultVisible: true,
     sortable: true,
     sortValue: (t) => t.customer?.name ?? null,
@@ -88,14 +112,15 @@ export const TICKET_PROPERTIES: Property<TicketsRow>[] = [
       t.customer ? (
         <CustomerPill id={t.customer.id} name={t.customer.name} />
       ) : (
-        <span className="text-muted-foreground">-</span>
+        <span className="text-muted-foreground/40">—</span>
       ),
   },
   {
     id: "company",
     label: "Company",
     width: 180,
-    group: "Relations",
+    icon: Building2,
+    sourceEntity: "Customer",
     defaultVisible: true,
     sortable: true,
     sortValue: (t) => t.customer?.company ?? null,
@@ -106,14 +131,15 @@ export const TICKET_PROPERTIES: Property<TicketsRow>[] = [
       t.customer?.company ? (
         <CompanyPill name={t.customer.company} />
       ) : (
-        <span className="text-muted-foreground">-</span>
+        <span className="text-muted-foreground/40">—</span>
       ),
   },
   {
     id: "assignee",
     label: "Assigned to",
     width: 200,
-    group: "Relations",
+    icon: UserCircle2,
+    sourceEntity: "Team member",
     defaultVisible: true,
     sortable: true,
     sortValue: (t) => t.assignee?.name ?? null,
@@ -135,7 +161,8 @@ export const TICKET_PROPERTIES: Property<TicketsRow>[] = [
     id: "channel",
     label: "Channel",
     width: 120,
-    group: "Source",
+    icon: Inbox,
+    sourceEntity: "Ticket",
     defaultVisible: true,
     sortable: true,
     sortValue: (t) => t.channel,
@@ -149,7 +176,8 @@ export const TICKET_PROPERTIES: Property<TicketsRow>[] = [
     id: "tags",
     label: "Tags",
     width: 200,
-    group: "Metadata",
+    icon: TagIcon,
+    sourceEntity: "Ticket",
     defaultVisible: true,
     cell: (t) => <TagList tags={t.tags} />,
   },
@@ -157,7 +185,8 @@ export const TICKET_PROPERTIES: Property<TicketsRow>[] = [
     id: "resolution_time",
     label: "Resolution",
     width: 130,
-    group: "Activity",
+    icon: Timer,
+    sourceEntity: "Ticket",
     defaultVisible: true,
     align: "right",
     sortable: true,
@@ -173,7 +202,8 @@ export const TICKET_PROPERTIES: Property<TicketsRow>[] = [
     id: "survey_state",
     label: "Survey state",
     width: 160,
-    group: "Survey",
+    icon: ClipboardCheck,
+    sourceEntity: "Response",
     defaultVisible: true,
     sortable: true,
     sortValue: (t) =>
@@ -193,7 +223,8 @@ export const TICKET_PROPERTIES: Property<TicketsRow>[] = [
     id: "response",
     label: "Response",
     width: 110,
-    group: "Survey",
+    icon: Star,
+    sourceEntity: "Response",
     defaultVisible: true,
     sortable: true,
     sortValue: (t) => t.response?.rating ?? null,
@@ -205,14 +236,15 @@ export const TICKET_PROPERTIES: Property<TicketsRow>[] = [
           scale={t.response.scale}
         />
       ) : (
-        <span className="text-muted-foreground">-</span>
+        <span className="text-muted-foreground/40">—</span>
       ),
   },
   {
     id: "created_at",
     label: "Created",
     width: 120,
-    group: "Activity",
+    icon: Calendar,
+    sourceEntity: "Ticket",
     defaultVisible: true,
     sortable: true,
     sortValue: (t) => t.createdAt,
@@ -227,7 +259,8 @@ export const TICKET_PROPERTIES: Property<TicketsRow>[] = [
     id: "closed_at",
     label: "Closed",
     width: 120,
-    group: "Activity",
+    icon: CalendarCheck,
+    sourceEntity: "Ticket",
     defaultVisible: true,
     sortable: true,
     sortValue: (t) => t.closedAt,
@@ -242,7 +275,8 @@ export const TICKET_PROPERTIES: Property<TicketsRow>[] = [
     id: "internal_id",
     label: "ID",
     width: 156,
-    group: "Identity",
+    icon: Hash,
+    sourceEntity: "Ticket",
     defaultVisible: false,
     sortable: true,
     sortValue: (t) => t.id,
@@ -255,7 +289,8 @@ export const TICKET_PROPERTIES: Property<TicketsRow>[] = [
     id: "helpdesk",
     label: "Helpdesk",
     width: 110,
-    group: "Source",
+    icon: Headphones,
+    sourceEntity: "Ticket",
     defaultVisible: false,
     sortable: true,
     sortValue: (t) => t.helpdesk,
@@ -271,7 +306,8 @@ export const TICKET_PROPERTIES: Property<TicketsRow>[] = [
     id: "first_response_at",
     label: "First response",
     width: 140,
-    group: "Activity",
+    icon: CalendarClock,
+    sourceEntity: "Ticket",
     defaultVisible: false,
     sortable: true,
     sortValue: (t) => t.firstResponseAt,
@@ -286,7 +322,8 @@ export const TICKET_PROPERTIES: Property<TicketsRow>[] = [
     id: "solved_at",
     label: "Solved",
     width: 120,
-    group: "Activity",
+    icon: CheckCircle2,
+    sourceEntity: "Ticket",
     defaultVisible: false,
     sortable: true,
     sortValue: (t) => t.solvedAt,

@@ -227,7 +227,7 @@ function GroupedPropertyList<T>({
 }) {
   const groups = new Map<string, Property<T>[]>();
   for (const p of properties) {
-    const g = p.group ?? "Other";
+    const g = p.sourceEntity;
     const arr = groups.get(g) ?? [];
     arr.push(p);
     groups.set(g, arr);

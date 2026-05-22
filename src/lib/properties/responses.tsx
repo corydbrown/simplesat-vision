@@ -1,6 +1,15 @@
 "use client";
 
 import {
+  Calendar,
+  Hash,
+  MessageSquare,
+  Star,
+  Ticket as TicketIcon,
+  User,
+  UserCircle2,
+} from "lucide-react";
+import {
   CustomerPill,
   ResponsePill,
   TeamMemberPill,
@@ -16,7 +25,8 @@ export const RESPONSE_PROPERTIES: Property<ResponseListRow>[] = [
     id: "rating",
     label: "Rating",
     width: 110,
-    group: "Answer",
+    icon: Star,
+    sourceEntity: "Response",
     alwaysVisible: true,
     sortable: true,
     sortValue: (r) => r.rating,
@@ -34,7 +44,8 @@ export const RESPONSE_PROPERTIES: Property<ResponseListRow>[] = [
     id: "comment",
     label: "Comment",
     width: 420,
-    group: "Answer",
+    icon: MessageSquare,
+    sourceEntity: "Response",
     defaultVisible: true,
     sortable: true,
     sortValue: (r) => r.comment,
@@ -43,14 +54,15 @@ export const RESPONSE_PROPERTIES: Property<ResponseListRow>[] = [
       r.comment ? (
         <span className="text-foreground">{r.comment}</span>
       ) : (
-        <span className="text-muted-foreground">-</span>
+        <span className="text-muted-foreground/40">—</span>
       ),
   },
   {
     id: "ticket",
     label: "Ticket",
     width: 240,
-    group: "Relations",
+    icon: TicketIcon,
+    sourceEntity: "Ticket",
     defaultVisible: true,
     sortable: true,
     sortValue: (r) => r.ticketSubject ?? r.ticketExternalId,
@@ -62,14 +74,15 @@ export const RESPONSE_PROPERTIES: Property<ResponseListRow>[] = [
           subject={r.ticketSubject ?? undefined}
         />
       ) : (
-        <span className="text-muted-foreground">-</span>
+        <span className="text-muted-foreground/40">—</span>
       ),
   },
   {
     id: "customer",
     label: "Customer",
     width: 200,
-    group: "Relations",
+    icon: User,
+    sourceEntity: "Customer",
     defaultVisible: true,
     sortable: true,
     sortValue: (r) => r.customerName,
@@ -80,14 +93,15 @@ export const RESPONSE_PROPERTIES: Property<ResponseListRow>[] = [
       r.customerId && r.customerName ? (
         <CustomerPill id={r.customerId} name={r.customerName} />
       ) : (
-        <span className="text-muted-foreground">-</span>
+        <span className="text-muted-foreground/40">—</span>
       ),
   },
   {
     id: "team_member",
     label: "Team member",
     width: 200,
-    group: "Relations",
+    icon: UserCircle2,
+    sourceEntity: "Team member",
     defaultVisible: true,
     sortable: true,
     sortValue: (r) => r.teamMemberName,
@@ -102,14 +116,15 @@ export const RESPONSE_PROPERTIES: Property<ResponseListRow>[] = [
           avatarColor={r.teamMemberAvatarColor}
         />
       ) : (
-        <span className="text-muted-foreground">-</span>
+        <span className="text-muted-foreground/40">—</span>
       ),
   },
   {
     id: "responded_at",
     label: "Responded",
     width: 170,
-    group: "Activity",
+    icon: Calendar,
+    sourceEntity: "Response",
     defaultVisible: true,
     sortable: true,
     sortValue: (r) => r.respondedAt,
@@ -124,7 +139,8 @@ export const RESPONSE_PROPERTIES: Property<ResponseListRow>[] = [
     id: "id",
     label: "Response ID",
     width: 156,
-    group: "Identity",
+    icon: Hash,
+    sourceEntity: "Response",
     defaultVisible: false,
     sortable: true,
     sortValue: (r) => r.id,

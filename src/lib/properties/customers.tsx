@@ -1,6 +1,18 @@
 "use client";
 
 import {
+  Award,
+  Building2,
+  Clock,
+  Hash,
+  Languages,
+  Link as LinkIcon,
+  Mail,
+  Star,
+  Ticket,
+  User,
+} from "lucide-react";
+import {
   CompanyPill,
   CustomerPill,
 } from "@/components/shared/entity-pill";
@@ -18,7 +30,8 @@ const CORE_PROPERTIES: Property<CustomerListRow>[] = [
     id: "name",
     label: "Name",
     width: 220,
-    group: "Identity",
+    icon: User,
+    sourceEntity: "Customer",
     alwaysVisible: true,
     sortable: true,
     sortValue: (c) => c.name,
@@ -29,7 +42,8 @@ const CORE_PROPERTIES: Property<CustomerListRow>[] = [
     id: "email",
     label: "Email",
     width: 220,
-    group: "Identity",
+    icon: Mail,
+    sourceEntity: "Customer",
     defaultVisible: true,
     sortable: true,
     sortValue: (c) => c.email,
@@ -40,7 +54,8 @@ const CORE_PROPERTIES: Property<CustomerListRow>[] = [
     id: "tier",
     label: "Loyalty tier",
     width: 130,
-    group: "Account",
+    icon: Award,
+    sourceEntity: "Customer",
     defaultVisible: true,
     sortable: true,
     sortValue: (c) => c.tier,
@@ -54,7 +69,8 @@ const CORE_PROPERTIES: Property<CustomerListRow>[] = [
     id: "language",
     label: "Language",
     width: 110,
-    group: "Identity",
+    icon: Languages,
+    sourceEntity: "Customer",
     defaultVisible: false,
     sortable: true,
     sortValue: (c) => c.language,
@@ -66,14 +82,15 @@ const CORE_PROPERTIES: Property<CustomerListRow>[] = [
       c.language ? (
         <span className="text-muted-foreground">{c.language}</span>
       ) : (
-        <span className="text-muted-foreground">-</span>
+        <span className="text-muted-foreground/40">—</span>
       ),
   },
   {
     id: "company",
     label: "Company",
     width: 200,
-    group: "Account",
+    icon: Building2,
+    sourceEntity: "Customer",
     defaultVisible: true,
     sortable: true,
     sortValue: (c) => c.company,
@@ -87,7 +104,8 @@ const CORE_PROPERTIES: Property<CustomerListRow>[] = [
     id: "company_external_id",
     label: "Company external ID",
     width: 170,
-    group: "Account",
+    icon: Hash,
+    sourceEntity: "Customer",
     defaultVisible: false,
     sortable: true,
     sortValue: (c) => c.companyExternalId,
@@ -98,20 +116,21 @@ const CORE_PROPERTIES: Property<CustomerListRow>[] = [
           {c.companyExternalId}
         </span>
       ) : (
-        <span className="text-muted-foreground">-</span>
+        <span className="text-muted-foreground/40">—</span>
       ),
     detail: (c) =>
       c.companyExternalId ? (
         <span className="text-muted-foreground">{c.companyExternalId}</span>
       ) : (
-        <span className="text-muted-foreground">-</span>
+        <span className="text-muted-foreground/40">—</span>
       ),
   },
   {
     id: "company_domain",
     label: "Company domain",
     width: 200,
-    group: "Account",
+    icon: LinkIcon,
+    sourceEntity: "Customer",
     defaultVisible: false,
     sortable: true,
     sortValue: (c) => c.companyDomain,
@@ -120,14 +139,15 @@ const CORE_PROPERTIES: Property<CustomerListRow>[] = [
       c.companyDomain ? (
         <span className="text-muted-foreground">{c.companyDomain}</span>
       ) : (
-        <span className="text-muted-foreground">-</span>
+        <span className="text-muted-foreground/40">—</span>
       ),
   },
   {
     id: "total_tickets",
     label: "Tickets",
     width: 110,
-    group: "Activity",
+    icon: Ticket,
+    sourceEntity: "Tickets",
     defaultVisible: true,
     align: "right",
     sortable: true,
@@ -140,21 +160,11 @@ const CORE_PROPERTIES: Property<CustomerListRow>[] = [
     ),
   },
   {
-    id: "avg_rating",
-    label: "Avg rating",
-    width: 130,
-    group: "Activity",
-    defaultVisible: true,
-    sortable: true,
-    sortValue: (c) => c.avgRating,
-    filter: CUSTOMER_FILTER_SPECS.avg_rating,
-    cell: (c) => <AvgRating value={c.avgRating} threshold="customer" />,
-  },
-  {
     id: "last_seen",
     label: "Last seen",
     width: 130,
-    group: "Activity",
+    icon: Clock,
+    sourceEntity: "Tickets",
     defaultVisible: true,
     sortable: true,
     sortValue: (c) => c.lastSeen,
@@ -165,10 +175,23 @@ const CORE_PROPERTIES: Property<CustomerListRow>[] = [
     ),
   },
   {
+    id: "avg_rating",
+    label: "Avg rating",
+    width: 130,
+    icon: Star,
+    sourceEntity: "Responses",
+    defaultVisible: true,
+    sortable: true,
+    sortValue: (c) => c.avgRating,
+    filter: CUSTOMER_FILTER_SPECS.avg_rating,
+    cell: (c) => <AvgRating value={c.avgRating} threshold="customer" />,
+  },
+  {
     id: "id",
     label: "Internal ID",
     width: 156,
-    group: "Identity",
+    icon: Hash,
+    sourceEntity: "Customer",
     defaultVisible: false,
     sortable: true,
     sortValue: (c) => c.id,
@@ -181,5 +204,5 @@ const CORE_PROPERTIES: Property<CustomerListRow>[] = [
 
 export const CUSTOMER_PROPERTIES: Property<CustomerListRow>[] = [
   ...CORE_PROPERTIES,
-  ...customFieldProperties<CustomerListRow>(CUSTOMER_CUSTOM_FIELDS),
+  ...customFieldProperties<CustomerListRow>(CUSTOMER_CUSTOM_FIELDS, "Customer"),
 ];

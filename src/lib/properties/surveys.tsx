@@ -1,5 +1,16 @@
 "use client";
 
+import {
+  Calendar,
+  CircleDot,
+  ClipboardList,
+  Gauge,
+  Hash,
+  MessageSquare,
+  Ruler,
+  Send,
+  Star,
+} from "lucide-react";
 import { SurveyPill } from "@/components/shared/entity-pill";
 import type { SurveyRow } from "@/db/queries/surveys";
 import { formatDate, formatNumber } from "@/lib/format";
@@ -38,7 +49,8 @@ export const SURVEY_PROPERTIES: Property<SurveyRow>[] = [
     id: "name",
     label: "Name",
     width: 260,
-    group: "Identity",
+    icon: ClipboardList,
+    sourceEntity: "Survey",
     alwaysVisible: true,
     cell: (s) => <SurveyPill id={s.id} name={s.name} metric={s.metric} />,
   },
@@ -46,7 +58,8 @@ export const SURVEY_PROPERTIES: Property<SurveyRow>[] = [
     id: "metric",
     label: "Metric",
     width: 110,
-    group: "Identity",
+    icon: Gauge,
+    sourceEntity: "Survey",
     defaultVisible: true,
     cell: (s) => (
       <span className="text-muted-foreground">{METRIC_LABEL[s.metric]}</span>
@@ -56,7 +69,8 @@ export const SURVEY_PROPERTIES: Property<SurveyRow>[] = [
     id: "channel",
     label: "Channel",
     width: 150,
-    group: "Identity",
+    icon: Send,
+    sourceEntity: "Survey",
     defaultVisible: true,
     cell: (s) => (
       <span className="text-muted-foreground">{CHANNEL_LABEL[s.channel]}</span>
@@ -66,7 +80,8 @@ export const SURVEY_PROPERTIES: Property<SurveyRow>[] = [
     id: "status",
     label: "Status",
     width: 110,
-    group: "Identity",
+    icon: CircleDot,
+    sourceEntity: "Survey",
     defaultVisible: true,
     cell: (s) => (
       <span
@@ -80,7 +95,8 @@ export const SURVEY_PROPERTIES: Property<SurveyRow>[] = [
     id: "scale",
     label: "Scale",
     width: 80,
-    group: "Identity",
+    icon: Ruler,
+    sourceEntity: "Survey",
     defaultVisible: false,
     align: "right",
     cell: (s) => <span className="tabular-nums text-muted-foreground">{s.scale}</span>,
@@ -89,7 +105,8 @@ export const SURVEY_PROPERTIES: Property<SurveyRow>[] = [
     id: "total_responses",
     label: "Responses",
     width: 120,
-    group: "Activity",
+    icon: MessageSquare,
+    sourceEntity: "Responses",
     defaultVisible: true,
     align: "right",
     cell: (s) => (
@@ -102,7 +119,8 @@ export const SURVEY_PROPERTIES: Property<SurveyRow>[] = [
     id: "avg_rating",
     label: "Avg rating",
     width: 110,
-    group: "Activity",
+    icon: Star,
+    sourceEntity: "Responses",
     defaultVisible: true,
     align: "right",
     cell: (s) => (
@@ -115,7 +133,8 @@ export const SURVEY_PROPERTIES: Property<SurveyRow>[] = [
     id: "created_at",
     label: "Created",
     width: 130,
-    group: "Activity",
+    icon: Calendar,
+    sourceEntity: "Survey",
     defaultVisible: false,
     cell: (s) => (
       <span className="tabular-nums text-muted-foreground">
@@ -127,7 +146,8 @@ export const SURVEY_PROPERTIES: Property<SurveyRow>[] = [
     id: "id",
     label: "Internal ID",
     width: 156,
-    group: "Identity",
+    icon: Hash,
+    sourceEntity: "Survey",
     defaultVisible: false,
     cell: (s) => (
       <span className="font-mono text-xs text-muted-foreground">{s.id}</span>

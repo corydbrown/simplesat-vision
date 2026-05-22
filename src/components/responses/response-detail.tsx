@@ -8,7 +8,8 @@ import { RESPONSE_PROPERTIES } from "@/lib/properties/responses";
 import { PropertiesPanel } from "@/components/shared/properties-panel";
 import {
   DetailSection,
-  PropertiesHeader,
+  PropertiesPanelHeader,
+  PropertiesSidebar,
 } from "@/components/shared/detail-section";
 import { StarRating } from "@/components/shared/star-rating";
 import type { ResponseDetail } from "@/db/queries/responses";
@@ -141,15 +142,14 @@ export function ResponseDetailBody({
       tableId="response-detail"
       properties={RESPONSE_PROPERTIES}
     >
-      <div className="flex items-center justify-between pb-2">
-        <h2 className="text-base font-medium text-muted-foreground">
-          Properties
-        </h2>
-        <PropertiesHeader properties={RESPONSE_PROPERTIES} />
-      </div>
+      <PropertiesPanelHeader
+        properties={RESPONSE_PROPERTIES}
+        layout={inDrawer ? "inline" : "stacked"}
+      />
       <PropertiesPanel
         row={responseRow}
         properties={RESPONSE_PROPERTIES}
+        rowEntity="Response"
         layout={inDrawer ? "inline" : "stacked"}
       />
     </ColumnStateProvider>
@@ -182,9 +182,9 @@ export function ResponseDetailBody({
   return (
     <main className="px-14 py-10">
       {header}
-      <div className="mt-8 grid grid-cols-[1fr_260px] gap-10">
+      <div className="mt-8 grid grid-cols-[1fr_auto] gap-10">
         <div className="min-w-0">{content}</div>
-        <aside className="sticky top-14 self-start">{properties}</aside>
+        <PropertiesSidebar>{properties}</PropertiesSidebar>
       </div>
     </main>
   );

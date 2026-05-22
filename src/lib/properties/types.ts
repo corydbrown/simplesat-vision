@@ -1,4 +1,5 @@
-import type { ReactNode } from "react";
+import type { ComponentType, ReactNode } from "react";
+import type { LucideProps } from "lucide-react";
 import type { FilterDataType, FilterOp } from "@/lib/filters/types";
 
 export type PropertyFilter = {
@@ -7,11 +8,25 @@ export type PropertyFilter = {
   enumValues?: string[];
 };
 
+/** Lucide icon component (or any equivalent renderer). Sized + colored by the
+ *  consumer; the property only supplies the glyph. */
+export type PropertyIcon = ComponentType<LucideProps>;
+
 export type Property<T> = {
   id: string;
   label: string;
   width: number;
-  group?: string;
+  /** Lucide icon rendered next to the property label in PropertiesPanel and
+   *  in property pickers (sort, columns, filter). Core fields use semantic
+   *  icons (Mail, Phone, Calendar, Hash, ...). Custom / synced fields all
+   *  use the same arrows icon to signal "came from an integration." */
+  icon: PropertyIcon;
+  /** Which entity this property semantically belongs to. The row's own entity
+   *  renders first in PropertiesPanel; everything else is a rollup section
+   *  (e.g. on a Customer row, "Tickets" gathers ticket-count rollups and
+   *  "Responses" gathers avg-rating rollups). Replaces the old free-text
+   *  `group` field — grouping is now entity-driven, not bespoke. */
+  sourceEntity: string;
   alwaysVisible?: boolean;
   defaultVisible?: boolean;
   sortable?: boolean;

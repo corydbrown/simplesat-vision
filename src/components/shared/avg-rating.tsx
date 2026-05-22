@@ -9,7 +9,7 @@ export function AvgRating({
   threshold?: "customer" | "team-member";
   size?: "sm" | "md";
 }) {
-  if (value == null) return <span className="text-muted-foreground">-</span>;
+  if (value == null) return <span className="text-muted-foreground/40">—</span>;
 
   const tone = ratingTone(value, threshold);
 

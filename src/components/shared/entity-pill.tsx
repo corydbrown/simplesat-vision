@@ -115,7 +115,7 @@ export function CompanyPill({
   size = "sm",
   className,
 }: CommonProps & { name: string | null | undefined }) {
-  if (!name) return <span className="text-muted-foreground">-</span>;
+  if (!name) return <span className="text-muted-foreground/40">—</span>;
   return (
     <span
       className={`inline-flex items-center ${

@@ -10,7 +10,8 @@ import { RESPONSE_PROPERTIES } from "@/lib/properties/responses";
 import { PropertiesPanel } from "@/components/shared/properties-panel";
 import {
   DetailSection,
-  PropertiesHeader,
+  PropertiesPanelHeader,
+  PropertiesSidebar,
 } from "@/components/shared/detail-section";
 import { EntityTable } from "@/components/shared/entity-table";
 import { GroupControl } from "@/components/shared/group-control";
@@ -73,13 +74,14 @@ export function SurveyDetailBody({
 
   const properties = (
     <ColumnStateProvider tableId="survey-detail" properties={SURVEY_PROPERTIES}>
-      <div className="flex items-center justify-between pb-2">
-        <h2 className="text-sm font-medium text-muted-foreground">Properties</h2>
-        <PropertiesHeader properties={SURVEY_PROPERTIES} />
-      </div>
+      <PropertiesPanelHeader
+        properties={SURVEY_PROPERTIES}
+        layout={inDrawer ? "inline" : "stacked"}
+      />
       <PropertiesPanel
         row={surveyRow}
         properties={SURVEY_PROPERTIES}
+        rowEntity="Survey"
         layout={inDrawer ? "inline" : "stacked"}
       />
     </ColumnStateProvider>
@@ -167,12 +169,12 @@ export function SurveyDetailBody({
   return (
     <main className="px-14 py-10">
       {header}
-      <div className="mt-8 grid grid-cols-[1fr_260px] gap-10">
+      <div className="mt-8 grid grid-cols-[1fr_auto] gap-10">
         <div className="min-w-0 space-y-8">
           {questions}
           {responsesTable}
         </div>
-        <aside className="sticky top-14 self-start">{properties}</aside>
+        <PropertiesSidebar>{properties}</PropertiesSidebar>
       </div>
     </main>
   );

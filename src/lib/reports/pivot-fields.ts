@@ -136,12 +136,17 @@ function customFieldPivotField(
 ): PivotField {
   const expr = `json_extract(${table}.custom_properties, '$.${def.id}')`;
   const baseId = `cf_${def.id}`;
+  // All synced custom attributes live under a single "Custom" rail group —
+  // CustomFieldDef no longer carries a semantic group, so there's no
+  // sub-bucketing to do here. The visual treatment in the rail mirrors the
+  // PropertiesPanel: one bucket per source.
+  const group = "Custom";
   switch (def.dataType) {
     case "number":
       return {
         id: baseId,
         label: def.label,
-        group: def.group,
+        group,
         dataType: "number",
         aggregations: NUMERIC_AGGS,
         filterOps: NUMERIC_OPS,
@@ -151,7 +156,7 @@ function customFieldPivotField(
       return {
         id: baseId,
         label: def.label,
-        group: def.group,
+        group,
         dataType: "date",
         aggregations: COUNT_ONLY,
         filterOps: DATE_OPS,
@@ -164,7 +169,7 @@ function customFieldPivotField(
       return {
         id: baseId,
         label: def.label,
-        group: def.group,
+        group,
         dataType: "enum",
         aggregations: COUNT_ONLY,
         filterOps: ENUM_OPS,
@@ -175,7 +180,7 @@ function customFieldPivotField(
       return {
         id: baseId,
         label: def.label,
-        group: def.group,
+        group,
         dataType: "enum",
         aggregations: COUNT_ONLY,
         filterOps: ENUM_OPS,
@@ -186,7 +191,7 @@ function customFieldPivotField(
       return {
         id: baseId,
         label: def.label,
-        group: def.group,
+        group,
         dataType: "string",
         aggregations: COUNT_ONLY,
         filterOps: STRING_OPS,
@@ -903,26 +908,8 @@ export const PIVOT_FIELDS: Record<BaseEntity, PivotField[]> = {
  */
 export const GROUP_ORDER: Record<BaseEntity, string[]> = {
   response: ["Metrics", "Response", "Survey", "Customer", "Team member", "Ticket"],
-  customer: [
-    "Customer",
-    "Activity",
-    "Metrics",
-    "Profile",
-    "Beauty profile",
-    "Loyalty",
-    "Engagement",
-    "Purchase behavior",
-    "B2B",
-  ],
-  team_member: [
-    "Team member",
-    "Activity",
-    "Metrics",
-    "Profile",
-    "Schedule",
-    "Skills",
-    "Performance",
-  ],
+  customer: ["Customer", "Activity", "Metrics", "Custom"],
+  team_member: ["Team member", "Activity", "Metrics", "Custom"],
   ticket: ["Ticket", "Customer", "Assignee", "Response", "Metrics"],
 };
 

@@ -218,7 +218,7 @@ function CustomerPopover({ data }: { data: CustomerData }) {
                 {data.avgRating.toFixed(2)}
               </span>
             ) : (
-              <span className="text-muted-foreground">-</span>
+              <span className="text-muted-foreground/40">—</span>
             )
           }
         />
@@ -273,7 +273,7 @@ function TeamMemberPopover({ data }: { data: TeamMemberData }) {
                 {data.avgRating.toFixed(2)}
               </span>
             ) : (
-              <span className="text-muted-foreground">-</span>
+              <span className="text-muted-foreground/40">—</span>
             )
           }
         />
@@ -370,7 +370,7 @@ function SurveyPopover({ data }: { data: SurveyData }) {
                 {data.avgRating.toFixed(2)}/{data.scale}
               </span>
             ) : (
-              <span className="text-muted-foreground">-</span>
+              <span className="text-muted-foreground/40">—</span>
             )
           }
         />

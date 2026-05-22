@@ -1,18 +1,41 @@
+import { listSavedViews, replaceSavedViews } from "./actions";
 import type { EntityKey, SavedView } from "./types";
 
-const STORAGE_PREFIX = "simplesat:savedViews:";
+const LEGACY_STORAGE_PREFIX = "simplesat:savedViews:";
 
-function storageKey(entity: EntityKey): string {
-  return `${STORAGE_PREFIX}${entity}`;
+function legacyKey(entity: EntityKey): string {
+  return `${LEGACY_STORAGE_PREFIX}${entity}`;
 }
 
-/** Returns null when no saved set has ever been written for this entity —
- *  the provider distinguishes that from "saved an empty list" so it can
- *  re-seed defaults on first load and after a localStorage clear. */
-export function loadSavedViews(entity: EntityKey): SavedView[] | null {
+/** Loads the entity's saved views from the server. Returns [] when the
+ *  workspace has no rows yet — the provider treats that as "either seed
+ *  defaults or port from localStorage". The legacy `null` sentinel is gone:
+ *  with server storage, "no rows" is the only empty state we can observe. */
+export async function loadSavedViews(entity: EntityKey): Promise<SavedView[]> {
+  return listSavedViews(entity);
+}
+
+/** Bulk-replaces the entity's saved views on the server. Used by the seed
+ *  flow (first-run write of SEED_VIEWS) and the localStorage-migration flow.
+ *  Steady-state mutations go through createSavedView / updateSavedView /
+ *  renameSavedView / deleteSavedView so per-row timestamps survive. */
+export async function saveSavedViews(
+  entity: EntityKey,
+  views: SavedView[],
+): Promise<void> {
+  await replaceSavedViews(entity, views);
+}
+
+/** Reads any pre-migration localStorage rows for an entity and removes the
+ *  key. Returns null when nothing was stored, [] when stored but empty.
+ *  Called by the provider on first mount to one-shot port localStorage data
+ *  into the server. SSR-safe — returns null when `window` is undefined. */
+export function readLegacyLocalStorage(
+  entity: EntityKey,
+): SavedView[] | null {
   if (typeof window === "undefined") return null;
   try {
-    const raw = window.localStorage.getItem(storageKey(entity));
+    const raw = window.localStorage.getItem(legacyKey(entity));
     if (raw === null) return null;
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed)) return null;
@@ -22,13 +45,12 @@ export function loadSavedViews(entity: EntityKey): SavedView[] | null {
   }
 }
 
-export function saveSavedViews(entity: EntityKey, views: SavedView[]): void {
+export function clearLegacyLocalStorage(entity: EntityKey): void {
   if (typeof window === "undefined") return;
   try {
-    window.localStorage.setItem(storageKey(entity), JSON.stringify(views));
+    window.localStorage.removeItem(legacyKey(entity));
   } catch {
-    // ignore quota errors — view metadata is small but we never want a
-    // localStorage failure to break the app
+    // ignore — best-effort cleanup
   }
 }
 

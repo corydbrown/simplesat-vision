@@ -511,6 +511,43 @@ export const qaEvaluations = sqliteTable(
   ],
 );
 
+/** Server-side storage for saved views. Carries `workspace_id` from day one so
+ *  the eventual auth cutover is a value-source change, not a schema migration.
+ *  Today the column is always the demo constant (see src/lib/workspace.ts).
+ *  `position` is reserved for SVP-48 drag-to-reorder; new rows append at
+ *  MAX(position)+1. The "All ENTITY" view is hardcoded in the provider and
+ *  never written here. */
+export const savedViews = sqliteTable(
+  "saved_views",
+  {
+    id: text("id").primaryKey(),
+    workspaceId: text("workspace_id").notNull(),
+    entity: text("entity", {
+      enum: ["tickets", "customers", "responses", "team-members"],
+    }).notNull(),
+    name: text("name").notNull(),
+    /** JSON-encoded ViewState (sorts, group, filters, layout, columns).
+     *  Cast to the ViewState type at the query layer; kept loose here so
+     *  schema stays free of feature-layer imports. */
+    state: text("state", { mode: "json" })
+      .$type<Record<string, unknown>>()
+      .notNull(),
+    position: integer("position").notNull().default(0),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+    updatedAt: integer("updated_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+  },
+  (t) => [
+    index("saved_views_workspace_entity_idx").on(t.workspaceId, t.entity),
+  ],
+);
+
+export type SavedViewRow = typeof savedViews.$inferSelect;
+export type NewSavedViewRow = typeof savedViews.$inferInsert;
+
 export type Customer = typeof customers.$inferSelect;
 export type NewCustomer = typeof customers.$inferInsert;
 export type TeamMember = typeof teamMembers.$inferSelect;

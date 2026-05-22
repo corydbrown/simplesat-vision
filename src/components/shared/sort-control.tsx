@@ -27,6 +27,7 @@ import {
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useMemo } from "react";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -137,9 +138,12 @@ export function SortControl<T>({
         <Button
           variant="ghost"
           size="sm"
-          className={`h-8 cursor-pointer gap-1.5 text-sm ${
-            sorts.length > 0 ? "text-foreground" : "text-muted-foreground"
-          }`}
+          className={cn(
+            "h-8 cursor-pointer gap-1.5 text-sm",
+            sorts.length > 0
+              ? "bg-blue-lighter text-blue-darker hover:bg-blue-lighter hover:text-blue-darker aria-expanded:bg-blue-lighter aria-expanded:text-blue-darker"
+              : "text-muted-foreground",
+          )}
         >
           <ArrowDownUp size={13} />
           {triggerLabel}

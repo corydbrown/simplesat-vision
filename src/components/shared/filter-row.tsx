@@ -36,6 +36,7 @@ import {
   capitalize,
   defaultOpFor,
   defaultValueFor,
+  isFilterActive,
   isRelativeValue,
   opLabel,
   opNeedsValue,
@@ -214,18 +215,29 @@ function FilterChip({
     );
   }
 
+  const active = isFilterActive(filter);
+
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <button
           type="button"
-          className="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-2.5 py-1 text-sm h-8 cursor-pointer outline-none hover:border-foreground/20 transition-colors"
+          className={cn(
+            "inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-sm h-8 cursor-pointer outline-none transition-colors",
+            active
+              ? "border-transparent bg-blue-lighter text-blue-darker"
+              : "border-border bg-card text-foreground hover:border-foreground/20",
+          )}
         >
-          <span className="text-foreground">{field.label}</span>
-          <span className="text-muted-foreground">
-            {opLabel(filter.op, field.dataType)}
-          </span>
-          <ValueLabel filter={filter} field={field} />
+          <span>{field.label}</span>
+          {active && (
+            <>
+              <span className="text-blue-dark">
+                {opLabel(filter.op, field.dataType)}
+              </span>
+              <ValueLabel filter={filter} field={field} />
+            </>
+          )}
         </button>
       </PopoverTrigger>
       <PopoverContent align="start" className="w-72 p-0">
@@ -279,16 +291,14 @@ function ValueLabel({
     } else {
       text = `${v.dir === "past" ? "last" : "next"} ${v.n} ${v.unit}`;
     }
-    return (
-      <span className="text-foreground max-w-[20ch] truncate">{text}</span>
-    );
+    return <span className="max-w-[20ch] truncate">{text}</span>;
   }
   // Between range
   if (filter.op === "between" && Array.isArray(v) && v.length === 2) {
     const [a, b] = v as [unknown, unknown];
     if (a == null || b == null) return <Placeholder />;
     return (
-      <span className="text-foreground max-w-[24ch] truncate">
+      <span className="max-w-[24ch] truncate">
         {formatScalar(a, field, filter.propertyId)}–
         {formatScalar(b, field, filter.propertyId)}
       </span>
@@ -298,7 +308,7 @@ function ValueLabel({
   if (Array.isArray(v)) {
     if (v.length === 0) return <Placeholder />;
     return (
-      <span className="text-foreground max-w-[24ch] truncate">
+      <span className="max-w-[24ch] truncate">
         {v
           .map((x) => formatScalar(x, field, filter.propertyId))
           .join(", ")}
@@ -309,7 +319,7 @@ function ValueLabel({
   if (v == null || v === "") return <Placeholder />;
   // Single scalar
   return (
-    <span className="text-foreground max-w-[20ch] truncate">
+    <span className="max-w-[20ch] truncate">
       {formatScalar(v, field, filter.propertyId)}
     </span>
   );
@@ -330,7 +340,7 @@ function RelationChipSingle({
   const showName = label ?? id;
   const showAvatar = entity === "customer" || entity === "team_member";
   return (
-    <span className="inline-flex items-center gap-1 text-foreground max-w-[22ch] truncate">
+    <span className="inline-flex items-center gap-1 max-w-[22ch] truncate">
       {showAvatar && label && (
         <Avatar
           bg={colorFromName(label)}
@@ -351,13 +361,11 @@ function RelationChipMulti({
   ids: string[];
 }) {
   return (
-    <span className="inline-flex items-center gap-1 text-foreground max-w-[28ch] truncate">
+    <span className="inline-flex items-center gap-1 max-w-[28ch] truncate">
       {ids.slice(0, 3).map((id) => (
         <RelationChipSingle key={id} entity={entity} id={id} />
       ))}
-      {ids.length > 3 && (
-        <span className="text-muted-foreground">+{ids.length - 3}</span>
-      )}
+      {ids.length > 3 && <span className="opacity-70">+{ids.length - 3}</span>}
     </span>
   );
 }

@@ -233,3 +233,21 @@ export function isRelativeValue(v: unknown): v is RelativeValue {
     (r.dir === "past" || r.dir === "next")
   );
 }
+
+/** Whether a filter row carries an effective value. Mirrors the rendering
+ *  logic in FilterChip's value label: a fresh "Channel contains" with no
+ *  value chosen is inactive; "Channel is empty" (isnull/notnull) is active. */
+export function isFilterActive(filter: Filter): boolean {
+  if (!opNeedsValue(filter.op)) return true;
+  const v = filter.value;
+  if (v == null || v === "") return false;
+  if (Array.isArray(v)) {
+    if (v.length === 0) return false;
+    if (filter.op === "between" && v.length === 2) {
+      const [a, b] = v as [unknown, unknown];
+      if (a == null || b == null) return false;
+    }
+    return true;
+  }
+  return true;
+}

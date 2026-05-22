@@ -12,6 +12,7 @@ import {
 import { decodeGroup, encodeGroup } from "@/lib/group/url-state";
 import type { GroupDir, GroupSpec } from "@/lib/group/types";
 import type { Property } from "@/lib/properties/types";
+import { cn } from "@/lib/utils";
 
 export function GroupControl<T>({
   properties,
@@ -83,7 +84,12 @@ export function GroupControl<T>({
         <Button
           variant="ghost"
           size="sm"
-          className="h-8 cursor-pointer gap-1.5 text-sm text-muted-foreground data-[state=open]:bg-accent"
+          className={cn(
+            "h-8 cursor-pointer gap-1.5 text-sm",
+            selected
+              ? "bg-blue-lighter text-blue-darker hover:bg-blue-lighter hover:text-blue-darker aria-expanded:bg-blue-lighter aria-expanded:text-blue-darker"
+              : "text-muted-foreground data-[state=open]:bg-accent",
+          )}
         >
           <GroupIcon size={13} />
           {selected ? <>Group by {selected.label}</> : "Group"}

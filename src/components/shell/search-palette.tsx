@@ -8,6 +8,9 @@ import {
   Inbox,
   MessageCircleMore,
   Search,
+  UserSquare2,
+  Users,
+  type LucideIcon,
 } from "lucide-react";
 import {
   Dialog,
@@ -23,6 +26,14 @@ import {
   type RecentEntityEntry,
 } from "@/lib/recent-pages";
 import type { SearchResponse, SearchResult } from "@/lib/search-types";
+import { useViews } from "@/lib/views/provider";
+import { ALL_VIEW_LABEL, ENTITY_BASE_PATH } from "@/lib/views/seed";
+import {
+  ALL_VIEW_ID,
+  ENTITY_KEYS,
+  type EntityKey,
+} from "@/lib/views/types";
+import { viewHref } from "@/lib/views/url";
 
 const STATIC_INDEX_BY_HREF = new Map(STATIC_INDEX.map((e) => [e.href, e]));
 
@@ -37,6 +48,56 @@ const DYNAMIC_GROUP_ENTITY: Record<string, IconEntity> = {
   Surveys: "survey",
   "Team members": "team-member",
   Responses: "response",
+};
+
+// Per-entity metadata for the dynamic "Views" group. Icon + iconClass mirror
+// the sidebar section so a Detractors-on-Responses entry reads the same in the
+// palette as in the nav. Label is the secondary text ("Detractors — Responses").
+const VIEW_ENTITY_META: Record<
+  EntityKey,
+  { icon: LucideIcon; iconClass: string; label: string; basePath: string }
+> = {
+  responses: {
+    icon: MessageCircleMore,
+    iconClass: "text-icon-responses",
+    label: "Responses",
+    basePath: ENTITY_BASE_PATH.responses,
+  },
+  customers: {
+    icon: UserSquare2,
+    iconClass: "text-icon-customers",
+    label: "Customers",
+    basePath: ENTITY_BASE_PATH.customers,
+  },
+  "team-members": {
+    icon: Users,
+    iconClass: "text-icon-team-members",
+    label: "Team members",
+    basePath: ENTITY_BASE_PATH["team-members"],
+  },
+  tickets: {
+    icon: Inbox,
+    iconClass: "text-icon-tickets",
+    label: "Tickets",
+    basePath: ENTITY_BASE_PATH.tickets,
+  },
+};
+
+// Nav order — keeps the "All X" head block in the same order the sidebar
+// renders sections, so palette and sidebar feel cohesive.
+const VIEW_NAV_ORDER: readonly EntityKey[] = [
+  "responses",
+  "customers",
+  "team-members",
+  "tickets",
+];
+
+type ViewEntry = {
+  key: string;
+  label: string;
+  secondary: string;
+  href: string;
+  entity: EntityKey;
 };
 
 const GROUP_HEADING_CLS =
@@ -61,6 +122,7 @@ export function SearchPalette({ open, onOpenChange }: Props) {
   const [dynamic, setDynamic] = useState<SearchResponse>(EMPTY_DYNAMIC);
   const [loading, setLoading] = useState(false);
   const recent = useRecentPages();
+  const { views: viewsByEntity } = useViews();
 
   // Reset query when the palette closes so reopening starts fresh.
   useEffect(() => {
@@ -110,6 +172,46 @@ export function SearchPalette({ open, onOpenChange }: Props) {
   }
 
   const grouped = useMemo(() => groupStatic(STATIC_INDEX), []);
+
+  // Views group: "All ENTITY" entries pinned to the head (in nav order), then
+  // user-defined views sorted alphabetically across entities. SVP-33 will swap
+  // alphabetical for `position` once view reordering lands.
+  const viewEntries = useMemo<ViewEntry[]>(() => {
+    const entries: ViewEntry[] = [];
+    for (const entity of VIEW_NAV_ORDER) {
+      const meta = VIEW_ENTITY_META[entity];
+      entries.push({
+        key: `view:${entity}:${ALL_VIEW_ID}`,
+        label: ALL_VIEW_LABEL[entity],
+        secondary: meta.label,
+        href: meta.basePath,
+        entity,
+      });
+    }
+    const saved: { entity: EntityKey; id: string; name: string; href: string }[] = [];
+    for (const entity of ENTITY_KEYS) {
+      const meta = VIEW_ENTITY_META[entity];
+      for (const v of viewsByEntity[entity]) {
+        saved.push({
+          entity,
+          id: v.id,
+          name: v.name,
+          href: viewHref(meta.basePath, v.id, v.state),
+        });
+      }
+    }
+    saved.sort((a, b) => a.name.localeCompare(b.name));
+    for (const v of saved) {
+      entries.push({
+        key: `view:${v.entity}:${v.id}`,
+        label: v.name,
+        secondary: VIEW_ENTITY_META[v.entity].label,
+        href: v.href,
+        entity: v.entity,
+      });
+    }
+    return entries;
+  }, [viewsByEntity]);
 
   const hasDynamic =
     dynamic.customers.length > 0 ||
@@ -204,6 +306,27 @@ export function SearchPalette({ open, onOpenChange }: Props) {
                 ))}
               </Command.Group>
             ))}
+
+            {viewEntries.length > 0 ? (
+              <Command.Group heading="Views" className={GROUP_HEADING_CLS}>
+                {viewEntries.map((v) => {
+                  const meta = VIEW_ENTITY_META[v.entity];
+                  const Icon = meta.icon;
+                  return (
+                    <PaletteItem
+                      key={v.key}
+                      value={`${v.label} ${v.secondary}`.trim()}
+                      label={v.label}
+                      secondary={v.secondary}
+                      icon={
+                        <Icon size={14} className={meta.iconClass} />
+                      }
+                      onSelect={() => go(v.href)}
+                    />
+                  );
+                })}
+              </Command.Group>
+            ) : null}
 
             {hasDynamic ? (
               <>

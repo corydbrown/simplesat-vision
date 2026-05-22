@@ -1,8 +1,24 @@
 "use client";
 
 import {
+  DndContext,
+  PointerSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  arrayMove,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import {
   BarChart3,
   ChevronDown,
+  GripVertical,
   Home,
   Inbox,
   MessageCircleMore,
@@ -30,7 +46,7 @@ import {
 } from "./sidebar-context";
 import { useSearch } from "./search-context";
 import { useModKey } from "@/lib/platform";
-import { useEntityViews } from "@/lib/views/provider";
+import { useEntityViews, useViews } from "@/lib/views/provider";
 import { ALL_VIEW_LABEL, ENTITY_BASE_PATH } from "@/lib/views/seed";
 import {
   ALL_VIEW_ID,
@@ -345,45 +361,158 @@ function EntityViewList({
   currentViewId: string;
 }) {
   const saved = useEntityViews(entityKey);
+  const { reorderViews } = useViews();
   const basePath = ENTITY_BASE_PATH[entityKey];
   const allLabel = ALL_VIEW_LABEL[entityKey];
 
-  const rows = useMemo(() => {
-    const sorted = [...saved].sort((a, b) => a.name.localeCompare(b.name));
-    return [
-      {
-        nav: { id: ALL_VIEW_ID, label: allLabel, href: basePath },
-        view: null as SavedView | null,
-      },
-      ...sorted.map((v) => ({
-        nav: { id: v.id, label: v.name, href: viewHref(basePath, v.id, v.state) },
-        view: v,
-      })),
-    ];
-  }, [saved, basePath, allLabel]);
+  // Manual position wins; unpositioned views fall to the bottom in
+  // alphabetical order. Matches the brief's "position ?? Infinity" rule.
+  const ordered = useMemo(() => {
+    return [...saved].sort((a, b) => {
+      const pa = a.position ?? Number.POSITIVE_INFINITY;
+      const pb = b.position ?? Number.POSITIVE_INFINITY;
+      if (pa !== pb) return pa - pb;
+      return a.name.localeCompare(b.name);
+    });
+  }, [saved]);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+  );
+
+  function onDragEnd(e: DragEndEvent) {
+    const { active, over } = e;
+    if (!over || active.id === over.id) return;
+    const ids = ordered.map((v) => v.id);
+    const oldIndex = ids.indexOf(String(active.id));
+    const newIndex = ids.indexOf(String(over.id));
+    if (oldIndex < 0 || newIndex < 0) return;
+    reorderViews(entityKey, arrayMove(ids, oldIndex, newIndex));
+  }
+
+  const allActive = inSection && currentViewId === ALL_VIEW_ID;
 
   return (
     <div className="flex flex-col gap-0.5">
-      {rows.map(({ nav, view }) => {
-        const active = inSection && currentViewId === nav.id;
-        return (
-          <ViewLink
-            key={nav.id}
-            view={nav}
-            active={active}
-            action={
-              view ? (
-                <SidebarViewKebab
-                  entity={entityKey}
-                  view={view}
-                  isActive={active}
-                  basePath={basePath}
-                />
-              ) : null
-            }
-          />
-        );
-      })}
+      <AllEntityRow
+        label={allLabel}
+        href={basePath}
+        active={allActive}
+      />
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragEnd={onDragEnd}
+      >
+        <SortableContext
+          items={ordered.map((v) => v.id)}
+          strategy={verticalListSortingStrategy}
+        >
+          {ordered.map((view) => {
+            const nav: NavView = {
+              id: view.id,
+              label: view.name,
+              href: viewHref(basePath, view.id, view.state),
+            };
+            const active = inSection && currentViewId === view.id;
+            return (
+              <SortableViewLink
+                key={view.id}
+                view={nav}
+                active={active}
+                action={
+                  <SidebarViewKebab
+                    entity={entityKey}
+                    view={view}
+                    isActive={active}
+                    basePath={basePath}
+                  />
+                }
+              />
+            );
+          })}
+        </SortableContext>
+      </DndContext>
+    </div>
+  );
+}
+
+/** "All ENTITY" sidebar row. Pinned above the sortable list and intentionally
+ *  non-draggable. Includes a w-4 spacer where the saved-view rows show their
+ *  drag handle so the labels stay vertically aligned. */
+function AllEntityRow({
+  label,
+  href,
+  active,
+}: {
+  label: string;
+  href: string;
+  active: boolean;
+}) {
+  const rowClass = active
+    ? "bg-accent text-foreground font-medium"
+    : "text-foreground/75 hover:bg-accent/60 hover:text-foreground";
+  return (
+    <div className={`flex h-7 items-center rounded transition-colors ${rowClass}`}>
+      <span aria-hidden className="h-7 w-4 shrink-0" />
+      <Link
+        href={href}
+        className="flex h-full min-w-0 flex-1 cursor-pointer items-center pr-2"
+      >
+        <span className="truncate">{label}</span>
+      </Link>
+    </div>
+  );
+}
+
+function SortableViewLink({
+  view,
+  active,
+  action,
+}: {
+  view: NavView;
+  active: boolean;
+  action: React.ReactNode;
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: view.id });
+
+  const rowClass = active
+    ? "bg-accent text-foreground font-medium"
+    : "text-foreground/75 hover:bg-accent/60 hover:text-foreground";
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={{
+        transform: CSS.Transform.toString(transform),
+        transition,
+        opacity: isDragging ? 0.5 : 1,
+      }}
+      className={`group flex h-7 items-center rounded transition-colors ${rowClass}`}
+    >
+      <button
+        {...attributes}
+        {...listeners}
+        type="button"
+        aria-label={`Reorder ${view.label}`}
+        className="flex h-7 w-4 shrink-0 cursor-grab items-center justify-center text-muted-foreground/60 opacity-0 transition-opacity hover:text-foreground group-hover:opacity-100 active:cursor-grabbing"
+      >
+        <GripVertical size={13} />
+      </button>
+      <Link
+        href={view.href}
+        className="flex h-full min-w-0 flex-1 cursor-pointer items-center pr-2"
+      >
+        <span className="truncate">{view.label}</span>
+      </Link>
+      {action}
     </div>
   );
 }

@@ -9,6 +9,7 @@ function rowToView(row: typeof schema.savedViews.$inferSelect): SavedView {
     id: row.id,
     name: row.name,
     state: row.state as unknown as ViewState,
+    position: row.position,
   };
 }
 
@@ -109,6 +110,32 @@ export async function deleteSavedView(
         eq(schema.savedViews.id, id),
       ),
     );
+}
+
+/** Reorders the entity's existing views by writing `position = index` for
+ *  each id in the supplied array. Runs in a single transaction so the
+ *  sidebar can never observe a half-applied permutation. Ids not present in
+ *  `ids` are left untouched — callers pass the complete current set. */
+export async function reorderSavedViews(
+  entity: EntityKey,
+  ids: string[],
+): Promise<void> {
+  if (ids.length === 0) return;
+  const now = new Date();
+  await db.transaction(async (tx) => {
+    for (let i = 0; i < ids.length; i++) {
+      await tx
+        .update(schema.savedViews)
+        .set({ position: i, updatedAt: now })
+        .where(
+          and(
+            eq(schema.savedViews.workspaceId, WORKSPACE_ID),
+            eq(schema.savedViews.entity, entity),
+            eq(schema.savedViews.id, ids[i]),
+          ),
+        );
+    }
+  });
 }
 
 /** Bulk replace used by the seed and localStorage-migration paths. Deletes

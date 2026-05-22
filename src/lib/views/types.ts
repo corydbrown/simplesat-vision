@@ -21,6 +21,11 @@ export type SavedView = {
   id: string;
   name: string;
   state: ViewState;
+  /** Manual sort order in the sidebar. Lower comes first; undefined falls
+   *  to the bottom in alphabetical order. Assigned by the server on insert
+   *  and reorder; absent on freshly-constructed views before they hit the
+   *  optimistic-state path. */
+  position?: number;
 };
 
 /** Hardcoded id reserved for the immutable "All ENTITY" view. Never appears

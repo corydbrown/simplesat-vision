@@ -11,6 +11,7 @@ import {
   createSavedView as createSavedViewAction,
   deleteSavedView as deleteSavedViewAction,
   renameSavedView as renameSavedViewAction,
+  reorderSavedViews as reorderSavedViewsAction,
   updateSavedView as updateSavedViewAction,
 } from "./actions";
 import { SEED_VIEWS } from "./seed";
@@ -40,6 +41,7 @@ type ViewsContextValue = {
   updateViewState: (entity: EntityKey, id: string, state: ViewState) => void;
   renameView: (entity: EntityKey, id: string, name: string) => void;
   deleteView: (entity: EntityKey, id: string) => void;
+  reorderViews: (entity: EntityKey, ids: string[]) => void;
 };
 
 const ViewsContext = createContext<ViewsContextValue | null>(null);
@@ -115,7 +117,19 @@ export function ViewsProvider({ children }: { children: React.ReactNode }) {
     (entity: EntityKey, name: string, state: ViewState): SavedView => {
       const trimmed = name.trim() || "Untitled view";
       const id = nextViewId(views[entity], trimmed);
-      const view: SavedView = { id, name: trimmed, state };
+      // Append at the end of the sidebar — mirrors the server query's
+      // MAX(position)+1 so the optimistic state agrees with what we'll
+      // read back on next hydration.
+      const maxPos = views[entity].reduce(
+        (m, v) => (v.position !== undefined && v.position > m ? v.position : m),
+        -1,
+      );
+      const view: SavedView = {
+        id,
+        name: trimmed,
+        state,
+        position: maxPos + 1,
+      };
       setViews((prev) => ({ ...prev, [entity]: [...prev[entity], view] }));
       void createSavedViewAction(entity, view);
       return view;
@@ -159,6 +173,25 @@ export function ViewsProvider({ children }: { children: React.ReactNode }) {
     void deleteSavedViewAction(entity, id);
   }, []);
 
+  const reorderViews = useCallback((entity: EntityKey, ids: string[]) => {
+    setViews((prev) => {
+      const byId = new Map(prev[entity].map((v) => [v.id, v] as const));
+      const next: SavedView[] = [];
+      ids.forEach((id, i) => {
+        const v = byId.get(id);
+        if (v) {
+          next.push({ ...v, position: i });
+          byId.delete(id);
+        }
+      });
+      // Append any rows not present in the supplied ids (defensive — caller
+      // passes the full set today). They keep whatever position they had.
+      for (const v of byId.values()) next.push(v);
+      return { ...prev, [entity]: next };
+    });
+    void reorderSavedViewsAction(entity, ids);
+  }, []);
+
   return (
     <ViewsContext.Provider
       value={{
@@ -169,6 +202,7 @@ export function ViewsProvider({ children }: { children: React.ReactNode }) {
         updateViewState,
         renameView,
         deleteView,
+        reorderViews,
       }}
     >
       {children}

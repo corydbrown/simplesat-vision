@@ -663,6 +663,9 @@ export const evaluationCategoryScores = sqliteTable(
       .references(() => scorecardCategories.id),
     aiScore: integer("ai_score").notNull(),
     humanScore: integer("human_score"),
+    /** Required justification text captured when a manager sets `humanScore`
+     *  inline. NULL while the row reflects the AI score only. */
+    humanScoreReason: text("human_score_reason"),
     effectiveScore: integer("effective_score").notNull(),
     aiReasoning: text("ai_reasoning").notNull().default(""),
     highlightedMessageIds: text("highlighted_message_ids", { mode: "json" })

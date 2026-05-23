@@ -22,7 +22,6 @@ import type {
 } from "@/db/queries/team-members";
 import type { ResponseDetail, ResponseListRow } from "@/db/queries/responses";
 import type { SurveyDetail, SurveyRow } from "@/db/queries/surveys";
-import type { QaEvaluationView } from "@/db/queries/qa-evaluations";
 
 export type DrawerEntity =
   | "customer"
@@ -98,7 +97,7 @@ type DrawerData =
     }
   | {
       entity: "ticket";
-      data: { ticket: TicketDetail; evaluation: QaEvaluationView | null };
+      data: { ticket: TicketDetail };
     }
   | {
       entity: "team-member";
@@ -366,7 +365,6 @@ export function GlobalDrawer() {
         ) : renderPayload.entity === "ticket" ? (
           <TicketDetailBody
             ticket={renderPayload.data.ticket}
-            evaluation={renderPayload.data.evaluation}
             inDrawer
           />
         ) : renderPayload.entity === "team-member" ? (

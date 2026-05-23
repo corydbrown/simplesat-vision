@@ -16,7 +16,7 @@ import type {
   QaCategoryView,
   QaCoachingView,
   QaEvaluationView,
-} from "@/db/queries/qa-evaluations";
+} from "@/db/queries/tickets";
 
 type Props = {
   evaluation: QaEvaluationView | null;

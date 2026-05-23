@@ -20,21 +20,18 @@ import { TicketActivitySection } from "@/components/tickets/ticket-activity";
 import { TicketQaSection } from "@/components/qa/ticket-qa-section";
 import { QaStatusPill } from "@/components/qa/qa-status-pill";
 import type {
+  QaCategoryView,
+  QaEvaluationView,
   TicketDetail,
-  TicketQaCategoryView,
-  TicketQaEvaluationView,
 } from "@/db/queries/tickets";
-import type { QaEvaluationView } from "@/db/queries/qa-evaluations";
 
 const HIGHLIGHT_DURATION_MS = 2500;
 
 export function TicketDetailBody({
   ticket,
-  evaluation,
   inDrawer = false,
 }: {
   ticket: TicketDetail;
-  evaluation: QaEvaluationView | null;
   inDrawer?: boolean;
 }) {
   useEffect(() => {
@@ -127,7 +124,7 @@ export function TicketDetailBody({
     ) : (
       <div id="qa">
         <TicketQaSection
-          evaluation={evaluation}
+          evaluation={ticket.evaluation}
           onHighlightMessage={handleHighlightMessage}
         />
       </div>
@@ -199,13 +196,7 @@ export function TicketDetailBody({
   );
 }
 
-export function TicketDetailPage({
-  ticket,
-  evaluation,
-}: {
-  ticket: TicketDetail;
-  evaluation: QaEvaluationView | null;
-}) {
+export function TicketDetailPage({ ticket }: { ticket: TicketDetail }) {
   return (
     <>
       <Topbar
@@ -215,7 +206,7 @@ export function TicketDetailPage({
         ]}
         actions={<DetailActions entityHref={`/tickets/${ticket.id}`} />}
       />
-      <TicketDetailBody ticket={ticket} evaluation={evaluation} />
+      <TicketDetailBody ticket={ticket} />
     </>
   );
 }
@@ -229,7 +220,7 @@ function QaBreakdownSection({
   inDrawer,
 }: {
   ticketId: string;
-  evaluation: TicketQaEvaluationView;
+  evaluation: QaEvaluationView;
   inDrawer: boolean;
 }) {
   return (
@@ -267,7 +258,7 @@ function QaBreakdownSection({
   );
 }
 
-function QaCategoryCard({ category }: { category: TicketQaCategoryView }) {
+function QaCategoryCard({ category }: { category: QaCategoryView }) {
   const scoreLabel = formatCategoryScore(category);
   return (
     <div className="bg-background px-4 py-3">
@@ -288,7 +279,7 @@ function QaCategoryCard({ category }: { category: TicketQaCategoryView }) {
   );
 }
 
-function formatCategoryScore(c: TicketQaCategoryView): string {
+function formatCategoryScore(c: QaCategoryView): string {
   if (c.scaleType === "binary") {
     return c.effectiveScore >= 1 ? "Pass" : "Fail";
   }

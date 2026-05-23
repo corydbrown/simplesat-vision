@@ -41,7 +41,6 @@ import {
   type RelationOption,
 } from "@/lib/filters/relation-options";
 import {
-  capitalize,
   defaultOpFor,
   defaultValueFor,
   isFilterActive,
@@ -644,7 +643,7 @@ function OpDropdown({
             onSelect={() => onChange(o)}
             className="cursor-pointer whitespace-nowrap"
           >
-            {capitalize(opLabel(o, field.dataType))}
+            {opLabel(o, field.dataType)}
           </DropdownMenuItem>
         ))}
       </DropdownMenuContent>

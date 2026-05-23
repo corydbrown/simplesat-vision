@@ -28,11 +28,21 @@ function prime(key: string, options: MultiEnumValueOption[]) {
 async function loadOnce(key: string): Promise<MultiEnumValueOption[]> {
   const existing = inFlight.get(key);
   if (existing) return existing;
-  const p = fetchMultiEnumValues(key).then((options) => {
-    prime(key, options);
-    inFlight.delete(key);
-    return options;
-  });
+  const p = fetchMultiEnumValues(key)
+    .then((options) => {
+      prime(key, options);
+      inFlight.delete(key);
+      return options;
+    })
+    .catch((err) => {
+      // Without this catch, a rejected fetch would stay in `inFlight` forever
+      // and `prime` would never run — leaving the hook stuck on `loading: true`
+      // and the popup permanently at "Loading…". Treat failure as empty.
+      console.error(`[multi-enum] fetch failed for key "${key}":`, err);
+      prime(key, []);
+      inFlight.delete(key);
+      return [] as MultiEnumValueOption[];
+    });
   inFlight.set(key, p);
   return p;
 }

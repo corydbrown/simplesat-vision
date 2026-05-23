@@ -1,3 +1,4 @@
+import type { MultiEnumResolver } from "@/lib/filters/multi-enum-resolvers";
 import {
   DATE_OPS,
   ENUM_OPS,
@@ -7,6 +8,7 @@ import {
   STRING_OPS,
 } from "@/lib/filters/types";
 import type { PropertyFilter } from "@/lib/properties/types";
+import { resolveTicketTags } from "./tickets.resolvers";
 
 export const TICKET_STATUS = ["open", "pending", "solved", "closed"];
 export const TICKET_PRIORITY = ["low", "normal", "high", "urgent"];
@@ -49,3 +51,11 @@ export const TICKET_FILTER_SPECS = {
 } as const satisfies Record<string, PropertyFilter>;
 
 export type TicketFilterSpecId = keyof typeof TICKET_FILTER_SPECS;
+
+/** Server-side resolvers for the ticket entity's dynamic multi_enum fields.
+ *  Stitched into the central registry in `../multi-enum-resolvers.ts`; the
+ *  keys feed `DynamicValuesKey`, so any spec above referencing a key that
+ *  isn't registered here fails at type-check. */
+export const TICKET_MULTI_ENUM_RESOLVERS = {
+  "ticket.tags": resolveTicketTags,
+} satisfies Record<string, MultiEnumResolver>;

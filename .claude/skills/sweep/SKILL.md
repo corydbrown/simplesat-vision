@@ -24,18 +24,21 @@ On-demand alternative to `/loop 15m sweep…`. Use when:
    gh pr list --state open --json headRefName --jq '.[].headRefName' > /tmp/with-prs
    comm -23 <(sort /tmp/pushed) <(sort /tmp/with-prs) > /tmp/pushed-no-pr
    ```
-   **CRITICAL filter — only treat as stalled worker if branch has commits ahead of main.** Many old merged PRs leave stale remote refs (because `gh pr merge` doesn't `--delete-branch` by default). These show up in `/tmp/pushed-no-pr` but are NOT stalled work — they're merged + unpruned.
+   **CRITICAL filter — only treat as stalled worker if branch has NO merged PR.** Many old merged PRs leave stale remote refs (because `gh pr merge` doesn't `--delete-branch` by default). They show up in `/tmp/pushed-no-pr` but are NOT stalled work — they're merged + unpruned.
+
+   ⚠️ **Do NOT use `git rev-list --count origin/main..origin/<branch>`** — it lies for squash-merged branches. Squash merge creates a new commit SHA on main with no ancestry link to the feature branch, so the original branch's commits still appear "ahead" forever. Use the GitHub PR state instead — it's the only source of truth:
 
    ```bash
    for branch in $(cat /tmp/pushed-no-pr); do
-     ahead=$(git rev-list --count "origin/main..origin/$branch" 2>/dev/null || echo 0)
-     if [ "$ahead" -gt 0 ]; then
-       echo "ACTUAL stalled worker: $branch ($ahead commits ahead)"
+     # Was this branch ever merged via a PR? Check both states.
+     merged=$(gh pr list --state merged --head "$branch" --json number --jq 'length')
+     if [ "$merged" -eq 0 ]; then
+       echo "ACTUAL stalled worker: $branch (never merged via PR)"
      fi
    done
    ```
 
-   For each branch that IS ahead of main:
+   For each branch that has NO merged PR:
    - Parse `SVP-N` from the branch name (`feat/svpNN-...` → `SVP-NN`).
    - Fetch the Notion task to get title + acceptance criteria.
    - `gh pr create` with title from the most-recent commit subject, body templated from the Notion task's Scope + Acceptance sections, plus a footer: `Auto-opened by /sweep — worker pushed but didn't open a PR.`

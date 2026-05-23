@@ -18,6 +18,7 @@ import { CSS } from "@dnd-kit/utilities";
 import {
   BarChart3,
   ChevronDown,
+  GripVertical,
   Home,
   Inbox,
   MessageCircleMore,
@@ -398,8 +399,14 @@ function EntityViewList({
 
   return (
     <div className="flex flex-col gap-0.5">
-      {/* "All ENTITY" is hardcoded and stays pinned above the drag list. */}
-      <ViewLink view={allNav} active={allActive} />
+      {/* "All ENTITY" is hardcoded and stays pinned above the drag list.
+          The w-4 spacer reserves the same column the sortable rows use for
+          their grip handle, keeping all labels vertically aligned. */}
+      <ViewLink
+        view={allNav}
+        active={allActive}
+        leading={<span aria-hidden className="h-7 w-4 shrink-0" />}
+      />
       <DndContext
         sensors={sensors}
         collisionDetection={closestCenter}
@@ -445,29 +452,44 @@ function SortableViewRow({
   entity: EntityKey;
   basePath: string;
 }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
-    useSortable({ id: view.id });
-  // Drag activates only after the pointer travels the sensor's 6px threshold,
-  // so a click on the row still navigates via the inner <Link>. tabIndex={-1}
-  // pulls the wrapper out of the natural tab cycle — the Link inside is the
-  // primary keyboard target. dnd-kit's keyboard sort activator stays on the
-  // wrapper for screen-reader users who route to it directly.
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    setActivatorNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: view.id });
+  // Listeners go on the grip button, not the wrapper — otherwise pointerup
+  // bubbles to the inner <Link> and the post-drop click navigates away,
+  // interrupting the fire-and-forget reorder write. setActivatorNodeRef
+  // tells dnd-kit that the button is the drag activator (kept distinct
+  // from the sortable item itself, which is the wrapper div).
   return (
     <div
       ref={setNodeRef}
-      {...attributes}
-      {...listeners}
-      tabIndex={-1}
       style={{
         transform: CSS.Transform.toString(transform),
         transition,
         opacity: isDragging ? 0.5 : 1,
-        cursor: isDragging ? "grabbing" : undefined,
       }}
     >
       <ViewLink
         view={nav}
         active={active}
+        leading={
+          <button
+            ref={setActivatorNodeRef}
+            {...attributes}
+            {...listeners}
+            type="button"
+            aria-label={`Reorder ${nav.label}`}
+            className="flex h-7 w-4 shrink-0 cursor-grab items-center justify-center text-muted-foreground/60 opacity-0 transition-opacity hover:text-foreground group-hover:opacity-100 active:cursor-grabbing"
+          >
+            <GripVertical size={13} />
+          </button>
+        }
         action={
           <SidebarViewKebab
             entity={entity}
@@ -484,22 +506,29 @@ function SortableViewRow({
 function ViewLink({
   view,
   active,
+  leading,
   action,
 }: {
   view: NavView;
   active: boolean;
+  leading?: React.ReactNode;
   action?: React.ReactNode;
 }) {
   const rowClass = active
     ? "bg-accent text-foreground font-medium"
     : "text-foreground/75 hover:bg-accent/60 hover:text-foreground";
+  // When a leading element is rendered (grip handle or its spacer), it owns
+  // the left gutter — drop the Link's px-2 so the label sits flush with the
+  // leading column.
+  const linkPad = leading ? "pr-2" : "px-2";
   return (
     <div
       className={`group flex h-7 items-center rounded transition-colors ${rowClass}`}
     >
+      {leading}
       <Link
         href={view.href}
-        className="flex h-full min-w-0 flex-1 cursor-pointer items-center px-2"
+        className={`flex h-full min-w-0 flex-1 cursor-pointer items-center ${linkPad}`}
       >
         <span className="truncate">{view.label}</span>
       </Link>

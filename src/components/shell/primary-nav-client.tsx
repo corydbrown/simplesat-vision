@@ -402,13 +402,13 @@ function EntityViewList({
 
   return (
     <div className="flex flex-col gap-0.5">
-      {/* "All ENTITY" is hardcoded and stays pinned above the drag list. */}
-      {/* Spacer in `leading` keeps the label aligned with saved-view labels, */}
-      {/* whose grip handle occupies the same gutter. */}
+      {/* "All ENTITY" is hardcoded and stays pinned above the drag list.
+          The w-4 spacer reserves the same column the sortable rows use for
+          their grip handle, keeping all labels vertically aligned. */}
       <ViewLink
         view={allNav}
         active={allActive}
-        leading={<span aria-hidden className="ml-0.5 h-5 w-4 shrink-0" />}
+        leading={<span aria-hidden className="h-7 w-4 shrink-0" />}
       />
       <DndContext
         sensors={sensors}
@@ -455,12 +455,22 @@ function SortableViewRow({
   entity: EntityKey;
   basePath: string;
 }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
-    useSortable({ id: view.id });
-  // Drag activator is the grip handle (not the row body), so clicks on the
-  // row navigate via the inner <Link> without any pointer threshold. The grip
-  // is the keyboard-a11y target: Tab focuses it, Space picks up, arrows move,
-  // Space drops, Escape cancels (KeyboardSensor + sortableKeyboardCoordinates).
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    setActivatorNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: view.id });
+  // Listeners go on the grip button, not the wrapper — otherwise pointerup
+  // bubbles to the inner <Link> and the post-drop click navigates away,
+  // interrupting the fire-and-forget reorder write. setActivatorNodeRef
+  // tells dnd-kit that the button is the drag activator (kept distinct
+  // from the sortable item itself, which is the wrapper div). The grip is
+  // also the keyboard-a11y target: Tab focuses it, Space picks up, arrows
+  // move, Space drops, Escape cancels (KeyboardSensor at EntityViewList).
   return (
     <div
       ref={setNodeRef}
@@ -475,11 +485,12 @@ function SortableViewRow({
         active={active}
         leading={
           <button
+            ref={setActivatorNodeRef}
             {...attributes}
             {...listeners}
             type="button"
-            aria-label={`Reorder ${view.name}`}
-            className="ml-0.5 flex h-5 w-4 shrink-0 cursor-grab items-center justify-center rounded text-muted-foreground/60 opacity-0 transition-opacity hover:text-foreground focus-visible:opacity-100 group-hover:opacity-100 active:cursor-grabbing"
+            aria-label={`Reorder ${nav.label}`}
+            className="flex h-7 w-4 shrink-0 cursor-grab items-center justify-center text-muted-foreground/60 opacity-0 transition-opacity hover:text-foreground focus-visible:opacity-100 group-hover:opacity-100 active:cursor-grabbing"
           >
             <GripVertical size={13} />
           </button>
@@ -500,17 +511,21 @@ function SortableViewRow({
 function ViewLink({
   view,
   active,
-  action,
   leading,
+  action,
 }: {
   view: NavView;
   active: boolean;
-  action?: React.ReactNode;
   leading?: React.ReactNode;
+  action?: React.ReactNode;
 }) {
   const rowClass = active
     ? "bg-accent text-foreground font-medium"
     : "text-foreground/75 hover:bg-accent/60 hover:text-foreground";
+  // When a leading element is rendered (grip handle or its spacer), it owns
+  // the left gutter — drop the Link's px-2 so the label sits flush with the
+  // leading column.
+  const linkPad = leading ? "pr-2" : "px-2";
   return (
     <div
       className={`group flex h-7 items-center rounded transition-colors ${rowClass}`}
@@ -518,7 +533,7 @@ function ViewLink({
       {leading}
       <Link
         href={view.href}
-        className={`flex h-full min-w-0 flex-1 cursor-pointer items-center pr-2 ${leading ? "pl-1" : "pl-2"}`}
+        className={`flex h-full min-w-0 flex-1 cursor-pointer items-center ${linkPad}`}
       >
         <span className="truncate">{view.label}</span>
       </Link>

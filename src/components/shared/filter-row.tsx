@@ -113,14 +113,19 @@ export function FilterRow({
     onChange(arr);
   };
   const removeAt = (i: number) => {
-    // Removing a row shouldn't strand the next row's "previous combinator"
-    // pointing at the wrong neighbour. If row[i] is being removed and row[i+1]
-    // carries an explicit combinator, the combinator describes how it joined
-    // to row[i]; once row[i] is gone, row[i+1] becomes the new boundary that
-    // joins to row[i-1]. Behavior is unchanged for AND (the implicit default),
-    // but if the removed row had OR before it and the surviving row didn't,
-    // we keep things simple: just drop the row, leave the others untouched.
-    onChange(filters.filter((_, idx) => idx !== i));
+    // Removing a row shouldn't leave the new first row carrying a leftover
+    // `combinator` (combinators only matter for rows at index > 0). The fold
+    // in compileListFilters ignores the first-row combinator at compile time,
+    // but persisting it produces non-canonical URL/saved-view state that
+    // would silently re-activate if insert-before is ever added to the UI.
+    // Strip on remove to keep the canonical form clean.
+    const next = filters.filter((_, idx) => idx !== i);
+    if (next.length > 0 && next[0].combinator) {
+      const head = { ...next[0] };
+      delete head.combinator;
+      next[0] = head;
+    }
+    onChange(next);
     if (autoOpenIndex === i) setAutoOpenIndex(null);
   };
   const add = (filter: Filter) => {

@@ -316,8 +316,8 @@ export type QaCategoryAverage = {
    *  member has no evaluations covering this category. */
   memberAvg: number | null;
   /** Team-wide average effective_score for this category, normalized to
-   *  0-100. Excludes the member being viewed. Falls back to the member's
-   *  bucket if no other team data exists (avoids a blank overlay). */
+   *  0-100. Excludes the member being viewed. Null when no other team
+   *  data covers this category. */
   teamAvg: number | null;
   memberSampleSize: number;
 };

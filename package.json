@@ -9,7 +9,7 @@
     "lint": "eslint",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
-    "db:seed": "tsx src/db/seed.ts",
+    "db:seed": "tsx --conditions=react-server src/db/seed.ts",
     "db:studio": "drizzle-kit studio",
     "db:reset": "rm -f db/simplesat.db db/simplesat.db-shm db/simplesat.db-wal && npm run db:migrate && npm run db:seed"
   },

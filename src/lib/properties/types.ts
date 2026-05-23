@@ -1,6 +1,7 @@
 import type { ComponentType, ReactNode } from "react";
 import type { LucideProps } from "lucide-react";
 import type { z } from "zod";
+import type { DynamicValuesKey } from "@/lib/filters/multi-enum-resolvers";
 import type { FilterDataType, FilterOp } from "@/lib/filters/types";
 import type { ColumnStateSchema } from "./schemas";
 
@@ -13,9 +14,10 @@ export type PropertyFilter = {
    *  distinct values currently present in the DB via fetchMultiEnumValues,
    *  keyed by `dynamicValuesKey`. */
   enumValuesSource?: "static" | "dynamic";
-  /** Required when enumValuesSource is "dynamic". Routes to a server-side
-   *  resolver that returns { value, count }[] sorted by count desc. */
-  dynamicValuesKey?: string;
+  /** Required when enumValuesSource is "dynamic". Constrained to keys of
+   *  the central multi-enum resolver registry, so an unregistered key
+   *  fails at type-check rather than silently returning []. */
+  dynamicValuesKey?: DynamicValuesKey;
 };
 
 /** Lucide icon component (or any equivalent renderer). Sized + colored by the

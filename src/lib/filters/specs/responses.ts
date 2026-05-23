@@ -1,3 +1,4 @@
+import type { MultiEnumResolver } from "@/lib/filters/multi-enum-resolvers";
 import {
   DATE_OPS,
   MULTI_ENUM_OPS,
@@ -5,6 +6,7 @@ import {
   STRING_OPS,
 } from "@/lib/filters/types";
 import type { PropertyFilter } from "@/lib/properties/types";
+import { resolveResponseTopics } from "./responses.resolvers";
 
 /** Per-property filter metadata for responses. Single source of truth — the
  *  server-only field map in `../fields/responses.ts` adds Drizzle column refs,
@@ -26,3 +28,11 @@ export const RESPONSE_FILTER_SPECS = {
 } as const satisfies Record<string, PropertyFilter>;
 
 export type ResponseFilterSpecId = keyof typeof RESPONSE_FILTER_SPECS;
+
+/** Server-side resolvers for the response entity's dynamic multi_enum fields.
+ *  Stitched into the central registry in `../multi-enum-resolvers.ts`; the
+ *  keys feed `DynamicValuesKey`, so any spec above referencing a key that
+ *  isn't registered here fails at type-check. */
+export const RESPONSE_MULTI_ENUM_RESOLVERS = {
+  "response.topics": resolveResponseTopics,
+} satisfies Record<string, MultiEnumResolver>;

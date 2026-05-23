@@ -1,10 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import {
-  fetchMultiEnumValues,
-  type MultiEnumValueOption,
-} from "./multi-enum-values";
+import type { MultiEnumValueOption } from "./multi-enum-resolvers";
+import { fetchMultiEnumValues } from "./multi-enum-values";
 
 const optionsCache = new Map<string, MultiEnumValueOption[]>();
 const labelCache = new Map<string, string>();

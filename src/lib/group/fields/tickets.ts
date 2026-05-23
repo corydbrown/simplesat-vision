@@ -1,5 +1,6 @@
 import "server-only";
 import { schema } from "@/db/client";
+import { ticketQaScoreExpr } from "@/lib/filters/fields/tickets";
 import type { GroupFieldMap } from "../compile";
 
 export const TICKET_GROUP_FIELDS: GroupFieldMap = {
@@ -9,6 +10,10 @@ export const TICKET_GROUP_FIELDS: GroupFieldMap = {
   helpdesk: schema.tickets.helpdesk,
   assignee: schema.teamMembers.name,
   company: schema.customers.company,
+  // Ordering by the raw score keeps each bucket contiguous: ≥90 sorts above
+  // 75–89 sorts above 60–74, etc. Client-side `groupValue` then snaps each
+  // row to its bucket label.
+  qa_score: ticketQaScoreExpr,
 };
 
 export const TICKET_GROUP_IDS = Object.keys(TICKET_GROUP_FIELDS);

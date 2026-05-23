@@ -2,6 +2,7 @@ import {
   ALL_FILTER_OPS,
   isRelativeValue,
   type Filter,
+  type FilterCombinator,
   type FilterOp,
   type FilterValue,
 } from "./types";
@@ -64,6 +65,10 @@ function sanitizeValue(op: FilterOp, raw: unknown): FilterValue {
   return undefined;
 }
 
+function sanitizeCombinator(raw: unknown): FilterCombinator | undefined {
+  return raw === "AND" || raw === "OR" ? raw : undefined;
+}
+
 function sanitizeFilter(raw: unknown): Filter | null {
   if (!raw || typeof raw !== "object") return null;
   const f = raw as Partial<Filter> & Record<string, unknown>;
@@ -72,6 +77,11 @@ function sanitizeFilter(raw: unknown): Filter | null {
   if (!(ALL_FILTER_OPS as readonly string[]).includes(f.op)) return null;
   const op = f.op as FilterOp;
   const out: Filter = { propertyId: f.propertyId, op };
+  // Combinator (how this row combines with the previous one). Absent → AND.
+  // Only retain "OR"; AND is the default, so we drop it to keep URL state
+  // and saved-view canonicalization compact.
+  const combinator = sanitizeCombinator(f.combinator);
+  if (combinator === "OR") out.combinator = combinator;
   if (op === "isnull" || op === "notnull") return out;
   // Keep the chip even when no value is set yet — the UI renders an incomplete
   // chip and the compiler skips it until the user fills the value. Drop only

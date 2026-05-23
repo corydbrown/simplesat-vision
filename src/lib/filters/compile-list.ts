@@ -13,6 +13,7 @@ import {
   lte,
   ne,
   notInArray,
+  or,
   sql,
   type AnyColumn,
   type SQL,
@@ -48,21 +49,33 @@ type ColumnLike = AnyColumn | SQL;
  *   - unknown propertyIds are dropped silently
  *   - ops not in the field's whitelist are dropped (defends against stale
  *     URLs and bad upstream input)
+ *
+ *  Each row carries an optional `combinator` ("AND" | "OR") that describes
+ *  how it combines with the PREVIOUS row's accumulated expression. Absent
+ *  on the first row; absent on subsequent rows defaults to AND so existing
+ *  saved views + URLs stay backwards-compatible. The fold is left-to-right
+ *  associative — `A OR B AND C` evaluates as `(A OR B) AND C`. Nested
+ *  precedence (`A AND (B OR C)`) is intentionally not supported here; that's
+ *  the long-term shape (option B in SVP-80) once the team needs it.
  */
 export function compileListFilters(
   filters: Filter[],
   fields: ListFilterFieldMap,
 ): SQL | undefined {
-  const parts: SQL[] = [];
+  let acc: SQL | undefined;
   for (const f of filters) {
     const field = fields[f.propertyId];
     if (!field) continue;
     if (!field.ops.includes(f.op)) continue;
     const w = buildFilter(f, field);
-    if (w) parts.push(w);
+    if (!w) continue;
+    if (acc === undefined) {
+      acc = w;
+      continue;
+    }
+    acc = f.combinator === "OR" ? or(acc, w) : and(acc, w);
   }
-  if (parts.length === 0) return undefined;
-  return and(...parts);
+  return acc;
 }
 
 function toDate(v: unknown): Date | null {

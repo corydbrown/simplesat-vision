@@ -93,17 +93,25 @@ export const SEED_VIEWS: Record<EntityKey, SavedView[]> = {
       },
     },
     {
-      // PRD: tickets whose QA score warrants a manager look. Surfaces
+      // PRD: tickets whose QA score warrants a manager look — either a low
+      // automated score OR a manager-flagged invalidation. Surfaces
       // worst-first so a QA manager opening the view sees what to action
-      // next at the top. `qa_status = invalidated` would ideally OR with
-      // this — list filters today AND together; capturing as follow-up.
+      // next at the top.
       id: "needs-qa-review",
       name: "Needs QA review",
       state: {
         sorts: [{ key: "qa_score", dir: "asc" }],
         group: null,
         layout: null,
-        filters: [{ propertyId: "qa_score", op: "lt", value: 75 }],
+        filters: [
+          { propertyId: "qa_score", op: "lt", value: 75 },
+          {
+            propertyId: "qa_status",
+            op: "in",
+            value: ["invalidated"],
+            combinator: "OR",
+          },
+        ],
       },
     },
     {

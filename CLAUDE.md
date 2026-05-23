@@ -51,13 +51,21 @@ Cory is non-technical. Operate accordingly:
   > The task: <one-line task description>
   > ```
 
-### Trigger phrases (treat as `/start`)
+### Trigger phrases — infer skills from natural language
 
-When Cory says any of these, run the `/start` slash command (or follow its detection logic inline if it isn't loaded in the current session):
+**Cory rarely types slashes.** When his message expresses an intent that matches a skill, invoke the skill via the Skill tool. Don't ask him to retype with a `/`.
 
-- `/start`, `/menu`
-- "new session", "what now?", "menu", "where am I?", "options"
-- Any moment when he seems uncertain about next steps
+| He says | I invoke |
+|---|---|
+| "new session", "what now?", "menu", "where am I?", "options", or moments of uncertainty | `/start` |
+| "spawn svp-N", "kick off svp-N", "start work on svp-N", "begin svp-N" | `/spawn SVP-N` |
+| "merge N", "ship N", "land N", "merge and cleanup N" | `gh pr merge N --squash` then `/post-merge N` (the full flow) |
+| "cleanup svp-N", "cleanup N" (pre-merge — rare) | `/cleanup <name>` (worktree removal only, no Notion update) |
+| "sweep prs", "check open prs", "what's open?", "any new prs?", "give me a sweep" | `/sweep` |
+| "review pr N", "review N", "look at pr N", "what's pr N look like?" | `/review N` |
+| "start polling", "watch for prs", "auto-review" | Suggest `/loop 15m sweep open PRs and Slack escalations…` — `/loop` needs an explicit prompt, so this is the one case where Cory does type the slash |
+
+Verbatim slash commands (`/spawn`, `/review`, etc.) still work — they're just no longer required.
 
 ### Context detection
 

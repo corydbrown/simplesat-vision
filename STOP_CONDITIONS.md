@@ -48,6 +48,6 @@ Real failures from prior sessions:
 
 ## Escalation channel
 
-Default: Slack `#claude-code` (or wherever Cory tells you — see CLAUDE.md → "Working with Cory" for the canonical channel). Workers ping `@cory` explicitly; supervisor session also watches the channel.
+**Slack channel:** `#simplesat-vision-prototype`. Workers ping `@cory` explicitly; the supervisor's `/sweep` skill also reads this channel and surfaces escalations alongside PR reviews so Cory sees them in either surface.
 
-If Slack isn't available, leave a clearly-labeled `// STOP — <reason>` comment in the code at the line where you got stuck, push the WIP, and wait. The supervisor's next PR sweep will catch it.
+If Slack isn't available, leave a clearly-labeled `// STOP — <reason>` comment in the code at the line where you got stuck, push the WIP, and wait. The supervisor's next PR sweep will catch it via the diff scan.

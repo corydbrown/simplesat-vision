@@ -2,13 +2,18 @@ import "server-only";
 import { asc, desc, eq, sql, type AnyColumn, type SQL } from "drizzle-orm";
 import { db, schema } from "../client";
 import { compileListFilters } from "@/lib/filters/compile-list";
-import { TICKET_FILTER_FIELDS } from "@/lib/filters/fields/tickets";
+import {
+  TICKET_FILTER_FIELDS,
+  ticketQaScoreExpr,
+  ticketQaStatusExpr,
+} from "@/lib/filters/fields/tickets";
 import type { Filter } from "@/lib/filters/types";
 import { compileGroupOrderBy } from "@/lib/group/compile";
 import { TICKET_GROUP_FIELDS } from "@/lib/group/fields/tickets";
 import type { GroupSpec } from "@/lib/group/types";
 import type { SortSpec } from "@/lib/sort/url-state";
 import type {
+  QaEvaluationStatus,
   Ticket,
   TicketMessageAuthorRole,
   TicketMessageChannel,
@@ -33,7 +38,8 @@ export type TicketSortKey =
   | "assignee"
   | "response"
   | "resolution_time"
-  | "survey_state";
+  | "survey_state"
+  | "qa_score";
 
 export type TicketsRow = Ticket & {
   customer: { id: string; name: string; company: string | null } | null;
@@ -49,6 +55,8 @@ export type TicketsRow = Ticket & {
     scale: number;
     comment: string | null;
   } | null;
+  qaScore: number | null;
+  qaStatus: QaEvaluationStatus | null;
 };
 
 // Server-side ORDER BY references. Resolution time and survey state are
@@ -79,6 +87,7 @@ const SORT_COLUMN_MAP: Record<TicketSortKey, AnyColumn | SQL> = {
     WHEN tickets.survey_eligible = 0 THEN 4
     ELSE 5
   END)`,
+  qa_score: ticketQaScoreExpr,
 };
 
 function buildTicketOrderBy(sorts: SortSpec[]): SQL[] {
@@ -133,6 +142,8 @@ export async function listTickets({
         scale: schema.responses.scale,
         comment: schema.responses.comment,
       },
+      qaScore: ticketQaScoreExpr,
+      qaStatus: ticketQaStatusExpr,
     })
     .from(schema.tickets)
     .leftJoin(
@@ -161,6 +172,8 @@ export async function listTickets({
     customer: r.customer?.id ? r.customer : null,
     assignee: r.assignee?.id ? r.assignee : null,
     response: r.response?.id ? r.response : null,
+    qaScore: r.qaScore,
+    qaStatus: r.qaStatus,
   }));
 
   return { rows, total };
@@ -197,9 +210,28 @@ export type TicketEventView = {
     | { kind: "system" };
 };
 
+export type TicketQaCategoryView = {
+  categoryId: string;
+  name: string;
+  scaleType: "likert_5" | "binary" | "three_state";
+  weightPercent: number;
+  isAutofail: boolean;
+  effectiveScore: number;
+  aiReasoning: string;
+};
+
+export type TicketQaEvaluationView = {
+  id: string;
+  overallScore: number;
+  status: QaEvaluationStatus;
+  aiReasoningSummary: string;
+  categories: TicketQaCategoryView[];
+};
+
 export type TicketDetail = TicketsRow & {
   messages: TicketMessageView[];
   events: TicketEventView[];
+  evaluation: TicketQaEvaluationView | null;
 };
 
 export async function getTicketById(id: string): Promise<TicketDetail | null> {
@@ -223,6 +255,8 @@ export async function getTicketById(id: string): Promise<TicketDetail | null> {
         scale: schema.responses.scale,
         comment: schema.responses.comment,
       },
+      qaScore: ticketQaScoreExpr,
+      qaStatus: ticketQaStatusExpr,
     })
     .from(schema.tickets)
     .leftJoin(
@@ -242,7 +276,7 @@ export async function getTicketById(id: string): Promise<TicketDetail | null> {
 
   if (!r) return null;
 
-  const [messageRows, eventRows] = await Promise.all([
+  const [messageRows, eventRows, evaluationRows] = await Promise.all([
     db
       .select({
         message: schema.ticketMessages,
@@ -291,6 +325,45 @@ export async function getTicketById(id: string): Promise<TicketDetail | null> {
       )
       .where(eq(schema.ticketEvents.ticketId, id))
       .orderBy(asc(schema.ticketEvents.createdAt)),
+    // Latest evaluation + category breakdown for the QA drawer/detail sections.
+    // Only one evaluation per ticket today, but order desc by scoredAt so a
+    // future re-score history doesn't surface the wrong row.
+    db
+      .select({
+        evaluation: schema.evaluations,
+        category: {
+          id: schema.scorecardCategories.id,
+          name: schema.scorecardCategories.name,
+          scaleType: schema.scorecardCategories.scaleType,
+          weightPercent: schema.scorecardCategories.weightPercent,
+          isAutofail: schema.scorecardCategories.isAutofail,
+          order: schema.scorecardCategories.order,
+        },
+        categoryScore: {
+          effectiveScore: schema.evaluationCategoryScores.effectiveScore,
+          aiReasoning: schema.evaluationCategoryScores.aiReasoning,
+        },
+      })
+      .from(schema.evaluations)
+      .innerJoin(
+        schema.evaluationCategoryScores,
+        eq(
+          schema.evaluationCategoryScores.evaluationId,
+          schema.evaluations.id,
+        ),
+      )
+      .innerJoin(
+        schema.scorecardCategories,
+        eq(
+          schema.scorecardCategories.id,
+          schema.evaluationCategoryScores.categoryId,
+        ),
+      )
+      .where(eq(schema.evaluations.ticketId, id))
+      .orderBy(
+        desc(schema.evaluations.scoredAt),
+        asc(schema.scorecardCategories.order),
+      ),
   ]);
 
   const messages: TicketMessageView[] = messageRows.map((m) => ({
@@ -330,12 +403,38 @@ export async function getTicketById(id: string): Promise<TicketDetail | null> {
     };
   });
 
+  let evaluation: TicketQaEvaluationView | null = null;
+  if (evaluationRows.length > 0) {
+    const head = evaluationRows[0].evaluation;
+    const categories: TicketQaCategoryView[] = evaluationRows
+      .filter((row) => row.evaluation.id === head.id)
+      .map((row) => ({
+        categoryId: row.category.id,
+        name: row.category.name,
+        scaleType: row.category.scaleType,
+        weightPercent: row.category.weightPercent,
+        isAutofail: row.category.isAutofail,
+        effectiveScore: row.categoryScore.effectiveScore,
+        aiReasoning: row.categoryScore.aiReasoning,
+      }));
+    evaluation = {
+      id: head.id,
+      overallScore: head.overallScore,
+      status: head.status,
+      aiReasoningSummary: head.aiReasoningSummary,
+      categories,
+    };
+  }
+
   return {
     ...r.ticket,
     customer: r.customer?.id ? r.customer : null,
     assignee: r.assignee?.id ? r.assignee : null,
     response: r.response?.id ? r.response : null,
+    qaScore: r.qaScore,
+    qaStatus: r.qaStatus,
     messages,
     events,
+    evaluation,
   };
 }

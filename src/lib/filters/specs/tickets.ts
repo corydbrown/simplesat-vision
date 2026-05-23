@@ -12,6 +12,13 @@ export const TICKET_STATUS = ["open", "pending", "solved", "closed"];
 export const TICKET_PRIORITY = ["low", "normal", "high", "urgent"];
 export const TICKET_CHANNEL = ["email", "chat", "phone", "social"];
 export const TICKET_HELPDESK = ["zendesk", "gladly", "gorgias", "intercom"];
+export const QA_EVALUATION_STATUS = [
+  "ai_scored",
+  "edited",
+  "contested",
+  "invalidated",
+  "finalized",
+];
 
 /** Per-property filter metadata for tickets. Single source of truth — the
  *  server-only field map in `../fields/tickets.ts` adds Drizzle column refs,
@@ -37,6 +44,17 @@ export const TICKET_FILTER_SPECS = {
   // Response rating via correlated subquery — powers the Detractors view.
   // Numeric so users can express other rating cutoffs.
   response_rating: { dataType: "number", ops: NUMERIC_OPS },
+  // QA overall score (0-100) via correlated subquery on evaluations. Numeric
+  // so users can build any cutoff; the "Needs QA review" saved view binds
+  // qa_score < 75.
+  qa_score: { dataType: "number", ops: NUMERIC_OPS },
+  // QA evaluation status — enum so saved views can isolate `invalidated`
+  // tickets (manager-flagged) for re-scoring.
+  qa_status: {
+    dataType: "enum",
+    ops: ENUM_OPS,
+    enumValues: QA_EVALUATION_STATUS,
+  },
   // Tags is a JSON-array column — multi_enum semantics. Values are
   // user-defined, so the popover fetches the distinct in-use set with
   // counts from the server.

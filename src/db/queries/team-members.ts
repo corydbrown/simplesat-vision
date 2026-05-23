@@ -8,6 +8,10 @@ import {
   teamMemberTotalResponsesExpr,
   teamMemberTotalTicketsExpr,
 } from "@/lib/filters/fields/team-members";
+import {
+  ticketQaScoreExpr,
+  ticketQaStatusExpr,
+} from "@/lib/filters/fields/tickets";
 import type { Filter } from "@/lib/filters/types";
 import { compileGroupOrderBy } from "@/lib/group/compile";
 import { TEAM_MEMBER_GROUP_FIELDS } from "@/lib/group/fields/team-members";
@@ -205,6 +209,8 @@ export async function getTeamMemberTickets(
         scale: schema.responses.scale,
         comment: schema.responses.comment,
       },
+      qaScore: ticketQaScoreExpr,
+      qaStatus: ticketQaStatusExpr,
     })
     .from(schema.tickets)
     .leftJoin(
@@ -231,6 +237,8 @@ export async function getTeamMemberTickets(
     customer: r.customer?.id ? r.customer : null,
     assignee: r.assignee?.id ? r.assignee : null,
     response: r.response?.id ? r.response : null,
+    qaScore: r.qaScore,
+    qaStatus: r.qaStatus,
   }));
 }
 

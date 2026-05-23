@@ -9,6 +9,7 @@ import {
   CircleDot,
   ClipboardCheck,
   Flag,
+  Gauge,
   Hash,
   Headphones,
   Inbox,
@@ -29,10 +30,16 @@ import {
   ResponsePill,
   TeamMemberPill,
 } from "@/components/shared/entity-pill";
+import { QaScoreBadge } from "@/components/shared/qa-score-badge";
 import { TagList } from "@/components/shared/tag";
 import type { TicketsRow } from "@/db/queries/tickets";
 import { TICKET_FILTER_SPECS } from "@/lib/filters/specs/tickets";
 import { formatDate, formatDuration } from "@/lib/format";
+import {
+  QA_BUCKET_LABEL,
+  qaScoreBucket,
+  type QaScoreBucket,
+} from "@/lib/qa/score-color";
 import type { Property } from "./types";
 
 export const TICKET_PROPERTIES: Property<TicketsRow>[] = [
@@ -239,6 +246,26 @@ export const TICKET_PROPERTIES: Property<TicketsRow>[] = [
       ) : (
         <span className="text-muted-foreground/40">—</span>
       ),
+  },
+  {
+    id: "qa_score",
+    label: "QA",
+    width: 80,
+    icon: Gauge,
+    sourceEntity: "Ticket",
+    defaultVisible: true,
+    // Lower scores are the actionable case ("which tickets need review?"), so
+    // ascending order is the useful default direction even though the column
+    // shows a 0-100 value. The "Needs QA review" saved view applies asc
+    // explicitly; client-side click-to-sort starts from neutral.
+    sortable: true,
+    sortValue: (t) => t.qaScore,
+    filter: TICKET_FILTER_SPECS.qa_score,
+    groupable: true,
+    groupValue: (t) => qaScoreBucket(t.qaScore, t.qaStatus),
+    groupLabel: (v) => QA_BUCKET_LABEL[v as QaScoreBucket] ?? v,
+    nullGroupLabel: QA_BUCKET_LABEL["not-scored"],
+    cell: (t) => <QaScoreBadge score={t.qaScore} status={t.qaStatus} />,
   },
   {
     id: "created_at",

@@ -1,6 +1,5 @@
-export type GroupDir = "asc" | "desc";
+import type { z } from "zod";
+import type { GroupDirSchema, GroupSpecSchema } from "./schemas";
 
-export type GroupSpec = {
-  propertyId: string;
-  dir: GroupDir;
-};
+export type GroupDir = z.infer<typeof GroupDirSchema>;
+export type GroupSpec = z.infer<typeof GroupSpecSchema>;

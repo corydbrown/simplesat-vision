@@ -1,4 +1,8 @@
 import { z } from "zod";
+import { FilterSchema } from "@/lib/filters/schemas";
+import { GroupSpecSchema } from "@/lib/group/schemas";
+import { ColumnStateSchema } from "@/lib/properties/schemas";
+import { SortSpecSchema } from "@/lib/sort/schemas";
 
 /** Source of truth for the four entity kinds Simplesat surfaces as list pages
  *  with saved views. EntityKey is derived via z.infer below — adding a new
@@ -19,71 +23,6 @@ export const ViewIdSchema = z
   .regex(/^[a-zA-Z0-9_-]+$/);
 
 export const ViewNameSchema = z.string().trim().min(1).max(120);
-
-const SortSpecSchema = z
-  .object({
-    key: z.string().regex(/^[a-zA-Z0-9_]+$/),
-    dir: z.enum(["asc", "desc"]),
-  })
-  .strict();
-
-const GroupSpecSchema = z
-  .object({
-    propertyId: z.string().min(1),
-    dir: z.enum(["asc", "desc"]),
-  })
-  .strict();
-
-const RelativeValueSchema = z
-  .object({
-    n: z.number(),
-    unit: z.enum(["days", "weeks", "months"]),
-    dir: z.enum(["past", "next", "this"]),
-  })
-  .strict();
-
-const FilterValueSchema = z.union([
-  z.string(),
-  z.number(),
-  z.boolean(),
-  z.array(z.string()),
-  z.array(z.number()),
-  z.tuple([z.number(), z.number()]),
-  z.tuple([z.string(), z.string()]),
-  RelativeValueSchema,
-  z.null(),
-]);
-
-const FilterSchema = z
-  .object({
-    propertyId: z.string().min(1),
-    op: z.enum([
-      "eq",
-      "neq",
-      "lt",
-      "lte",
-      "gt",
-      "gte",
-      "between",
-      "in",
-      "not-in",
-      "contains",
-      "starts-with",
-      "relative",
-      "isnull",
-      "notnull",
-    ]),
-    value: FilterValueSchema.optional(),
-  })
-  .strict();
-
-const ColumnStateSchema = z
-  .object({
-    visibility: z.record(z.string(), z.boolean()),
-    order: z.array(z.string()),
-    widths: z.record(z.string(), z.number()),
-  })
-  .strict();
 
 export const ViewStateSchema = z
   .object({

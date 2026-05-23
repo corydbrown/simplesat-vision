@@ -1,9 +1,8 @@
-export type SortDir = "asc" | "desc";
+import type { z } from "zod";
+import { SortDirSchema, SortSpecSchema } from "./schemas";
 
-export type SortSpec = {
-  key: string;
-  dir: SortDir;
-};
+export type SortDir = z.infer<typeof SortDirSchema>;
+export type SortSpec = z.infer<typeof SortSpecSchema>;
 
 const KEY_RE = /^[a-zA-Z0-9_]+$/;
 

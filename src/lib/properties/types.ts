@@ -1,6 +1,8 @@
 import type { ComponentType, ReactNode } from "react";
 import type { LucideProps } from "lucide-react";
+import type { z } from "zod";
 import type { FilterDataType, FilterOp } from "@/lib/filters/types";
+import type { ColumnStateSchema } from "./schemas";
 
 export type PropertyFilter = {
   dataType: FilterDataType;
@@ -54,11 +56,7 @@ export type Property<T> = {
   nullGroupLabel?: string;
 };
 
-export type ColumnState = {
-  visibility: Record<string, boolean>;
-  order: string[];
-  widths: Record<string, number>;
-};
+export type ColumnState = z.infer<typeof ColumnStateSchema>;
 
 export function defaultColumnState<T>(
   properties: Property<T>[],

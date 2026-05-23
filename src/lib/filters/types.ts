@@ -1,53 +1,25 @@
-export type FilterDataType =
-  | "string"
-  | "number"
-  | "date"
-  | "enum"
-  | "boolean"
-  | "relation";
+import type { z } from "zod";
+import type {
+  FilterDataTypeSchema,
+  FilterOpSchema,
+  FilterSchema,
+  FilterValueSchema,
+  RelativeDirSchema,
+  RelativeUnitSchema,
+  RelativeValueSchema,
+} from "./schemas";
 
-export type FilterOp =
-  | "eq"
-  | "neq"
-  | "lt"
-  | "lte"
-  | "gt"
-  | "gte"
-  | "between"
-  | "in"
-  | "not-in"
-  | "contains"
-  | "starts-with"
-  | "relative"
-  | "isnull"
-  | "notnull";
-
-export type RelativeUnit = "days" | "weeks" | "months";
-export type RelativeDir = "past" | "next" | "this";
-
-export type RelativeValue = {
-  n: number;
-  unit: RelativeUnit;
-  dir: RelativeDir;
-};
-
-export type FilterValue =
-  | string
-  | number
-  | boolean
-  | string[]
-  | number[]
-  | [number, number]
-  | [string, string]
-  | RelativeValue
-  | null
-  | undefined;
-
-export type Filter = {
-  propertyId: string;
-  op: FilterOp;
-  value?: FilterValue;
-};
+export type FilterDataType = z.infer<typeof FilterDataTypeSchema>;
+export type FilterOp = z.infer<typeof FilterOpSchema>;
+export type RelativeUnit = z.infer<typeof RelativeUnitSchema>;
+export type RelativeDir = z.infer<typeof RelativeDirSchema>;
+export type RelativeValue = z.infer<typeof RelativeValueSchema>;
+/** FilterValue is `T | undefined` because `value` is `.optional()` on
+ *  FilterSchema. The schema itself doesn't include undefined — it's added
+ *  here so the `value?:` field on Filter and the helper signatures keep
+ *  their existing semantics. */
+export type FilterValue = z.infer<typeof FilterValueSchema> | undefined;
+export type Filter = z.infer<typeof FilterSchema>;
 
 export const STRING_OPS: readonly FilterOp[] = [
   "contains",

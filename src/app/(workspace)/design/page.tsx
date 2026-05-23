@@ -30,6 +30,7 @@ import { listTeamMembers } from "@/db/queries/team-members";
 import { listTickets } from "@/db/queries/tickets";
 import { listResponses } from "@/db/queries/responses";
 import { listSurveys } from "@/db/queries/surveys";
+import { diffDarkOverrides, loadGlobalsCss } from "@/lib/css-token-diff";
 
 // ----------------------------------------------------------------------------
 // Audit data — frozen at 2026-05-22 (post-sweep refresh).
@@ -663,7 +664,9 @@ function BothModes({
 
 export default async function DesignAuditPage() {
   // Seed one of each entity so the live pills below have real ids to link to.
-  const [customers, teamMembers, tickets, responses, surveys] =
+  // Also parse globals.css to diff :root against .dark for the dark-mode
+  // override audit.
+  const [customers, teamMembers, tickets, responses, surveys, globalsCss] =
     await Promise.all([
       listCustomers({}),
       listTeamMembers({}),
@@ -674,6 +677,7 @@ export default async function DesignAuditPage() {
       }),
       listResponses({ limit: 1 }),
       listSurveys(),
+      loadGlobalsCss(),
     ]);
 
   const sampleCustomer = customers.rows[0];
@@ -681,6 +685,14 @@ export default async function DesignAuditPage() {
   const sampleTicket = tickets.rows[0];
   const sampleResponse = responses.rows[0];
   const sampleSurvey = surveys[0];
+
+  const darkDiff = diffDarkOverrides(globalsCss);
+  const flaggedCount = darkDiff.missingFromDark.filter(
+    (m) => m.classification === "flag",
+  ).length;
+  const nonColorCount = darkDiff.missingFromDark.filter(
+    (m) => m.classification === "non-color",
+  ).length;
 
   return (
     <div className="flex-1 min-w-0">
@@ -991,6 +1003,134 @@ export default async function DesignAuditPage() {
                 "Chart series (--chart-1..6) point at Tier 1 hues instead of greyscale shadcn defaults. Ready for Reports.",
               ]}
             />
+          </Subsection>
+
+          {/* ── Dark-mode override coverage ── */}
+          <Subsection
+            title="Dark-mode override coverage"
+            description="Every --token declared in :root, diffed against .dark. Tokens that intentionally don't flip per mode (--black, --white, and base / -light / -dark per Tier-1 hue — 23 in total) are allow-listed as documented exceptions; everything else is expected to be overridden."
+          >
+            <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+              <StatCard
+                label=":root tokens"
+                value={String(darkDiff.rootTokenCount)}
+              />
+              <StatCard
+                label=".dark overrides"
+                value={String(darkDiff.darkTokenCount)}
+              />
+              <StatCard
+                label="Allow-listed"
+                value={String(darkDiff.allowListed.length)}
+              />
+              <StatCard
+                label="Flagged"
+                value={String(flaggedCount)}
+                tone={flaggedCount > 0 ? "text-red-dark" : "text-green-dark"}
+              />
+            </div>
+
+            <div className="mt-6">
+              {darkDiff.missingFromDark.length === 0 ? (
+                <div className="flex items-start gap-2 rounded-lg border border-dashed border-green-light bg-green-lighter/30 p-5 text-base text-foreground/90">
+                  <CheckCircle2
+                    size={16}
+                    className="mt-1 shrink-0 text-green-dark"
+                  />
+                  <span>
+                    Every <span className="font-mono">:root</span> token outside
+                    the absolute-shade allow-list is overridden in{" "}
+                    <span className="font-mono">.dark</span>. No drift.
+                  </span>
+                </div>
+              ) : (
+                <div className="rounded-lg border border-border">
+                  <div className="grid grid-cols-[1fr_220px_1fr] gap-4 border-b border-border bg-muted/40 px-5 py-3 text-base font-medium text-muted-foreground">
+                    <span>Token</span>
+                    <span>:root value</span>
+                    <span>Classification</span>
+                  </div>
+                  <div className="divide-y divide-border">
+                    {darkDiff.missingFromDark.map((m) => (
+                      <div
+                        key={m.name}
+                        className="grid grid-cols-[1fr_220px_1fr] items-start gap-4 px-5 py-3 text-base"
+                      >
+                        <span className="font-mono text-foreground">
+                          {m.name}
+                        </span>
+                        <span className="font-mono text-muted-foreground truncate">
+                          {m.rootValue}
+                        </span>
+                        <span>
+                          {m.classification === "flag" ? (
+                            <DriftMark
+                              drift={{
+                                kind: "drift",
+                                reason:
+                                  "Declared in :root but not redefined in .dark — color token will reuse light-mode value on a dark canvas.",
+                              }}
+                            />
+                          ) : (
+                            <DriftMark
+                              drift={{
+                                kind: "doc-exception",
+                                reason:
+                                  "Non-color sizing token (radius scale). Intentionally constant across modes.",
+                              }}
+                            />
+                          )}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <details className="mt-6 rounded-lg border border-dashed border-border-strong bg-muted/40 group">
+              <summary className="flex cursor-pointer items-center justify-between px-5 py-3 text-base hover:bg-muted/40">
+                <span>
+                  <span className="font-medium">Allow-list</span>{" "}
+                  <span className="text-muted-foreground">
+                    ({darkDiff.allowListed.length} absolute-shade tokens that
+                    intentionally don&apos;t flip per mode)
+                  </span>
+                </span>
+                <span className="text-base text-muted-foreground group-open:hidden">
+                  expand
+                </span>
+                <span className="text-base text-muted-foreground hidden group-open:inline">
+                  collapse
+                </span>
+              </summary>
+              <div className="border-t border-border-strong px-5 py-4">
+                <div className="flex flex-wrap gap-x-3 gap-y-2 font-mono text-base text-muted-foreground">
+                  {darkDiff.allowListed.map((name) => (
+                    <span key={name}>{name}</span>
+                  ))}
+                </div>
+              </div>
+            </details>
+
+            <p className="mt-4 max-w-prose text-base text-muted-foreground">
+              Parser source: <span className="font-mono">src/lib/css-token-diff.ts</span>{" "}
+              reads <span className="font-mono">src/app/globals.css</span> at
+              render time and extracts every{" "}
+              <span className="font-mono">--name: value;</span> declaration
+              inside the <span className="font-mono">:root</span> and{" "}
+              <span className="font-mono">.dark</span> blocks. The audit reflects
+              the live token sheet — no hand-maintained list to drift.
+              {flaggedCount === 0 && nonColorCount > 0 && (
+                <>
+                  {" "}
+                  The {nonColorCount === 1 ? "one" : nonColorCount} non-color
+                  token{nonColorCount === 1 ? "" : "s"} surfaced above{" "}
+                  {nonColorCount === 1 ? "is" : "are"} expected to be constant
+                  across modes.
+                </>
+              )}
+            </p>
           </Subsection>
 
           {/* ── Borders & radius ── */}

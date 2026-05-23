@@ -92,6 +92,9 @@ export type ScoringCategoryResult = {
   /** Score on the category's native scale. For likert_5: 1-5. For binary:
    *  0 (fail) or 1 (pass). For three_state: 0 / 1 / 2. */
   aiScore: number;
+  /** Plain-text reasoning. References to supporting messages live on
+   *  `highlightedMessageIds`, NOT inline in this text (SVP-77). The UI
+   *  renders highlighted messages as a chip-row below the reasoning. */
   aiReasoning: string;
   /** Message ids on the parent ticket that drove the score. Used by the
    *  supporting-message highlight UI (SVP-54). 0-3 ids typical. */

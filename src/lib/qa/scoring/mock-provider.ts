@@ -46,7 +46,7 @@ export class MockScoringProvider implements ScoringProvider {
           return {
             categoryId: category.id,
             aiScore: failed ? 0 : 1,
-            aiReasoning: buildBinaryReasoning(faker, category.name, failed, messageIds),
+            aiReasoning: buildBinaryReasoning(faker, category.name, failed),
             highlightedMessageIds: failed ? messageIds.slice(0, 1) : [],
           };
         }
@@ -54,12 +54,7 @@ export class MockScoringProvider implements ScoringProvider {
         return {
           categoryId: category.id,
           aiScore,
-          aiReasoning: buildLikertReasoning(
-            faker,
-            category.name,
-            aiScore,
-            messageIds,
-          ),
+          aiReasoning: buildLikertReasoning(faker, category.name, aiScore),
           highlightedMessageIds: messageIds,
         };
       });
@@ -199,15 +194,13 @@ function buildLikertReasoning(
   faker: Faker,
   categoryName: string,
   score: number,
-  messageIds: string[],
 ): string {
+  // SVP-77: reasoning text is reference-free. Supporting message ids live on
+  // `highlightedMessageIds` (structured field) — the UI renders them as a
+  // chip-row, no regex over reasoning text.
   const pool = LIKERT_REASONING_BY_SCORE[score] ?? LIKERT_REASONING_BY_SCORE[3];
   const base = faker.helpers.arrayElement(pool);
-  const cite =
-    messageIds.length > 0
-      ? ` See ${messageIds.slice(0, 2).join(", ")}.`
-      : "";
-  return `${categoryName}: ${base}${cite}`;
+  return `${categoryName}: ${base}`;
 }
 
 const BINARY_PASS_REASONS = [
@@ -227,13 +220,10 @@ function buildBinaryReasoning(
   faker: Faker,
   categoryName: string,
   failed: boolean,
-  messageIds: string[],
 ): string {
   const pool = failed ? BINARY_FAIL_REASONS : BINARY_PASS_REASONS;
   const base = faker.helpers.arrayElement(pool);
-  const cite =
-    failed && messageIds.length > 0 ? ` See ${messageIds[0]}.` : "";
-  return `${categoryName}: ${base}${cite}`;
+  return `${categoryName}: ${base}`;
 }
 
 const SUMMARY_TEMPLATES_GOOD = [

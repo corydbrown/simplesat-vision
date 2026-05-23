@@ -249,11 +249,13 @@ function Bubble({
   tone,
   position,
   message,
+  highlighted,
 }: {
   side: Side;
   tone: Tone;
   position: BubblePosition;
   message: TicketMessageView;
+  highlighted: boolean;
 }) {
   const showTail = position === "first" || position === "solo";
   const baseShape = "rounded-2xl px-4 py-2.5";
@@ -269,10 +271,21 @@ function Bubble({
       : tone === "agent"
         ? "bg-primary/10 border border-primary/20 text-foreground"
         : "bg-yellow-lighter border border-dashed border-yellow-light text-foreground";
+  // QA highlight ring — toggled by the supporting-message chip in the QA
+  // section below. Transition is fade-in fast, fade-out slow so the user
+  // catches the pulse even if they're already looking at the right message.
+  const highlightClass = highlighted
+    ? " ring-2 ring-primary ring-offset-2 ring-offset-background"
+    : "";
 
   return (
-    <div className="group/bubble relative max-w-[80%]">
-      <div className={`${baseShape}${tailShape} ${toneClass}`}>
+    <div
+      className="group/bubble relative max-w-[80%]"
+      data-message-id={message.id}
+    >
+      <div
+        className={`${baseShape}${tailShape} ${toneClass}${highlightClass} transition-shadow duration-300`}
+      >
         <p className="whitespace-pre-wrap text-lg leading-relaxed">
           {message.body}
         </p>
@@ -300,7 +313,13 @@ function Bubble({
 // avatar-aligned row; follow-ups stack below.
 // ---------------------------------------------------------------------------
 
-function MessageGroup({ group }: { group: Group }) {
+function MessageGroup({
+  group,
+  highlightedMessageId,
+}: {
+  group: Group;
+  highlightedMessageId: string | null;
+}) {
   const { side, tone, items } = group;
   const { name, avatarColor } = metaForGroup(group);
   const first = items[0];
@@ -408,6 +427,7 @@ function MessageGroup({ group }: { group: Group }) {
               tone={tone}
               position={position}
               message={m}
+              highlighted={highlightedMessageId === m.id}
             />
           );
         })}
@@ -752,9 +772,13 @@ function gapClass(prev: RenderItem | undefined, curr: RenderItem): string {
 export function TicketActivitySection({
   messages,
   events,
+  highlightedMessageId = null,
 }: {
   messages: TicketMessageView[];
   events: TicketEventView[];
+  /** When set, the matching bubble renders with a primary-color ring.
+   *  Driven by the QA section's supporting-message chip clicks. */
+  highlightedMessageId?: string | null;
 }) {
   const [filter, setFilter] = useState<Filter>("all");
   if (messages.length === 0 && events.length === 0) return null;
@@ -790,7 +814,13 @@ export function TicketActivitySection({
               `t-${it.event.id}`,
             );
           }
-          return wrap(<MessageGroup group={it} />, `g-${it.items[0].id}`);
+          return wrap(
+            <MessageGroup
+              group={it}
+              highlightedMessageId={highlightedMessageId}
+            />,
+            `g-${it.items[0].id}`,
+          );
         })}
       </div>
     </DetailSection>

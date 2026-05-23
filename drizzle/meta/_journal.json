@@ -57,6 +57,13 @@
       "when": 1779516673050,
       "tag": "0007_graceful_skin",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1779544516227,
+      "tag": "0008_flippant_supreme_intelligence",
+      "breakpoints": true
     }
   ]
 }

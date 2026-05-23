@@ -222,9 +222,16 @@ export type QaCategoryView = {
   isAutofail: boolean;
   aiScore: number;
   humanScore: number | null;
+  humanScoreReason: string | null;
   effectiveScore: number;
   aiReasoning: string;
   highlightedMessageIds: string[];
+};
+
+export type QaEditorView = {
+  id: string;
+  name: string;
+  avatarColor: string;
 };
 
 export type QaCoachingView = {
@@ -247,6 +254,11 @@ export type QaEvaluationView = {
   scoredAt: Date;
   invalidatedReason: string | null;
   scorer: QaScorerView;
+  /** Manager who last applied an inline edit. Null until status flips to
+   *  `edited` / `finalized`. */
+  editor: QaEditorView | null;
+  /** Wall-clock of the most recent inline edit; pairs with `editor`. */
+  editedAt: Date | null;
   categories: QaCategoryView[];
   coaching: QaCoachingView | null;
 };
@@ -374,10 +386,16 @@ export async function getTicketById(id: string): Promise<TicketDetail | null> {
         categoryScore: {
           aiScore: schema.evaluationCategoryScores.aiScore,
           humanScore: schema.evaluationCategoryScores.humanScore,
+          humanScoreReason: schema.evaluationCategoryScores.humanScoreReason,
           effectiveScore: schema.evaluationCategoryScores.effectiveScore,
           aiReasoning: schema.evaluationCategoryScores.aiReasoning,
           highlightedMessageIds:
             schema.evaluationCategoryScores.highlightedMessageIds,
+        },
+        editor: {
+          id: schema.teamMembers.id,
+          name: schema.teamMembers.name,
+          avatarColor: schema.teamMembers.avatarColor,
         },
         coaching: {
           strengthPoints: schema.coachingNotes.strengthPoints,
@@ -407,6 +425,10 @@ export async function getTicketById(id: string): Promise<TicketDetail | null> {
       .leftJoin(
         schema.coachingNotes,
         eq(schema.coachingNotes.evaluationId, schema.evaluations.id),
+      )
+      .leftJoin(
+        schema.teamMembers,
+        eq(schema.teamMembers.id, schema.evaluations.editedBy),
       )
       .where(eq(schema.evaluations.ticketId, id))
       .orderBy(
@@ -469,6 +491,7 @@ export async function getTicketById(id: string): Promise<TicketDetail | null> {
       isAutofail: row.category.isAutofail,
       aiScore: row.categoryScore.aiScore,
       humanScore: row.categoryScore.humanScore,
+      humanScoreReason: row.categoryScore.humanScoreReason,
       effectiveScore: row.categoryScore.effectiveScore,
       aiReasoning: row.categoryScore.aiReasoning,
       highlightedMessageIds: row.categoryScore.highlightedMessageIds,
@@ -485,6 +508,8 @@ export async function getTicketById(id: string): Promise<TicketDetail | null> {
             exampleMessageIds: c.exampleMessageIds ?? [],
           }
         : null;
+    const editor =
+      head.editedBy && headRow.editor?.id ? headRow.editor : null;
     evaluation = {
       id: head.id,
       ticketId: head.ticketId,
@@ -498,6 +523,8 @@ export async function getTicketById(id: string): Promise<TicketDetail | null> {
       scoredAt: head.scoredAt,
       invalidatedReason: head.invalidatedReason,
       scorer: resolveScorer(head.aiModel),
+      editor,
+      editedAt: head.editedAt,
       categories,
       coaching,
     };

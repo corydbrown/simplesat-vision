@@ -1,0 +1,203 @@
+"use server";
+
+import { and, asc, eq } from "drizzle-orm";
+import { revalidatePath } from "next/cache";
+import { z } from "zod";
+import { db, schema } from "@/db/client";
+import { DEFAULT_SCORECARD } from "@/lib/qa/default-scorecard";
+
+/** Result returned to the client after a successful inline edit. Carries the
+ *  values the card needs to swap into display mode without a full refetch. */
+export type EditCategoryScoreResult = {
+  ok: true;
+  category: {
+    categoryId: string;
+    humanScore: number;
+    humanScoreReason: string;
+    effectiveScore: number;
+  };
+  evaluation: {
+    id: string;
+    status: "edited";
+    overallScore: number;
+    editedAt: number;
+    editor: { id: string; name: string; avatarColor: string };
+  };
+};
+
+const InputSchema = z.object({
+  evaluationId: z.string().min(1),
+  categoryId: z.string().min(1),
+  humanScore: z.number().int().min(0).max(5),
+  reason: z.string().trim().min(8).max(500),
+});
+
+export async function editCategoryScore(
+  input: unknown,
+): Promise<EditCategoryScoreResult> {
+  let parsed: z.infer<typeof InputSchema>;
+  try {
+    parsed = InputSchema.parse(input);
+  } catch (err) {
+    if (err instanceof z.ZodError) {
+      console.error("[qa edit] invalid input", err.issues);
+      throw new Error("Invalid input");
+    }
+    throw err;
+  }
+
+  // Validate scale-shape before persisting: binary categories accept 0|1,
+  // likert_5 accepts 1-5, three_state accepts 0|1|2. Catches mismatched
+  // payloads from a client that's out of sync with the scorecard schema.
+  const [targetCategory] = await db
+    .select({
+      scaleType: schema.scorecardCategories.scaleType,
+      isAutofail: schema.scorecardCategories.isAutofail,
+    })
+    .from(schema.scorecardCategories)
+    .where(eq(schema.scorecardCategories.id, parsed.categoryId))
+    .limit(1);
+  if (!targetCategory) throw new Error("Category not found");
+  if (!isScoreValidForScale(targetCategory.scaleType, parsed.humanScore)) {
+    throw new Error("Score out of range for this category's scale");
+  }
+
+  // Round one: hardcoded "manager" identity. Picks the first Customer Care
+  // Lead deterministically — the role that owns QA review in the seed
+  // narrative. Will be replaced by the signed-in user when auth lands.
+  const [manager] = await db
+    .select({
+      id: schema.teamMembers.id,
+      name: schema.teamMembers.name,
+      avatarColor: schema.teamMembers.avatarColor,
+    })
+    .from(schema.teamMembers)
+    .where(eq(schema.teamMembers.role, "Customer Care Lead"))
+    .orderBy(asc(schema.teamMembers.name))
+    .limit(1);
+  if (!manager) throw new Error("No reviewer available");
+
+  const editedAt = new Date();
+  const ticketId = await db.transaction(async (tx) => {
+    await tx
+      .update(schema.evaluationCategoryScores)
+      .set({
+        humanScore: parsed.humanScore,
+        humanScoreReason: parsed.reason,
+        effectiveScore: parsed.humanScore,
+      })
+      .where(
+        and(
+          eq(schema.evaluationCategoryScores.evaluationId, parsed.evaluationId),
+          eq(schema.evaluationCategoryScores.categoryId, parsed.categoryId),
+        ),
+      );
+
+    // Read back all categories for this evaluation so the overall recomputes
+    // against the freshly-written effective_score (the row we just updated
+    // plus every other category's existing effective_score).
+    const rows = await tx
+      .select({
+        weightPercent: schema.scorecardCategories.weightPercent,
+        scaleType: schema.scorecardCategories.scaleType,
+        isAutofail: schema.scorecardCategories.isAutofail,
+        effectiveScore: schema.evaluationCategoryScores.effectiveScore,
+      })
+      .from(schema.evaluationCategoryScores)
+      .innerJoin(
+        schema.scorecardCategories,
+        eq(
+          schema.scorecardCategories.id,
+          schema.evaluationCategoryScores.categoryId,
+        ),
+      )
+      .where(
+        eq(schema.evaluationCategoryScores.evaluationId, parsed.evaluationId),
+      );
+
+    const overallScore = recomputeOverall(rows);
+
+    const [updated] = await tx
+      .update(schema.evaluations)
+      .set({
+        status: "edited",
+        editedBy: manager.id,
+        editedAt,
+        overallScore,
+      })
+      .where(eq(schema.evaluations.id, parsed.evaluationId))
+      .returning({
+        ticketId: schema.evaluations.ticketId,
+        overallScore: schema.evaluations.overallScore,
+      });
+    if (!updated) throw new Error("Evaluation not found");
+
+    return updated.ticketId;
+  });
+
+  // Invalidate the ticket detail page so a hard refresh shows the same state
+  // the client just optimistically rendered.
+  revalidatePath(`/tickets/${ticketId}`);
+
+  // Re-read the just-written overall — recomputeOverall is local and cheap
+  // but reading it back keeps a single source of truth.
+  const [fresh] = await db
+    .select({ overallScore: schema.evaluations.overallScore })
+    .from(schema.evaluations)
+    .where(eq(schema.evaluations.id, parsed.evaluationId))
+    .limit(1);
+
+  return {
+    ok: true,
+    category: {
+      categoryId: parsed.categoryId,
+      humanScore: parsed.humanScore,
+      humanScoreReason: parsed.reason,
+      effectiveScore: parsed.humanScore,
+    },
+    evaluation: {
+      id: parsed.evaluationId,
+      status: "edited",
+      overallScore: fresh?.overallScore ?? 0,
+      editedAt: editedAt.getTime(),
+      editor: manager,
+    },
+  };
+}
+
+function isScoreValidForScale(scale: string, score: number): boolean {
+  if (scale === "binary") return score === 0 || score === 1;
+  if (scale === "three_state") return score >= 0 && score <= 2;
+  // likert_5
+  return score >= 1 && score <= 5;
+}
+
+/** Mirrors `mock-provider.computeOverallScore` but reads effective scores
+ *  (post-human-edit) instead of AI scores. Kept inline to avoid pulling the
+ *  provider into the action's import graph — the formula is small enough to
+ *  copy and the two paths intentionally evolve independently. */
+function recomputeOverall(
+  categories: {
+    weightPercent: number;
+    scaleType: string;
+    isAutofail: boolean;
+    effectiveScore: number;
+  }[],
+): number {
+  const autoFailed = categories.some(
+    (c) => c.isAutofail && c.scaleType === "binary" && c.effectiveScore === 0,
+  );
+  if (autoFailed) return DEFAULT_SCORECARD.autoFailFloor;
+
+  let weighted = 0;
+  let weightSum = 0;
+  for (const c of categories) {
+    if (c.isAutofail) continue;
+    if (c.scaleType !== "likert_5") continue;
+    const projected = ((c.effectiveScore - 1) / 4) * 100;
+    weighted += projected * c.weightPercent;
+    weightSum += c.weightPercent;
+  }
+  if (weightSum === 0) return 0;
+  return Math.round(weighted / weightSum);
+}

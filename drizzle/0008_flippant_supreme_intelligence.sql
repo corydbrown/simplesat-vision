@@ -1,0 +1,1 @@
+ALTER TABLE `evaluation_category_scores` ADD `human_score_reason` text;

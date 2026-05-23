@@ -58,6 +58,18 @@ The Slack channel `#simplesat-vision-prototype` (`C0B5AQ52FFZ`) is for **Cory ne
 - PR opened: `<worktree> PR #<N> opened — ready for review. <github url>` + dev URL if relevant.
 - Blocked: `@cory <worktree> blocked: <reason>. WIP at <sha>. Worktree port <port>.` per STOP_CONDITIONS.
 
+## Supervisor state — `.claude/STATUS.md`
+
+Local, gitignored file that holds *current state of the world* so a new supervisor session can orient in 5 seconds without scrolling Slack or running 4 gh commands. Slack is for *action-required only*; this file holds *state*.
+
+**Sections:** Open PRs (review or merge) · Active workers · Blocked · Recent merges (last 10) · Supervisor handoff notes (free-text for the next session).
+
+**Read** on supervisor session start — before doing anything else.
+
+**Update** after any of: PR opens, PR merges, worker spawns, worktree cleans up, worker blocks/unblocks. Also on session wrap (write a handoff note for whoever comes next).
+
+**Don't** commit it. Don't reference it from worker briefs (workers don't need supervisor state). If the file is missing on a fresh machine, bootstrap from `gh pr list --state open` + `ls simplesat-vision-worktrees/` + `git log --oneline -10`.
+
 ## Mockup exploration (the `/mockups` route)
 
 For exploratory UI work that doesn't need DB integration: spawn mockups at `src/app/mockups/<theme>/<variant>/page.tsx`. Self-contained, hardcoded data, no DB query, no `src/components/shared/` entity imports (those drag in production behaviors). Design tokens, shadcn primitives, Lucide icons are fair game. Each variation has a hypothesis and a SUF axis it's pushing. The `/mockups` index lists them all. Lifecycle: `exploring` → `loved` → `promoted` (design moves into production, mockup archived) OR `exploring` → `rejected` (deleted). Mockups live max ~1 release cycle. See worker briefs in mockup worktrees for the full convention.

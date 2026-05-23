@@ -4,7 +4,15 @@
 
 A clean-room prototype of the future Simplesat product (customer-feedback platform). Not connected to production. Intended as a high-fidelity team alignment artifact, NOT a hacked demo — every change should reinforce a pattern you'd want a team of engineers to copy.
 
-**Trajectory.** This codebase is the seed of the real product, not a throwaway demo. Eventually it gains auth, multi-user, and multi-workspace concerns. When you defer "production-shape" work today (e.g. server-side storage, workspace scoping), capture the seam cleanly so the migration is incremental, not a rewrite. Don't default-dismiss those tasks as overkill — evaluate the cost/benefit of doing them now vs the cost of porting later.
+**Trajectory.** This codebase is the seed of the real product, not a throwaway demo. Eventually it gains auth, multi-user, multi-workspace concerns, **and real AI/LLM integrations behind the features that today render mocked output**. When you defer "production-shape" work today (e.g. server-side storage, workspace scoping, real LLM calls), capture the seam cleanly so the migration is incremental, not a rewrite. Don't default-dismiss those tasks as overkill — evaluate the cost/benefit of doing them now vs the cost of porting later.
+
+**Posture: "fully functional eventually," not "looks real."** This prototype's job is to de-risk product/UX decisions for Simplesat's production engineering team. That means **architecture is production-shape from day one; only the implementations are allowed to be cheap.** Concretely:
+- DB schema reflects what the real product needs. No "we'll refactor when we add multi-tenant" shortcuts — leave the seam clean.
+- Anything that will eventually call an external service (LLM, helpdesk API, notification system) lives behind a `Provider`-style interface from the start, with a `MockProvider` implementation. When the time comes to swap in the real call, only the implementation changes.
+- Seed data is generated *through* the same code paths the running app uses, not bolted on. If `MockScoringProvider` generates a ticket evaluation at seed time, the running app calls the exact same function to score a new conversation — just with a different provider wired in.
+- No demo magic, no hardcoded outputs for the showcase, no UI-only stubs that read nothing from the DB. If you're tempted to cheat for visual polish, stop — that's the signal we're papering over a real architectural decision.
+
+The corollary: when you find yourself writing throwaway code "just for the prototype," push back. Either it's worth doing right, or it's worth not doing at all.
 
 **Seed narrative**: mid-market B2C beauty retailer "Bloom Beauty" (Sephora-style). Three-tier loyalty program (Insider / Gold / Elite). ~95% individual consumers, ~5% B2B accounts (wholesale / corporate gifting / influencer). Simplesat is the underlying product — Bloom Beauty is the demo brand whose customer data flows through it.
 

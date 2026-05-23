@@ -281,7 +281,7 @@ function CreateViewDialog({
           <DialogFooter>
             <Button
               type="button"
-              variant="outline"
+              variant="secondary"
               onClick={() => handleOpenChange(false)}
               className="cursor-pointer"
             >

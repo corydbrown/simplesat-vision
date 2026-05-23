@@ -2,6 +2,7 @@
 
 import {
   DndContext,
+  KeyboardSensor,
   PointerSensor,
   closestCenter,
   useSensor,
@@ -11,6 +12,7 @@ import {
 import {
   SortableContext,
   arrayMove,
+  sortableKeyboardCoordinates,
   useSortable,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
@@ -379,6 +381,7 @@ function EntityViewList({
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
 
   const onDragEnd = useCallback(
@@ -465,7 +468,9 @@ function SortableViewRow({
   // bubbles to the inner <Link> and the post-drop click navigates away,
   // interrupting the fire-and-forget reorder write. setActivatorNodeRef
   // tells dnd-kit that the button is the drag activator (kept distinct
-  // from the sortable item itself, which is the wrapper div).
+  // from the sortable item itself, which is the wrapper div). The grip is
+  // also the keyboard-a11y target: Tab focuses it, Space picks up, arrows
+  // move, Space drops, Escape cancels (KeyboardSensor at EntityViewList).
   return (
     <div
       ref={setNodeRef}
@@ -485,7 +490,7 @@ function SortableViewRow({
             {...listeners}
             type="button"
             aria-label={`Reorder ${nav.label}`}
-            className="flex h-7 w-4 shrink-0 cursor-grab items-center justify-center text-muted-foreground/60 opacity-0 transition-opacity hover:text-foreground group-hover:opacity-100 active:cursor-grabbing"
+            className="flex h-7 w-4 shrink-0 cursor-grab items-center justify-center text-muted-foreground/60 opacity-0 transition-opacity hover:text-foreground focus-visible:opacity-100 group-hover:opacity-100 active:cursor-grabbing"
           >
             <GripVertical size={13} />
           </button>

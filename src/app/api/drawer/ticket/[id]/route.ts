@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getTicketById } from "@/db/queries/tickets";
+import { getEvaluationForTicket } from "@/db/queries/qa-evaluations";
 
 export const dynamic = "force-dynamic";
 
@@ -12,5 +13,6 @@ export async function GET(
   if (!ticket) {
     return NextResponse.json({ error: "not found" }, { status: 404 });
   }
-  return NextResponse.json({ ticket });
+  const evaluation = await getEvaluationForTicket(ticket.id);
+  return NextResponse.json({ ticket, evaluation });
 }

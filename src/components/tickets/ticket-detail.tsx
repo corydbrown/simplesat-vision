@@ -2,7 +2,7 @@
 
 import { ArrowRight } from "lucide-react";
 import Link from "next/link";
-import { useEffect } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Topbar } from "@/components/shell/topbar";
 import { ColumnStateProvider } from "@/lib/column-prefs";
 import { recordEntityView } from "@/lib/recent-pages";
@@ -17,18 +17,24 @@ import { ResponsePill } from "@/components/shared/entity-pill";
 import { QaScoreBadge } from "@/components/shared/qa-score-badge";
 import { DetailActions } from "@/components/shared/detail-actions";
 import { TicketActivitySection } from "@/components/tickets/ticket-activity";
+import { TicketQaSection } from "@/components/qa/ticket-qa-section";
+import { QaStatusPill } from "@/components/qa/qa-status-pill";
 import type {
   TicketDetail,
   TicketQaCategoryView,
   TicketQaEvaluationView,
 } from "@/db/queries/tickets";
-import type { QaEvaluationStatus } from "@/db/schema";
+import type { QaEvaluationView } from "@/db/queries/qa-evaluations";
+
+const HIGHLIGHT_DURATION_MS = 2500;
 
 export function TicketDetailBody({
   ticket,
+  evaluation,
   inDrawer = false,
 }: {
   ticket: TicketDetail;
+  evaluation: QaEvaluationView | null;
   inDrawer?: boolean;
 }) {
   useEffect(() => {
@@ -43,6 +49,36 @@ export function TicketDetailBody({
         : undefined,
     });
   }, [inDrawer, ticket.id, ticket.subject, ticket.helpdeskExternalId]);
+
+  const [highlightedMessageId, setHighlightedMessageId] = useState<
+    string | null
+  >(null);
+  const highlightTimeoutRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (highlightTimeoutRef.current != null) {
+        window.clearTimeout(highlightTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  const handleHighlightMessage = useCallback((messageId: string) => {
+    setHighlightedMessageId(messageId);
+    const el = document.querySelector(
+      `[data-message-id="${CSS.escape(messageId)}"]`,
+    );
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+    if (highlightTimeoutRef.current != null) {
+      window.clearTimeout(highlightTimeoutRef.current);
+    }
+    highlightTimeoutRef.current = window.setTimeout(() => {
+      setHighlightedMessageId(null);
+      highlightTimeoutRef.current = null;
+    }, HIGHLIGHT_DURATION_MS);
+  }, []);
 
   const header = (
     <div>
@@ -72,13 +108,41 @@ export function TicketDetailBody({
     </>
   );
 
+  // QA section split:
+  //  - In the drawer: compact `QaBreakdownSection` from SVP-55, with a "View
+  //    full QA" link that anchors at `/tickets/[id]#qa` on the standalone
+  //    page (where the full SVP-54 surface lives).
+  //  - On the standalone detail page: the full `TicketQaSection` wrapped in
+  //    `<div id="qa">` so the drawer's link lands on it.
+  // Both surfaces handle a null evaluation internally — gated here so the
+  // section drops out entirely when a ticket has never been scored (the
+  // "Score now" UX surfaces with SVP-58).
+  const qaSection = ticket.evaluation ? (
+    inDrawer ? (
+      <QaBreakdownSection
+        ticketId={ticket.id}
+        evaluation={ticket.evaluation}
+        inDrawer
+      />
+    ) : (
+      <div id="qa">
+        <TicketQaSection
+          evaluation={evaluation}
+          onHighlightMessage={handleHighlightMessage}
+        />
+      </div>
+    )
+  ) : null;
+
   const content = (
     <>
       <TicketActivitySection
         messages={ticket.messages}
         events={ticket.events}
+        highlightedMessageId={highlightedMessageId}
       />
 
+      {qaSection}
 
       <DetailSection title="Survey response">
         {ticket.response ? (
@@ -107,12 +171,6 @@ export function TicketDetailBody({
           </div>
         )}
       </DetailSection>
-
-      <QaBreakdownSection
-        ticketId={ticket.id}
-        evaluation={ticket.evaluation}
-        inDrawer={inDrawer}
-      />
     </>
   );
 
@@ -141,7 +199,13 @@ export function TicketDetailBody({
   );
 }
 
-export function TicketDetailPage({ ticket }: { ticket: TicketDetail }) {
+export function TicketDetailPage({
+  ticket,
+  evaluation,
+}: {
+  ticket: TicketDetail;
+  evaluation: QaEvaluationView | null;
+}) {
   return (
     <>
       <Topbar
@@ -151,61 +215,54 @@ export function TicketDetailPage({ ticket }: { ticket: TicketDetail }) {
         ]}
         actions={<DetailActions entityHref={`/tickets/${ticket.id}`} />}
       />
-      <TicketDetailBody ticket={ticket} />
+      <TicketDetailBody ticket={ticket} evaluation={evaluation} />
     </>
   );
 }
 
-/** Compact QA breakdown surface shared by the drawer and the standalone detail
- *  page. SVP-54 will replace the standalone variant with a richer surface
- *  anchored at `/tickets/[id]#qa`; the drawer keeps this compact form and
- *  links out. */
+/** Compact QA breakdown surface for the drawer. SVP-55 introduced this;
+ *  SVP-54 keeps the drawer compact and links out to the standalone full
+ *  surface via the `#qa` anchor. */
 function QaBreakdownSection({
   ticketId,
   evaluation,
   inDrawer,
 }: {
   ticketId: string;
-  evaluation: TicketQaEvaluationView | null;
+  evaluation: TicketQaEvaluationView;
   inDrawer: boolean;
 }) {
   return (
     <DetailSection title="QA breakdown">
-      {evaluation ? (
-        <div id="qa" className="rounded-md border border-border bg-background">
-          <div className="flex items-center gap-3 px-5 py-4">
-            <QaScoreBadge
-              score={evaluation.overallScore}
-              status={evaluation.status}
-              size="md"
-            />
-            <QaStatusPill status={evaluation.status} />
-            {inDrawer && (
-              <Link
-                href={`/tickets/${ticketId}#qa`}
-                className="ml-auto inline-flex items-center gap-1 text-base text-muted-foreground hover:text-foreground"
-              >
-                View full QA
-                <ArrowRight className="h-3.5 w-3.5" />
-              </Link>
-            )}
-          </div>
-          {evaluation.aiReasoningSummary && (
-            <p className="border-t border-border px-5 py-3 text-base text-muted-foreground">
-              {evaluation.aiReasoningSummary}
-            </p>
+      <div className="rounded-md border border-border bg-background">
+        <div className="flex items-center gap-3 px-5 py-4">
+          <QaScoreBadge
+            score={evaluation.overallScore}
+            status={evaluation.status}
+            size="md"
+          />
+          <QaStatusPill status={evaluation.status} />
+          {inDrawer && (
+            <Link
+              href={`/tickets/${ticketId}#qa`}
+              className="ml-auto inline-flex items-center gap-1 text-base text-muted-foreground hover:text-foreground"
+            >
+              View full QA
+              <ArrowRight className="h-3.5 w-3.5" />
+            </Link>
           )}
-          <div className="grid grid-cols-1 gap-px border-t border-border bg-border sm:grid-cols-2 lg:grid-cols-5">
-            {evaluation.categories.map((c) => (
-              <QaCategoryCard key={c.categoryId} category={c} />
-            ))}
-          </div>
         </div>
-      ) : (
-        <div className="rounded-md border border-dashed border-border bg-muted/30 px-5 py-4 text-base text-muted-foreground">
-          No QA evaluation yet for this ticket.
+        {evaluation.aiReasoningSummary && (
+          <p className="border-t border-border px-5 py-3 text-base text-muted-foreground">
+            {evaluation.aiReasoningSummary}
+          </p>
+        )}
+        <div className="grid grid-cols-1 gap-px border-t border-border bg-border sm:grid-cols-2 lg:grid-cols-5">
+          {evaluation.categories.map((c) => (
+            <QaCategoryCard key={c.categoryId} category={c} />
+          ))}
         </div>
-      )}
+      </div>
     </DetailSection>
   );
 }
@@ -239,30 +296,4 @@ function formatCategoryScore(c: TicketQaCategoryView): string {
     return `${c.effectiveScore} / 2`;
   }
   return `${c.effectiveScore} / 5`;
-}
-
-const QA_STATUS_LABEL: Record<QaEvaluationStatus, string> = {
-  ai_scored: "AI scored",
-  edited: "Edited",
-  contested: "Contested",
-  invalidated: "Invalidated",
-  finalized: "Finalized",
-};
-
-const QA_STATUS_CLASSES: Record<QaEvaluationStatus, string> = {
-  ai_scored: "bg-grey-lighter text-grey-darker",
-  edited: "bg-blue-lighter text-blue-darker",
-  contested: "bg-yellow-lighter text-yellow-darker",
-  invalidated: "bg-red-lighter text-red-darker",
-  finalized: "bg-green-lighter text-green-darker",
-};
-
-function QaStatusPill({ status }: { status: QaEvaluationStatus }) {
-  return (
-    <span
-      className={`inline-flex items-center rounded-full px-2 py-0.5 text-sm font-medium ${QA_STATUS_CLASSES[status]}`}
-    >
-      {QA_STATUS_LABEL[status]}
-    </span>
-  );
 }

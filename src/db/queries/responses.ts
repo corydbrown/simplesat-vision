@@ -8,7 +8,7 @@ import { compileGroupOrderBy } from "@/lib/group/compile";
 import { RESPONSE_GROUP_FIELDS } from "@/lib/group/fields/responses";
 import type { GroupSpec } from "@/lib/group/types";
 import type { SortSpec } from "@/lib/sort/url-state";
-import type { Response, SurveyAnswer } from "../schema";
+import type { Response, SurveyAnswer, TopicTag } from "../schema";
 
 const RESPONSE_SORT_MAP: Record<string, AnyColumn | SQL> = {
   rating: schema.responses.rating,
@@ -38,6 +38,7 @@ export type ResponseListRow = {
   comment: string | null;
   respondedAt: Date;
   answers: SurveyAnswer[];
+  topics: TopicTag[];
   ticketId: string | null;
   ticketSubject: string | null;
   ticketExternalId: string | null;
@@ -76,6 +77,7 @@ export async function listResponses({
       comment: schema.responses.comment,
       respondedAt: schema.responses.respondedAt,
       answers: schema.responses.answers,
+      topics: schema.responses.topics,
       ticketId: schema.tickets.id,
       ticketSubject: schema.tickets.subject,
       ticketExternalId: schema.tickets.helpdeskExternalId,

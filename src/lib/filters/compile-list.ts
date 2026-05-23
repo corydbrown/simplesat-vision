@@ -30,7 +30,13 @@ export type ListFilterField = {
   dataType: FilterDataType;
   ops: readonly FilterOp[];
   enumValues?: string[];
+  enumValuesSource?: "static" | "dynamic";
+  dynamicValuesKey?: string;
   column: AnyColumn | SQL;
+  /** For multi_enum: SQL expression applied to each json_each() row to extract
+   *  a comparable scalar. Defaults to `value` (string arrays). Provide
+   *  `json_extract(value, '$.topic')` etc. for arrays of objects. */
+  jsonValueExpr?: SQL;
 };
 
 export type ListFilterFieldMap = Record<string, ListFilterField>;
@@ -82,6 +88,11 @@ function buildFilter(
   ) {
     return undefined;
   }
+
+  if (field.dataType === "multi_enum") {
+    return buildMultiEnumFilter(filter, field);
+  }
+
   if (typeof filter.value === "string" && filter.value === "") {
     if (
       filter.op === "eq" ||
@@ -184,5 +195,71 @@ function buildFilter(
       return isNotNull(col as AnyColumn);
   }
   return undefined;
+}
+
+/** SQL compile for multi_enum (JSON-array) filters. Uses correlated EXISTS
+ *  subqueries over json_each(col). The column ref is a literal SQL fragment
+ *  (e.g. sql`tickets.tags`) per CLAUDE.md — interpolating ${schema.table.col}
+ *  inside a correlated subquery produces a parameter placeholder, not a
+ *  column reference. `jsonValueExpr` defaults to `value` (string arrays);
+ *  for object arrays, callers pass `json_extract(value, '$.topic')`. */
+function buildMultiEnumFilter(
+  filter: Filter,
+  field: ListFilterField,
+): SQL | undefined {
+  const col = field.column as ColumnLike;
+  const valueExpr = field.jsonValueExpr ?? sql`value`;
+
+  if (filter.op === "isnull") {
+    // multi_enum columns are NOT NULL with default `[]` — "empty" means
+    // zero array entries.
+    return sql`json_array_length(${col}) = 0`;
+  }
+  if (filter.op === "notnull") {
+    return sql`json_array_length(${col}) > 0`;
+  }
+
+  if (
+    filter.op !== "contains-any" &&
+    filter.op !== "contains-all" &&
+    filter.op !== "excludes-any" &&
+    filter.op !== "excludes-all"
+  ) {
+    return undefined;
+  }
+
+  if (!Array.isArray(filter.value) || filter.value.length === 0) {
+    return undefined;
+  }
+  const values = filter.value as (string | number)[];
+  const valueList = sql.join(
+    values.map((v) => sql`${v}`),
+    sql`, `,
+  );
+
+  switch (filter.op) {
+    case "contains-any":
+      return sql`EXISTS (SELECT 1 FROM json_each(${col}) WHERE ${valueExpr} IN (${valueList}))`;
+    case "excludes-all":
+      return sql`NOT EXISTS (SELECT 1 FROM json_each(${col}) WHERE ${valueExpr} IN (${valueList}))`;
+    case "contains-all": {
+      // AND of per-value EXISTS — row matches only when every selected value
+      // appears at least once in the array.
+      const parts = values.map(
+        (v) =>
+          sql`EXISTS (SELECT 1 FROM json_each(${col}) WHERE ${valueExpr} = ${v})`,
+      );
+      return sql`(${sql.join(parts, sql` AND `)})`;
+    }
+    case "excludes-any": {
+      // At least one selected value is missing from the array (inverse of
+      // contains-all).
+      const parts = values.map(
+        (v) =>
+          sql`NOT EXISTS (SELECT 1 FROM json_each(${col}) WHERE ${valueExpr} = ${v})`,
+      );
+      return sql`(${sql.join(parts, sql` OR `)})`;
+    }
+  }
 }
 

@@ -25,6 +25,10 @@ import {
 import { Avatar } from "@/components/shared/avatar";
 import type { FieldDescriptor, RelationEntity } from "@/lib/filters/descriptor";
 import {
+  getMultiEnumLabel,
+  useMultiEnumOptions,
+} from "@/lib/filters/multi-enum-cache";
+import {
   primeRelationLabel,
   useRelationLabel,
 } from "@/lib/filters/relation-cache";
@@ -304,15 +308,17 @@ function ValueLabel({
       </span>
     );
   }
-  // Multi-value (enum in/not-in) when not relation
+  // Multi-value (enum in/not-in, multi_enum) when not relation
   if (Array.isArray(v)) {
     if (v.length === 0) return <Placeholder />;
+    const labels = v.map((x) => {
+      if (field.dataType === "multi_enum" && typeof x === "string") {
+        return getMultiEnumLabel(field.dynamicValuesKey, x) ?? x;
+      }
+      return formatScalar(x, field, filter.propertyId);
+    });
     return (
-      <span className="max-w-[24ch] truncate">
-        {v
-          .map((x) => formatScalar(x, field, filter.propertyId))
-          .join(", ")}
-      </span>
+      <span className="max-w-[24ch] truncate">{labels.join(", ")}</span>
     );
   }
   // Empty single value
@@ -413,7 +419,11 @@ function FilterAddTrigger({
       op === "between" ||
       op === "in" ||
       op === "not-in" ||
-      op === "relative"
+      op === "relative" ||
+      op === "contains-any" ||
+      op === "contains-all" ||
+      op === "excludes-any" ||
+      op === "excludes-all"
     ) {
       filter.value = dv;
     } else if (op === "isnull" || op === "notnull") {
@@ -680,6 +690,23 @@ function ValueEditor({
     );
   }
 
+  // Multi-enum (JSON-array column) — checkbox popover with counts + search.
+  if (
+    field.dataType === "multi_enum" &&
+    (op === "contains-any" ||
+      op === "contains-all" ||
+      op === "excludes-any" ||
+      op === "excludes-all")
+  ) {
+    return (
+      <MultiEnumInput
+        field={field}
+        value={Array.isArray(value) ? (value as string[]) : []}
+        onChange={onChange}
+      />
+    );
+  }
+
   // Boolean
   if (field.dataType === "boolean" && (op === "eq" || op === "neq")) {
     const v = typeof value === "boolean" ? value : value === "true";
@@ -829,6 +856,84 @@ function EnumMultiInput({
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Multi-enum (JSON-array column) — mirrors EnumMultiInput's pills-in-input
+// shape; only addition is the count rendered on each remaining-option row.
+// Options arrive via the dynamicValuesKey + multi-enum-cache server fetch.
+// ---------------------------------------------------------------------------
+
+function MultiEnumInput({
+  field,
+  value,
+  onChange,
+}: {
+  field: FieldDescriptor;
+  value: string[];
+  onChange: (next: string[]) => void;
+}) {
+  const [query, setQuery] = useState("");
+  const { options, loading } = useMultiEnumOptions(field.dynamicValuesKey);
+
+  const q = query.trim().toLowerCase();
+  const remaining = options.filter(
+    (o) =>
+      !value.includes(o.value) &&
+      (q === "" ||
+        o.label.toLowerCase().includes(q) ||
+        o.value.toLowerCase().includes(q)),
+  );
+
+  const labelFor = (v: string) =>
+    options.find((o) => o.value === v)?.label ?? v;
+
+  return (
+    <div className="flex flex-col gap-1.5">
+      <PillsInputContainer>
+        {value.map((v) => (
+          <SelectedPill
+            key={v}
+            label={labelFor(v)}
+            onRemove={() => onChange(value.filter((x) => x !== v))}
+          />
+        ))}
+        <PillsInputField
+          value={query}
+          onChange={setQuery}
+          placeholder={value.length === 0 ? "Search…" : ""}
+        />
+      </PillsInputContainer>
+      <div className="max-h-56 overflow-auto rounded-md border border-border bg-popover">
+        {loading && options.length === 0 && (
+          <div className="px-2 py-2 text-sm text-muted-foreground">
+            Loading…
+          </div>
+        )}
+        {!loading && remaining.length === 0 && (
+          <div className="px-2 py-2 text-sm text-muted-foreground">
+            {options.length === 0 ? "No values in use." : "No matches."}
+          </div>
+        )}
+        {remaining.map((o) => (
+          <button
+            key={o.value}
+            type="button"
+            onClick={() => {
+              onChange([...value, o.value]);
+              setQuery("");
+            }}
+            className="flex w-full items-center gap-2 px-2 py-1.5 text-left text-sm hover:bg-accent cursor-pointer"
+          >
+            <span className="text-foreground truncate flex-1">{o.label}</span>
+            <span className="text-muted-foreground tabular-nums">
+              {o.count}
+            </span>
+          </button>
+        ))}
+      </div>
     </div>
   );
 }

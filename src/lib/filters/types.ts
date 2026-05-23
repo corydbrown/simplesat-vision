@@ -73,6 +73,18 @@ export const RELATION_OPS: readonly FilterOp[] = [
   "notnull",
 ];
 
+// For multi_enum, isnull/notnull are interpreted as "array empty" / "array
+// not empty" (json_array_length = 0) rather than column-IS-NULL. The columns
+// these filter (e.g. tickets.tags) are NOT NULL with default `[]`.
+export const MULTI_ENUM_OPS: readonly FilterOp[] = [
+  "contains-any",
+  "contains-all",
+  "excludes-any",
+  "excludes-all",
+  "isnull",
+  "notnull",
+];
+
 export const ALL_FILTER_OPS: readonly FilterOp[] = [
   "eq",
   "neq",
@@ -88,6 +100,10 @@ export const ALL_FILTER_OPS: readonly FilterOp[] = [
   "relative",
   "isnull",
   "notnull",
+  "contains-any",
+  "contains-all",
+  "excludes-any",
+  "excludes-all",
 ];
 
 export function defaultOpsFor(dataType: FilterDataType): readonly FilterOp[] {
@@ -104,6 +120,8 @@ export function defaultOpsFor(dataType: FilterDataType): readonly FilterOp[] {
       return BOOLEAN_OPS;
     case "relation":
       return RELATION_OPS;
+    case "multi_enum":
+      return MULTI_ENUM_OPS;
   }
 }
 
@@ -127,6 +145,13 @@ export const OP_LABEL: Record<FilterOp, string> = {
   relative: "is in the",
   isnull: "is empty",
   notnull: "is not empty",
+  // Match the existing enum-multi labels where possible — `contains` /
+  // `does not contain` mirror the `in` / `not-in` labels on regular enums,
+  // so the chip text reads consistently across data types.
+  "contains-any": "contains",
+  "contains-all": "contains all",
+  "excludes-any": "is missing",
+  "excludes-all": "does not contain",
 };
 
 /** Capitalize the first letter of a string (for dropdown labels). */
@@ -168,6 +193,8 @@ export function defaultOpFor(dataType: FilterDataType): FilterOp {
       return "eq";
     case "relation":
       return "in";
+    case "multi_enum":
+      return "contains-any";
   }
 }
 
@@ -177,6 +204,10 @@ export function defaultValueFor(op: FilterOp): FilterValue {
       return [0, 0];
     case "in":
     case "not-in":
+    case "contains-any":
+    case "contains-all":
+    case "excludes-any":
+    case "excludes-all":
       return [];
     case "relative":
       return { n: 7, unit: "days", dir: "past" } satisfies RelativeValue;

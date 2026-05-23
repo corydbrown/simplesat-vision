@@ -41,6 +41,8 @@ export function propertiesToDescriptors<T>(
       dataType: p.filter.dataType,
       ops: p.filter.ops,
       enumValues: p.filter.enumValues,
+      enumValuesSource: p.filter.enumValuesSource,
+      dynamicValuesKey: p.filter.dynamicValuesKey,
     });
   }
   return out;

@@ -1,6 +1,7 @@
 import {
   DATE_OPS,
   ENUM_OPS,
+  MULTI_ENUM_OPS,
   NUMERIC_OPS,
   RELATION_OPS,
   STRING_OPS,
@@ -36,6 +37,15 @@ export const TICKET_FILTER_SPECS = {
   // Response rating via correlated subquery — powers the Detractors view.
   // Numeric so users can express other rating cutoffs.
   response_rating: { dataType: "number", ops: NUMERIC_OPS },
+  // Tags is a JSON-array column — multi_enum semantics. Values are
+  // user-defined, so the popover fetches the distinct in-use set with
+  // counts from the server.
+  tags: {
+    dataType: "multi_enum",
+    ops: MULTI_ENUM_OPS,
+    enumValuesSource: "dynamic",
+    dynamicValuesKey: "ticket.tags",
+  },
 } as const satisfies Record<string, PropertyFilter>;
 
 export type TicketFilterSpecId = keyof typeof TICKET_FILTER_SPECS;

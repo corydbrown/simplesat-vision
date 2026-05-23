@@ -19,6 +19,7 @@ export default async function ResponseDetailPage(
     comment: response.comment,
     respondedAt: response.respondedAt,
     answers: response.answers,
+    topics: response.topics,
     ticketId: response.ticket?.id ?? null,
     ticketSubject: response.ticket?.subject ?? null,
     ticketExternalId: response.ticket?.externalId ?? null,

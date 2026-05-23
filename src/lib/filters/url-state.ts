@@ -36,7 +36,14 @@ function sanitizeValue(op: FilterOp, raw: unknown): FilterValue {
     if (typeof a === "string" && typeof b === "string") return [a, b];
     return undefined;
   }
-  if (op === "in" || op === "not-in") {
+  if (
+    op === "in" ||
+    op === "not-in" ||
+    op === "contains-any" ||
+    op === "contains-all" ||
+    op === "excludes-any" ||
+    op === "excludes-all"
+  ) {
     if (!Array.isArray(raw)) return undefined;
     const strs = raw.filter((x): x is string => typeof x === "string");
     if (strs.length === raw.length) return strs;

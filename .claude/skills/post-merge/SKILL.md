@@ -15,7 +15,13 @@ The PR must be **MERGED**. If not, abort and tell Cory.
 
 ## Steps
 
-1. **Verify merge state**:
+1. **Merge with --delete-branch.** If invoking /post-merge as part of "merge N" trigger (not just for cleanup-after-someone-else-merged), use:
+   ```bash
+   gh pr merge <PR> --squash --delete-branch
+   ```
+   The `--delete-branch` flag deletes BOTH local and remote branch on success. **If the local delete fails** because the branch is still checked out in a worktree, that's expected — handle in step 3. **Always include `--delete-branch`** so we don't accumulate stale remote refs (the failure mode /sweep had to filter around).
+
+2. **Verify merge state**:
    - `gh pr view <PR> --json state,mergeCommit,headRefName,title`.
    - If state ≠ `MERGED`, stop and tell Cory ("PR #N is `<state>`, not merged — not cleaning up").
    - Capture: merge commit SHA (short), head branch name, PR title.

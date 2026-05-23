@@ -19,16 +19,30 @@ On-demand alternative to `/loop 15m sweep…`. Use when:
 
 2. **Detect pushed-but-not-PR'd branches.** Workers sometimes push their feature branch but stall before opening a PR (the SVP-71/74 failure mode). Catch and auto-PR:
    ```bash
+   git fetch origin --quiet  # ensure we have the latest refs
    git ls-remote --heads origin 'feat/svp*' | awk '{print $2}' | sed 's|refs/heads/||' > /tmp/pushed
    gh pr list --state open --json headRefName --jq '.[].headRefName' > /tmp/with-prs
    comm -23 <(sort /tmp/pushed) <(sort /tmp/with-prs) > /tmp/pushed-no-pr
    ```
-   For each branch in `/tmp/pushed-no-pr` that has commits ahead of `origin/main`:
+   **CRITICAL filter — only treat as stalled worker if branch has commits ahead of main.** Many old merged PRs leave stale remote refs (because `gh pr merge` doesn't `--delete-branch` by default). These show up in `/tmp/pushed-no-pr` but are NOT stalled work — they're merged + unpruned.
+
+   ```bash
+   for branch in $(cat /tmp/pushed-no-pr); do
+     ahead=$(git rev-list --count "origin/main..origin/$branch" 2>/dev/null || echo 0)
+     if [ "$ahead" -gt 0 ]; then
+       echo "ACTUAL stalled worker: $branch ($ahead commits ahead)"
+     fi
+   done
+   ```
+
+   For each branch that IS ahead of main:
    - Parse `SVP-N` from the branch name (`feat/svpNN-...` → `SVP-NN`).
    - Fetch the Notion task to get title + acceptance criteria.
    - `gh pr create` with title from the most-recent commit subject, body templated from the Notion task's Scope + Acceptance sections, plus a footer: `Auto-opened by /sweep — worker pushed but didn't open a PR.`
    - Post Slack to `#simplesat-vision-prototype`: `🤖 /sweep auto-opened PR #N for svp-N (worker pushed without opening).`
    - Treat the freshly-opened PR as a NEW PR in the review step below.
+
+   For each branch that has 0 commits ahead of main: silently ignore — it's a stale merged ref. Optional hygiene pass: report the count in the sweep output ("N stale remote refs detected — clean up via `gh api -X DELETE repos/<owner>/<repo>/git/refs/heads/<branch>` per branch, or batch via the cleanup skill once it supports remote pruning").
 
 3. **List open PRs** via `gh pr list --state open --json number,title,headRefName,createdAt`.
 

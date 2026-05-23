@@ -12,6 +12,7 @@ import {
   ticketQaScoreExpr,
   ticketQaStatusExpr,
 } from "@/lib/filters/fields/tickets";
+import { TICKET_SIGNAL_SELECT, mapSignals } from "./tickets";
 import type { Filter } from "@/lib/filters/types";
 import { compileGroupOrderBy } from "@/lib/group/compile";
 import { CUSTOMER_GROUP_FIELDS } from "@/lib/group/fields/customers";
@@ -202,6 +203,7 @@ export async function getCustomerTickets(
       },
       qaScore: ticketQaScoreExpr,
       qaStatus: ticketQaStatusExpr,
+      ...TICKET_SIGNAL_SELECT,
     })
     .from(schema.tickets)
     .leftJoin(
@@ -230,6 +232,7 @@ export async function getCustomerTickets(
     response: r.response?.id ? r.response : null,
     qaScore: r.qaScore,
     qaStatus: r.qaStatus,
+    signals: mapSignals(r),
   }));
 }
 

@@ -1,5 +1,6 @@
 import type { MultiEnumResolver } from "@/lib/filters/multi-enum-resolvers";
 import {
+  BOOLEAN_OPS,
   DATE_OPS,
   ENUM_OPS,
   MULTI_ENUM_OPS,
@@ -66,6 +67,16 @@ export const TICKET_FILTER_SPECS = {
     enumValuesSource: "dynamic",
     dynamicValuesKey: "ticket.tags",
   },
+  // Ticket-event derived signals (PRD Part 8). All compiled on the fly via
+  // correlated subqueries — see ../fields/tickets.ts for SQL. Surface as both
+  // filterable properties and as icon chips on the Tickets list row.
+  had_transfer: { dataType: "boolean", ops: BOOLEAN_OPS },
+  reassignment_count: { dataType: "number", ops: NUMERIC_OPS },
+  queue_wait_hours: { dataType: "number", ops: NUMERIC_OPS },
+  sla_breached: { dataType: "boolean", ops: BOOLEAN_OPS },
+  escalated: { dataType: "boolean", ops: BOOLEAN_OPS },
+  customer_reply_count: { dataType: "number", ops: NUMERIC_OPS },
+  longest_idle_hours: { dataType: "number", ops: NUMERIC_OPS },
 } as const satisfies Record<string, PropertyFilter>;
 
 export type TicketFilterSpecId = keyof typeof TICKET_FILTER_SPECS;

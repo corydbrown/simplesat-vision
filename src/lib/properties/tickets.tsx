@@ -1,18 +1,25 @@
 "use client";
 
 import {
+  AlertTriangle,
+  ArrowRightLeft,
   Building2,
   Calendar,
   CalendarCheck,
   CalendarClock,
   CheckCircle2,
+  ChevronUp,
   CircleDot,
   ClipboardCheck,
+  Clock,
   Flag,
   Gauge,
   Hash,
   Headphones,
+  Hourglass,
   Inbox,
+  MessageCircle,
+  Sparkles,
   Star,
   Tag as TagIcon,
   Timer,
@@ -22,6 +29,7 @@ import {
 } from "lucide-react";
 import { ChannelPill } from "@/components/tickets/channel-pill";
 import { PriorityPill } from "@/components/tickets/priority-pill";
+import { SignalsCell } from "@/components/tickets/signals-cell";
 import { StatusPill } from "@/components/tickets/status-pill";
 import { SurveyStateCell } from "@/components/tickets/survey-state-cell";
 import {
@@ -266,6 +274,130 @@ export const TICKET_PROPERTIES: Property<TicketsRow>[] = [
     groupLabel: (v) => QA_BUCKET_LABEL[v as QaScoreBucket] ?? v,
     nullGroupLabel: QA_BUCKET_LABEL["not-scored"],
     cell: (t) => <QaScoreBadge score={t.qaScore} status={t.qaStatus} />,
+  },
+  {
+    // Aggregate icon-chip column that surfaces every triggered ticket-event
+    // signal on a row. Individual signals also exist as filter-only columns
+    // below so each is filterable in its own right; this column is the
+    // at-a-glance visual.
+    id: "signals",
+    label: "Signals",
+    width: 130,
+    icon: Sparkles,
+    sourceEntity: "Ticket",
+    defaultVisible: true,
+    cell: (t) => <SignalsCell signals={t.signals} />,
+  },
+  // -- Ticket-event signals (filter-only columns) -------------------------
+  // These properties exist so each signal is independently filterable via
+  // the Filter chooser. The visible "Signals" column above renders the chips;
+  // these columns stay hidden by default but can be toggled on for cases
+  // where a user wants the raw numeric column.
+  {
+    id: "had_transfer",
+    label: "Had transfer",
+    width: 130,
+    icon: ArrowRightLeft,
+    sourceEntity: "Ticket",
+    defaultVisible: false,
+    filter: TICKET_FILTER_SPECS.had_transfer,
+    cell: (t) => (
+      <span className="text-muted-foreground">
+        {t.signals.hadTransfer ? "Yes" : "No"}
+      </span>
+    ),
+  },
+  {
+    id: "reassignment_count",
+    label: "Reassignments",
+    width: 130,
+    icon: ArrowRightLeft,
+    sourceEntity: "Ticket",
+    defaultVisible: false,
+    align: "right",
+    filter: TICKET_FILTER_SPECS.reassignment_count,
+    cell: (t) => (
+      <span className="tabular-nums text-muted-foreground">
+        {t.signals.reassignmentCount}
+      </span>
+    ),
+  },
+  {
+    id: "queue_wait_hours",
+    label: "Queue wait (hrs)",
+    width: 140,
+    icon: Clock,
+    sourceEntity: "Ticket",
+    defaultVisible: false,
+    align: "right",
+    filter: TICKET_FILTER_SPECS.queue_wait_hours,
+    cell: (t) => (
+      <span className="tabular-nums text-muted-foreground">
+        {t.signals.queueWaitHours == null
+          ? "—"
+          : t.signals.queueWaitHours.toFixed(1)}
+      </span>
+    ),
+  },
+  {
+    id: "sla_breached",
+    label: "SLA breached",
+    width: 130,
+    icon: AlertTriangle,
+    sourceEntity: "Ticket",
+    defaultVisible: false,
+    filter: TICKET_FILTER_SPECS.sla_breached,
+    cell: (t) => (
+      <span className="text-muted-foreground">
+        {t.signals.slaBreached ? "Yes" : "No"}
+      </span>
+    ),
+  },
+  {
+    id: "escalated",
+    label: "Escalated",
+    width: 110,
+    icon: ChevronUp,
+    sourceEntity: "Ticket",
+    defaultVisible: false,
+    filter: TICKET_FILTER_SPECS.escalated,
+    cell: (t) => (
+      <span className="text-muted-foreground">
+        {t.signals.escalated ? "Yes" : "No"}
+      </span>
+    ),
+  },
+  {
+    id: "customer_reply_count",
+    label: "Customer replies",
+    width: 140,
+    icon: MessageCircle,
+    sourceEntity: "Ticket",
+    defaultVisible: false,
+    align: "right",
+    filter: TICKET_FILTER_SPECS.customer_reply_count,
+    cell: (t) => (
+      <span className="tabular-nums text-muted-foreground">
+        {t.signals.customerReplyCount}
+      </span>
+    ),
+  },
+  {
+    id: "longest_idle_hours",
+    label: "Longest idle (hrs)",
+    width: 150,
+    icon: Hourglass,
+    sourceEntity: "Ticket",
+    defaultVisible: false,
+    align: "right",
+    filter: TICKET_FILTER_SPECS.longest_idle_hours,
+    cell: (t) => (
+      <span className="tabular-nums text-muted-foreground">
+        {t.signals.longestIdleHours == null
+          ? "—"
+          : t.signals.longestIdleHours.toFixed(1)}
+      </span>
+    ),
   },
   {
     id: "created_at",

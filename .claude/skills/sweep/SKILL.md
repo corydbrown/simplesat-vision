@@ -1,50 +1,69 @@
 ---
 name: sweep
-description: On-demand sweep of open PRs — review any I haven't reviewed yet (compare against my recent transcript), post verdict here for each. The single-shot version of the /loop pattern.
+description: On-demand sweep of open PRs + Slack escalations + auto-PR-on-pushed-branch. Eliminates "is the worker done?" checking — pushed work surfaces as an open PR ready for review within one sweep cycle.
 ---
 
-# /sweep — review all open PRs not yet seen
+# /sweep — review all open PRs, surface Slack escalations, auto-PR pushed branches
 
 Usage: `/sweep`
 
-On-demand alternative to running `/loop 15m sweep open PRs…`. Useful when:
+On-demand alternative to `/loop 15m sweep…`. Use when:
 
 - Cory just came back and wants a status check
-- A long-running worker just pushed and Cory wants the review now
-- Between merges, to see what landed since the last review
+- A long-running worker just pushed; review now
+- Between merges, to see what landed since last review
 
 ## Steps
 
-1. **List open PRs** via `gh pr list --state open --json number,title,headRefName,createdAt`.
+1. **Read Slack escalations** from `#simplesat-vision-prototype` (channel ID `C0B5AQ52FFZ`) via `mcp__claude_ai_Slack__slack_read_channel`. Filter for messages newer than the last sweep that match the worker escalation format (`svp-N blocked: ...`). **Surface these first** — a blocked worker is more urgent than any PR.
 
-2. **Read Slack escalations** from `#simplesat-vision-prototype` via `mcp__claude_ai_Slack__slack_read_channel`. Filter for messages that match the worker escalation format (`@cory svp-N blocked: ...`) and that are newer than the last sweep. Surface these prominently at the top of the output — a blocked worker is more urgent than a new PR.
+2. **Detect pushed-but-not-PR'd branches.** Workers sometimes push their feature branch but stall before opening a PR (the SVP-71/74 failure mode). Catch and auto-PR:
+   ```bash
+   git ls-remote --heads origin 'feat/svp*' | awk '{print $2}' | sed 's|refs/heads/||' > /tmp/pushed
+   gh pr list --state open --json headRefName --jq '.[].headRefName' > /tmp/with-prs
+   comm -23 <(sort /tmp/pushed) <(sort /tmp/with-prs) > /tmp/pushed-no-pr
+   ```
+   For each branch in `/tmp/pushed-no-pr` that has commits ahead of `origin/main`:
+   - Parse `SVP-N` from the branch name (`feat/svpNN-...` → `SVP-NN`).
+   - Fetch the Notion task to get title + acceptance criteria.
+   - `gh pr create` with title from the most-recent commit subject, body templated from the Notion task's Scope + Acceptance sections, plus a footer: `Auto-opened by /sweep — worker pushed but didn't open a PR.`
+   - Post Slack to `#simplesat-vision-prototype`: `🤖 /sweep auto-opened PR #N for svp-N (worker pushed without opening).`
+   - Treat the freshly-opened PR as a NEW PR in the review step below.
 
-3. **Compare PRs against recent transcript**. PRs I've already reviewed in this session should not be re-reviewed unless a new commit has landed on them since last review.
+3. **List open PRs** via `gh pr list --state open --json number,title,headRefName,createdAt`.
+
+4. **Compare PRs against recent transcript.** PRs already reviewed in this session should not be re-reviewed unless a new commit has landed since last review.
    - Track-checks: PR title in my recent messages, last commit SHA known vs current.
    - If a PR has been re-pushed (rebase / new commits), treat as fresh and re-review.
 
-4. **For each NEW or UPDATED PR**: run a full code review per the `/review` skill's flow:
+5. **For each NEW or UPDATED PR**: full code review per the `/review` skill flow:
    - Pull metadata + diff
-   - Read key implementation files from the worktree (faster than diff parsing)
+   - Read key implementation files from the worktree
    - Run pre-flight (tsc + lint) on the worktree
-   - Compare against the brief from the Notion task
-   - Post a structured verdict: overview, what's right, things to push on, verdict (ship-it / fix-then-ship / hold)
-   - **Per [[feedback-nits-inline]]**: if any nits surface, fix them in this turn — don't file as follow-ups.
+   - Compare against the brief (from `<worktree>/BRIEF.md` or the Notion task)
+   - Post structured verdict: overview, what's right, things to push on, verdict (ship-it / fix-then-ship / hold)
+   - **Per [[feedback-nits-inline]]**: nits get fixed in this turn, not filed as follow-ups. Supervisor commits to the worker branch authorized.
 
-5. **For SKIPPED PRs** (already reviewed, no new commits): one-line acknowledgment ("PR #N — no new commits since last review, verdict stands").
+6. **For SKIPPED PRs** (already reviewed, no new commits): one-line acknowledgment.
 
-6. **If no open PRs AND no Slack escalations**: "no new PRs, no Slack escalations" and end the turn.
+7. **If no escalations + no new/updated PRs + no pushed-no-PR branches**: "no new PRs, no Slack escalations, no stalled workers" and end the turn.
 
-7. **End-of-turn output**: Slack escalations first (if any), then PR verdicts, then status block.
+8. **End-of-turn output order**:
+   1. Slack escalations (most urgent)
+   2. Auto-opened PRs (need first review)
+   3. PR verdicts for new/updated PRs
+   4. Skipped PR acknowledgments
+   5. Status block
 
 ## When NOT to use /sweep
 
-- When you specifically want to review one PR — use `/review <PR>` instead.
-- When you want autonomous recurring polling — use `/loop 15m sweep open PRs…` instead.
+- When you want to review one specific PR — use `/review <PR>` instead.
+- When you want recurring autonomous polling — use `/loop 15m sweep…` instead.
 
 ## Cross-references
 
 - `/review` — single-PR deep review
 - `/loop` — recurring autonomous version
 - [[feedback-nits-inline]] — fix nits in the same turn as the review
-- CLAUDE.md → "Definition of done" — status block format for verdicts
+- STOP_CONDITIONS.md → "Escalation channel" — Slack channel + format
+- CLAUDE.md → "Definition of done" — status block format

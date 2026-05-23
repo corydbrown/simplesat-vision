@@ -31,6 +31,21 @@ The corollary: when you find yourself writing throwaway code "just for the proto
 
 If you only read one section of this file: read **Conventions** and **Don't do**.
 
+## Worker session bootstrap (auto-loaded)
+
+If this session is running in a **worktree** (cwd matches `simplesat-vision-worktrees/svp<N>-*`), check for `BRIEF.md` at the worktree root **on the first user message**.
+
+- If `BRIEF.md` exists → it IS the task definition. Read it end-to-end, post the "starting" Slack heartbeat per the brief, plan, and execute. Don't wait for additional instructions from Cory; the brief is the contract.
+- If `BRIEF.md` does NOT exist → this is an ad-hoc worker session. Ask Cory what the task is.
+
+The first user message in a `/spawn`-launched session is typically just `go` or `start` — that's by design. The actual brief is on disk; the chat just kicks the session.
+
+**Worker hygiene:**
+- Slack heartbeats at the brief's checkpoints (starting / first commit / PR opened / blocked).
+- STOP_CONDITIONS.md governs when to escalate vs improvise.
+- Pre-flight gates run before "ready for review" — see the brief.
+- Push your branch when the work is in a coherent state, even before opening a PR. The supervisor's `/sweep` auto-opens PRs for pushed-but-not-PR'd branches.
+
 ## Working with Cory — concierge mode
 
 Cory is non-technical. Operate accordingly:

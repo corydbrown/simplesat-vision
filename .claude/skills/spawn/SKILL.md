@@ -1,75 +1,100 @@
 ---
 name: spawn
-description: Spawn a worker for a Notion task — fetches the task, runs nw with svpNN- prefix, opens VS Code, drafts the paste-ready worker brief. Replaces the manual 5-step spawn ceremony.
+description: Spawn a worker for a Notion task — fetches the task, runs nw with svpNN- prefix, writes BRIEF.md into the worktree, opens VS Code, posts Slack heartbeat. Worker just needs Cory to type "go" in the new session.
 ---
 
-# /spawn — one-shot worker spinup
+# /spawn — one-shot worker spinup with brief-as-file
 
 Usage: `/spawn <SVP-NN>` (e.g. `/spawn SVP-80`)
 
-Eliminates the multi-step ceremony: fetch task → decide branch name → `nw` → `code` → mark In Progress → draft brief.
+Eliminates copy-paste: instead of including the brief in the chat for Cory to paste, **the brief is written to `<worktree>/BRIEF.md`**. The worker session loads CLAUDE.md → sees the worker-bootstrap instruction → reads BRIEF.md → executes. Cory's job is reduced to opening the VS Code window + typing "go".
 
 ## Steps
 
-1. **Fetch the Notion task** by ID:
-   - Resolve the task page via `mcp__claude_ai_Notion__notion-fetch` with the SVP-NN as the search query, OR if you already have the page ID, fetch directly.
-   - Extract: task title, full body, Type, Area, Priority, Effort, Dependencies, Epic relation (if any).
-   - **Stop** if the task is not in `Ready` status — confirm with Cory before promoting from Backlog.
+1. **Fetch the Notion task** by ID via `mcp__claude_ai_Notion__notion-fetch`. Extract: task title, full body, Type, Area, Priority, Effort, Dependencies, Epic relation.
+   - **Stop** if task is not in `Ready` status — confirm with Cory before promoting from Backlog.
 
-2. **Compute branch slug** from the task title:
-   - Lowercase, kebab-case, drop punctuation, max 4 words.
-   - Format: `svp<N>-<slug>`. Examples: `svp80-tag-filter-tooltips`, `svp81-csv-export`.
-   - **No leading hyphens, no double hyphens, no trailing hyphens.**
+2. **Compute branch slug** from the task title: lowercase, kebab-case, drop punctuation, max 4 words. Format: `svp<N>-<slug>`. Examples: `svp80-tag-filter-tooltips`, `svp81-csv-export`. No leading/trailing/double hyphens.
 
-3. **Spawn the worktree** via `nw <slug>`:
-   - Confirms branch name, port, path.
-   - **Stop** if `nw` errors (port collision, dirty state, etc.) — surface to Cory.
+3. **Spawn the worktree** via `nw <slug>`. **Stop** if `nw` errors (port collision, dirty state) — surface to Cory.
 
-4. **Open VS Code** at the new worktree path: `code <worktree-path>`.
+4. **Write BRIEF.md** to the worktree root via the Write tool. Format below.
 
-5. **Update Notion**:
-   - Set Status → `In Progress`.
-   - Set `Started at` → current datetime (ISO 8601 with Bangkok offset `+07:00`).
-   - Append a Claude Code note: `- YYYY-MM-DD: Spawned worktree feat/<branch> on port <N>.` Mention parallel workers if any are active.
+5. **Open VS Code** at the new worktree path: `code <worktree-path>`.
 
-6. **Draft the paste-ready brief**. Format:
+6. **Update Notion**:
+   - Status → `In Progress`
+   - `Started at` → current ISO 8601 datetime with `+07:00` offset
+   - Append note: `- YYYY-MM-DD: Spawned worktree feat/<branch> on port <N>. Brief written to BRIEF.md.`
 
-   ````markdown
-   🪟 **SVP-NN — <task title>** · port <N> · `feat/<branch>`
+7. **Post Slack heartbeat** to `#simplesat-vision-prototype` (channel ID `C0B5AQ52FFZ`): `🛠 Spawned svp-N — <one-line title>. Port <N>. Cory: open the VS Code window + type "go".`
 
-   Paste into the new VS Code window:
+8. **End-of-turn output** for Cory — a tight handoff:
+   > 🛠 SVP-NN spawned · port `<N>` · `feat/<branch>`. VS Code window opened. BRIEF.md written.
+   >
+   > **Open the new VS Code window → Cmd+Shift+P → "View: Show Claude Code" → New Session → type `go`.**
+   >
+   > Worker will read BRIEF.md, plan, and execute. Slack heartbeats land in `#simplesat-vision-prototype`. PR will auto-open via /sweep when pushed.
 
-   ```
-   /start
-   The task: SVP-NN — <one-line task description>
+## BRIEF.md format
 
-   <scope details from the Notion task body, condensed>
+````markdown
+# SVP-NN — <task title>
 
-   <"What would change my mind" criteria if applicable>
+<one-line task statement: what's the actual goal>
 
-   <Parallel workers heads-up if other worktrees are active>
+## Scope
 
-   Per [STOP_CONDITIONS.md](STOP_CONDITIONS.md): commit + push + Slack `@cory` if blocked 15 min, schema/auth/deps changes need explicit yes.
+<scope details from Notion task body, condensed if needed>
 
-   Pre-flight before declaring ready: npx tsc --noEmit clean, npm run lint clean, dev server boots at localhost:<N>, manual walk of the changed surface in both light + dark mode.
+## What would change my mind
 
-   Full brief: <Notion task URL>
-   ```
-   ````
+<explicit criteria where worker should stop and re-check. Examples:
+- "If you find that <Y> turned out to be the case, stop — that changes the approach."
+- "If pre-existing pattern <X> doesn't compose with what's being asked, stop and Slack me."
+If no specific criteria apply, omit this section but DO note: "Use STOP_CONDITIONS soft-stop judgment on premise-wrong situations.">
 
-7. **End-of-turn output**:
-   - Worktree path + branch + port (clickable links).
-   - The brief block above, paste-ready.
-   - Status block per CLAUDE.md "Definition of done."
+## Parallel workers active
+
+<list of other active SVP-NNs + surfaces they touch — for collision avoidance.
+If solo, write "None.">
+
+## Pre-flight gates (run before declaring ready)
+
+- `npx tsc --noEmit` clean (PageProps errors are a pre-existing Next 16 issue, ignore those)
+- `npm run lint` clean
+- Dev server boots at `localhost:<port>`
+- Manual walk of the changed surface in both light + dark mode
+- Playwright smoke for any new visible surface (see `playwright.config.ts` once SVP-Playwright lands)
+
+## STOP_CONDITIONS
+
+Per [STOP_CONDITIONS.md](STOP_CONDITIONS.md):
+- Hard stops: schema changes, auth/permissions, new deps, DECISIONS.md/CLAUDE.md changes → explicit yes required
+- Soft stops: 15 min blocked, scope drift > 10 files, brief premise wrong → commit WIP, push, Slack `@cory` in `#simplesat-vision-prototype`
+- Format: `@cory svp-N blocked: <reason>. WIP at <sha>. Worktree port <N>.`
+
+## Slack heartbeats — post to #simplesat-vision-prototype at these points
+
+- **Starting**: `svp-N starting — <one-line plan>`
+- **First commit**: `svp-N first commit pushed (<sha>) — <what was done>`
+- **PR opened**: `svp-N PR #N opened — ready for review`
+- **Blocked** (per STOP_CONDITIONS above)
+
+## Full Notion task
+
+<URL>
+````
 
 ## When NOT to use /spawn
 
-- For epic-foundation tasks (Phase 1 of an epic) — these warrant explicit supervisor brief writing with extra architectural context. Use `/spawn` for sibling Phase 2+ tasks where the foundation is already shipped.
-- When the task is genuinely ambiguous and needs a discussion before spawning. `/spawn` assumes the brief is good-enough as written; if it isn't, fix the Notion task first.
+- For **epic-foundation tasks** (Phase 1 of an epic) — these warrant explicit supervisor brief writing with extra architectural context. Use /spawn for Phase 2+ siblings.
+- When the task is genuinely ambiguous and needs a discussion before spawning. Fix the Notion task first.
 
 ## Cross-references
 
-- CLAUDE.md → "Spawning worktrees" — the rules around the 3-worker cap, collision checks
-- CLAUDE.md → "Sample-then-fan-out" — when to use one spawn vs many
+- CLAUDE.md → "Worker session bootstrap" — the instruction that tells worker sessions to read BRIEF.md
+- CLAUDE.md → "Worker brief template" — the canonical brief shape
+- CLAUDE.md → "Spawning worktrees" — 3-worker cap, collision rules
 - STOP_CONDITIONS.md — what workers escalate
-- [[feedback-worktree-naming]] memory — svp-prefix convention
+- [[feedback-worktree-naming]] — svp-prefix convention

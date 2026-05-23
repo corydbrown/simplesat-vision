@@ -26,6 +26,7 @@ The corollary: when you find yourself writing throwaway code "just for the proto
 - [DECISIONS.md](DECISIONS.md) — explicit assumptions made along the way
 - [AGENTS.md](AGENTS.md) — Next.js 16 gotchas (loaded automatically)
 - [NOTION.md](NOTION.md) — Tasks DB schema + how agents create deferral tasks
+- [STOP_CONDITIONS.md](STOP_CONDITIONS.md) — when workers stop and Slack the supervisor (hard stops, soft stops, quiet warnings)
 - [README.md](README.md) — surface-level quickstart
 
 If you only read one section of this file: read **Conventions** and **Don't do**.
@@ -68,10 +69,40 @@ Always detect which role the current session is playing before suggesting action
 
 ### Spawning worktrees
 
-- **Cap at 3 active workers.** Cory's context-switching ceiling. If 3 worktrees are already running and a 4th is requested, recommend waiting for one to ship first.
+- **Use [`/spawn <SVP-NN>`](.claude/skills/spawn/SKILL.md) for the routine case.** It fetches the Notion task, runs `nw` with the svp-prefix convention, opens VS Code, marks Notion In Progress, and drafts the paste-ready brief in one shot. Manual `nw` + `code` + Notion ceremony is only needed for non-task spinups.
+- **Cap at 3 active workers by default.** Cory's context-switching ceiling. Going over is fine when Cory explicitly authorizes ("OK to break the rule of 3" or similar).
 - **Check collision risk before spawning** when one or more workers are active. Scan the planned scope of the new feature against the surfaces active workers touch. Same surface (toolbar, EntityTable, queries, property registries, shared component) = collision guaranteed → recommend sequential. Different surfaces (CSS tokens vs SQL queries, `/reports` vs list pages, schema additions vs UI) = parallel is safe.
+- **Sibling task drift is the real risk, not file conflicts.** When two workers ship to the same shared file (e.g. `score-color.ts`, common helpers), they often produce divergent shapes because their briefs had different language. Mitigation: when filing sibling sub-tasks under an epic, **put shared decisions in the epic body, not duplicated into each sub-task brief**. The Epic relation on Tasks supports this naturally.
 - **When in doubt, ask Cory before spawning.** Name the active workers, name the surfaces the new one would touch, recommend go or wait.
-- **After `nw <feature>` succeeds, immediately run `code <worktree-path>`** to auto-open the folder in a new VS Code window. Cory uses the VS Code Claude Code extension — opening the folder for him saves the "File → Open Folder" step. Then in the handoff message, only ask him to: (1) `Cmd+Shift+P` → "View: Show Claude Code" → New Session, (2) paste the worker brief.
+
+### Sample-then-fan-out
+
+For epics with N > 3 sub-tasks, **ship one foundational PR first** before fanning out parallel siblings. The foundational PR establishes the data model + architectural choices that downstream tasks will read from; it's the load-bearing review. Once Cory greenlights direction on the first PR, the rest can spawn in parallel with confidence.
+
+Concretely:
+- Phase 1: one worker on the foundation (e.g. SVP-53 for the QA epic — schema + scoring service + seed).
+- Phase 2+: fan-out of siblings (e.g. SVP-54, SVP-55, etc.) once Phase 1 lands.
+
+Don't spawn the whole epic at once just because the worker cap allows it — half a day of parallel work is wasted if the foundation needs reshaping.
+
+### Worker brief template
+
+Every brief I draft for a worker session — whether via `/spawn` or written manually — should hit these sections in order:
+
+1. **One-line task statement** (`The task: SVP-NN — <one sentence>`).
+2. **Scope** — the work to do, concrete file references where possible.
+3. **What would change my mind** — explicit criteria where the worker should stop and re-check. Example: *"If you find that the existing pattern doesn't compose with what I'm asking, stop and Slack me — that changes the approach."* These catch wrong-direction work before it becomes wasted-hours work.
+4. **Parallel workers heads-up** (if any active) — list the active SVP-NNs + the surfaces they touch. Lets the worker know what to avoid.
+5. **STOP_CONDITIONS** reference — `Per [STOP_CONDITIONS.md](STOP_CONDITIONS.md): commit + push + Slack \`@cory\` if blocked 15 min, schema/auth/deps need explicit yes.` Workers should know to escalate, not improvise.
+6. **Pre-flight gates** — `npx tsc --noEmit clean, npm run lint clean, dev server boots at localhost:<N>, manual walk of the changed surface in both light + dark mode.` Workers self-validate before declaring ready.
+7. **Full brief link** — Notion task URL for any deeper context.
+
+`/spawn` produces this shape automatically. Manual briefs should follow the same template.
+
+### After `nw <feature>` (or `/spawn`)
+
+- VS Code auto-opens via the `code` command (or `/spawn` handles it).
+- Handoff message to Cory: (1) `Cmd+Shift+P` → "View: Show Claude Code" → New Session, (2) paste the worker brief.
 
 ### Spoiling Cory
 

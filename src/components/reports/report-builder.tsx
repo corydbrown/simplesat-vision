@@ -532,6 +532,7 @@ export function ReportBuilder({ initialConfig }: Props) {
               filters={config.filters}
               onChange={setFilters}
               droppableId="filters"
+              supportCombinator={false}
             />
           </div>
 

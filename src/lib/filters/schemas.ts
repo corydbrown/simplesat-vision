@@ -54,10 +54,16 @@ export const FilterValueSchema = z.union([
   z.null(),
 ]);
 
+/** Combinator for "how do I combine with the previous filter row." Absent on
+ *  the first row (no previous row to combine with); on subsequent rows,
+ *  absent defaults to "AND" so existing saved views + URLs keep working. */
+export const FilterCombinatorSchema = z.enum(["AND", "OR"]);
+
 export const FilterSchema = z
   .object({
     propertyId: z.string().min(1),
     op: FilterOpSchema,
     value: FilterValueSchema.optional(),
+    combinator: FilterCombinatorSchema.optional(),
   })
   .strict();

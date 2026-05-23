@@ -1,5 +1,6 @@
 import type { z } from "zod";
 import type {
+  FilterCombinatorSchema,
   FilterDataTypeSchema,
   FilterOpSchema,
   FilterSchema,
@@ -11,6 +12,7 @@ import type {
 
 export type FilterDataType = z.infer<typeof FilterDataTypeSchema>;
 export type FilterOp = z.infer<typeof FilterOpSchema>;
+export type FilterCombinator = z.infer<typeof FilterCombinatorSchema>;
 export type RelativeUnit = z.infer<typeof RelativeUnitSchema>;
 export type RelativeDir = z.infer<typeof RelativeDirSchema>;
 export type RelativeValue = z.infer<typeof RelativeValueSchema>;

@@ -9,7 +9,7 @@ import {
   Trash2,
   X,
 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import { Calendar } from "@/components/ui/calendar";
 import {
   DropdownMenu,
@@ -49,6 +49,7 @@ import {
   opLabel,
   opNeedsValue,
   type Filter,
+  type FilterCombinator,
   type FilterOp,
   type FilterValue,
   type RelativeDir,
@@ -74,6 +75,11 @@ type FilterRowProps = {
    *  `overAxis === "filters"` branch in report-builder.tsx. List pages omit. */
   droppableId?: string;
   className?: string;
+  /** Whether to render the AND/OR combinator toggle between rows. List pages
+   *  default true (the list-filter compiler honours combinators per SVP-80).
+   *  Reports pass false — the reports compiler AND's filters unconditionally,
+   *  so showing the toggle there would be misleading. */
+  supportCombinator?: boolean;
 };
 
 export function FilterRow({
@@ -82,6 +88,7 @@ export function FilterRow({
   onChange,
   droppableId,
   className,
+  supportCombinator = true,
 }: FilterRowProps) {
   const [autoOpenIndex, setAutoOpenIndex] = useState<number | null>(null);
 
@@ -90,7 +97,29 @@ export function FilterRow({
     arr[i] = next;
     onChange(arr);
   };
+  const setCombinatorAt = (i: number, combinator: FilterCombinator) => {
+    if (i <= 0) return;
+    const arr = [...filters];
+    const current = arr[i];
+    // Only persist "OR"; AND is the default so we omit the key to keep the
+    // URL-encoded and saved-view canonical forms compact.
+    if (combinator === "OR") {
+      arr[i] = { ...current, combinator: "OR" };
+    } else {
+      const next: Filter = { ...current };
+      delete next.combinator;
+      arr[i] = next;
+    }
+    onChange(arr);
+  };
   const removeAt = (i: number) => {
+    // Removing a row shouldn't strand the next row's "previous combinator"
+    // pointing at the wrong neighbour. If row[i] is being removed and row[i+1]
+    // carries an explicit combinator, the combinator describes how it joined
+    // to row[i]; once row[i] is gone, row[i+1] becomes the new boundary that
+    // joins to row[i-1]. Behavior is unchanged for AND (the implicit default),
+    // but if the removed row had OR before it and the surviving row didn't,
+    // we keep things simple: just drop the row, leave the others untouched.
     onChange(filters.filter((_, idx) => idx !== i));
     if (autoOpenIndex === i) setAutoOpenIndex(null);
   };
@@ -103,15 +132,22 @@ export function FilterRow({
     <FilterRowDroppable id={droppableId} className={className}>
       <div className="flex min-w-0 flex-wrap items-center gap-1.5">
         {filters.map((f, i) => (
-          <FilterChip
-            key={`${f.propertyId}-${i}`}
-            filter={f}
-            fields={fields}
-            autoOpen={autoOpenIndex === i}
-            onAutoOpenConsumed={() => setAutoOpenIndex(null)}
-            onUpdate={(next) => updateAt(i, next)}
-            onDelete={() => removeAt(i)}
-          />
+          <Fragment key={`${f.propertyId}-${i}`}>
+            {supportCombinator && i > 0 && (
+              <CombinatorToggle
+                combinator={f.combinator ?? "AND"}
+                onChange={(next) => setCombinatorAt(i, next)}
+              />
+            )}
+            <FilterChip
+              filter={f}
+              fields={fields}
+              autoOpen={autoOpenIndex === i}
+              onAutoOpenConsumed={() => setAutoOpenIndex(null)}
+              onUpdate={(next) => updateAt(i, next)}
+              onDelete={() => removeAt(i)}
+            />
+          </Fragment>
         ))}
         <FilterAddTrigger fields={fields} onAdd={add} />
       </div>
@@ -608,6 +644,50 @@ function FieldPicker({
         )}
       </div>
     </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Combinator toggle (AND / OR) — appears between filter rows on list pages
+// when supportCombinator is true. The first row never renders it; only rows
+// at index > 0 carry a combinator describing how they join to the previous
+// row's accumulated expression. See `compileListFilters` for the fold.
+// ---------------------------------------------------------------------------
+
+function CombinatorToggle({
+  combinator,
+  onChange,
+}: {
+  combinator: FilterCombinator;
+  onChange: (next: FilterCombinator) => void;
+}) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button
+          type="button"
+          aria-label={`Combinator: ${combinator}. Click to change.`}
+          className="flex h-8 items-center gap-1 rounded-md px-1.5 text-sm text-muted-foreground cursor-pointer hover:bg-accent hover:text-foreground"
+        >
+          <span className="font-medium">{combinator}</span>
+          <ChevronDown size={12} />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" className="min-w-[6rem]">
+        <DropdownMenuItem
+          onSelect={() => onChange("AND")}
+          className="cursor-pointer"
+        >
+          AND
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          onSelect={() => onChange("OR")}
+          className="cursor-pointer"
+        >
+          OR
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 

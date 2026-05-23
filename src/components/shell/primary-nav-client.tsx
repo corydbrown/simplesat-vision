@@ -26,7 +26,6 @@ import {
   MessageCircleMore,
   MoreHorizontal,
   Search,
-  Settings,
   UserSquare2,
   Users,
   type LucideIcon,
@@ -199,8 +198,11 @@ export function PrimaryNavClient({ sections }: { sections: NavSection[] }) {
         </div>
 
         {/* Scroll region: top links + section list. min-h-0 lets the flex
-            child shrink below content size so overflow-y-auto can engage. */}
-        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
+            child shrink below content size so overflow-y-auto can engage.
+            no-scrollbar hides the track entirely (mousewheel/trackpad still
+            scroll) — overlay scrollbars otherwise leak through as a heavy
+            system bar when Chrome's "always show" preference is on. */}
+        <div className="no-scrollbar flex min-h-0 flex-1 flex-col overflow-y-auto">
           <div className="flex flex-col gap-0.5">
             <TopLink
               href="/"
@@ -231,17 +233,6 @@ export function PrimaryNavClient({ sections }: { sections: NavSection[] }) {
               />
             ))}
           </div>
-        </div>
-
-        <div className="shrink-0">
-          <TopLink
-            href="/settings"
-            icon={Settings}
-            label="Settings"
-            pathname={pathname}
-            match="/settings"
-            dim
-          />
         </div>
       </div>
 

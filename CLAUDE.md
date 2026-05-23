@@ -14,6 +14,32 @@ A clean-room prototype of the future Simplesat product (customer-feedback platfo
 
 The corollary: when you find yourself writing throwaway code "just for the prototype," push back. Either it's worth doing right, or it's worth not doing at all.
 
+## Product values: Simple, Useful, Fun (SUF)
+
+Every screen we ship gets filtered through three criteria. These are the deciding vote in any tradeoff. Tape them to your monitor.
+
+- **Simple — not basic.** Simple is *Einstein reducing relativity to E = mc²* — the polish and extra thinking that lets a complex idea land in five seconds. Complex is the easy answer; simple is the hard one. Default views show 3-5 actions, not 15. Configuration hides behind one affordance, not a panel. Density goes up via *meaningful comparison*, not raw count. When something feels simple to use, that's because someone made hard choices upstream.
+- **Useful is FLOW.** *"Don't make me think"* (Krug). Every section earns its place by being actionable or insight-generating. Reduce clicks whenever you can. Default views answer "what should I do next?", not "here's everything." Friction is the enemy — every extra click, hover, scroll, or page-load is a tax on adoption.
+- **Fun is Slack-grade delight.** Not boring B2B. Beautiful UX/UI. Empty states have warmth, not "no records found." Hovers feel alive (preview, micro-feedback). Transitions are intentional, not decorative. The kind of app where users *want to live*. Friction kills Fun first.
+
+**Smell tests:**
+- If you can't say in one sentence what this screen helps a user *do*, it fails **Useful**.
+- If a new user needs onboarding text to understand the layout, it fails **Simple**.
+- If the empty state is just sad gray text, it fails **Fun**.
+- If the workflow is "click → wait → click → wait → click → done," it fails **Useful** (FLOW).
+
+**Tradeoff rules:**
+- Simple vs. powerful → pick Simple, add power via progressive disclosure.
+- Useful vs. comprehensive → pick Useful, file comprehensive as a follow-up.
+- Fun vs. neutral → pick Fun every time. Neutral is the failure mode of B2B SaaS.
+- Easy-to-build vs. simple-to-use → pick simple-to-use. Engineering complexity is fine if the user never sees it.
+
+When you're stuck on a design choice, ask: which option is *more* Simple, Useful, or Fun? If you can't tell, ask Cory.
+
+## Mockup exploration (the `/mockups` route)
+
+For exploratory UI work that doesn't need DB integration: spawn mockups at `src/app/mockups/<theme>/<variant>/page.tsx`. Self-contained, hardcoded data, no DB query, no `src/components/shared/` entity imports (those drag in production behaviors). Design tokens, shadcn primitives, Lucide icons are fair game. Each variation has a hypothesis and a SUF axis it's pushing. The `/mockups` index lists them all. Lifecycle: `exploring` → `loved` → `promoted` (design moves into production, mockup archived) OR `exploring` → `rejected` (deleted). Mockups live max ~1 release cycle. See worker briefs in mockup worktrees for the full convention.
+
 **Seed narrative**: mid-market B2C beauty retailer "Bloom Beauty" (Sephora-style). Three-tier loyalty program (Insider / Gold / Elite). ~95% individual consumers, ~5% B2B accounts (wholesale / corporate gifting / influencer). Simplesat is the underlying product — Bloom Beauty is the demo brand whose customer data flows through it.
 
 ## File map

@@ -17,6 +17,7 @@ Workers re-confirm they're on track every time they ship a milestone — these a
 ## Hard stops — never proceed without an explicit yes
 
 - **Schema changes** outside the briefed scope. Migrations are blast-radius decisions, not implementation details.
+- **Schema migrations in the diff** (even if briefed) — surface them explicitly in the PR body so the reviewer and supervisor know to verify deploy-side migration state. Today the Vercel build runs `drizzle-kit migrate` automatically against Turso, but the PR body still needs to call out the migration so nothing slips through silently.
 - **Auth, permissions, or workspace-scoping** code, today or anticipating future. CLAUDE.md → Trajectory says the seam matters; don't guess at it.
 - **New dependencies** (`package.json` adds). Each one is a future maintenance + supply-chain decision.
 - **Anything that touches `DECISIONS.md` or `CLAUDE.md`** — architectural docs need supervisor review, not worker drift.

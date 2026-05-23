@@ -96,6 +96,7 @@ export async function getSurveyResponses(
       comment: schema.responses.comment,
       respondedAt: schema.responses.respondedAt,
       answers: schema.responses.answers,
+      topics: schema.responses.topics,
       ticketId: schema.tickets.id,
       ticketSubject: schema.tickets.subject,
       ticketExternalId: schema.tickets.helpdeskExternalId,

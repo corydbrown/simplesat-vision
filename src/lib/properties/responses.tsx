@@ -5,6 +5,7 @@ import {
   Hash,
   MessageSquare,
   Star,
+  Tag as TagIcon,
   Ticket as TicketIcon,
   User,
   UserCircle2,
@@ -15,9 +16,11 @@ import {
   TeamMemberPill,
   TicketPill,
 } from "@/components/shared/entity-pill";
+import { Tag } from "@/components/shared/tag";
 import type { ResponseListRow } from "@/db/queries/responses";
 import { RESPONSE_FILTER_SPECS } from "@/lib/filters/specs/responses";
 import { formatDateTime } from "@/lib/format";
+import { TOPIC_BY_ID } from "@/lib/topics";
 import type { Property } from "./types";
 
 export const RESPONSE_PROPERTIES: Property<ResponseListRow>[] = [
@@ -117,6 +120,25 @@ export const RESPONSE_PROPERTIES: Property<ResponseListRow>[] = [
         />
       ) : (
         <span className="text-muted-foreground/40">—</span>
+      ),
+  },
+  {
+    id: "topics",
+    label: "Topics",
+    width: 260,
+    icon: TagIcon,
+    sourceEntity: "Response",
+    defaultVisible: false,
+    filter: RESPONSE_FILTER_SPECS.topics,
+    cell: (r) =>
+      r.topics.length === 0 ? (
+        <span className="text-muted-foreground/40">—</span>
+      ) : (
+        <div className="flex gap-1 truncate">
+          {r.topics.map((t) => (
+            <Tag key={t.topic}>{TOPIC_BY_ID[t.topic]?.label ?? t.topic}</Tag>
+          ))}
+        </div>
       ),
   },
   {

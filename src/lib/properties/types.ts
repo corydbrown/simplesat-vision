@@ -8,6 +8,14 @@ export type PropertyFilter = {
   dataType: FilterDataType;
   ops: readonly FilterOp[];
   enumValues?: string[];
+  /** For enum / multi_enum: where the candidate values come from. `static`
+   *  (default) uses the hardcoded `enumValues` list. `dynamic` fetches the
+   *  distinct values currently present in the DB via fetchMultiEnumValues,
+   *  keyed by `dynamicValuesKey`. */
+  enumValuesSource?: "static" | "dynamic";
+  /** Required when enumValuesSource is "dynamic". Routes to a server-side
+   *  resolver that returns { value, count }[] sorted by count desc. */
+  dynamicValuesKey?: string;
 };
 
 /** Lucide icon component (or any equivalent renderer). Sized + colored by the

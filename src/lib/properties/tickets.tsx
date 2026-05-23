@@ -179,6 +179,7 @@ export const TICKET_PROPERTIES: Property<TicketsRow>[] = [
     icon: TagIcon,
     sourceEntity: "Ticket",
     defaultVisible: true,
+    filter: TICKET_FILTER_SPECS.tags,
     cell: (t) => <TagList tags={t.tags} />,
   },
   {

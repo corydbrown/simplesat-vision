@@ -7,6 +7,7 @@ export const FilterDataTypeSchema = z.enum([
   "enum",
   "boolean",
   "relation",
+  "multi_enum",
 ]);
 
 export const FilterOpSchema = z.enum([
@@ -24,6 +25,10 @@ export const FilterOpSchema = z.enum([
   "relative",
   "isnull",
   "notnull",
+  "contains-any",
+  "contains-all",
+  "excludes-any",
+  "excludes-all",
 ]);
 
 export const RelativeUnitSchema = z.enum(["days", "weeks", "months"]);

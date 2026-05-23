@@ -12,8 +12,10 @@ import { compileGroupOrderBy } from "@/lib/group/compile";
 import { TICKET_GROUP_FIELDS } from "@/lib/group/fields/tickets";
 import type { GroupSpec } from "@/lib/group/types";
 import type { SortSpec } from "@/lib/sort/url-state";
+import { resolveScorer, type QaScorerView } from "@/lib/qa/scorer";
 import type {
   QaEvaluationStatus,
+  ScorecardScaleType,
   Ticket,
   TicketMessageAuthorRole,
   TicketMessageChannel,
@@ -210,28 +212,49 @@ export type TicketEventView = {
     | { kind: "system" };
 };
 
-export type TicketQaCategoryView = {
+export type QaCategoryView = {
   categoryId: string;
   name: string;
-  scaleType: "likert_5" | "binary" | "three_state";
+  description: string;
   weightPercent: number;
+  scaleType: ScorecardScaleType;
+  order: number;
   isAutofail: boolean;
+  aiScore: number;
+  humanScore: number | null;
   effectiveScore: number;
   aiReasoning: string;
+  highlightedMessageIds: string[];
 };
 
-export type TicketQaEvaluationView = {
+export type QaCoachingView = {
+  strengthPoints: string[];
+  growthPoints: string[];
+  exampleMessageIds: string[];
+};
+
+export type QaEvaluationView = {
   id: string;
+  ticketId: string;
+  scorecardId: string;
+  scorecardName: string;
+  scorecardVersion: number;
   overallScore: number;
   status: QaEvaluationStatus;
+  /** Provider's self-reported confidence, 0-100 (integer percent, as stored). */
+  aiConfidence: number;
   aiReasoningSummary: string;
-  categories: TicketQaCategoryView[];
+  scoredAt: Date;
+  invalidatedReason: string | null;
+  scorer: QaScorerView;
+  categories: QaCategoryView[];
+  coaching: QaCoachingView | null;
 };
 
 export type TicketDetail = TicketsRow & {
   messages: TicketMessageView[];
   events: TicketEventView[];
-  evaluation: TicketQaEvaluationView | null;
+  evaluation: QaEvaluationView | null;
 };
 
 export async function getTicketById(id: string): Promise<TicketDetail | null> {
@@ -325,26 +348,48 @@ export async function getTicketById(id: string): Promise<TicketDetail | null> {
       )
       .where(eq(schema.ticketEvents.ticketId, id))
       .orderBy(asc(schema.ticketEvents.createdAt)),
-    // Latest evaluation + category breakdown for the QA drawer/detail sections.
-    // Only one evaluation per ticket today, but order desc by scoredAt so a
-    // future re-score history doesn't surface the wrong row.
+    // Latest evaluation + category breakdown + coaching notes for the QA
+    // drawer/detail sections. Only one evaluation per ticket today, but
+    // order desc by scoredAt so a future re-score history doesn't surface
+    // the wrong row.
+    //
+    // The coachingNotes left-join duplicates the same coaching row across
+    // each category row in the cartesian — that's fine, the mapping below
+    // reads it once off the head row.
     db
       .select({
         evaluation: schema.evaluations,
+        scorecard: {
+          name: schema.scorecards.name,
+        },
         category: {
           id: schema.scorecardCategories.id,
           name: schema.scorecardCategories.name,
+          description: schema.scorecardCategories.description,
           scaleType: schema.scorecardCategories.scaleType,
           weightPercent: schema.scorecardCategories.weightPercent,
           isAutofail: schema.scorecardCategories.isAutofail,
           order: schema.scorecardCategories.order,
         },
         categoryScore: {
+          aiScore: schema.evaluationCategoryScores.aiScore,
+          humanScore: schema.evaluationCategoryScores.humanScore,
           effectiveScore: schema.evaluationCategoryScores.effectiveScore,
           aiReasoning: schema.evaluationCategoryScores.aiReasoning,
+          highlightedMessageIds:
+            schema.evaluationCategoryScores.highlightedMessageIds,
+        },
+        coaching: {
+          strengthPoints: schema.coachingNotes.strengthPoints,
+          growthPoints: schema.coachingNotes.growthPoints,
+          exampleMessageIds: schema.coachingNotes.exampleMessageIds,
         },
       })
       .from(schema.evaluations)
+      .leftJoin(
+        schema.scorecards,
+        eq(schema.scorecards.id, schema.evaluations.scorecardId),
+      )
       .innerJoin(
         schema.evaluationCategoryScores,
         eq(
@@ -358,6 +403,10 @@ export async function getTicketById(id: string): Promise<TicketDetail | null> {
           schema.scorecardCategories.id,
           schema.evaluationCategoryScores.categoryId,
         ),
+      )
+      .leftJoin(
+        schema.coachingNotes,
+        eq(schema.coachingNotes.evaluationId, schema.evaluations.id),
       )
       .where(eq(schema.evaluations.ticketId, id))
       .orderBy(
@@ -403,26 +452,54 @@ export async function getTicketById(id: string): Promise<TicketDetail | null> {
     };
   });
 
-  let evaluation: TicketQaEvaluationView | null = null;
+  let evaluation: QaEvaluationView | null = null;
   if (evaluationRows.length > 0) {
-    const head = evaluationRows[0].evaluation;
-    const categories: TicketQaCategoryView[] = evaluationRows
-      .filter((row) => row.evaluation.id === head.id)
-      .map((row) => ({
-        categoryId: row.category.id,
-        name: row.category.name,
-        scaleType: row.category.scaleType,
-        weightPercent: row.category.weightPercent,
-        isAutofail: row.category.isAutofail,
-        effectiveScore: row.categoryScore.effectiveScore,
-        aiReasoning: row.categoryScore.aiReasoning,
-      }));
+    const headRow = evaluationRows[0];
+    const head = headRow.evaluation;
+    const headRows = evaluationRows.filter(
+      (row) => row.evaluation.id === head.id,
+    );
+    const categories: QaCategoryView[] = headRows.map((row) => ({
+      categoryId: row.category.id,
+      name: row.category.name,
+      description: row.category.description,
+      weightPercent: row.category.weightPercent,
+      scaleType: row.category.scaleType,
+      order: row.category.order,
+      isAutofail: row.category.isAutofail,
+      aiScore: row.categoryScore.aiScore,
+      humanScore: row.categoryScore.humanScore,
+      effectiveScore: row.categoryScore.effectiveScore,
+      aiReasoning: row.categoryScore.aiReasoning,
+      highlightedMessageIds: row.categoryScore.highlightedMessageIds,
+    }));
+    // The coachingNotes left-join returns nulls when no coaching row exists.
+    // strengthPoints/growthPoints/exampleMessageIds are NOT NULL on the table,
+    // so any non-null on those fields means the join matched.
+    const c = headRow.coaching;
+    const coaching: QaCoachingView | null =
+      c && c.strengthPoints != null
+        ? {
+            strengthPoints: c.strengthPoints,
+            growthPoints: c.growthPoints ?? [],
+            exampleMessageIds: c.exampleMessageIds ?? [],
+          }
+        : null;
     evaluation = {
       id: head.id,
+      ticketId: head.ticketId,
+      scorecardId: head.scorecardId,
+      scorecardName: headRow.scorecard?.name ?? "Scorecard",
+      scorecardVersion: head.scorecardVersion,
       overallScore: head.overallScore,
       status: head.status,
+      aiConfidence: head.aiConfidence,
       aiReasoningSummary: head.aiReasoningSummary,
+      scoredAt: head.scoredAt,
+      invalidatedReason: head.invalidatedReason,
+      scorer: resolveScorer(head.aiModel),
       categories,
+      coaching,
     };
   }
 

@@ -123,7 +123,7 @@ function AiPromptDialogBody({
       </div>
       <DialogFooter>
         <Button
-          variant="outline"
+          variant="secondary"
           onClick={onClose}
           disabled={pending}
           className="cursor-pointer"

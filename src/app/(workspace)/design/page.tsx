@@ -451,12 +451,13 @@ const STATEFUL_PILL_NOTES: string[] = [
 ];
 
 const BUTTON_VARIANTS_IN_USE: Array<{
-  variant: "default" | "outline" | "ghost";
+  variant: "default" | "outline" | "secondary" | "ghost";
   uses: string;
 }> = [
   { variant: "default", uses: "default (no explicit variant)" },
-  { variant: "outline", uses: "2 explicit uses" },
-  { variant: "ghost", uses: "8 explicit uses" },
+  { variant: "outline", uses: "explicit uses" },
+  { variant: "secondary", uses: "Cancel pair in dialogs" },
+  { variant: "ghost", uses: "explicit uses" },
 ];
 
 const BUTTON_SIZES_IN_USE: Array<{

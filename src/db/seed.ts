@@ -11,6 +11,9 @@ import {
 import { rollupTopics } from "../lib/topics";
 import { DEFAULT_SCORECARD } from "../lib/qa/default-scorecard";
 import { MockScoringProvider } from "../lib/qa/scoring";
+import { SEED_VIEWS } from "../lib/views/seed";
+import type { EntityKey } from "../lib/views/types";
+import { replaceSavedViews } from "./queries/saved-views";
 import type {
   ScoringInput,
   ScoringMessage,
@@ -1150,6 +1153,7 @@ async function seed() {
   await db.delete(schema.teamMembers);
   await db.delete(schema.teamMemberGroups);
   await db.delete(schema.surveys);
+  await db.delete(schema.savedViews);
 
   console.log("Generating team member groups...");
   const teamMemberGroups: NewTeamMemberGroup[] = TEAM_MEMBER_GROUP_SPECS.map(
@@ -1760,6 +1764,19 @@ async function seed() {
     }
   });
 
+  // -------------------------------------------------------------------------
+  // Saved views (SVP-85). Runs after every entity has rows so the views have
+  // something to filter against. Goes through the same `replaceSavedViews`
+  // helper the runtime localStorage-migration path uses — no separate insert.
+  // -------------------------------------------------------------------------
+  console.log("Seeding saved views...");
+  for (const [entity, views] of Object.entries(SEED_VIEWS) as [
+    EntityKey,
+    (typeof SEED_VIEWS)[EntityKey],
+  ][]) {
+    await replaceSavedViews(entity, views);
+  }
+
   console.log("Done. Final counts:");
   const [
     surveyCount,
@@ -1776,6 +1793,7 @@ async function seed() {
     evaluationCount,
     evaluationCategoryScoreCount,
     coachingNoteCount,
+    savedViewCount,
   ] = await Promise.all([
     db.$count(schema.surveys),
     db.$count(schema.customers),
@@ -1791,6 +1809,7 @@ async function seed() {
     db.$count(schema.evaluations),
     db.$count(schema.evaluationCategoryScores),
     db.$count(schema.coachingNotes),
+    db.$count(schema.savedViews),
   ]);
   console.log({
     surveys: surveyCount,
@@ -1808,6 +1827,7 @@ async function seed() {
     evaluations: evaluationCount,
     evaluationCategoryScores: evaluationCategoryScoreCount,
     coachingNotes: coachingNoteCount,
+    savedViews: savedViewCount,
   });
 }
 

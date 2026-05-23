@@ -23,6 +23,10 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Avatar } from "@/components/shared/avatar";
+import {
+  MultiSelectInput,
+  MultiSelectPill,
+} from "@/components/shared/multi-select-input";
 import type { FieldDescriptor, RelationEntity } from "@/lib/filters/descriptor";
 import {
   getMultiEnumLabel,
@@ -815,48 +819,34 @@ function EnumMultiInput({
 }) {
   const [query, setQuery] = useState("");
   const q = query.trim().toLowerCase();
-  const remaining = options.filter(
-    (o) =>
-      !value.includes(o) &&
-      (q === "" || formatEnumValue(propertyId, o).toLowerCase().includes(q)),
-  );
+  const remaining = options
+    .filter(
+      (o) =>
+        !value.includes(o) &&
+        (q === "" ||
+          formatEnumValue(propertyId, o).toLowerCase().includes(q)),
+    )
+    .map((o) => ({ value: o, label: formatEnumValue(propertyId, o) }));
 
   return (
-    <div className="flex flex-col gap-1.5">
-      <PillsInputContainer>
-        {value.map((v) => (
-          <SelectedPill
-            key={v}
-            label={formatEnumValue(propertyId, v)}
-            onRemove={() => onChange(value.filter((x) => x !== v))}
-          />
-        ))}
-        <PillsInputField
-          value={query}
-          onChange={setQuery}
-          placeholder={value.length === 0 ? "Search…" : ""}
+    <MultiSelectInput
+      value={value}
+      onChange={onChange}
+      query={query}
+      onQueryChange={setQuery}
+      options={remaining}
+      alwaysShowDropdown={false}
+      dropdownMaxHeight="max-h-48"
+      renderPill={(v, onRemove) => (
+        <MultiSelectPill
+          label={formatEnumValue(propertyId, v)}
+          onRemove={onRemove}
         />
-      </PillsInputContainer>
-      {remaining.length > 0 && (
-        <div className="max-h-48 overflow-auto rounded-md border border-border bg-popover">
-          {remaining.map((o) => (
-            <button
-              key={o}
-              type="button"
-              onClick={() => {
-                onChange([...value, o]);
-                setQuery("");
-              }}
-              className="flex w-full items-center px-2 py-1.5 text-sm text-left hover:bg-accent cursor-pointer"
-            >
-              <span className="text-foreground truncate flex-1">
-                {formatEnumValue(propertyId, o)}
-              </span>
-            </button>
-          ))}
-        </div>
       )}
-    </div>
+      renderOption={(o) => (
+        <span className="text-foreground truncate flex-1">{o.label}</span>
+      )}
+    />
   );
 }
 
@@ -891,108 +881,32 @@ function MultiEnumInput({
     options.find((o) => o.value === v)?.label ?? v;
 
   return (
-    <div className="flex flex-col gap-1.5">
-      <PillsInputContainer>
-        {value.map((v) => (
-          <SelectedPill
-            key={v}
-            label={labelFor(v)}
-            onRemove={() => onChange(value.filter((x) => x !== v))}
-          />
-        ))}
-        <PillsInputField
-          value={query}
-          onChange={setQuery}
-          placeholder={value.length === 0 ? "Search…" : ""}
-        />
-      </PillsInputContainer>
-      <div className="max-h-56 overflow-auto rounded-md border border-border bg-popover">
-        {loading && options.length === 0 && (
-          <div className="px-2 py-2 text-sm text-muted-foreground">
-            Loading…
-          </div>
-        )}
-        {!loading && remaining.length === 0 && (
-          <div className="px-2 py-2 text-sm text-muted-foreground">
-            {options.length === 0 ? "No values in use." : "No matches."}
-          </div>
-        )}
-        {remaining.map((o) => (
-          <button
-            key={o.value}
-            type="button"
-            onClick={() => {
-              onChange([...value, o.value]);
-              setQuery("");
-            }}
-            className="flex w-full items-center gap-2 px-2 py-1.5 text-left text-sm hover:bg-accent cursor-pointer"
-          >
-            <span className="text-foreground truncate flex-1">{o.label}</span>
-            <span className="text-muted-foreground tabular-nums">
-              {o.count}
-            </span>
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Shared pills-in-input primitives
-// ---------------------------------------------------------------------------
-
-function PillsInputContainer({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="flex flex-wrap items-center gap-1 rounded-md border border-border bg-background px-1.5 py-1 min-h-9 focus-within:border-primary">
-      {children}
-    </div>
-  );
-}
-
-function PillsInputField({
-  value,
-  onChange,
-  placeholder,
-}: {
-  value: string;
-  onChange: (v: string) => void;
-  placeholder?: string;
-}) {
-  return (
-    <input
-      type="text"
-      autoFocus
-      placeholder={placeholder}
+    <MultiSelectInput
       value={value}
-      onChange={(e) => onChange(e.target.value)}
-      className="flex-1 min-w-[80px] bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+      onChange={onChange}
+      query={query}
+      onQueryChange={setQuery}
+      options={remaining}
+      loading={loading}
+      renderPill={(v, onRemove) => (
+        <MultiSelectPill label={labelFor(v)} onRemove={onRemove} />
+      )}
+      renderOption={(o) => (
+        <>
+          <span className="text-foreground truncate flex-1">{o.label}</span>
+          <span className="text-muted-foreground tabular-nums">{o.count}</span>
+        </>
+      )}
+      renderEmpty={(isLoading) => (
+        <div className="px-2 py-2 text-sm text-muted-foreground">
+          {isLoading
+            ? "Loading…"
+            : options.length === 0
+              ? "No values in use."
+              : "No matches."}
+        </div>
+      )}
     />
-  );
-}
-
-function SelectedPill({
-  label,
-  avatar,
-  onRemove,
-}: {
-  label: string;
-  avatar?: React.ReactNode;
-  onRemove: () => void;
-}) {
-  return (
-    <span className="inline-flex items-center gap-1 rounded-md bg-muted px-1.5 py-0.5 text-sm text-foreground max-w-[14ch]">
-      {avatar}
-      <span className="truncate">{label}</span>
-      <button
-        type="button"
-        onClick={onRemove}
-        aria-label="Remove"
-        className="rounded p-0.5 text-muted-foreground hover:bg-accent hover:text-foreground cursor-pointer shrink-0"
-      >
-        <X size={11} />
-      </button>
-    </span>
   );
 }
 
@@ -1288,33 +1202,6 @@ function entityHasAvatar(entity: RelationEntity): boolean {
   return entity === "customer" || entity === "team_member";
 }
 
-function RelationOptionRow({
-  option,
-  entity,
-  onClick,
-}: {
-  option: RelationOption;
-  entity: RelationEntity;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="flex w-full items-center gap-2 px-2 py-1.5 text-sm text-left hover:bg-accent cursor-pointer"
-    >
-      {entityHasAvatar(entity) && (
-        <Avatar
-          bg={colorFromName(option.label)}
-          initials={initialsFromName(option.label)}
-          size="sm"
-        />
-      )}
-      <span className="text-foreground truncate flex-1">{option.label}</span>
-    </button>
-  );
-}
-
 function RelationMultiInput({
   entity,
   value,
@@ -1329,46 +1216,34 @@ function RelationMultiInput({
   const remaining = options.filter((o) => !value.includes(o.value));
 
   return (
-    <div className="flex flex-col gap-1.5">
-      <PillsInputContainer>
-        {value.map((id) => (
-          <SelectedRelationPill
-            key={id}
-            entity={entity}
-            id={id}
-            onRemove={() => onChange(value.filter((v) => v !== id))}
-          />
-        ))}
-        <PillsInputField
-          value={query}
-          onChange={setQuery}
-          placeholder={value.length === 0 ? "Search…" : ""}
-        />
-      </PillsInputContainer>
-      <div className="max-h-56 overflow-auto rounded-md border border-border bg-popover">
-        {loading && remaining.length === 0 && (
-          <div className="px-2 py-2 text-sm text-muted-foreground">
-            Searching…
-          </div>
-        )}
-        {!loading && remaining.length === 0 && (
-          <div className="px-2 py-2 text-sm text-muted-foreground">
-            No matches.
-          </div>
-        )}
-        {remaining.map((o) => (
-          <RelationOptionRow
-            key={o.value}
-            option={o}
-            entity={entity}
-            onClick={() => {
-              onChange([...value, o.value]);
-              setQuery("");
-            }}
-          />
-        ))}
-      </div>
-    </div>
+    <MultiSelectInput
+      value={value}
+      onChange={onChange}
+      query={query}
+      onQueryChange={setQuery}
+      options={remaining}
+      loading={loading}
+      renderPill={(id, onRemove) => (
+        <SelectedRelationPill entity={entity} id={id} onRemove={onRemove} />
+      )}
+      renderOption={(o) => (
+        <>
+          {entityHasAvatar(entity) && (
+            <Avatar
+              bg={colorFromName(o.label)}
+              initials={initialsFromName(o.label)}
+              size="sm"
+            />
+          )}
+          <span className="text-foreground truncate flex-1">{o.label}</span>
+        </>
+      )}
+      renderEmpty={(isLoading) => (
+        <div className="px-2 py-2 text-sm text-muted-foreground">
+          {isLoading ? "Searching…" : "No matches."}
+        </div>
+      )}
+    />
   );
 }
 
@@ -1384,7 +1259,7 @@ function SelectedRelationPill({
   const label = useRelationLabel(entity, id);
   const shown = label ?? id;
   return (
-    <SelectedPill
+    <MultiSelectPill
       label={shown}
       avatar={
         entityHasAvatar(entity) && label ? (

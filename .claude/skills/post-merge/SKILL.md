@@ -31,8 +31,12 @@ The PR must be **MERGED**. If not, abort and tell Cory.
 
 3. **Cleanup worktree + branch**:
    - Parse SVP ID from branch name (`feat/svp<N>-*`) for downstream Notion lookup.
-   - `git worktree remove <worktrees-root>/<branch-without-feat-prefix>` — if it errors with "Directory not empty," check what's there (probably node_modules/.next leftovers); confirm with Cory before `rm -rf`.
-   - `git branch -d feat/svp<N>-*` (lowercase `-d` refuses unmerged; the branch should be merged so this works).
+   - **Pre-clean the worktree-local artifacts first.** The brief-as-file pattern writes `BRIEF.md` to the worktree root, which is intentionally never committed. `git worktree remove` refuses with "contains modified or untracked files" if it's still there. Run:
+     ```bash
+     rm -f <worktree-path>/BRIEF.md
+     ```
+   - `git worktree remove <worktree-path>` — should now succeed cleanly. If it STILL errors with "Directory not empty," check what's there (probably node_modules/.next leftovers that should be in .gitignore — investigate the gitignore gap rather than `--force`); confirm with Cory before `rm -rf`.
+   - `git branch -d feat/svp<N>-*` (lowercase `-d` refuses unmerged; the branch should be merged so this works). If you used `gh pr merge --delete-branch` in step 1, the local delete may have already happened or failed silently because the worktree held the branch — running it now finishes the job.
    - `git fetch --prune` to clean remote refs.
 
 4. **Mark Notion task Done**:

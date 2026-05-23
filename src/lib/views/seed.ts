@@ -228,3 +228,14 @@ export const ENTITY_BASE_PATH: Record<EntityKey, string> = {
   responses: "/responses",
   "team-members": "/team-members",
 };
+
+/** Source-of-truth order for entity-bound nav sections. The sidebar
+ *  (`primary-nav.tsx`) and the search palette's "Views" group both iterate
+ *  this array so the two surfaces stay in lock-step. Reports lives in the
+ *  sidebar but has no entity binding, so it is appended separately. */
+export const NAV_SECTION_ORDER: readonly EntityKey[] = [
+  "responses",
+  "customers",
+  "team-members",
+  "tickets",
+];

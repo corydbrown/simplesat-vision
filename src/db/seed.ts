@@ -2,18 +2,31 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { faker } from "@faker-js/faker";
 import { db, schema } from "./client";
-import { prefixedId } from "../lib/ids";
+import { prefixedId, setIdRandomSource } from "../lib/ids";
 import {
   CUSTOMER_CUSTOM_FIELDS,
   TEAM_MEMBER_CUSTOM_FIELDS,
   type CustomFieldDef,
 } from "../lib/properties/custom-fields";
 import { rollupTopics } from "../lib/topics";
+import { DEFAULT_SCORECARD } from "../lib/qa/default-scorecard";
+import { MockScoringProvider } from "../lib/qa/scoring";
+import type {
+  ScoringInput,
+  ScoringMessage,
+  ScoringScorecard,
+} from "../lib/qa/scoring";
 import type {
   Channel,
   CustomerTier,
+  NewCoachingNote,
   NewCustomer,
+  NewEvaluation,
+  NewEvaluationCategoryScore,
   NewResponse,
+  NewScorecard,
+  NewScorecardCategory,
+  NewScorecardCriterion,
   NewSurvey,
   NewTeamMember,
   NewTeamMemberGroup,
@@ -31,7 +44,14 @@ import type {
   TopicTag,
 } from "./schema";
 
+const CONVERSATION_MOCKUP_TAG = "conversation-mockup";
+
 faker.seed(42);
+
+// Route id generation through the seeded Faker so prefixedId() returns the
+// same ids every run. App runtime never calls this and keeps the default
+// crypto-based generator.
+setIdRandomSource(() => faker.number.float({ min: 0, max: 1 }));
 
 const NOW = Date.now();
 const ONE_DAY = 24 * 60 * 60 * 1000;
@@ -1116,7 +1136,12 @@ function adjustRatingForResolution(
 
 async function seed() {
   console.log("Resetting tables...");
-  await db.delete(schema.qaEvaluations);
+  await db.delete(schema.coachingNotes);
+  await db.delete(schema.evaluationCategoryScores);
+  await db.delete(schema.evaluations);
+  await db.delete(schema.scorecardCriteria);
+  await db.delete(schema.scorecardCategories);
+  await db.delete(schema.scorecards);
   await db.delete(schema.ticketMessages);
   await db.delete(schema.ticketEvents);
   await db.delete(schema.responses);
@@ -1290,12 +1315,16 @@ async function seed() {
   const TARGET_TICKETS = 50_000;
   // Number of tickets that get a fully-seeded message + event timeline.
   // Starting small while we shape the data; expanding is a follow-up.
+  // These are the "conversation-mockup" tickets that get QA evaluations.
   const TARGET_TIMELINE_TICKETS = 50;
   const tickets: NewTicket[] = [];
   const responses: NewResponse[] = [];
   const ticketMessages: NewTicketMessage[] = [];
   const ticketEvents: NewTicketEvent[] = [];
   let timelinesAttached = 0;
+  // Track which tickets got the full lifecycle treatment — these are the
+  // ones that get tagged + QA-scored at the end of the seed run.
+  const mockupTicketIds = new Set<string>();
 
   for (let i = 0; i < TARGET_TICKETS; i++) {
     const daysAgo = faker.number.int({ min: 0, max: HORIZON_DAYS });
@@ -1479,7 +1508,17 @@ async function seed() {
       messageCount = lifecycle.messageCount;
       agentMessageCount = lifecycle.agentMessageCount;
       timelinesAttached++;
+      mockupTicketIds.add(ticketId);
     }
+
+    // Mockup tickets get the conversation-mockup tag prepended to whatever
+    // random tags they pulled — this is the SVP-51 absorption: the tag is
+    // how downstream code (QA pages, filters) knows which tickets have full
+    // lifecycles to lean on.
+    const baseTags = randomTags();
+    const finalTags = mockupTicketIds.has(ticketId)
+      ? [CONVERSATION_MOCKUP_TAG, ...baseTags]
+      : baseTags;
 
     tickets.push({
       id: ticketId,
@@ -1497,7 +1536,7 @@ async function seed() {
       closedAt: closedAt ? new Date(closedAt) : null,
       messageCount,
       agentMessageCount,
-      tags: randomTags(),
+      tags: finalTags,
       surveyEligible,
       surveySentAt: surveySentAt ? new Date(surveySentAt) : null,
       surveyNotSentReason,
@@ -1531,6 +1570,196 @@ async function seed() {
     }
   });
 
+  // -------------------------------------------------------------------------
+  // QA seed (SVP-53). Hydrate the default scorecard from code, then score
+  // each conversation-mockup ticket through the mock provider and persist
+  // the resulting evaluation + per-category scores + coaching note.
+  // -------------------------------------------------------------------------
+
+  console.log("Hydrating default QA scorecard...");
+  const scorecardId = prefixedId("sc");
+  const scorecardRow: NewScorecard = {
+    id: scorecardId,
+    name: DEFAULT_SCORECARD.name,
+    isDefault: DEFAULT_SCORECARD.isDefault,
+    enabled: DEFAULT_SCORECARD.enabled,
+    version: DEFAULT_SCORECARD.version,
+    createdAt: new Date(NOW),
+    updatedAt: new Date(NOW),
+  };
+  const categoryRows: NewScorecardCategory[] = [];
+  const criterionRows: NewScorecardCriterion[] = [];
+  // categoryId by name + per-category criterion ids — used to map provider
+  // input/output back to DB ids without a second query roundtrip.
+  const categoryIdByName = new Map<string, string>();
+  const criterionIdsByCategoryName = new Map<string, string[]>();
+  DEFAULT_SCORECARD.categories.forEach((category, categoryIdx) => {
+    const categoryId = prefixedId("scc");
+    categoryIdByName.set(category.name, categoryId);
+    categoryRows.push({
+      id: categoryId,
+      scorecardId,
+      name: category.name,
+      description: category.description,
+      weightPercent: category.weightPercent,
+      scaleType: category.scaleType,
+      order: categoryIdx,
+      isAutofail: category.isAutofail,
+    });
+    const criterionIds: string[] = [];
+    category.criteria.forEach((criterion, criterionIdx) => {
+      const criterionId = prefixedId("scr");
+      criterionIds.push(criterionId);
+      criterionRows.push({
+        id: criterionId,
+        categoryId,
+        text: criterion.text,
+        anchor5: criterion.anchor5,
+        anchor3: criterion.anchor3,
+        anchor1: criterion.anchor1,
+        order: criterionIdx,
+      });
+    });
+    criterionIdsByCategoryName.set(category.name, criterionIds);
+  });
+  await db.transaction(async (tx) => {
+    await tx.insert(schema.scorecards).values(scorecardRow);
+    await tx.insert(schema.scorecardCategories).values(categoryRows);
+    await tx.insert(schema.scorecardCriteria).values(criterionRows);
+  });
+
+  console.log(
+    `Scoring ${mockupTicketIds.size} conversation-mockup tickets via MockScoringProvider...`,
+  );
+  // Build a ticket-id → messages lookup once so each scoring call doesn't
+  // re-scan the full message list.
+  const messagesByTicketId = new Map<string, ScoringMessage[]>();
+  for (const m of ticketMessages) {
+    const list = messagesByTicketId.get(m.ticketId) ?? [];
+    list.push({
+      id: m.id!,
+      authorRole: m.authorRole,
+      authorName: null,
+      body: m.body,
+      isPublic: m.isPublic === false ? false : true,
+      createdAt: m.createdAt as Date,
+    });
+    messagesByTicketId.set(m.ticketId, list);
+  }
+
+  // Resolve the scorecard into the shape the provider expects (with DB ids
+  // baked in). Same shape the app code will pass at runtime.
+  const scoringScorecard: ScoringScorecard = {
+    id: scorecardId,
+    name: DEFAULT_SCORECARD.name,
+    version: DEFAULT_SCORECARD.version,
+    autoFailFloor: DEFAULT_SCORECARD.autoFailFloor,
+    categories: DEFAULT_SCORECARD.categories.map((category) => {
+      const criterionIds = criterionIdsByCategoryName.get(category.name) ?? [];
+      return {
+        id: categoryIdByName.get(category.name)!,
+        name: category.name,
+        description: category.description,
+        weightPercent: category.weightPercent,
+        scaleType: category.scaleType,
+        isAutofail: category.isAutofail,
+        criteria: category.criteria.map((c, ci) => ({
+          id: criterionIds[ci]!,
+          text: c.text,
+        })),
+      };
+    }),
+  };
+
+  const provider = new MockScoringProvider();
+  const evaluationRows: NewEvaluation[] = [];
+  const categoryScoreRows: NewEvaluationCategoryScore[] = [];
+  const coachingNoteRows: NewCoachingNote[] = [];
+
+  for (const ticket of tickets) {
+    if (!mockupTicketIds.has(ticket.id!)) continue;
+    const messages = messagesByTicketId.get(ticket.id!) ?? [];
+    const input: ScoringInput = {
+      ticket: {
+        id: ticket.id!,
+        subject: ticket.subject,
+        channel: ticket.channel,
+        status: ticket.status,
+        priority: ticket.priority ?? "normal",
+        createdAt: ticket.createdAt as Date,
+        solvedAt: (ticket.solvedAt as Date | null) ?? null,
+        tags: ticket.tags ?? [],
+      },
+      messages,
+      scorecard: scoringScorecard,
+    };
+
+    const output = await provider.scoreConversation(input);
+
+    const evaluationId = prefixedId("evl");
+    const scoredAt = ticket.solvedAt
+      ? new Date(((ticket.solvedAt as Date).getTime()) + 60 * 60 * 1000)
+      : new Date(NOW);
+    const editedStatus = output.autoFailTriggered ? "contested" : "ai_scored";
+
+    evaluationRows.push({
+      id: evaluationId,
+      ticketId: ticket.id!,
+      scorecardId,
+      scorecardVersion: DEFAULT_SCORECARD.version,
+      scoredTeamMemberId: ticket.assignedTeamMemberId!,
+      overallScore: output.overallScore,
+      status: editedStatus,
+      aiModel: output.aiModel,
+      // Confidence stored as integer percent so the column is a plain int.
+      aiConfidence: Math.round(output.aiConfidence * 100),
+      aiReasoningSummary: output.aiReasoningSummary,
+      scoredBy: provider.name,
+      scoredAt,
+      editedBy: null,
+      editedAt: null,
+      invalidatedReason: null,
+    });
+
+    for (const result of output.categoryScores) {
+      categoryScoreRows.push({
+        id: prefixedId("ecs"),
+        evaluationId,
+        categoryId: result.categoryId,
+        aiScore: result.aiScore,
+        humanScore: null,
+        effectiveScore: result.aiScore,
+        aiReasoning: result.aiReasoning,
+        highlightedMessageIds: result.highlightedMessageIds,
+      });
+    }
+
+    coachingNoteRows.push({
+      id: prefixedId("cnt"),
+      evaluationId,
+      strengthPoints: output.coachingNote.strengthPoints,
+      growthPoints: output.coachingNote.growthPoints,
+      exampleMessageIds: output.coachingNote.exampleMessageIds,
+      generatedBy: provider.name,
+      generatedAt: scoredAt,
+    });
+  }
+
+  console.log(
+    `Inserting ${evaluationRows.length} evaluations + ${categoryScoreRows.length} category scores + ${coachingNoteRows.length} coaching notes...`,
+  );
+  await db.transaction(async (tx) => {
+    if (evaluationRows.length > 0) {
+      await tx.insert(schema.evaluations).values(evaluationRows);
+    }
+    if (categoryScoreRows.length > 0) {
+      await tx.insert(schema.evaluationCategoryScores).values(categoryScoreRows);
+    }
+    if (coachingNoteRows.length > 0) {
+      await tx.insert(schema.coachingNotes).values(coachingNoteRows);
+    }
+  });
+
   console.log("Done. Final counts:");
   const [
     surveyCount,
@@ -1541,6 +1770,12 @@ async function seed() {
     responseCount,
     ticketMessageCount,
     ticketEventCount,
+    scorecardCount,
+    scorecardCategoryCount,
+    scorecardCriterionCount,
+    evaluationCount,
+    evaluationCategoryScoreCount,
+    coachingNoteCount,
   ] = await Promise.all([
     db.$count(schema.surveys),
     db.$count(schema.customers),
@@ -1550,6 +1785,12 @@ async function seed() {
     db.$count(schema.responses),
     db.$count(schema.ticketMessages),
     db.$count(schema.ticketEvents),
+    db.$count(schema.scorecards),
+    db.$count(schema.scorecardCategories),
+    db.$count(schema.scorecardCriteria),
+    db.$count(schema.evaluations),
+    db.$count(schema.evaluationCategoryScores),
+    db.$count(schema.coachingNotes),
   ]);
   console.log({
     surveys: surveyCount,
@@ -1561,6 +1802,12 @@ async function seed() {
     ticketMessages: ticketMessageCount,
     ticketEvents: ticketEventCount,
     timelinesAttached,
+    scorecards: scorecardCount,
+    scorecardCategories: scorecardCategoryCount,
+    scorecardCriteria: scorecardCriterionCount,
+    evaluations: evaluationCount,
+    evaluationCategoryScores: evaluationCategoryScoreCount,
+    coachingNotes: coachingNoteCount,
   });
 }
 

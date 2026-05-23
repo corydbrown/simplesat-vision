@@ -25,8 +25,23 @@ export type SurveyNotSentReason =
   | "suppression_list"
   | "channel_disabled"
   | "automation_close";
-export type QaEvaluationType = "predictive" | "final" | "re_evaluation";
 export type TopicSentiment = "positive" | "neutral" | "negative";
+
+/** QA evaluation lifecycle states. `ai_scored` is the entry state when the
+ *  scoring provider returns. `edited` means a human overrode at least one
+ *  category score. `contested` is the agent-flag state. `invalidated` is a
+ *  soft-delete (kept for audit). `finalized` is post-calibration sign-off. */
+export type QaEvaluationStatus =
+  | "ai_scored"
+  | "edited"
+  | "contested"
+  | "invalidated"
+  | "finalized";
+
+/** Per-category scoring scale. `likert_5` is the default 1-5 rubric scale.
+ *  `binary` is for auto-fail items (0/1). `three_state` is reserved for
+ *  yes/partial/no style criteria that some Phase 2 scorecards may want. */
+export type ScorecardScaleType = "likert_5" | "binary" | "three_state";
 
 export type TopicTag = { topic: string; sentiment: TopicSentiment };
 
@@ -481,34 +496,214 @@ export const responses = sqliteTable(
   ],
 );
 
-export const qaEvaluations = sqliteTable(
-  "qa_evaluations",
+/** A configurable QA scorecard. Phase 1 ships a single default scorecard
+ *  hydrated from src/lib/qa/default-scorecard.ts at seed; Phase 2 will allow
+ *  multiple scorecards per workspace. No `account_id` yet — the seam is left
+ *  clean for multi-tenant later (see CLAUDE.md → Trajectory). `version`
+ *  bumps when a manager edits the rubric; existing evaluations stay pinned
+ *  to the version that produced them via `evaluations.scorecard_version`. */
+export const scorecards = sqliteTable(
+  "scorecards",
+  {
+    id: text("id").primaryKey(),
+    name: text("name").notNull(),
+    isDefault: integer("is_default", { mode: "boolean" })
+      .notNull()
+      .default(false),
+    enabled: integer("enabled", { mode: "boolean" }).notNull().default(true),
+    version: integer("version").notNull().default(1),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+    updatedAt: integer("updated_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+  },
+  (t) => [
+    index("scorecards_is_default_idx").on(t.isDefault),
+    index("scorecards_enabled_idx").on(t.enabled),
+  ],
+);
+
+/** A category within a scorecard. Maps 1:1 to a PRD Part 7 rubric category
+ *  (Customer Connection, Resolution Quality, Communication, Process &
+ *  Ownership, Compliance & Safety). `weight_percent` is the contribution to
+ *  the overall score when `is_autofail` is false. Auto-fail categories carry
+ *  weight 0 and instead force the overall score to a floor when any of their
+ *  criteria fail. */
+export const scorecardCategories = sqliteTable(
+  "scorecard_categories",
+  {
+    id: text("id").primaryKey(),
+    scorecardId: text("scorecard_id")
+      .notNull()
+      .references(() => scorecards.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    description: text("description").notNull().default(""),
+    weightPercent: integer("weight_percent").notNull().default(0),
+    scaleType: text("scale_type", {
+      enum: ["likert_5", "binary", "three_state"],
+    })
+      .notNull()
+      .$type<ScorecardScaleType>()
+      .default("likert_5"),
+    order: integer("order").notNull().default(0),
+    isAutofail: integer("is_autofail", { mode: "boolean" })
+      .notNull()
+      .default(false),
+  },
+  (t) => [
+    index("scorecard_categories_scorecard_id_idx").on(t.scorecardId),
+    index("scorecard_categories_order_idx").on(t.order),
+  ],
+);
+
+/** A criterion within a category — the lowest-grain rubric item. For likert
+ *  scales `anchor_5` / `anchor_3` / `anchor_1` describe what a 5 / 3 / 1
+ *  looks like; for binary auto-fail items `text` holds the rule and anchors
+ *  are empty. */
+export const scorecardCriteria = sqliteTable(
+  "scorecard_criteria",
+  {
+    id: text("id").primaryKey(),
+    categoryId: text("category_id")
+      .notNull()
+      .references(() => scorecardCategories.id, { onDelete: "cascade" }),
+    text: text("text").notNull(),
+    anchor5: text("anchor_5").notNull().default(""),
+    anchor3: text("anchor_3").notNull().default(""),
+    anchor1: text("anchor_1").notNull().default(""),
+    order: integer("order").notNull().default(0),
+  },
+  (t) => [
+    index("scorecard_criteria_category_id_idx").on(t.categoryId),
+    index("scorecard_criteria_order_idx").on(t.order),
+  ],
+);
+
+/** One QA evaluation of one ticket against one scorecard version. The
+ *  scoring provider (mock today, Claude at SVP-67) writes one row here plus
+ *  one per-category row in `evaluation_category_scores` and one coaching
+ *  note. `overall_score` is 0-100; per-category scores live on the child
+ *  table at the scorecard's native scale. */
+export const evaluations = sqliteTable(
+  "evaluations",
   {
     id: text("id").primaryKey(),
     ticketId: text("ticket_id")
       .notNull()
-      .references(() => tickets.id),
-    teamMemberId: text("team_member_id")
+      .references(() => tickets.id, { onDelete: "cascade" }),
+    scorecardId: text("scorecard_id")
+      .notNull()
+      .references(() => scorecards.id),
+    /** Snapshot of `scorecards.version` at scoring time. Lets us reconstruct
+     *  which rubric the score was produced against even if the scorecard has
+     *  since been edited. */
+    scorecardVersion: integer("scorecard_version").notNull(),
+    /** The team member whose work is being scored (the assigned agent on
+     *  the ticket at scoring time). Distinct from `scored_by` (which is the
+     *  identity that produced the score — provider name + optional human). */
+    scoredTeamMemberId: text("scored_team_member_id")
       .notNull()
       .references(() => teamMembers.id),
-    score: integer("score").notNull(),
-    modelUsed: text("model_used").notNull(),
-    evaluatedAt: integer("evaluated_at", { mode: "timestamp_ms" }).notNull(),
-    evaluationType: text("evaluation_type", {
-      enum: ["predictive", "final", "re_evaluation"],
+    overallScore: integer("overall_score").notNull(),
+    status: text("status", {
+      enum: [
+        "ai_scored",
+        "edited",
+        "contested",
+        "invalidated",
+        "finalized",
+      ],
     })
       .notNull()
-      .$type<QaEvaluationType>(),
-    rubricVersion: text("rubric_version").notNull(),
-    breakdown: text("breakdown", { mode: "json" })
-      .$type<Record<string, number>>()
-      .notNull()
-      .default(sql`'{}'`),
+      .$type<QaEvaluationStatus>()
+      .default("ai_scored"),
+    /** Provider identity: `mock-deterministic-v1`, `claude-haiku-4-5-…`, etc.
+     *  Lets us track score drift when the underlying model changes. */
+    aiModel: text("ai_model").notNull(),
+    /** 0-1 self-reported confidence from the provider. */
+    aiConfidence: integer("ai_confidence").notNull(),
+    aiReasoningSummary: text("ai_reasoning_summary").notNull().default(""),
+    /** Provider id (`mock`, `claude`) or human team member id when a human
+     *  produced the score directly. Free-text — not an FK — so external
+     *  scorers (calibration tools) can be represented later. */
+    scoredBy: text("scored_by").notNull(),
+    scoredAt: integer("scored_at", { mode: "timestamp_ms" }).notNull(),
+    editedBy: text("edited_by").references(() => teamMembers.id),
+    editedAt: integer("edited_at", { mode: "timestamp_ms" }),
+    invalidatedReason: text("invalidated_reason"),
   },
   (t) => [
-    index("qa_evaluations_ticket_id_idx").on(t.ticketId),
-    index("qa_evaluations_team_member_id_idx").on(t.teamMemberId),
-    index("qa_evaluations_evaluated_at_idx").on(t.evaluatedAt),
+    index("evaluations_ticket_id_idx").on(t.ticketId),
+    index("evaluations_scorecard_id_idx").on(t.scorecardId),
+    index("evaluations_scored_team_member_id_idx").on(t.scoredTeamMemberId),
+    index("evaluations_status_idx").on(t.status),
+    index("evaluations_scored_at_idx").on(t.scoredAt),
+    index("evaluations_overall_score_idx").on(t.overallScore),
+  ],
+);
+
+/** Per-category score within an evaluation. `ai_score` is the provider's
+ *  call; `human_score` is set when a manager edits inline; `effective_score`
+ *  is the value queries should use (human if present, else AI). We store
+ *  effective rather than computing on read so list/pivot queries stay simple.
+ *  `highlighted_message_ids` references the messages on the parent ticket
+ *  that drove this category's score — that's what the SVP-54 supporting-
+ *  message highlight UI reads. */
+export const evaluationCategoryScores = sqliteTable(
+  "evaluation_category_scores",
+  {
+    id: text("id").primaryKey(),
+    evaluationId: text("evaluation_id")
+      .notNull()
+      .references(() => evaluations.id, { onDelete: "cascade" }),
+    categoryId: text("category_id")
+      .notNull()
+      .references(() => scorecardCategories.id),
+    aiScore: integer("ai_score").notNull(),
+    humanScore: integer("human_score"),
+    effectiveScore: integer("effective_score").notNull(),
+    aiReasoning: text("ai_reasoning").notNull().default(""),
+    highlightedMessageIds: text("highlighted_message_ids", { mode: "json" })
+      .$type<string[]>()
+      .notNull()
+      .default(sql`'[]'`),
+  },
+  (t) => [
+    index("evaluation_category_scores_evaluation_id_idx").on(t.evaluationId),
+    index("evaluation_category_scores_category_id_idx").on(t.categoryId),
+  ],
+);
+
+/** Coaching note generated alongside each evaluation. Bullet caps (3 each)
+ *  are enforced at the provider layer per PRD D-3; the JSON columns stay
+ *  loose. `example_message_ids` references the messages that illustrate
+ *  the bullet points. `generated_by` mirrors `evaluations.scored_by`. */
+export const coachingNotes = sqliteTable(
+  "coaching_notes",
+  {
+    id: text("id").primaryKey(),
+    evaluationId: text("evaluation_id")
+      .notNull()
+      .references(() => evaluations.id, { onDelete: "cascade" }),
+    strengthPoints: text("strength_points", { mode: "json" })
+      .$type<string[]>()
+      .notNull()
+      .default(sql`'[]'`),
+    growthPoints: text("growth_points", { mode: "json" })
+      .$type<string[]>()
+      .notNull()
+      .default(sql`'[]'`),
+    exampleMessageIds: text("example_message_ids", { mode: "json" })
+      .$type<string[]>()
+      .notNull()
+      .default(sql`'[]'`),
+    generatedBy: text("generated_by").notNull(),
+    generatedAt: integer("generated_at", { mode: "timestamp_ms" }).notNull(),
+  },
+  (t) => [
+    index("coaching_notes_evaluation_id_idx").on(t.evaluationId),
   ],
 );
 
@@ -565,9 +760,20 @@ export type Survey = typeof surveys.$inferSelect;
 export type NewSurvey = typeof surveys.$inferInsert;
 export type TeamMemberGroup = typeof teamMemberGroups.$inferSelect;
 export type NewTeamMemberGroup = typeof teamMemberGroups.$inferInsert;
-export type QaEvaluation = typeof qaEvaluations.$inferSelect;
-export type NewQaEvaluation = typeof qaEvaluations.$inferInsert;
 export type TicketMessage = typeof ticketMessages.$inferSelect;
 export type NewTicketMessage = typeof ticketMessages.$inferInsert;
 export type TicketEvent = typeof ticketEvents.$inferSelect;
 export type NewTicketEvent = typeof ticketEvents.$inferInsert;
+export type Scorecard = typeof scorecards.$inferSelect;
+export type NewScorecard = typeof scorecards.$inferInsert;
+export type ScorecardCategory = typeof scorecardCategories.$inferSelect;
+export type NewScorecardCategory = typeof scorecardCategories.$inferInsert;
+export type ScorecardCriterion = typeof scorecardCriteria.$inferSelect;
+export type NewScorecardCriterion = typeof scorecardCriteria.$inferInsert;
+export type Evaluation = typeof evaluations.$inferSelect;
+export type NewEvaluation = typeof evaluations.$inferInsert;
+export type EvaluationCategoryScore = typeof evaluationCategoryScores.$inferSelect;
+export type NewEvaluationCategoryScore =
+  typeof evaluationCategoryScores.$inferInsert;
+export type CoachingNote = typeof coachingNotes.$inferSelect;
+export type NewCoachingNote = typeof coachingNotes.$inferInsert;

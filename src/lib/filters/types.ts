@@ -145,10 +145,13 @@ export const OP_LABEL: Record<FilterOp, string> = {
   relative: "is in the",
   isnull: "is empty",
   notnull: "is not empty",
-  "contains-any": "includes any of",
-  "contains-all": "includes all of",
-  "excludes-any": "excludes any of",
-  "excludes-all": "excludes all of",
+  // Match the existing enum-multi labels where possible — `contains` /
+  // `does not contain` mirror the `in` / `not-in` labels on regular enums,
+  // so the chip text reads consistently across data types.
+  "contains-any": "contains",
+  "contains-all": "contains all",
+  "excludes-any": "is missing",
+  "excludes-all": "does not contain",
 };
 
 /** Capitalize the first letter of a string (for dropdown labels). */

@@ -64,7 +64,7 @@ export const MOCKUPS: MockupMeta[] = [
       "Dedicated full-page review mode: messages left, score panel right. Clicking a category scrolls + highlights supporting messages. Optimizes for the manager-review work session, not the ticket-detail browse.",
     sufAxis: "useful",
     status: "exploring",
-    ready: false,
+    ready: true,
     path: "/mockups/qa-window/splitpane",
     createdAt: "2026-05-23",
   },

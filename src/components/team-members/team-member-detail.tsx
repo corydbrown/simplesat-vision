@@ -26,9 +26,11 @@ import { formatNumber } from "@/lib/format";
 import type {
   TeamMemberDetail,
   TeamMemberListRow,
+  TeamMemberQaRollup,
 } from "@/db/queries/team-members";
 import type { TicketsRow } from "@/db/queries/tickets";
 import type { ResponseListRow } from "@/db/queries/responses";
+import { QaDashboard } from "@/components/team-members/qa-dashboard";
 
 function RatingHistogram({
   data,
@@ -72,6 +74,7 @@ export function TeamMemberDetailBody({
   tickets,
   responses,
   histogram,
+  qaRollup,
   inDrawer = false,
 }: {
   member: TeamMemberDetail;
@@ -79,6 +82,7 @@ export function TeamMemberDetailBody({
   tickets: TicketsRow[];
   responses: ResponseListRow[];
   histogram: { rating: number; count: number }[];
+  qaRollup: TeamMemberQaRollup;
   inDrawer?: boolean;
 }) {
   const router = useRouter();
@@ -170,6 +174,8 @@ export function TeamMemberDetailBody({
           <RatingHistogram data={histogram} />
         </div>
       </DetailSection>
+
+      <QaDashboard memberName={member.name} rollup={qaRollup} />
 
       <div className="mt-6">
         <RelationTabs

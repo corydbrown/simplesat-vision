@@ -4,6 +4,7 @@ import { eq } from "drizzle-orm";
 import {
   getRatingHistogram,
   getTeamMemberById,
+  getTeamMemberQaRollup,
   getTeamMemberResponses,
   getTeamMemberTickets,
   type TeamMemberListRow,
@@ -20,10 +21,11 @@ export async function GET(
   if (!member) {
     return NextResponse.json({ error: "not found" }, { status: 404 });
   }
-  const [tickets, responses, histogram, group] = await Promise.all([
+  const [tickets, responses, histogram, qaRollup, group] = await Promise.all([
     getTeamMemberTickets(id, 50),
     getTeamMemberResponses(id, 50),
     getRatingHistogram(id),
+    getTeamMemberQaRollup(id),
     member.groupId
       ? db
           .select({ name: schema.teamMemberGroups.name })
@@ -51,5 +53,12 @@ export async function GET(
     totalResponses: member.stats.totalResponses,
   };
 
-  return NextResponse.json({ member, memberRow, tickets, responses, histogram });
+  return NextResponse.json({
+    member,
+    memberRow,
+    tickets,
+    responses,
+    histogram,
+    qaRollup,
+  });
 }

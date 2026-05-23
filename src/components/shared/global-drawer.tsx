@@ -19,6 +19,7 @@ import type { TicketDetail, TicketsRow } from "@/db/queries/tickets";
 import type {
   TeamMemberDetail,
   TeamMemberListRow,
+  TeamMemberQaRollup,
 } from "@/db/queries/team-members";
 import type { ResponseDetail, ResponseListRow } from "@/db/queries/responses";
 import type { SurveyDetail, SurveyRow } from "@/db/queries/surveys";
@@ -107,6 +108,7 @@ type DrawerData =
         tickets: TicketsRow[];
         responses: ResponseListRow[];
         histogram: { rating: number; count: number }[];
+        qaRollup: TeamMemberQaRollup;
       };
     }
   | {
@@ -374,6 +376,7 @@ export function GlobalDrawer() {
             tickets={renderPayload.data.tickets}
             responses={renderPayload.data.responses}
             histogram={renderPayload.data.histogram}
+            qaRollup={renderPayload.data.qaRollup}
             inDrawer
           />
         ) : renderPayload.entity === "response" ? (

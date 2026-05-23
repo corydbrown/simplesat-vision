@@ -40,7 +40,7 @@ export const MOCKUPS: MockupMeta[] = [
       "Walks the manager through categories sequentially. Score → reason → advance. One primary action per step — no choice paralysis, no parallel state to track.",
     sufAxis: "simple",
     status: "exploring",
-    ready: false,
+    ready: true,
     path: "/mockups/qa-window/guided",
     createdAt: "2026-05-23",
   },

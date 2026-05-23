@@ -26,7 +26,6 @@ import {
   MessageCircleMore,
   MoreHorizontal,
   Search,
-  Settings,
   UserSquare2,
   Users,
   type LucideIcon,
@@ -175,7 +174,7 @@ export function PrimaryNavClient({ sections }: { sections: NavSection[] }) {
         style={{ width }}
         className="flex h-full flex-col px-2 py-3"
       >
-        <div className="flex items-center gap-2 px-2 pb-3">
+        <div className="flex shrink-0 items-center gap-2 px-2 pb-3">
           <div className="flex h-6 w-6 items-center justify-center rounded bg-foreground text-background text-base font-semibold">
             B
           </div>
@@ -198,46 +197,43 @@ export function PrimaryNavClient({ sections }: { sections: NavSection[] }) {
           </Tooltip>
         </div>
 
-        <div className="flex flex-col gap-0.5">
-          <TopLink
-            href="/"
-            icon={Home}
-            label="Home"
-            pathname={pathname}
-            match="/"
-          />
-          <TopLink
-            href="/inbox"
-            icon={Inbox}
-            label="Inbox"
-            pathname={pathname}
-            match="/inbox"
-            dim
-          />
-        </div>
-
-        <div className="mt-4 flex flex-col gap-2">
-          {sections.map((s) => (
-            <Section
-              key={s.id}
-              section={s}
+        {/* Scroll region: top links + section list. min-h-0 lets the flex
+            child shrink below content size so overflow-y-auto can engage.
+            no-scrollbar hides the track entirely (mousewheel/trackpad still
+            scroll) — overlay scrollbars otherwise leak through as a heavy
+            system bar when Chrome's "always show" preference is on. */}
+        <div className="no-scrollbar flex min-h-0 flex-1 flex-col overflow-y-auto">
+          <div className="flex flex-col gap-0.5">
+            <TopLink
+              href="/"
+              icon={Home}
+              label="Home"
               pathname={pathname}
-              currentViewId={searchParams.get(VIEW_ID_PARAM) ?? ALL_VIEW_ID}
-              isCollapsed={!sectionsExpanded.has(s.id)}
-              onToggle={() => toggleSection(s.id)}
+              match="/"
             />
-          ))}
-        </div>
+            <TopLink
+              href="/inbox"
+              icon={Inbox}
+              label="Inbox"
+              pathname={pathname}
+              match="/inbox"
+              dim
+            />
+          </div>
 
-        <div className="flex-1" />
-        <TopLink
-          href="/settings"
-          icon={Settings}
-          label="Settings"
-          pathname={pathname}
-          match="/settings"
-          dim
-        />
+          <div className="mt-4 flex flex-col gap-2">
+            {sections.map((s) => (
+              <Section
+                key={s.id}
+                section={s}
+                pathname={pathname}
+                currentViewId={searchParams.get(VIEW_ID_PARAM) ?? ALL_VIEW_ID}
+                isCollapsed={!sectionsExpanded.has(s.id)}
+                onToggle={() => toggleSection(s.id)}
+              />
+            ))}
+          </div>
+        </div>
       </div>
 
       {/* Drag handle on right edge — wider than visible for easier grab.

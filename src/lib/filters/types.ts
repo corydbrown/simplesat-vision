@@ -131,48 +131,43 @@ export function opNeedsValue(op: FilterOp): boolean {
   return op !== "isnull" && op !== "notnull";
 }
 
-/** Default op label (lowercase, natural language). Capitalize at display time. */
+/** Notion-style op labels. Capitalized at the source — call sites render
+ *  them as-is, no helper needed. */
 export const OP_LABEL: Record<FilterOp, string> = {
-  eq: "is",
-  neq: "is not",
-  lt: "is less than",
-  lte: "is at most",
-  gt: "is greater than",
-  gte: "is at least",
-  between: "is between",
-  in: "contains",
-  "not-in": "does not contain",
-  contains: "contains",
-  "starts-with": "starts with",
-  relative: "is in the",
-  isnull: "is empty",
-  notnull: "is not empty",
-  "contains-any": "contains any of",
-  "contains-all": "contains all of",
-  "excludes-any": "is missing any of",
-  "excludes-all": "contains none of",
+  eq: "Is",
+  neq: "Is not",
+  lt: "<",
+  lte: "≤",
+  gt: ">",
+  gte: "≥",
+  between: "Between",
+  in: "Is any of",
+  "not-in": "Is none of",
+  contains: "Contains",
+  "starts-with": "Starts with",
+  relative: "Is within",
+  isnull: "Is empty",
+  notnull: "Is not empty",
+  "contains-any": "Contains",
+  "contains-all": "Contains all",
+  "excludes-any": "Missing any",
+  "excludes-all": "Does not contain",
 };
 
-/** Capitalize the first letter of a string (for dropdown labels). */
-export function capitalize(s: string): string {
-  if (!s) return s;
-  return s.charAt(0).toUpperCase() + s.slice(1);
-}
-
 /** Returns a context-aware op label. Date fields use temporal verbs
- *  ("is before" / "is after"). Enums and relations use the OP_LABEL
- *  defaults ("contains" for in, "does not contain" for not-in). */
+ *  ("Is before" / "Is after"). Enums and relations fall through to
+ *  OP_LABEL ("Is any of" / "Is none of"). */
 export function opLabel(op: FilterOp, dataType: FilterDataType): string {
   if (dataType === "date") {
     switch (op) {
       case "lt":
-        return "is before";
+        return "Is before";
       case "lte":
-        return "is on or before";
+        return "Is on or before";
       case "gt":
-        return "is after";
+        return "Is after";
       case "gte":
-        return "is on or after";
+        return "Is on or after";
     }
   }
   return OP_LABEL[op];

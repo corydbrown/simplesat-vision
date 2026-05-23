@@ -36,6 +36,28 @@ Every screen we ship gets filtered through three criteria. These are the decidin
 
 When you're stuck on a design choice, ask: which option is *more* Simple, Useful, or Fun? If you can't tell, ask Cory.
 
+## Slack channel — action-required only
+
+The Slack channel `#simplesat-vision-prototype` (`C0B5AQ52FFZ`) is for **Cory needs to take an action**. Nothing else. Live progress is visible in VS Code; closure signals belong in chat or git.
+
+**Post to Slack only when:**
+- `PR opened — ready for review` → Cory reviews/merges.
+- `blocked: <reason>` → Cory makes a decision (schema change, scope ambiguity, anything needing explicit yes).
+
+**Do NOT post to Slack:**
+- `starting` heartbeats — Cory sees the VS Code window open; the brief tells him what's starting.
+- `first commit pushed` — Cory can `/sweep` when he wants status.
+- `merged` — closure signal, no action. Supervisor reports merges in chat or via `/post-merge`.
+- Sweep summaries — chat, not Slack.
+- Spawn announcements — Cory just typed the spawn command.
+- Supervisor session handoffs — these go to a STATUS file (when added), not Slack.
+
+**Self-test before any Slack post:** *Does Cory have to do something next?* If no, drop it.
+
+**Post format:**
+- PR opened: `<worktree> PR #<N> opened — ready for review. <github url>` + dev URL if relevant.
+- Blocked: `@cory <worktree> blocked: <reason>. WIP at <sha>. Worktree port <port>.` per STOP_CONDITIONS.
+
 ## Mockup exploration (the `/mockups` route)
 
 For exploratory UI work that doesn't need DB integration: spawn mockups at `src/app/mockups/<theme>/<variant>/page.tsx`. Self-contained, hardcoded data, no DB query, no `src/components/shared/` entity imports (those drag in production behaviors). Design tokens, shadcn primitives, Lucide icons are fair game. Each variation has a hypothesis and a SUF axis it's pushing. The `/mockups` index lists them all. Lifecycle: `exploring` → `loved` → `promoted` (design moves into production, mockup archived) OR `exploring` → `rejected` (deleted). Mockups live max ~1 release cycle. See worker briefs in mockup worktrees for the full convention.

@@ -143,6 +143,8 @@ Tailwind utilities are generated for each: `bg-blue`, `text-blue-dark`, `border-
 
 Production convention: hover = next-darker step. Pressed = two steps darker. Use the explicit darker tokens rather than `bg-X/N` opacity tricks.
 
+**Chromatic (primary, destructive, etc.)** — step through `-base` → `-dark` → `-darker`:
+
 | State | Pattern |
 |---|---|
 | Default | `bg-blue` |
@@ -150,6 +152,16 @@ Production convention: hover = next-darker step. Pressed = two steps darker. Use
 | Pressed / active | `bg-blue-darker` |
 
 The same pattern applies across all chromatic hues. Avoids the legibility issues of opacity-based hover (text contrast can degrade).
+
+**Neutral (outline, ghost, secondary)** — step through the neutral fill ladder (`background` → `muted/secondary/accent` → `input` → `border-solid`). All three neutral variants gain a perceptible pressed bg in addition to the global `active:translate-y-px` shift:
+
+| Variant | Default | Hover | Pressed |
+|---|---|---|---|
+| outline | `bg-background` (light) / `bg-input/40` (dark) | `bg-muted` (light) / `bg-input/60` (dark) | `bg-input` (both modes) |
+| ghost | (transparent) | `bg-muted` (light) / `bg-muted/50` (dark) | `bg-input` (both modes) |
+| secondary | `bg-secondary` | `bg-input` | `bg-border-solid` |
+
+`bg-input` reads as "darker" in both modes — in light it's a literal darker neutral (`oklch(0.922)` vs muted `0.97`); in dark it's a 15% white overlay that brightens against the canvas, producing the contrast-from-baseline that pressed/active states need on dark surfaces. Secondary already uses `bg-input` for hover, so its pressed step continues to `bg-border-solid` (the next solid neutral darker than input).
 
 ## Structural-semantic aliases (Tier 2)
 

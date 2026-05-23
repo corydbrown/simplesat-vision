@@ -115,6 +115,40 @@ export const SEED_VIEWS: Record<EntityKey, SavedView[]> = {
       },
     },
     {
+      // PRD Part 8: coachable conversations surface here. OR-grouped signals
+      // (transfers, multi-reassignment, SLA breach, escalation) catch every
+      // shape of "this one needed manager attention" without users having to
+      // build the filter themselves.
+      id: "high-signal-tickets",
+      name: "High-signal tickets",
+      state: {
+        sorts: [],
+        group: null,
+        layout: null,
+        filters: [
+          { propertyId: "had_transfer", op: "eq", value: true },
+          {
+            propertyId: "reassignment_count",
+            op: "gte",
+            value: 2,
+            combinator: "OR",
+          },
+          {
+            propertyId: "sla_breached",
+            op: "eq",
+            value: true,
+            combinator: "OR",
+          },
+          {
+            propertyId: "escalated",
+            op: "eq",
+            value: true,
+            combinator: "OR",
+          },
+        ],
+      },
+    },
+    {
       id: "survey-not-fired",
       name: "Survey not fired",
       state: {

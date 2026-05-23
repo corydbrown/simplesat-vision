@@ -4,8 +4,15 @@ import { db, schema } from "../client";
 import { compileListFilters } from "@/lib/filters/compile-list";
 import {
   TICKET_FILTER_FIELDS,
+  ticketCustomerReplyCountExpr,
+  ticketEscalatedExpr,
+  ticketHadTransferExpr,
+  ticketLongestIdleHoursExpr,
   ticketQaScoreExpr,
   ticketQaStatusExpr,
+  ticketQueueWaitHoursExpr,
+  ticketReassignmentCountExpr,
+  ticketSlaBreachedExpr,
 } from "@/lib/filters/fields/tickets";
 import type { Filter } from "@/lib/filters/types";
 import { compileGroupOrderBy } from "@/lib/group/compile";
@@ -59,7 +66,54 @@ export type TicketsRow = Ticket & {
   } | null;
   qaScore: number | null;
   qaStatus: QaEvaluationStatus | null;
+  signals: TicketSignals;
 };
+
+/** Per-row truth-set of the seven ticket-event signals. Boolean signals come
+ *  back from SQLite as 0/1 from EXISTS; we coerce to true booleans at the
+ *  query boundary so cells/filters consume them as JS booleans. */
+export type TicketSignals = {
+  hadTransfer: boolean;
+  reassignmentCount: number;
+  queueWaitHours: number | null;
+  slaBreached: boolean;
+  escalated: boolean;
+  customerReplyCount: number;
+  longestIdleHours: number | null;
+};
+
+export function mapSignals(raw: {
+  hadTransfer: number | null;
+  reassignmentCount: number | null;
+  queueWaitHours: number | null;
+  slaBreached: number | null;
+  escalated: number | null;
+  customerReplyCount: number | null;
+  longestIdleHours: number | null;
+}): TicketSignals {
+  return {
+    hadTransfer: raw.hadTransfer === 1,
+    reassignmentCount: raw.reassignmentCount ?? 0,
+    queueWaitHours: raw.queueWaitHours,
+    slaBreached: raw.slaBreached === 1,
+    escalated: raw.escalated === 1,
+    customerReplyCount: raw.customerReplyCount ?? 0,
+    longestIdleHours: raw.longestIdleHours,
+  };
+}
+
+/** SELECT clause snippet that loads all seven signal expressions onto a
+ *  TicketsRow query. Shared by listTickets, getTicketById, and the customer/
+ *  team-member ticket lists so they all surface the same signal data. */
+export const TICKET_SIGNAL_SELECT = {
+  hadTransfer: ticketHadTransferExpr,
+  reassignmentCount: ticketReassignmentCountExpr,
+  queueWaitHours: ticketQueueWaitHoursExpr,
+  slaBreached: ticketSlaBreachedExpr,
+  escalated: ticketEscalatedExpr,
+  customerReplyCount: ticketCustomerReplyCountExpr,
+  longestIdleHours: ticketLongestIdleHoursExpr,
+} as const;
 
 // Server-side ORDER BY references. Resolution time and survey state are
 // computed via SQL expressions; survey_state must mirror the client-side
@@ -146,6 +200,7 @@ export async function listTickets({
       },
       qaScore: ticketQaScoreExpr,
       qaStatus: ticketQaStatusExpr,
+      ...TICKET_SIGNAL_SELECT,
     })
     .from(schema.tickets)
     .leftJoin(
@@ -176,6 +231,7 @@ export async function listTickets({
     response: r.response?.id ? r.response : null,
     qaScore: r.qaScore,
     qaStatus: r.qaStatus,
+    signals: mapSignals(r),
   }));
 
   return { rows, total };
@@ -292,6 +348,7 @@ export async function getTicketById(id: string): Promise<TicketDetail | null> {
       },
       qaScore: ticketQaScoreExpr,
       qaStatus: ticketQaStatusExpr,
+      ...TICKET_SIGNAL_SELECT,
     })
     .from(schema.tickets)
     .leftJoin(
@@ -537,6 +594,7 @@ export async function getTicketById(id: string): Promise<TicketDetail | null> {
     response: r.response?.id ? r.response : null,
     qaScore: r.qaScore,
     qaStatus: r.qaStatus,
+    signals: mapSignals(r),
     messages,
     events,
     evaluation,

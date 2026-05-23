@@ -31,7 +31,7 @@ The Simplesat Vision prototype's backlog lives in a Notion database. Single sour
 | Repo link | url | Commit, PR, or file link |
 | Notes for me | text | Free-text note from Cory. **Agents should not write here** — append notes to the "Claude Code notes" section in the page body instead, so history is preserved. |
 | Task ID | auto_increment_id | Auto-assigned by Notion |
-| Started at / Completed at / Created | date | Auto or set by agent |
+| Started at / Completed at / Created | date | Set as **datetime** (not bare date), so Cory can see when within a day work happened. Use `date:<col>:is_datetime: 1` + ISO 8601 string (e.g. `"2026-05-23T15:30:00+07:00"` in Bangkok time). Sessions often produce many state transitions in a single day; the time makes the activity log readable. |
 
 ## How agents interact
 

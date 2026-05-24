@@ -11,6 +11,7 @@ import {
 import { rollupTopics } from "../lib/topics";
 import { DEFAULT_SCORECARD } from "../lib/qa/default-scorecard";
 import { MockScoringProvider } from "../lib/qa/scoring";
+import { COACHING_REACTIONS } from "../lib/qa/coaching";
 import { SEED_VIEWS } from "../lib/views/seed";
 import type { EntityKey } from "../lib/views/types";
 import { replaceSavedViews } from "./queries/saved-views";
@@ -26,6 +27,8 @@ import type {
   NewCustomer,
   NewEvaluation,
   NewEvaluationCategoryScore,
+  NewQaComment,
+  NewQaReaction,
   NewResponse,
   NewScorecard,
   NewScorecardCategory,
@@ -1121,6 +1124,64 @@ function buildLifecycle(input: LifecycleInput): LifecycleOutput {
   return { messages, events, messageCount, agentMessageCount };
 }
 
+/** Hand-curated coaching comment templates. Mixed registers — manager
+ *  feedback (specific, evaluative), agent self-reflection (asking, owning),
+ *  and short reply-style chatter. The pool is intentionally tasteful: this
+ *  is what a healthy QA Slack channel sounds like, not generic "good job!"
+ *  filler. Demo narrative quality matters. */
+const COACHING_MESSAGE_TEMPLATES_MANAGER = [
+  "Nice acknowledgement of the customer's frustration before pivoting to the solution.",
+  "Tone is warm here, but I'd lead with the refund timeline rather than the policy paragraph.",
+  "This is exactly the empathy beat we coached on last cycle — keep it.",
+  "Good recovery after the initial misread. Worth flagging for the new-hire highlight reel.",
+  "I'd shorten this — the customer already knows the SKU, no need to restate it.",
+  "Watch the auto-greeting habit; jumping straight to the issue reads more attentive on chat.",
+  "Strong close with the proactive store-credit offer. Reusable language.",
+  "Could you use the canned 'order lookup' macro here next time? Saves 30 seconds.",
+];
+const COACHING_MESSAGE_TEMPLATES_AGENT = [
+  "Noted on the tone — I'll lead with empathy on this one going forward.",
+  "Fair call, I was rushing the close. Adjusted my checklist.",
+  "Thanks — the macro tip will save real time on the loyalty-tier questions.",
+  "I missed the second SKU on first read. Will slow down the order parse.",
+  "Agreed, the apology paragraph was too long. Tightening up.",
+];
+const COACHING_TOPLEVEL_TEMPLATES = [
+  "Overall this is a clean recovery. The empathy in the first agent reply is the headline.",
+  "Good ticket to share in onboarding — shows the de-escalation sequence cleanly.",
+  "Wrap was a bit abrupt — worth a follow-up DM to confirm the refund landed.",
+  "Score feels right. Would have liked one more proactive question before resolving.",
+  "Nice work navigating the loyalty-tier confusion. Calibration pass complete.",
+  "Flagging for calibration review — the autofail edge case here is borderline.",
+];
+const COACHING_REPLY_TEMPLATES = [
+  "+1, agreed.",
+  "Same read here.",
+  "Fair point — I'll re-listen.",
+  "Yeah, I'd lean toward your version.",
+  "Good catch. Logging that pattern.",
+  "Worth a calibration session.",
+  "Adding to my coaching notes for this week.",
+];
+
+function renderCoachingComment(
+  rng: typeof faker,
+  ctx: { isAgent: boolean; anchoredToMessage: boolean; isReply: boolean },
+): string {
+  if (ctx.isReply) {
+    return pickFrom(COACHING_REPLY_TEMPLATES);
+  }
+  if (ctx.anchoredToMessage) {
+    return ctx.isAgent
+      ? pickFrom(COACHING_MESSAGE_TEMPLATES_AGENT)
+      : pickFrom(COACHING_MESSAGE_TEMPLATES_MANAGER);
+  }
+  // Use the faker arg so the helper participates in the seeded RNG when we
+  // expand templates with dynamic bits later. Today it's a constant pool.
+  void rng;
+  return pickFrom(COACHING_TOPLEVEL_TEMPLATES);
+}
+
 function adjustRatingForResolution(
   baseRating: number,
   resolutionMs: number,
@@ -1139,6 +1200,8 @@ function adjustRatingForResolution(
 
 async function seed() {
   console.log("Resetting tables...");
+  await db.delete(schema.qaReactions);
+  await db.delete(schema.qaComments);
   await db.delete(schema.coachingNotes);
   await db.delete(schema.evaluationCategoryScores);
   await db.delete(schema.evaluations);
@@ -1765,6 +1828,149 @@ async function seed() {
   });
 
   // -------------------------------------------------------------------------
+  // QA coaching comments + reactions (Phase 5 Batch 1). 2-3 comments per
+  // evaluation; reactions on ~20% of messages and ~30% of comments. All
+  // deterministic via the shared faker seed. Hand-curated templates so 50
+  // evaluations don't read like the same comment 150 times.
+  // -------------------------------------------------------------------------
+  console.log("Seeding QA comments + reactions...");
+  const commentRows: NewQaComment[] = [];
+  const reactionRows: NewQaReaction[] = [];
+
+  const managerIds = teamMembers
+    .filter((t) => t.role === "Customer Care Lead")
+    .map((t) => t.id!);
+  // Fallback: if no leads in the seed, fall back to any team member.
+  const reviewerIds =
+    managerIds.length > 0 ? managerIds : teamMembers.map((t) => t.id!);
+
+  for (const evaluation of evaluationRows) {
+    const evaluationId = evaluation.id!;
+    const ticketId = evaluation.ticketId;
+    const scoredAgentId = evaluation.scoredTeamMemberId;
+    const messagesForEval = messagesByTicketId.get(ticketId) ?? [];
+    const baseAt = (evaluation.scoredAt as Date).getTime();
+
+    const commentCount = faker.number.int({ min: 2, max: 3 });
+    const evalCommentIds: string[] = [];
+
+    for (let i = 0; i < commentCount; i++) {
+      // Mix authorship: first comment from a manager, rest random across
+      // manager/agent. Anchor variety: ~30% top-level, ~50% on a message,
+      // ~20% reply to the previous comment in this evaluation.
+      const authorPool =
+        i === 0
+          ? reviewerIds
+          : faker.datatype.boolean()
+            ? reviewerIds
+            : [scoredAgentId];
+      const authorId = pickFrom(authorPool);
+
+      let messageId: string | null = null;
+      let parentCommentId: string | null = null;
+      const anchorRoll = faker.number.int({ min: 0, max: 99 });
+      if (
+        anchorRoll < 20 &&
+        evalCommentIds.length > 0
+      ) {
+        parentCommentId = evalCommentIds[evalCommentIds.length - 1];
+      } else if (anchorRoll < 70 && messagesForEval.length > 0) {
+        messageId = pickFrom(messagesForEval).id;
+      }
+
+      const body = renderCoachingComment(faker, {
+        isAgent: !reviewerIds.includes(authorId),
+        anchoredToMessage: messageId !== null,
+        isReply: parentCommentId !== null,
+      });
+
+      const id = prefixedId("qac");
+      evalCommentIds.push(id);
+      const createdAt = new Date(
+        baseAt + (i + 1) * faker.number.int({ min: 15, max: 240 }) * 60 * 1000,
+      );
+      commentRows.push({
+        id,
+        evaluationId,
+        messageId,
+        activityId: null,
+        parentCommentId,
+        authorId,
+        body,
+        createdAt,
+        updatedAt: createdAt,
+      });
+    }
+
+    // Reactions on ~20% of the evaluation's messages.
+    for (const m of messagesForEval) {
+      if (faker.number.int({ min: 0, max: 99 }) >= 20) continue;
+      const reactorCount = faker.number.int({ min: 1, max: 2 });
+      const usedAuthors = new Set<string>();
+      for (let i = 0; i < reactorCount; i++) {
+        const authorId = pickFrom(reviewerIds);
+        const emoji = pickFrom(COACHING_REACTIONS);
+        const key = `${authorId}:${emoji}`;
+        if (usedAuthors.has(key)) continue;
+        usedAuthors.add(key);
+        reactionRows.push({
+          id: prefixedId("qrx"),
+          targetType: "message",
+          targetId: m.id,
+          evaluationId,
+          authorId,
+          emoji,
+          createdAt: new Date(
+            baseAt + faker.number.int({ min: 1, max: 360 }) * 60 * 1000,
+          ),
+        });
+      }
+    }
+
+    // Reactions on ~30% of the comments we just generated.
+    for (const cid of evalCommentIds) {
+      if (faker.number.int({ min: 0, max: 99 }) >= 30) continue;
+      const reactorCount = faker.number.int({ min: 1, max: 2 });
+      const usedAuthors = new Set<string>();
+      for (let i = 0; i < reactorCount; i++) {
+        const authorId = pickFrom(reviewerIds);
+        const emoji = pickFrom(COACHING_REACTIONS);
+        const key = `${authorId}:${emoji}`;
+        if (usedAuthors.has(key)) continue;
+        usedAuthors.add(key);
+        reactionRows.push({
+          id: prefixedId("qrx"),
+          targetType: "comment",
+          targetId: cid,
+          evaluationId,
+          authorId,
+          emoji,
+          createdAt: new Date(
+            baseAt + faker.number.int({ min: 1, max: 480 }) * 60 * 1000,
+          ),
+        });
+      }
+    }
+  }
+
+  console.log(
+    `Inserting ${commentRows.length} QA comments + ${reactionRows.length} reactions...`,
+  );
+  await db.transaction(async (tx) => {
+    const chunkSize = 200;
+    for (let i = 0; i < commentRows.length; i += chunkSize) {
+      await tx
+        .insert(schema.qaComments)
+        .values(commentRows.slice(i, i + chunkSize));
+    }
+    for (let i = 0; i < reactionRows.length; i += chunkSize) {
+      await tx
+        .insert(schema.qaReactions)
+        .values(reactionRows.slice(i, i + chunkSize));
+    }
+  });
+
+  // -------------------------------------------------------------------------
   // Saved views (SVP-85). Runs after every entity has rows so the views have
   // something to filter against. Goes through the same `replaceSavedViews`
   // helper the runtime localStorage-migration path uses — no separate insert.
@@ -1793,6 +1999,8 @@ async function seed() {
     evaluationCount,
     evaluationCategoryScoreCount,
     coachingNoteCount,
+    qaCommentCount,
+    qaReactionCount,
     savedViewCount,
   ] = await Promise.all([
     db.$count(schema.surveys),
@@ -1809,6 +2017,8 @@ async function seed() {
     db.$count(schema.evaluations),
     db.$count(schema.evaluationCategoryScores),
     db.$count(schema.coachingNotes),
+    db.$count(schema.qaComments),
+    db.$count(schema.qaReactions),
     db.$count(schema.savedViews),
   ]);
   console.log({
@@ -1827,6 +2037,8 @@ async function seed() {
     evaluations: evaluationCount,
     evaluationCategoryScores: evaluationCategoryScoreCount,
     coachingNotes: coachingNoteCount,
+    qaComments: qaCommentCount,
+    qaReactions: qaReactionCount,
     savedViews: savedViewCount,
   });
 }

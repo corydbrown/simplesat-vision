@@ -5,6 +5,7 @@ import {
   primaryKey,
   sqliteTable,
   text,
+  uniqueIndex,
 } from "drizzle-orm/sqlite-core";
 
 export type CustomerTier = "insider" | "gold" | "elite";
@@ -710,6 +711,121 @@ export const coachingNotes = sqliteTable(
   ],
 );
 
+/** Reaction-target polymorphism. A reaction may attach to a `ticket_message`
+ *  (the customer ↔ agent transcript surfaced in the QA evaluation), a
+ *  `qa_comment` (a coaching note that one team member leaves on the
+ *  evaluation), or a `ticket_event` (a status / assignee / tag flip on the
+ *  activity stream). All three live on the same evaluation surface, so a
+ *  single polymorphic table keeps the read path (list reactions for an
+ *  evaluation → 1 query) simple. If the join shape ever gets gnarly we can
+ *  split per-target without changing the column names that callers know. */
+export type QaReactionTargetType = "message" | "comment" | "activity";
+
+/** Coaching comments on a QA evaluation surface. A comment can:
+ *  - anchor to a specific `ticket_messages.id` (e.g. "great empathy here")
+ *  - anchor to a specific `ticket_events.id` (e.g. flag a status flip — UI
+ *    wiring lands post-V1; column exists from day 1 so the seam is clean)
+ *  - be unanchored (`messageId` and `activityId` both null) → a top-level
+ *    comment on the evaluation overall
+ *  - reply to another comment via `parentCommentId` (threading supported
+ *    by the data model; V1 UI may render a flat list).
+ *
+ *  V1 visibility model: every comment is visible to everyone on the
+ *  evaluation surface. NO `visibility` column. A post-V1 task may introduce
+ *  one; until then the absence is intentional.
+ *
+ *  V1 body model: plain text. No @mention parsing today — that lands later
+ *  as a layered `body_markup` column or similar so the migration is
+ *  additive, not a rewrite. */
+export const qaComments = sqliteTable(
+  "qa_comments",
+  {
+    id: text("id").primaryKey(),
+    evaluationId: text("evaluation_id")
+      .notNull()
+      .references(() => evaluations.id, { onDelete: "cascade" }),
+    /** Null = comment on the evaluation overall, not anchored to a message. */
+    messageId: text("message_id").references(() => ticketMessages.id, {
+      onDelete: "set null",
+    }),
+    /** Null = not anchored to an activity event. Post-V1 UI surface. */
+    activityId: text("activity_id").references(() => ticketEvents.id, {
+      onDelete: "set null",
+    }),
+    /** Self-referential FK for threading. Null = top-level. Cascade so a
+     *  deleted parent takes its replies with it. */
+    parentCommentId: text("parent_comment_id").references(
+      (): import("drizzle-orm/sqlite-core").AnySQLiteColumn => qaComments.id,
+      { onDelete: "cascade" },
+    ),
+    authorId: text("author_id")
+      .notNull()
+      .references(() => teamMembers.id),
+    body: text("body").notNull(),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+    updatedAt: integer("updated_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+  },
+  (t) => [
+    index("qa_comments_evaluation_id_idx").on(t.evaluationId),
+    index("qa_comments_message_id_idx").on(t.messageId),
+    index("qa_comments_activity_id_idx").on(t.activityId),
+    index("qa_comments_parent_comment_id_idx").on(t.parentCommentId),
+    index("qa_comments_author_id_idx").on(t.authorId),
+    index("qa_comments_created_at_idx").on(t.createdAt),
+  ],
+);
+
+/** Emoji reactions on the QA evaluation surface. Polymorphic via
+ *  (`targetType`, `targetId`) — see `QaReactionTargetType`. The curated
+ *  6-emoji set is enforced at the provider layer, not at the DB, so the
+ *  schema stays neutral if product ever expands the set.
+ *
+ *  Unique on (targetType, targetId, authorId, emoji) — one reaction-emoji
+ *  per user per target. Toggling a reaction = delete + insert. */
+export const qaReactions = sqliteTable(
+  "qa_reactions",
+  {
+    id: text("id").primaryKey(),
+    targetType: text("target_type", {
+      enum: ["message", "comment", "activity"],
+    })
+      .notNull()
+      .$type<QaReactionTargetType>(),
+    /** Points at `ticket_messages.id`, `qa_comments.id`, or
+     *  `ticket_events.id` depending on `targetType`. No FK — SQLite can't
+     *  enforce polymorphic references and the provider validates target
+     *  existence at write time. */
+    targetId: text("target_id").notNull(),
+    /** Scope reactions to a single evaluation surface so we can list every
+     *  reaction for one evaluation in 1 query (no per-target joins). */
+    evaluationId: text("evaluation_id")
+      .notNull()
+      .references(() => evaluations.id, { onDelete: "cascade" }),
+    authorId: text("author_id")
+      .notNull()
+      .references(() => teamMembers.id),
+    emoji: text("emoji").notNull(),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+  },
+  (t) => [
+    index("qa_reactions_evaluation_id_idx").on(t.evaluationId),
+    index("qa_reactions_target_idx").on(t.targetType, t.targetId),
+    index("qa_reactions_author_id_idx").on(t.authorId),
+    uniqueIndex("qa_reactions_unique_per_user_emoji_idx").on(
+      t.targetType,
+      t.targetId,
+      t.authorId,
+      t.emoji,
+    ),
+  ],
+);
+
 /** Server-side storage for saved views. Carries `workspace_id` from day one so
  *  the eventual auth cutover is a value-source change, not a schema migration.
  *  Today the column is always the demo constant (see src/lib/workspace.ts).
@@ -780,3 +896,7 @@ export type NewEvaluationCategoryScore =
   typeof evaluationCategoryScores.$inferInsert;
 export type CoachingNote = typeof coachingNotes.$inferSelect;
 export type NewCoachingNote = typeof coachingNotes.$inferInsert;
+export type QaComment = typeof qaComments.$inferSelect;
+export type NewQaComment = typeof qaComments.$inferInsert;
+export type QaReaction = typeof qaReactions.$inferSelect;
+export type NewQaReaction = typeof qaReactions.$inferInsert;

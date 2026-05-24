@@ -40,6 +40,7 @@ import { meta as popoverMeta } from "./entries/qa-window-popover";
 import { meta as refinedMeta } from "./entries/qa-window-refined";
 import { meta as reactMeta } from "./entries/qa-window-react";
 import { meta as keysMeta } from "./entries/qa-window-keys";
+import { meta as flowMeta } from "./entries/qa-window-flow";
 import { meta as copilotMeta } from "./entries/qa-window-copilot";
 
 export const MOCKUPS: MockupMeta[] = [
@@ -56,5 +57,6 @@ export const MOCKUPS: MockupMeta[] = [
   refinedMeta,
   reactMeta,
   keysMeta,
+  flowMeta,
   copilotMeta,
 ];

@@ -34,6 +34,8 @@ import { meta as splitpaneMeta } from "./entries/qa-window-splitpane";
 import { meta as stainedglassMeta } from "./entries/qa-window-stainedglass";
 import { meta as dragciteMeta } from "./entries/qa-window-dragcite";
 import { meta as threadedMeta } from "./entries/qa-window-threaded";
+import { meta as inspectMeta } from "./entries/qa-window-inspect";
+import { meta as pulseMeta } from "./entries/qa-window-pulse";
 import { meta as popoverMeta } from "./entries/qa-window-popover";
 
 export const MOCKUPS: MockupMeta[] = [
@@ -44,5 +46,7 @@ export const MOCKUPS: MockupMeta[] = [
   stainedglassMeta,
   dragciteMeta,
   threadedMeta,
+  inspectMeta,
+  pulseMeta,
   popoverMeta,
 ];

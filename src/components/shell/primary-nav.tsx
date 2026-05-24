@@ -43,6 +43,14 @@ const ENTITY_SECTIONS: Record<EntityKey, NavSection> = {
     href: "/tickets",
     entityKey: "tickets",
   },
+  coaching: {
+    id: "coaching",
+    label: "Coaching",
+    icon: "ClipboardCheck",
+    iconClass: "text-icon-coaching",
+    href: "/coaching",
+    entityKey: "coaching",
+  },
 };
 
 const SECTIONS: NavSection[] = [

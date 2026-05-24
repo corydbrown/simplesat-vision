@@ -842,7 +842,7 @@ export const savedViews = sqliteTable(
     id: text("id").notNull(),
     workspaceId: text("workspace_id").notNull(),
     entity: text("entity", {
-      enum: ["tickets", "customers", "responses", "team-members"],
+      enum: ["tickets", "customers", "responses", "team-members", "coaching"],
     }).notNull(),
     name: text("name").notNull(),
     /** JSON-encoded ViewState (sorts, group, filters, layout, columns).

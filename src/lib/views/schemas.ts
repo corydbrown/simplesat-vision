@@ -12,6 +12,7 @@ export const EntitySchema = z.enum([
   "customers",
   "responses",
   "team-members",
+  "coaching",
 ]);
 export type EntityKey = z.infer<typeof EntitySchema>;
 export const ENTITY_KEYS: readonly EntityKey[] = EntitySchema.options;

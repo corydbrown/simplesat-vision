@@ -1,5 +1,6 @@
 import {
   BarChart3,
+  ClipboardCheck,
   Home,
   Inbox,
   Settings,
@@ -67,6 +68,13 @@ const SECTIONS: {
     icon: Inbox,
     href: "/tickets",
     keywords: ["conversations", "issues"],
+  },
+  {
+    id: "coaching",
+    label: "Coaching",
+    icon: ClipboardCheck,
+    href: "/coaching",
+    keywords: ["qa", "quality", "evaluation", "scoring", "review"],
   },
   {
     id: "reports",

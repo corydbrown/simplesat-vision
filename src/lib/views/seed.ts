@@ -223,6 +223,65 @@ export const SEED_VIEWS: Record<EntityKey, SavedView[]> = {
       },
     },
   ],
+  coaching: [
+    {
+      // QA evaluations that landed in the AI-scored state and haven't been
+      // touched by a manager yet — the daily review queue. Sorts worst-first
+      // so the most actionable score surfaces at the top.
+      id: "needs-my-attention",
+      name: "Needs my attention",
+      state: {
+        sorts: [{ key: "overall_score", dir: "asc" }],
+        group: null,
+        layout: null,
+        filters: [{ propertyId: "status", op: "in", value: ["ai_scored"] }],
+      },
+    },
+    {
+      // Evaluations a manager has inline-edited — useful for calibration
+      // review and seeing where the AI most needed correction.
+      id: "recently-edited",
+      name: "Recently edited",
+      state: {
+        sorts: [{ key: "edited_at", dir: "desc" }],
+        group: null,
+        layout: null,
+        filters: [{ propertyId: "status", op: "in", value: ["edited"] }],
+      },
+    },
+    {
+      // PRD: auto-failed evaluations are a distinct compliance bucket from
+      // generally-low scores. Time-bound to the last 7 days so the view
+      // mirrors a weekly QA standup; longer windows can be added ad-hoc.
+      id: "auto-failed-this-week",
+      name: "Auto-failed this week",
+      state: {
+        sorts: [{ key: "scored_at", dir: "desc" }],
+        group: null,
+        layout: null,
+        filters: [
+          { propertyId: "auto_failed", op: "eq", value: true },
+          {
+            propertyId: "scored_at",
+            op: "relative",
+            value: { n: 7, unit: "days", dir: "past" },
+          },
+        ],
+      },
+    },
+    {
+      // Per-agent coaching pivot: group by scored team member so a manager
+      // can pick an agent and scan their recent scores side by side.
+      id: "by-team-member",
+      name: "By team member",
+      state: {
+        sorts: [{ key: "scored_at", dir: "desc" }],
+        group: { propertyId: "scored_team_member", dir: "asc" },
+        layout: null,
+        filters: [],
+      },
+    },
+  ],
   "team-members": [
     {
       id: "front-line",
@@ -276,6 +335,7 @@ export const ALL_VIEW_LABEL: Record<EntityKey, string> = {
   tickets: "All tickets",
   responses: "All responses",
   "team-members": "All members",
+  coaching: "All evaluations",
 };
 
 export const ENTITY_BASE_PATH: Record<EntityKey, string> = {
@@ -283,6 +343,7 @@ export const ENTITY_BASE_PATH: Record<EntityKey, string> = {
   tickets: "/tickets",
   responses: "/responses",
   "team-members": "/team-members",
+  coaching: "/coaching",
 };
 
 /** Source-of-truth order for entity-bound nav sections. The sidebar
@@ -294,4 +355,5 @@ export const NAV_SECTION_ORDER: readonly EntityKey[] = [
   "customers",
   "team-members",
   "tickets",
+  "coaching",
 ];

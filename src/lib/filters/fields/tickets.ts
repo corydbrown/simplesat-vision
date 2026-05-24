@@ -36,10 +36,8 @@ export const ticketReassignmentCountExpr = sql<number>`(SELECT COUNT(*) FROM tic
 // replied. Stored as floating hours so users can express sub-hour cutoffs.
 export const ticketQueueWaitHoursExpr = sql<number | null>`((SELECT MIN(ticket_messages.created_at) FROM ticket_messages WHERE ticket_messages.ticket_id = tickets.id AND ticket_messages.author_role = 'agent') - tickets.created_at) / 3600000.0`;
 export const ticketSlaBreachedExpr = sql<number>`(SELECT EXISTS(SELECT 1 FROM ticket_events WHERE ticket_events.ticket_id = tickets.id AND ticket_events.verb = 'sla_breached'))`;
-// The schema has no `escalated` verb; the actionable shape of an escalation in
-// the seed is a `priority_changed` event whose new priority is high or urgent.
-// Derive from that signal so the filter is usable without a schema migration.
-export const ticketEscalatedExpr = sql<number>`(SELECT EXISTS(SELECT 1 FROM ticket_events WHERE ticket_events.ticket_id = tickets.id AND ticket_events.verb = 'priority_changed' AND ticket_events.new_value IN ('high', 'urgent')))`;
+export const ticketEscalatedExpr = sql<number>`(SELECT EXISTS(SELECT 1 FROM ticket_events WHERE ticket_events.ticket_id = tickets.id AND ticket_events.verb = 'escalated'))`;
+export const ticketAiHandoffExpr = sql<number>`(SELECT EXISTS(SELECT 1 FROM ticket_events WHERE ticket_events.ticket_id = tickets.id AND ticket_events.verb = 'ai_handoff'))`;
 export const ticketCustomerReplyCountExpr = sql<number>`(SELECT COUNT(*) FROM ticket_messages WHERE ticket_messages.ticket_id = tickets.id AND ticket_messages.author_role = 'customer')`;
 // Longest gap (in hours) between consecutive activity entries — events and
 // messages merged by created_at. Uses LAG() over the union so the gap is
@@ -70,6 +68,7 @@ export const TICKET_FILTER_FIELDS = buildFilterFields(TICKET_FILTER_SPECS, {
   queue_wait_hours: ticketQueueWaitHoursExpr,
   sla_breached: ticketSlaBreachedExpr,
   escalated: ticketEscalatedExpr,
+  ai_handoff: ticketAiHandoffExpr,
   customer_reply_count: ticketCustomerReplyCountExpr,
   longest_idle_hours: ticketLongestIdleHoursExpr,
 });

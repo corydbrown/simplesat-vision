@@ -1,6 +1,7 @@
 import {
   AlertTriangle,
   ArrowRightLeft,
+  Bot,
   ChevronUp,
   Clock,
   Hourglass,
@@ -53,6 +54,15 @@ function deriveChips(signals: TicketSignals): SignalChip[] {
       icon: ChevronUp,
       label: "Escalated",
       color: "bg-yellow-lighter text-yellow-darker",
+    });
+  }
+
+  if (signals.aiHandoff) {
+    chips.push({
+      key: "ai-handoff",
+      icon: Bot,
+      label: "AI handoff",
+      color: "bg-teal-lighter text-teal-darker",
     });
   }
 

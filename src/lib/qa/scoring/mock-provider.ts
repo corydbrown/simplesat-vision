@@ -39,10 +39,11 @@ export class MockScoringProvider implements ScoringProvider {
       .map((category) => {
         const messageIds = pickHighlightedMessages(faker, input);
         if (category.scaleType === "binary") {
-          const failed =
-            autoFailTriggered &&
-            faker.number.int({ min: 0, max: input.scorecard.categories.length - 1 }) <
-              category.criteria.length;
+          const failed = decideBinaryFail(faker, {
+            autoFailTriggered,
+            categoryCount: input.scorecard.categories.length,
+            criteriaCount: category.criteria.length,
+          });
           return {
             categoryId: category.id,
             aiScore: failed ? 0 : 1,
@@ -224,6 +225,23 @@ function buildBinaryReasoning(
   const pool = failed ? BINARY_FAIL_REASONS : BINARY_PASS_REASONS;
   const base = faker.helpers.arrayElement(pool);
   return `${categoryName}: ${base}`;
+}
+
+/** Decide whether a binary category fails. Only ever true on auto-fail
+ *  tickets; even then, only some binary categories fail (probability scales
+ *  with criteria density so categories with more criteria are more likely
+ *  to be the one that tripped). Keeps the previous behavior, just named. */
+function decideBinaryFail(
+  faker: Faker,
+  params: {
+    autoFailTriggered: boolean;
+    categoryCount: number;
+    criteriaCount: number;
+  },
+): boolean {
+  if (!params.autoFailTriggered) return false;
+  const roll = faker.number.int({ min: 0, max: params.categoryCount - 1 });
+  return roll < params.criteriaCount;
 }
 
 const SUMMARY_TEMPLATES_GOOD = [

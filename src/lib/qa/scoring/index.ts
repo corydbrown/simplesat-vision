@@ -1,26 +1,41 @@
 /**
  * Public entry point for QA scoring. Callers in seed code and route
  * handlers go through `getScoringProvider()` rather than constructing a
- * provider directly — that keeps the choice of mock vs Claude in one place
- * (the env var) and the swap to real LLM scoring (SVP-67) is a one-line
- * config change, not a code search.
+ * provider directly — keeping the choice of mock vs real-LLM in one place
+ * (the env var) means swapping in real scoring is a config change, not a
+ * code search. Default stays `mock` so dev + CI + the seed pipeline remain
+ * deterministic without an API key.
  *
- * Env: QA_SCORING_PROVIDER=mock|claude (default: mock).
+ * Env:
+ *   LLM_SCORING_PROVIDER = mock | llm   (default: mock)
+ *   LLM_API_KEY          = required when provider = llm
+ *   LLM_MODEL            = model identifier (default: claude-opus-4-7)
  */
 
-import { ClaudeScoringProvider } from "./claude-provider";
+import { LlmScoringProvider } from "./llm-provider";
 import { MockScoringProvider } from "./mock-provider";
 import type { ScoringProvider } from "./types";
 
-export type ScoringProviderName = "mock" | "claude";
+export type ScoringProviderName = "mock" | "llm";
+
+const DEFAULT_LLM_MODEL = "claude-opus-4-7";
 
 export function getScoringProvider(
   override?: ScoringProviderName,
 ): ScoringProvider {
   const name = override ?? resolveProviderName();
   switch (name) {
-    case "claude":
-      return new ClaudeScoringProvider();
+    case "llm": {
+      const apiKey = process.env.LLM_API_KEY;
+      const model = process.env.LLM_MODEL ?? DEFAULT_LLM_MODEL;
+      if (!apiKey) {
+        throw new Error(
+          "LLM_API_KEY is required when LLM_SCORING_PROVIDER=llm. " +
+            "Set LLM_SCORING_PROVIDER=mock to use the deterministic mock provider.",
+        );
+      }
+      return new LlmScoringProvider({ apiKey, model });
+    }
     case "mock":
     default:
       return new MockScoringProvider();
@@ -28,13 +43,13 @@ export function getScoringProvider(
 }
 
 function resolveProviderName(): ScoringProviderName {
-  const raw = (process.env.QA_SCORING_PROVIDER ?? "mock").toLowerCase();
-  if (raw === "claude") return "claude";
+  const raw = (process.env.LLM_SCORING_PROVIDER ?? "mock").toLowerCase();
+  if (raw === "llm") return "llm";
   return "mock";
 }
 
 export { MockScoringProvider } from "./mock-provider";
-export { ClaudeScoringProvider } from "./claude-provider";
+export { LlmScoringProvider } from "./llm-provider";
 export type {
   ScoringCategoryResult,
   ScoringCoachingNote,

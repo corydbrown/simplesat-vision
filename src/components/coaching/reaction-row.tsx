@@ -11,7 +11,10 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { COACHING_REACTIONS, type CoachingReaction } from "@/lib/qa/coaching";
+import {
+  COACHING_REACTIONS,
+  type CoachingReaction,
+} from "@/lib/qa/coaching/reactions";
 import { cn } from "@/lib/utils";
 
 export type ReactionAggregate = {

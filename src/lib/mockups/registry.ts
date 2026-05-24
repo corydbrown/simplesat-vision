@@ -1,6 +1,11 @@
-/** Mockup registry. Workers add their entry when they ship a variation and
- *  flip `ready: true`. The gallery at `/mockups` reads this list and renders
- *  the cards. Keep entries ordered within a theme. */
+/** Mockup registry. The gallery at `/mockups` reads this list and renders
+ *  the cards.
+ *
+ *  Adding a new mockup: create a new file in `./entries/<theme>-<variant>.ts`
+ *  exporting a `meta: MockupMeta` constant, then add the import + reference
+ *  below. One entry per file keeps parallel workers from colliding on this
+ *  array. See `./entries/README.md`.
+ */
 
 export type MockupStatus = "exploring" | "loved" | "rejected" | "promoted";
 export type SufAxis = "simple" | "useful" | "fun";
@@ -17,91 +22,25 @@ export type MockupMeta = {
   ready: boolean;
   path: string;
   createdAt: string;
+  /** Mockup round number. The supervisor assigns this at spawn time;
+   *  the gallery groups + sorts by round (highest first). */
+  round: number;
 };
 
+import { meta as compactMeta } from "./entries/qa-window-compact";
+import { meta as guidedMeta } from "./entries/qa-window-guided";
+import { meta as overlayMeta } from "./entries/qa-window-overlay";
+import { meta as splitpaneMeta } from "./entries/qa-window-splitpane";
+import { meta as stainedglassMeta } from "./entries/qa-window-stainedglass";
+import { meta as dragciteMeta } from "./entries/qa-window-dragcite";
+import { meta as threadedMeta } from "./entries/qa-window-threaded";
+
 export const MOCKUPS: MockupMeta[] = [
-  {
-    theme: "qa-window",
-    variant: "compact",
-    title: "Compact horizontal",
-    hypothesis:
-      "All 5 categories on one row as pill clusters. Edit + history + coaching collapse behind interaction. Goal: see the whole evaluation at a glance, drill in only when needed.",
-    sufAxis: "simple",
-    status: "exploring",
-    ready: true,
-    path: "/mockups/qa-window/compact",
-    createdAt: "2026-05-23",
-  },
-  {
-    theme: "qa-window",
-    variant: "guided",
-    title: "Guided one-at-a-time",
-    hypothesis:
-      "Walks the manager through categories sequentially. Score → reason → advance. One primary action per step — no choice paralysis, no parallel state to track.",
-    sufAxis: "simple",
-    status: "exploring",
-    ready: true,
-    path: "/mockups/qa-window/guided",
-    createdAt: "2026-05-23",
-  },
-  {
-    theme: "qa-window",
-    variant: "overlay",
-    title: "Conversation overlay",
-    hypothesis:
-      "QA section becomes a floating right-sidebar over the message feed. Click a category, supporting messages light up in the feed. Direct manipulation of the evidence ↔ score connection.",
-    sufAxis: "fun",
-    status: "exploring",
-    ready: true,
-    path: "/mockups/qa-window/overlay",
-    createdAt: "2026-05-23",
-  },
-  {
-    theme: "qa-window",
-    variant: "splitpane",
-    title: "Split-pane evidence",
-    hypothesis:
-      "Dedicated full-page review mode: messages left, score panel right. Clicking a category scrolls + highlights supporting messages. Optimizes for the manager-review work session, not the ticket-detail browse.",
-    sufAxis: "useful",
-    status: "exploring",
-    ready: true,
-    path: "/mockups/qa-window/splitpane",
-    createdAt: "2026-05-23",
-  },
-  {
-    theme: "qa-window",
-    variant: "stainedglass",
-    title: "Stained glass — the whole convo lit up",
-    hypothesis:
-      "Every cited message wears thin colored side-stripes encoding which categories it serves. Score topology is always visible — no hover required. The conversation is lit up like a stained-glass window; you see where empathy, diagnosis, and policy lived at a glance. Adds a tiny topology mini-map for jump navigation.",
-    sufAxis: "fun",
-    status: "exploring",
-    ready: true,
-    path: "/mockups/qa-window/stainedglass",
-    createdAt: "2026-05-24",
-  },
-  {
-    theme: "qa-window",
-    variant: "dragcite",
-    title: "Drag to cite — massage it directly",
-    hypothesis:
-      "Reviewer drags message bubbles onto category cards to cite them; drags tabs off to uncite. Cited bubbles wear colored tabs that 'belong to' a category. Direct manipulation as the primary interaction — you literally pick the conversation apart with your hands.",
-    sufAxis: "fun",
-    status: "exploring",
-    ready: true,
-    path: "/mockups/qa-window/dragcite",
-    createdAt: "2026-05-24",
-  },
-  {
-    theme: "qa-window",
-    variant: "threaded",
-    title: "Threaded — pinboard with strings",
-    hypothesis:
-      "Visible curved connector lines tie each cited message to its category card. The conversation is physically tethered to the score — hover a category and its strings pulse. Pushes the 'conversation as a 3D object' metaphor.",
-    sufAxis: "fun",
-    status: "exploring",
-    ready: true,
-    path: "/mockups/qa-window/threaded",
-    createdAt: "2026-05-24",
-  },
+  compactMeta,
+  guidedMeta,
+  overlayMeta,
+  splitpaneMeta,
+  stainedglassMeta,
+  dragciteMeta,
+  threadedMeta,
 ];

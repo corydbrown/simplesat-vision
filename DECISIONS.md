@@ -256,6 +256,10 @@ The `/design` audit page (PR #12) surfaced three categories of drift that requir
 - **Saved view in the palette as a dynamic group.** Sourced from ViewsProvider, rendered next to the existing dynamic entity groups.
 - **Column visibility/widths as part of view state.** Today those are tracked in `ColumnStateProvider` (per-table localStorage key `simplesat:cols:<tableId>`), separate from the view definition. Folding them in would mean a view carries the full table layout, not just the query.
 
+## Filter framework
+
+- **Multi_enum popover cache uses explicit invalidation, not TTL (2026-05-24, SVP-75).** `src/lib/filters/multi-enum-cache.tsx` exports `invalidateMultiEnumOptions(dynamicValuesKey)`. Convention: any server action that mutates a tagged JSON-array column (today: `tickets.tags`, `responses.topics`) calls the invalidator for the relevant key after the mutation completes. No write paths consume it yet — the API is in place so the first mutation that lands doesn't ship with a stale popover. TTL was on the table and rejected: it masks staleness rather than preventing it, and tagged columns are rarely-written + heavily-read by filters (worst case for TTL).
+
 ## Provider pattern for external service calls
 
 - **`Provider`-style interface from day one, mock implementation first.** Anything that will eventually call an external service (LLM scoring, helpdesk APIs, notifications) lives behind an interface in `src/lib/<domain>/<service>/types.ts` with two implementations: a `MockProvider` that returns deterministic faker output, and a real provider that hits the network. Selection is a one-line env-var swap inside the domain's `index.ts` factory (`getXProvider()`); call sites never construct providers directly. See `src/lib/qa/scoring/` for the canonical shape — `ScoringProvider` interface, `MockScoringProvider` (deterministic, faker-seeded by ticket id), `LlmScoringProvider` (Anthropic SDK behind the same surface), `getScoringProvider()` factory reading `LLM_SCORING_PROVIDER=mock|llm`.

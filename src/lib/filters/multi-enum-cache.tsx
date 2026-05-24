@@ -1,5 +1,18 @@
 "use client";
 
+// Client-side cache for multi_enum filter popover options.
+//
+// Entries are primed lazily on first popover open via `useMultiEnumOptions`
+// and live for the lifetime of the JS module — no TTL. That's fine as long as
+// nothing mutates the underlying tagged JSON-array columns (tickets.tags,
+// responses.topics) without telling us.
+//
+// Convention: any server action / mutation that changes a tagged JSON-array
+// column MUST call `invalidateMultiEnumOptions(key)` for the affected resolver
+// key on the client after the round-trip. The next popover open will refetch.
+// We prefer explicit invalidation over TTL — TTL masks staleness instead of
+// preventing it.
+
 import { useEffect, useState } from "react";
 import type { MultiEnumValueOption } from "./multi-enum-resolvers";
 import { fetchMultiEnumValues } from "./multi-enum-values";
@@ -74,6 +87,27 @@ export function useMultiEnumOptions(dynamicValuesKey: string | undefined): {
   const cached = optionsCache.get(dynamicValuesKey);
   if (cached) return { options: cached, loading: false };
   return { options: [], loading: true };
+}
+
+/** Evicts the cached entry for `dynamicValuesKey` (options + labels + any
+ *  in-flight fetch) and notifies subscribers so mounted popovers reload on
+ *  next render. Call after a server mutation that changes the underlying
+ *  tagged JSON-array column. No-ops if the key was never primed. */
+export function invalidateMultiEnumOptions(dynamicValuesKey: string): void {
+  optionsCache.delete(dynamicValuesKey);
+  inFlight.delete(dynamicValuesKey);
+  const prefix = `${dynamicValuesKey}:`;
+  for (const labelKeyStr of labelCache.keys()) {
+    if (labelKeyStr.startsWith(prefix)) labelCache.delete(labelKeyStr);
+  }
+  notify();
+}
+
+// Dev-only console hook for manual cache-eviction verification.
+// In a browser dev build: `__simplesatInvalidateMultiEnum('ticket.tags')`.
+if (process.env.NODE_ENV !== "production" && typeof window !== "undefined") {
+  (window as unknown as Record<string, unknown>).__simplesatInvalidateMultiEnum =
+    invalidateMultiEnumOptions;
 }
 
 /** Sync label lookup for chip rendering. Returns null when the dynamic-values

@@ -2,7 +2,7 @@
 
 import { ArrowRight } from "lucide-react";
 import Link from "next/link";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect } from "react";
 import { Topbar } from "@/components/shell/topbar";
 import { ColumnStateProvider } from "@/lib/column-prefs";
 import { recordEntityView } from "@/lib/recent-pages";
@@ -25,7 +25,6 @@ import type {
   TicketDetail,
 } from "@/db/queries/tickets";
 
-const HIGHLIGHT_DURATION_MS = 2500;
 
 export function TicketDetailBody({
   ticket,
@@ -46,36 +45,6 @@ export function TicketDetailBody({
         : undefined,
     });
   }, [inDrawer, ticket.id, ticket.subject, ticket.helpdeskExternalId]);
-
-  const [highlightedMessageId, setHighlightedMessageId] = useState<
-    string | null
-  >(null);
-  const highlightTimeoutRef = useRef<number | null>(null);
-
-  useEffect(() => {
-    return () => {
-      if (highlightTimeoutRef.current != null) {
-        window.clearTimeout(highlightTimeoutRef.current);
-      }
-    };
-  }, []);
-
-  const handleHighlightMessage = useCallback((messageId: string) => {
-    setHighlightedMessageId(messageId);
-    const el = document.querySelector(
-      `[data-message-id="${CSS.escape(messageId)}"]`,
-    );
-    if (el) {
-      el.scrollIntoView({ behavior: "smooth", block: "center" });
-    }
-    if (highlightTimeoutRef.current != null) {
-      window.clearTimeout(highlightTimeoutRef.current);
-    }
-    highlightTimeoutRef.current = window.setTimeout(() => {
-      setHighlightedMessageId(null);
-      highlightTimeoutRef.current = null;
-    }, HIGHLIGHT_DURATION_MS);
-  }, []);
 
   const header = (
     <div>
@@ -123,10 +92,7 @@ export function TicketDetailBody({
       />
     ) : (
       <div id="qa">
-        <TicketQaSection
-          evaluation={ticket.evaluation}
-          onHighlightMessage={handleHighlightMessage}
-        />
+        <TicketQaSection evaluation={ticket.evaluation} />
       </div>
     )
   ) : null;
@@ -136,7 +102,7 @@ export function TicketDetailBody({
       <TicketActivitySection
         messages={ticket.messages}
         events={ticket.events}
-        highlightedMessageId={highlightedMessageId}
+        highlightedMessageId={null}
       />
 
       {qaSection}

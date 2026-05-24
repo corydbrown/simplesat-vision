@@ -95,6 +95,6 @@ Per [STOP_CONDITIONS.md](STOP_CONDITIONS.md):
 
 - CLAUDE.md → "Worker session bootstrap" — the instruction that tells worker sessions to read BRIEF.md
 - CLAUDE.md → "Worker brief template" — the canonical brief shape
-- CLAUDE.md → "Spawning worktrees" — 3-worker cap, collision rules
+- CLAUDE.md → "Spawning worktrees" — collision rules
 - STOP_CONDITIONS.md — what workers escalate
 - [[feedback-worktree-naming]] — svp-prefix convention

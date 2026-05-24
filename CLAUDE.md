@@ -36,31 +36,9 @@ Every screen we ship gets filtered through three criteria. These are the decidin
 
 When you're stuck on a design choice, ask: which option is *more* Simple, Useful, or Fun? If you can't tell, ask Cory.
 
-## Slack channel — action-required only
-
-The Slack channel `#simplesat-vision-prototype` (`C0B5AQ52FFZ`) is for **Cory needs to take an action**. Nothing else. Live progress is visible in VS Code; closure signals belong in chat or git.
-
-**Post to Slack only when:**
-- `PR opened — ready for review` → Cory reviews/merges.
-- `blocked: <reason>` → Cory makes a decision (schema change, scope ambiguity, anything needing explicit yes).
-
-**Do NOT post to Slack:**
-- `starting` heartbeats — Cory sees the VS Code window open; the brief tells him what's starting.
-- `first commit pushed` — Cory can `/sweep` when he wants status.
-- `merged` — closure signal, no action. Supervisor reports merges in chat or via `/post-merge`.
-- Sweep summaries — chat, not Slack.
-- Spawn announcements — Cory just typed the spawn command.
-- Supervisor session handoffs — these go to a STATUS file (when added), not Slack.
-
-**Self-test before any Slack post:** *Does Cory have to do something next?* If no, drop it.
-
-**Post format:**
-- PR opened: `<worktree> PR #<N> opened — ready for review. <github url>` + dev URL if relevant.
-- Blocked: `@cory <worktree> blocked: <reason>. WIP at <sha>. Worktree port <port>.` per STOP_CONDITIONS.
-
 ## Supervisor state — `.claude/STATUS.md`
 
-Local, gitignored file that holds *current state of the world* so a new supervisor session can orient in 5 seconds without scrolling Slack or running 4 gh commands. Slack is for *action-required only*; this file holds *state*.
+Local, gitignored file that holds *current state of the world* so a new supervisor session can orient in 5 seconds without running 4 gh commands. Holds the canonical state. Workers signal blocked/PR-opened back to the supervisor in-chat (Cory drives the workflow from the supervisor session in the main repo).
 
 **Sections:** Open PRs (review or merge) · Active workers · Blocked · Recent merges (last 10) · Supervisor handoff notes (free-text for the next session).
 
@@ -88,7 +66,7 @@ For exploratory UI work that doesn't need DB integration: spawn mockups at `src/
 - [DECISIONS.md](DECISIONS.md) — explicit assumptions made along the way
 - [AGENTS.md](AGENTS.md) — Next.js 16 gotchas (loaded automatically)
 - [NOTION.md](NOTION.md) — Tasks DB schema + how agents create deferral tasks
-- [STOP_CONDITIONS.md](STOP_CONDITIONS.md) — when workers stop and Slack the supervisor (hard stops, soft stops, quiet warnings)
+- [STOP_CONDITIONS.md](STOP_CONDITIONS.md) — when workers stop and escalate to the supervisor (hard stops, soft stops, quiet warnings)
 - [README.md](README.md) — surface-level quickstart
 
 If you only read one section of this file: read **Conventions** and **Don't do**.
@@ -97,13 +75,12 @@ If you only read one section of this file: read **Conventions** and **Don't do**
 
 If this session is running in a **worktree** (cwd matches `simplesat-vision-worktrees/svp<N>-*`), check for `BRIEF.md` at the worktree root **on the first user message**.
 
-- If `BRIEF.md` exists → it IS the task definition. Read it end-to-end, post the "starting" Slack heartbeat per the brief, plan, and execute. Don't wait for additional instructions from Cory; the brief is the contract.
+- If `BRIEF.md` exists → it IS the task definition. Read it end-to-end, plan, and execute. Don't wait for additional instructions from Cory; the brief is the contract.
 - If `BRIEF.md` does NOT exist → this is an ad-hoc worker session. Ask Cory what the task is.
 
 The first user message in a `/spawn`-launched session is typically just `go` or `start` — that's by design. The actual brief is on disk; the chat just kicks the session.
 
 **Worker hygiene:**
-- Slack heartbeats at the brief's checkpoints (starting / first commit / PR opened / blocked).
 - STOP_CONDITIONS.md governs when to escalate vs improvise.
 - Pre-flight gates run before "ready for review" — see the brief.
 - Push your branch when the work is in a coherent state, even before opening a PR. The supervisor's `/sweep` auto-opens PRs for pushed-but-not-PR'd branches.
@@ -140,7 +117,7 @@ Cory is non-technical. Operate accordingly:
 | "cleanup svp-N", "cleanup N" (pre-merge — rare) | `/cleanup <name>` (worktree removal only, no Notion update) |
 | "sweep prs", "check open prs", "what's open?", "any new prs?", "give me a sweep" | `/sweep` |
 | "review pr N", "review N", "look at pr N", "what's pr N look like?" | `/review N` |
-| "start polling", "watch for prs", "auto-review" | Suggest `/loop 15m sweep open PRs and Slack escalations…` — `/loop` needs an explicit prompt, so this is the one case where Cory does type the slash |
+| "start polling", "watch for prs", "auto-review" | Suggest `/loop 30m sweep open PRs and merge cleanly-passing ones…` — `/loop` needs an explicit prompt, so this is the one case where Cory does type the slash |
 
 Verbatim slash commands (`/spawn`, `/review`, etc.) still work — they're just no longer required.
 
@@ -155,20 +132,20 @@ Always detect which role the current session is playing before suggesting action
 ### Spawning worktrees
 
 - **Use [`/spawn <SVP-NN>`](.claude/skills/spawn/SKILL.md) for the routine case.** It fetches the Notion task, runs `nw` with the svp-prefix convention, opens VS Code, marks Notion In Progress, and drafts the paste-ready brief in one shot. Manual `nw` + `code` + Notion ceremony is only needed for non-task spinups.
-- **Cap at 3 active workers by default.** Cory's context-switching ceiling. Going over is fine when Cory explicitly authorizes ("OK to break the rule of 3" or similar).
+- **Cory manages worker count.** Don't ration parallelism in summaries or framing; he decides how many sessions he can hold in his head.
 - **Check collision risk before spawning** when one or more workers are active. Scan the planned scope of the new feature against the surfaces active workers touch. Same surface (toolbar, EntityTable, queries, property registries, shared component) = collision guaranteed → recommend sequential. Different surfaces (CSS tokens vs SQL queries, `/reports` vs list pages, schema additions vs UI) = parallel is safe.
 - **Sibling task drift is the real risk, not file conflicts.** When two workers ship to the same shared file (e.g. `score-color.ts`, common helpers), they often produce divergent shapes because their briefs had different language. Mitigation: when filing sibling sub-tasks under an epic, **put shared decisions in the epic body, not duplicated into each sub-task brief**. The Epic relation on Tasks supports this naturally.
 - **When in doubt, ask Cory before spawning.** Name the active workers, name the surfaces the new one would touch, recommend go or wait.
 
 ### Sample-then-fan-out
 
-For epics with N > 3 sub-tasks, **ship one foundational PR first** before fanning out parallel siblings. The foundational PR establishes the data model + architectural choices that downstream tasks will read from; it's the load-bearing review. Once Cory greenlights direction on the first PR, the rest can spawn in parallel with confidence.
+For epics with multiple sub-tasks, **ship one foundational PR first** before fanning out parallel siblings. The foundational PR establishes the data model + architectural choices that downstream tasks will read from; it's the load-bearing review. Once Cory greenlights direction on the first PR, the rest can spawn in parallel with confidence.
 
 Concretely:
 - Phase 1: one worker on the foundation (e.g. SVP-53 for the QA epic — schema + scoring service + seed).
 - Phase 2+: fan-out of siblings (e.g. SVP-54, SVP-55, etc.) once Phase 1 lands.
 
-Don't spawn the whole epic at once just because the worker cap allows it — half a day of parallel work is wasted if the foundation needs reshaping.
+Don't spawn the whole epic at once just because nothing's blocking — half a day of parallel work is wasted if the foundation needs reshaping.
 
 ### Worker brief template
 
@@ -176,9 +153,9 @@ Every brief I draft for a worker session — whether via `/spawn` or written man
 
 1. **One-line task statement** (`The task: SVP-NN — <one sentence>`).
 2. **Scope** — the work to do, concrete file references where possible.
-3. **What would change my mind** — explicit criteria where the worker should stop and re-check. Example: *"If you find that the existing pattern doesn't compose with what I'm asking, stop and Slack me — that changes the approach."* These catch wrong-direction work before it becomes wasted-hours work.
+3. **What would change my mind** — explicit criteria where the worker should stop and re-check. Example: *"If you find that the existing pattern doesn't compose with what I'm asking, stop and surface to Cory — that changes the approach."* These catch wrong-direction work before it becomes wasted-hours work.
 4. **Parallel workers heads-up** (if any active) — list the active SVP-NNs + the surfaces they touch. Lets the worker know what to avoid.
-5. **STOP_CONDITIONS** reference — `Per [STOP_CONDITIONS.md](STOP_CONDITIONS.md): commit + push + Slack \`@cory\` if blocked 15 min, schema/auth/deps need explicit yes.` Workers should know to escalate, not improvise.
+5. **STOP_CONDITIONS** reference — `Per [STOP_CONDITIONS.md](STOP_CONDITIONS.md): commit + push WIP if blocked 15 min, schema/auth/deps need explicit yes.` Workers should know to escalate, not improvise.
 6. **Pre-flight gates** — `npx tsc --noEmit clean, npm run lint clean, dev server boots at localhost:<N>, manual walk of the changed surface in both light + dark mode.` Workers self-validate before declaring ready.
 7. **Full brief link** — Notion task URL for any deeper context.
 

@@ -308,8 +308,6 @@ export async function getCoachingDetail(
     createdAt: m.message.createdAt.getTime(),
   }));
 
-  const messageById = new Map(messages.map((m) => [m.id, m]));
-
   // Activities anchor "after" the most-recently-created message at or before
   // the event's timestamp. Pre-compute that walk here so the UI just renders.
   const activities: CoachingActivityView[] = eventRows.map((e) => {

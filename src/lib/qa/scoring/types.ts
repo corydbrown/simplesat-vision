@@ -1,9 +1,9 @@
 /**
  * Scoring provider interface — the abstraction over "how is a conversation
  * scored." Phase 1 ships two implementations: MockScoringProvider for the
- * seed + demo (deterministic faker), and ClaudeScoringProvider as a stub
- * that will be wired up at SVP-67. Swapping providers is a one-line config
- * change (QA_SCORING_PROVIDER env var) — same call sites, same shapes.
+ * seed + demo (deterministic faker), and LlmScoringProvider for real
+ * model-driven scoring. Swapping providers is a one-line config change
+ * (LLM_SCORING_PROVIDER env var) — same call sites, same shapes.
  *
  * Keep this file free of `db` / `drizzle` imports. The provider takes plain
  * shapes and returns plain shapes; the seed and any future app code maps
@@ -112,6 +112,6 @@ export interface ScoringProvider {
   /** Provider identity — written to evaluations.ai_model and scored_by. */
   readonly name: string;
   /** Score a single conversation. The provider may run synchronously (mock)
-   *  or hit an LLM (claude); callers always await. */
+   *  or hit an LLM; callers always await. */
   scoreConversation(input: ScoringInput): Promise<ScoringOutput>;
 }

@@ -583,7 +583,7 @@ export const scorecardCriteria = sqliteTable(
 );
 
 /** One QA evaluation of one ticket against one scorecard version. The
- *  scoring provider (mock today, Claude at SVP-67) writes one row here plus
+ *  scoring provider (mock or LLM, selected via env) writes one row here plus
  *  one per-category row in `evaluation_category_scores` and one coaching
  *  note. `overall_score` is 0-100; per-category scores live on the child
  *  table at the scorecard's native scale. */

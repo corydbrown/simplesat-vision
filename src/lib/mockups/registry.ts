@@ -43,6 +43,7 @@ import { meta as keysMeta } from "./entries/qa-window-keys";
 import { meta as flowMeta } from "./entries/qa-window-flow";
 import { meta as copilotMeta } from "./entries/qa-window-copilot";
 import { meta as distilledMeta } from "./entries/qa-window-distilled";
+import { meta as tightMeta } from "./entries/qa-window-tight";
 
 export const MOCKUPS: MockupMeta[] = [
   compactMeta,
@@ -61,4 +62,5 @@ export const MOCKUPS: MockupMeta[] = [
   flowMeta,
   copilotMeta,
   distilledMeta,
+  tightMeta,
 ];

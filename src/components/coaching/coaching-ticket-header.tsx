@@ -1,9 +1,11 @@
 import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
-import { Avatar } from "@/components/shared/avatar";
+import {
+  CustomerPill,
+  TeamMemberPill,
+} from "@/components/shared/entity-pill";
 import { EvaluationStatusPill } from "@/components/coaching/evaluation-status-pill";
 import { QaScoreBadge } from "@/components/shared/qa-score-badge";
-import { initialsFromName } from "@/lib/color-from-name";
 import type { CoachingDetail } from "@/db/queries/coaching";
 
 /** Server-rendered header block for the coaching detail page — ticket
@@ -35,7 +37,11 @@ export function CoachingTicketHeader({
       <div className="flex flex-wrap items-center gap-3 text-base text-muted-foreground">
         {ticket.customer && (
           <span className="flex items-center gap-2">
-            <span className="text-foreground">{ticket.customer.name}</span>
+            <CustomerPill
+              id={ticket.customer.id}
+              name={ticket.customer.name}
+              size="md"
+            />
             {ticket.customer.tier && (
               <span className="rounded-md bg-yellow-lighter px-1.5 py-0.5 text-sm font-medium capitalize text-yellow-darker">
                 {ticket.customer.tier} tier
@@ -46,12 +52,12 @@ export function CoachingTicketHeader({
         {ticket.assignee && (
           <span className="inline-flex items-center gap-2">
             <span>handled by</span>
-            <Avatar
-              bg={ticket.assignee.avatarColor}
-              initials={initialsFromName(ticket.assignee.name)}
-              size="sm"
+            <TeamMemberPill
+              id={ticket.assignee.id}
+              name={ticket.assignee.name}
+              avatarColor={ticket.assignee.avatarColor}
+              size="md"
             />
-            <span className="text-foreground">{ticket.assignee.name}</span>
           </span>
         )}
         <span className="ml-auto inline-flex items-center gap-2">
@@ -60,7 +66,7 @@ export function CoachingTicketHeader({
             status={evaluation.status}
             size="md"
           />
-          <EvaluationStatusPill status={evaluation.status} />
+          <EvaluationStatusPill status={evaluation.status} size="md" />
         </span>
       </div>
       <Link

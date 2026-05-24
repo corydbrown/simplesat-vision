@@ -423,6 +423,53 @@ export function CoachingTicket({ detail }: { detail: CoachingDetail }) {
     [evaluation.categories],
   );
 
+  /** Build the focusable item ladder inside Inspect, in DOM order, so
+   *  Up/Down can cycle through it. Citations first, then Add citation (when
+   *  available), then the composer. Add citation drops out while the
+   *  category/score picker is open — those flows are mouse-driven for V1. */
+  const inspectFocusables = useMemo<InspectFocus[]>(() => {
+    if (!inspectMessage) return [];
+    const cits = citationsByMessage.get(inspectMessage.id) ?? [];
+    const items: InspectFocus[] = cits.map((c) => ({
+      kind: "citation" as const,
+      categoryId: c.category.id,
+    }));
+    const availableCount =
+      evaluation.categories.length -
+      new Set(cits.map((c) => c.category.id)).size;
+    if (addCitation.kind === "closed" && availableCount > 0) {
+      items.push({ kind: "add-citation" });
+    }
+    items.push({ kind: "composer" });
+    return items;
+  }, [
+    inspectMessage,
+    citationsByMessage,
+    addCitation,
+    evaluation.categories.length,
+  ]);
+
+  const moveInspectFocus = useCallback(
+    (delta: 1 | -1) => {
+      if (inspectFocusables.length === 0) return;
+      const sameItem = (a: InspectFocus, b: InspectFocus) => {
+        if (a.kind !== b.kind) return false;
+        if (a.kind === "citation" && b.kind === "citation") {
+          return a.categoryId === b.categoryId;
+        }
+        return true;
+      };
+      const idx = inspectFocusables.findIndex((it) =>
+        sameItem(it, inspectFocus),
+      );
+      const start = idx < 0 ? (delta > 0 ? -1 : inspectFocusables.length) : idx;
+      const next = (start + delta + inspectFocusables.length) %
+        inspectFocusables.length;
+      setInspectFocus(inspectFocusables[next]);
+    },
+    [inspectFocusables, inspectFocus],
+  );
+
   // Smooth-scroll on focused message change.
   useEffect(() => {
     if (!focusedMessageId) return;
@@ -452,10 +499,13 @@ export function CoachingTicket({ detail }: { detail: CoachingDetail }) {
   useEffect(() => {
     if (!activeCategoryId) return;
     function onDocClick(e: MouseEvent) {
-      const el = sidebarRef.current;
-      if (!el) return;
-      const node = e.target as Node | null;
-      if (node && !el.contains(node)) setActiveCategoryId(null);
+      const sidebar = sidebarRef.current;
+      if (!sidebar) return;
+      const path = e.composedPath();
+      for (const node of path) {
+        if (node === sidebar) return;
+      }
+      setActiveCategoryId(null);
     }
     const t = window.setTimeout(
       () => document.addEventListener("click", onDocClick),
@@ -473,12 +523,18 @@ export function CoachingTicket({ detail }: { detail: CoachingDetail }) {
     if (!inspectMessageId) return;
     function onDocClick(e: MouseEvent) {
       const sidebar = sidebarRef.current;
-      const node = e.target as Node | null;
-      if (!sidebar || !node) return;
-      if (sidebar.contains(node)) return;
-      const targetEl = node as HTMLElement;
-      // Don't auto-close when the click was on a bubble or its descendants.
-      if (targetEl.closest?.("[data-msg-id]")) return;
+      if (!sidebar) return;
+      // Walk composedPath instead of using e.target — a click that triggers a
+      // same-tick unmount (e.g. clicking comment delete, which removes the
+      // button from the DOM before this handler runs) leaves e.target
+      // detached and `sidebar.contains(node)` returns false. composedPath
+      // preserves the original ancestor chain even after detachment, so the
+      // sidebar containment check stays correct.
+      const path = e.composedPath();
+      for (const node of path) {
+        if (node === sidebar) return;
+        if (node instanceof HTMLElement && node.dataset.msgId) return;
+      }
       closeInspect();
     }
     const t = window.setTimeout(
@@ -544,7 +600,8 @@ export function CoachingTicket({ detail }: { detail: CoachingDetail }) {
           e.preventDefault();
           if (inspectMessageId) {
             setFocusedSurface("inspect");
-            // Inspect manages its own focus via the focus state.
+            // InspectPanel's focus useEffect picks up isActiveSurface and
+            // transfers DOM focus to the current inspectFocus item.
           } else {
             setFocusedSurface("overview");
             if (!focusedCategoryId && evaluation.categories[0]) {
@@ -579,8 +636,8 @@ export function CoachingTicket({ detail }: { detail: CoachingDetail }) {
           return;
         }
         if (focusedSurface === "inspect") {
-          // Inspect's internal focus traversal is owned by Inspect; for V1
-          // we leave it static (composer remains an explicit click target).
+          e.preventDefault();
+          moveInspectFocus(delta);
           return;
         }
         e.preventDefault();
@@ -598,6 +655,23 @@ export function CoachingTicket({ detail }: { detail: CoachingDetail }) {
           e.preventDefault();
           openInspect(focusedMessageId);
           return;
+        }
+        if (focusedSurface === "inspect" && inspectMessageId) {
+          if (inspectFocus.kind === "add-citation") {
+            e.preventDefault();
+            startAddCitation();
+            return;
+          }
+          if (inspectFocus.kind === "composer") {
+            // Let the composer's textarea handle Enter natively.
+            return;
+          }
+          if (inspectFocus.kind === "citation") {
+            // Citation rows expand inline when focused; Enter is a no-op here
+            // rather than triggering a destructive action.
+            e.preventDefault();
+            return;
+          }
         }
       }
 
@@ -641,10 +715,12 @@ export function CoachingTicket({ detail }: { detail: CoachingDetail }) {
     focusedSurface,
     focusedMessageId,
     focusedCategoryId,
+    inspectFocus,
     messages,
     evaluation.categories,
     moveConvoFocus,
     moveCategoryFocus,
+    moveInspectFocus,
     openInspect,
     closeInspect,
   ]);
@@ -794,7 +870,7 @@ export function CoachingTicket({ detail }: { detail: CoachingDetail }) {
         </div>
 
         <aside className="relative" ref={sidebarRef}>
-          <div className="sticky top-4">
+          <div className="sticky top-14">
             {inspectMessage ? (
               <InspectPanel
                 ref={inspectPanelRef}
@@ -810,13 +886,9 @@ export function CoachingTicket({ detail }: { detail: CoachingDetail }) {
                 membersById={detail.membersById}
                 currentUserId={currentUserId}
                 focus={inspectFocus}
+                isActiveSurface={focusedSurface === "inspect"}
                 addCitation={addCitation}
-                availableCategories={evaluation.categories.filter(
-                  (c) =>
-                    !(highlightsByCategory.get(c.id) ?? []).includes(
-                      inspectMessage.id,
-                    ),
-                )}
+                allCategories={evaluation.categories}
                 editingCommentId={editingCommentId}
                 onBack={closeInspect}
                 onFocusChange={(focus) => {

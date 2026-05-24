@@ -55,8 +55,9 @@ export function InspectPanel({
   membersById,
   currentUserId,
   focus,
+  isActiveSurface,
   addCitation,
-  availableCategories,
+  allCategories,
   editingCommentId,
   onBack,
   onFocusChange,
@@ -84,8 +85,17 @@ export function InspectPanel({
   membersById: Record<string, CoachingMemberView>;
   currentUserId: string;
   focus: InspectFocus;
+  /** Whether Inspect is the active surface (left/right-arrow navigation). When
+   *  it flips true, transfer DOM focus to whichever item `focus` points at —
+   *  otherwise the keyboard nav looks active visually but `activeElement`
+   *  stays on the message bubble. */
+  isActiveSurface: boolean;
   addCitation: AddCitationState;
-  availableCategories: CoachingCategoryView[];
+  /** All categories on this evaluation. The category picker filters out
+   *  already-cited categories internally; the score picker needs the full
+   *  list so it can still find the category right after attach (when it's
+   *  no longer "available"). */
+  allCategories: CoachingCategoryView[];
   editingCommentId: string | null;
   onBack: () => void;
   onFocusChange: (focus: InspectFocus) => void;
@@ -107,8 +117,16 @@ export function InspectPanel({
   onUpArrowEmptyComposer: () => void;
 }) {
   const composerRef = useRef<CommentComposerHandle | null>(null);
+  const addCitationButtonRef = useRef<HTMLButtonElement | null>(null);
+  const citationButtonRefs = useRef(
+    new Map<string, HTMLButtonElement | null>(),
+  );
   const isCustomer = message.authorRole === "customer";
   const showCitations = !isCustomer;
+  const citedCategoryIds = new Set(citations.map((c) => c.category.id));
+  const availableCategories = allCategories.filter(
+    (c) => !citedCategoryIds.has(c.id),
+  );
 
   useImperativeHandle(ref, () => ({
     focusComposer: () => composerRef.current?.focus(),
@@ -116,11 +134,27 @@ export function InspectPanel({
     isComposerFocused: () => composerRef.current?.isFocused() ?? false,
   }));
 
-  // Focus the composer when external focus state asks for it. Composer is
-  // never auto-focused on mount — V1 lands focus on the first nav item.
+  // Transfer browser focus to whichever inspect item the parent has marked as
+  // focused. Without this, arrow-key navigation looks visually right (the
+  // ring renders via the `focused` prop) but `document.activeElement` stays
+  // on the message bubble, so the next Enter/space goes to the wrong place.
+  // Skip when Inspect isn't the active surface — otherwise we'd steal focus
+  // away from the convo when the user is just hovering messages.
   useEffect(() => {
-    if (focus.kind === "composer") composerRef.current?.focus();
-  }, [focus]);
+    if (!isActiveSurface) return;
+    if (focus.kind === "composer") {
+      composerRef.current?.focus();
+      return;
+    }
+    if (focus.kind === "add-citation") {
+      addCitationButtonRef.current?.focus();
+      return;
+    }
+    if (focus.kind === "citation") {
+      citationButtonRefs.current.get(focus.categoryId)?.focus();
+      return;
+    }
+  }, [focus, isActiveSurface]);
 
   return (
     <div
@@ -157,6 +191,9 @@ export function InspectPanel({
                 {citations.map((c) => (
                   <InspectCitationRow
                     key={c.category.id}
+                    buttonRef={(el) => {
+                      citationButtonRefs.current.set(c.category.id, el);
+                    }}
                     citation={c}
                     focused={
                       focus.kind === "citation" &&
@@ -185,7 +222,10 @@ export function InspectPanel({
 
                 {addCitation.kind === "picking-score" &&
                   (() => {
-                    const cat = availableCategories.find(
+                    // Look in *all* categories — by the time we're picking a
+                    // score, the chosen category has already been attached,
+                    // so it's no longer in `availableCategories`.
+                    const cat = allCategories.find(
                       (c) => c.id === addCitation.categoryId,
                     );
                     if (!cat) return null;
@@ -201,12 +241,13 @@ export function InspectPanel({
                 {addCitation.kind === "closed" &&
                   availableCategories.length > 0 && (
                     <button
+                      ref={addCitationButtonRef}
                       type="button"
                       onClick={onStartAddCitation}
                       onFocus={() => onFocusChange({ kind: "add-citation" })}
-                      tabIndex={focus.kind === "add-citation" ? 0 : -1}
+                      tabIndex={0}
                       className={cn(
-                        "flex w-full cursor-pointer items-center gap-2 rounded-lg border border-dashed border-border bg-transparent px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-accent/40 hover:text-foreground",
+                        "flex w-full cursor-pointer items-center gap-2 rounded-lg border border-dashed border-border bg-transparent px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-accent/40 hover:text-foreground focus:outline-none",
                         focus.kind === "add-citation" &&
                           "ring-2 ring-ring",
                       )}
@@ -262,6 +303,7 @@ export function InspectPanel({
 }
 
 function InspectCitationRow({
+  buttonRef,
   citation,
   focused,
   messageNumberById,
@@ -270,6 +312,7 @@ function InspectCitationRow({
   onRemove,
   onJumpToMessage,
 }: {
+  buttonRef?: (el: HTMLButtonElement | null) => void;
   citation: CitationRowInput;
   focused: boolean;
   messageNumberById: Map<string, number>;
@@ -292,11 +335,12 @@ function InspectCitationRow({
       )}
     >
       <button
+        ref={buttonRef}
         type="button"
         onClick={onFocus}
         onFocus={onFocus}
         tabIndex={focused ? 0 : -1}
-        className="flex w-full cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-left"
+        className="flex w-full cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-left focus:outline-none"
       >
         <span
           className={cn(

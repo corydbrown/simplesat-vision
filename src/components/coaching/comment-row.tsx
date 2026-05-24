@@ -86,7 +86,15 @@ export function CommentRow({
             <span className="ml-auto flex items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
               <button
                 type="button"
-                onClick={startEdit}
+                onClick={(e) => {
+                  // Stop the click from reaching any ancestor — these buttons
+                  // unmount themselves the moment they run (the row either
+                  // enters edit mode or the comment disappears), so a
+                  // document-level click-outside watcher would otherwise see
+                  // a detached target and treat the click as "outside".
+                  e.stopPropagation();
+                  startEdit();
+                }}
                 aria-label="Edit comment"
                 className="flex size-6 cursor-pointer items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
               >
@@ -94,7 +102,10 @@ export function CommentRow({
               </button>
               <button
                 type="button"
-                onClick={onDelete}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDelete();
+                }}
                 aria-label="Delete comment"
                 className="flex size-6 cursor-pointer items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
               >

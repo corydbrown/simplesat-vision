@@ -46,6 +46,7 @@ import { meta as distilledMeta } from "./entries/qa-window-distilled";
 import { meta as tightMeta } from "./entries/qa-window-tight";
 import { meta as zenMeta } from "./entries/qa-window-zen";
 import { meta as crispMeta } from "./entries/qa-window-crisp";
+import { meta as cleanMeta } from "./entries/qa-window-clean";
 
 export const MOCKUPS: MockupMeta[] = [
   compactMeta,
@@ -67,4 +68,5 @@ export const MOCKUPS: MockupMeta[] = [
   tightMeta,
   zenMeta,
   crispMeta,
+  cleanMeta,
 ];

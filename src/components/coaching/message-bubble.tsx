@@ -122,7 +122,7 @@ export function MessageBubble({
         >
           {popupVisible && (
             <MessagePopup
-              side={isAgent ? "right" : "left"}
+              side="right"
               disableCite={!isAgent}
               onComment={onClickComment}
               onCite={onClickCite}

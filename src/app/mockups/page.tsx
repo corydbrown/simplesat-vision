@@ -1,17 +1,12 @@
 import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
-import { MOCKUPS } from "@/lib/mockups/registry";
+import { MOCKUPS, type MockupMeta } from "@/lib/mockups/registry";
 
 export default function MockupsIndexPage() {
-  const grouped = new Map<string, typeof MOCKUPS>();
-  for (const m of MOCKUPS) {
-    const arr = grouped.get(m.theme) ?? [];
-    arr.push(m);
-    grouped.set(m.theme, arr);
-  }
+  const rounds = groupByRound(MOCKUPS);
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-10">
       <header className="space-y-2">
         <h1 className="text-3xl font-semibold tracking-tight">
           Mockups gallery
@@ -26,13 +21,16 @@ export default function MockupsIndexPage() {
         </p>
       </header>
 
-      {Array.from(grouped.entries()).map(([theme, variants]) => (
-        <section key={theme} className="space-y-3">
-          <h2 className="text-xl font-semibold capitalize">
-            {theme.replace(/-/g, " ")}
+      {rounds.map(({ round, date, entries }) => (
+        <section key={round} className="space-y-3">
+          <h2 className="text-xl font-semibold">
+            Round {round}
+            <span className="ml-2 text-base font-normal text-muted-foreground">
+              · {formatRoundDate(date)}
+            </span>
           </h2>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            {variants.map((m) => (
+            {entries.map((m) => (
               <MockupCard key={m.path} mockup={m} />
             ))}
           </div>
@@ -42,7 +40,38 @@ export default function MockupsIndexPage() {
   );
 }
 
-function MockupCard({ mockup: m }: { mockup: (typeof MOCKUPS)[number] }) {
+type RoundGroup = { round: number; date: string; entries: MockupMeta[] };
+
+function groupByRound(mockups: MockupMeta[]): RoundGroup[] {
+  const byRound = new Map<number, MockupMeta[]>();
+  for (const m of mockups) {
+    const arr = byRound.get(m.round) ?? [];
+    arr.push(m);
+    byRound.set(m.round, arr);
+  }
+
+  return Array.from(byRound.entries())
+    .map(([round, entries]) => {
+      const sorted = [...entries].sort((a, b) =>
+        b.createdAt.localeCompare(a.createdAt),
+      );
+      return { round, date: sorted[0].createdAt, entries: sorted };
+    })
+    .sort((a, b) => b.round - a.round);
+}
+
+function formatRoundDate(iso: string): string {
+  const [y, m, d] = iso.split("-").map(Number);
+  const date = new Date(Date.UTC(y, m - 1, d));
+  return date.toLocaleDateString("en-US", {
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+    timeZone: "UTC",
+  });
+}
+
+function MockupCard({ mockup: m }: { mockup: MockupMeta }) {
   const statusClasses: Record<typeof m.status, string> = {
     exploring: "bg-grey-lighter text-grey-darker",
     loved: "bg-green-lighter text-green-darker",

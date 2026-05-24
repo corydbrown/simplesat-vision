@@ -4,6 +4,7 @@ import { db, schema } from "../client";
 import { compileListFilters } from "@/lib/filters/compile-list";
 import {
   TICKET_FILTER_FIELDS,
+  ticketAiHandoffExpr,
   ticketCustomerReplyCountExpr,
   ticketEscalatedExpr,
   ticketHadTransferExpr,
@@ -78,6 +79,7 @@ export type TicketSignals = {
   queueWaitHours: number | null;
   slaBreached: boolean;
   escalated: boolean;
+  aiHandoff: boolean;
   customerReplyCount: number;
   longestIdleHours: number | null;
 };
@@ -88,6 +90,7 @@ export function mapSignals(raw: {
   queueWaitHours: number | null;
   slaBreached: number | null;
   escalated: number | null;
+  aiHandoff: number | null;
   customerReplyCount: number | null;
   longestIdleHours: number | null;
 }): TicketSignals {
@@ -97,6 +100,7 @@ export function mapSignals(raw: {
     queueWaitHours: raw.queueWaitHours,
     slaBreached: raw.slaBreached === 1,
     escalated: raw.escalated === 1,
+    aiHandoff: raw.aiHandoff === 1,
     customerReplyCount: raw.customerReplyCount ?? 0,
     longestIdleHours: raw.longestIdleHours,
   };
@@ -111,6 +115,7 @@ export const TICKET_SIGNAL_SELECT = {
   queueWaitHours: ticketQueueWaitHoursExpr,
   slaBreached: ticketSlaBreachedExpr,
   escalated: ticketEscalatedExpr,
+  aiHandoff: ticketAiHandoffExpr,
   customerReplyCount: ticketCustomerReplyCountExpr,
   longestIdleHours: ticketLongestIdleHoursExpr,
 } as const;

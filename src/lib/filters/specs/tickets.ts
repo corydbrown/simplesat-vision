@@ -75,6 +75,7 @@ export const TICKET_FILTER_SPECS = {
   queue_wait_hours: { dataType: "number", ops: NUMERIC_OPS },
   sla_breached: { dataType: "boolean", ops: BOOLEAN_OPS },
   escalated: { dataType: "boolean", ops: BOOLEAN_OPS },
+  ai_handoff: { dataType: "boolean", ops: BOOLEAN_OPS },
   customer_reply_count: { dataType: "number", ops: NUMERIC_OPS },
   longest_idle_hours: { dataType: "number", ops: NUMERIC_OPS },
 } as const satisfies Record<string, PropertyFilter>;

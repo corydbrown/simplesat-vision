@@ -62,6 +62,8 @@ export type TicketEventVerb =
   | "survey_sent"
   | "survey_response_received"
   | "sla_breached"
+  | "escalated"
+  | "ai_handoff"
   | "ticket_reopened";
 
 export type TicketMessageType = "comment" | "voice_comment" | "chat_message";
@@ -422,6 +424,8 @@ export const ticketEvents = sqliteTable(
         "survey_sent",
         "survey_response_received",
         "sla_breached",
+        "escalated",
+        "ai_handoff",
         "ticket_reopened",
       ],
     })

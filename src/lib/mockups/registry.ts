@@ -37,6 +37,7 @@ import { meta as threadedMeta } from "./entries/qa-window-threaded";
 import { meta as inspectMeta } from "./entries/qa-window-inspect";
 import { meta as pulseMeta } from "./entries/qa-window-pulse";
 import { meta as popoverMeta } from "./entries/qa-window-popover";
+import { meta as refinedMeta } from "./entries/qa-window-refined";
 import { meta as reactMeta } from "./entries/qa-window-react";
 
 export const MOCKUPS: MockupMeta[] = [
@@ -50,5 +51,6 @@ export const MOCKUPS: MockupMeta[] = [
   inspectMeta,
   pulseMeta,
   popoverMeta,
+  refinedMeta,
   reactMeta,
 ];

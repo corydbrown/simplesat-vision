@@ -871,8 +871,11 @@ function buildLifecycle(input: LifecycleInput): LifecycleOutput {
     createdAt: new Date(assignmentAt),
   });
 
-  // If priority is high/urgent, simulate an escalation event a few minutes
-  // after assignment. This gives the timeline some texture.
+  // If priority is high/urgent, emit an `escalated` event a few minutes after
+  // assignment. The escalated verb carries `previousValue` + `newValue`, so it
+  // tells the same story as a `priority_changed` event would — no need to emit
+  // both (a paired emission produced visible duplicate rows in the activity
+  // timeline).
   if (input.priority === "high" || input.priority === "urgent") {
     const escalatedAt =
       assignmentAt + faker.number.int({ min: 3, max: 25 }) * 60 * 1000;
@@ -882,11 +885,11 @@ function buildLifecycle(input: LifecycleInput): LifecycleOutput {
       actorRole: "agent",
       actorTeamMemberId: input.primaryAgentId,
       actorCustomerId: null,
-      verb: "priority_changed",
-      fieldName: "priority",
+      verb: "escalated",
+      fieldName: null,
       previousValue: "normal",
       newValue: input.priority,
-      metadata: {},
+      metadata: { reason: "priority_bump" },
       createdAt: new Date(escalatedAt),
     });
   }
@@ -1576,6 +1579,89 @@ async function seed() {
       agentMessageCount = lifecycle.agentMessageCount;
       timelinesAttached++;
       mockupTicketIds.add(ticketId);
+    }
+
+    // ---- Signal-only events for non-lifecycle tickets --------------------
+    // Lifecycle tickets get full message + event timelines (above). The
+    // ~99.9% of tickets without lifecycles still need to populate the PRD
+    // Part 8 signal filters — escalated, sla_breached, ai_handoff — so the
+    // "High-signal tickets" saved view returns more than a handful of rows.
+    // We emit isolated verb-events directly here. No messages, no other
+    // events: just the signal verb. Faker is seeded, so the slice is
+    // deterministic across re-runs.
+    const isLifecycle = mockupTicketIds.has(ticketId);
+
+    // Escalated: every high/urgent ticket gets the verb. Lifecycle tickets
+    // already emit `escalated` inside buildLifecycle alongside the
+    // priority_changed event — skip here to avoid duplicates.
+    if (!isLifecycle && (priority === "high" || priority === "urgent")) {
+      const escalatedAt =
+        createdAt + faker.number.int({ min: 5, max: 90 }) * 60 * 1000;
+      ticketEvents.push({
+        id: prefixedId("tke"),
+        ticketId,
+        actorRole: "agent",
+        actorTeamMemberId: agentId,
+        actorCustomerId: null,
+        verb: "escalated",
+        fieldName: null,
+        previousValue: "normal",
+        newValue: priority,
+        metadata: { reason: "priority_bump" },
+        createdAt: new Date(escalatedAt),
+      });
+    }
+
+    // SLA breached: solved/closed tickets whose resolution time exceeds a
+    // threshold get a breach event. Probability rises with resolution time.
+    if (solvedAt) {
+      const resolutionHours = (solvedAt - createdAt) / (60 * 60 * 1000);
+      const breachProb =
+        resolutionHours > 168 ? 80 : resolutionHours > 72 ? 55 : resolutionHours > 24 ? 20 : 0;
+      if (
+        breachProb > 0 &&
+        faker.number.int({ min: 0, max: 99 }) < breachProb
+      ) {
+        const breachedAt =
+          createdAt +
+          Math.max(
+            12 * 60 * 60 * 1000,
+            (solvedAt - createdAt) * faker.number.float({ min: 0.4, max: 0.9 }),
+          );
+        ticketEvents.push({
+          id: prefixedId("tke"),
+          ticketId,
+          actorRole: "system",
+          actorTeamMemberId: null,
+          actorCustomerId: null,
+          verb: "sla_breached",
+          fieldName: null,
+          previousValue: null,
+          newValue: null,
+          metadata: { hours_to_resolution: Math.round(resolutionHours) },
+          createdAt: new Date(Math.min(breachedAt, solvedAt - 60 * 1000)),
+        });
+      }
+    }
+
+    // AI handoff: ~7% of tickets get an AI-bot → human handoff event near
+    // creation. Plausible-shape only — no system message is emitted.
+    if (faker.number.int({ min: 0, max: 99 }) < 7) {
+      const handoffAt =
+        createdAt + faker.number.int({ min: 1, max: 12 }) * 60 * 1000;
+      ticketEvents.push({
+        id: prefixedId("tke"),
+        ticketId,
+        actorRole: "system",
+        actorTeamMemberId: null,
+        actorCustomerId: null,
+        verb: "ai_handoff",
+        fieldName: null,
+        previousValue: null,
+        newValue: null,
+        metadata: { from: "ai_bot", to_assignee_id: agentId },
+        createdAt: new Date(handoffAt),
+      });
     }
 
     // Mockup tickets get the conversation-mockup tag prepended to whatever

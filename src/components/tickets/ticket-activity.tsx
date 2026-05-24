@@ -6,6 +6,7 @@ import {
   Bell,
   Bot,
   CheckCircle2,
+  ChevronUp,
   Circle,
   CircleAlert,
   CircleX,
@@ -618,6 +619,22 @@ function renderEvent(e: TicketEventView): EventRender {
         Icon: TriangleAlert,
         iconClass: "text-red-dark",
         description: <>SLA breached</>,
+      };
+    case "escalated":
+      return {
+        Icon: ChevronUp,
+        iconClass: "text-red-dark",
+        description: (
+          <>
+            Escalated to <StatusValue value={e.newValue} /> priority
+          </>
+        ),
+      };
+    case "ai_handoff":
+      return {
+        Icon: Bot,
+        iconClass: "text-teal-dark",
+        description: <>Handed off from AI bot to agent</>,
       };
     case "ticket_reopened":
       return {

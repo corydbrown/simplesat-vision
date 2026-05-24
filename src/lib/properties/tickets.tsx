@@ -3,6 +3,7 @@
 import {
   AlertTriangle,
   ArrowRightLeft,
+  Bot,
   Building2,
   Calendar,
   CalendarCheck,
@@ -364,6 +365,20 @@ export const TICKET_PROPERTIES: Property<TicketsRow>[] = [
     cell: (t) => (
       <span className="text-muted-foreground">
         {t.signals.escalated ? "Yes" : "No"}
+      </span>
+    ),
+  },
+  {
+    id: "ai_handoff",
+    label: "AI handoff",
+    width: 110,
+    icon: Bot,
+    sourceEntity: "Ticket",
+    defaultVisible: false,
+    filter: TICKET_FILTER_SPECS.ai_handoff,
+    cell: (t) => (
+      <span className="text-muted-foreground">
+        {t.signals.aiHandoff ? "Yes" : "No"}
       </span>
     ),
   },

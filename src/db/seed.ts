@@ -871,26 +871,14 @@ function buildLifecycle(input: LifecycleInput): LifecycleOutput {
     createdAt: new Date(assignmentAt),
   });
 
-  // If priority is high/urgent, simulate an escalation event a few minutes
-  // after assignment. This gives the timeline some texture. We emit both the
-  // raw `priority_changed` change-event AND a derived `escalated` verb-event
-  // so the "Escalated" signal filter has a direct verb to read.
+  // If priority is high/urgent, emit an `escalated` event a few minutes after
+  // assignment. The escalated verb carries `previousValue` + `newValue`, so it
+  // tells the same story as a `priority_changed` event would — no need to emit
+  // both (a paired emission produced visible duplicate rows in the activity
+  // timeline).
   if (input.priority === "high" || input.priority === "urgent") {
     const escalatedAt =
       assignmentAt + faker.number.int({ min: 3, max: 25 }) * 60 * 1000;
-    events.push({
-      id: prefixedId("tke"),
-      ticketId: input.ticketId,
-      actorRole: "agent",
-      actorTeamMemberId: input.primaryAgentId,
-      actorCustomerId: null,
-      verb: "priority_changed",
-      fieldName: "priority",
-      previousValue: "normal",
-      newValue: input.priority,
-      metadata: {},
-      createdAt: new Date(escalatedAt),
-    });
     events.push({
       id: prefixedId("tke"),
       ticketId: input.ticketId,
@@ -902,7 +890,7 @@ function buildLifecycle(input: LifecycleInput): LifecycleOutput {
       previousValue: "normal",
       newValue: input.priority,
       metadata: { reason: "priority_bump" },
-      createdAt: new Date(escalatedAt + 1000),
+      createdAt: new Date(escalatedAt),
     });
   }
 

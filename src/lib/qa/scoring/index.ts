@@ -43,8 +43,14 @@ export function getScoringProvider(
 }
 
 function resolveProviderName(): ScoringProviderName {
-  const raw = (process.env.LLM_SCORING_PROVIDER ?? "mock").toLowerCase();
-  if (raw === "llm") return "llm";
+  const rawEnv = process.env.LLM_SCORING_PROVIDER;
+  if (rawEnv == null || rawEnv === "") return "mock";
+  const normalized = rawEnv.toLowerCase();
+  if (normalized === "llm" || normalized === "mock") return normalized;
+  console.warn(
+    `[qa-scoring] Unrecognized LLM_SCORING_PROVIDER="${rawEnv}". ` +
+      `Falling back to "mock". Valid values: "mock" | "llm".`,
+  );
   return "mock";
 }
 

@@ -53,7 +53,7 @@ function deriveChips(signals: TicketSignals): SignalChip[] {
       key: "escalated",
       icon: ChevronUp,
       label: "Escalated",
-      color: "bg-orange-lighter text-orange-darker",
+      color: "bg-yellow-lighter text-yellow-darker",
     });
   }
 

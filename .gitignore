@@ -45,3 +45,6 @@ next-env.d.ts
 /db/*.db
 /db/*.db-shm
 /db/*.db-wal
+
+# Worker brief (per-worktree, never committed)
+BRIEF.md

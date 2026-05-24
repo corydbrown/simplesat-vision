@@ -11,7 +11,7 @@
  * actions just surface the provider's errors to the client.
  */
 
-import { asc, eq } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db, schema } from "@/db/client";
@@ -137,6 +137,87 @@ export async function removeReaction(input: unknown): Promise<{ ok: true }> {
   return { ok: true };
 }
 
+/** Attach a category to a message — adds the message to the category's
+ *  `highlightedMessageIds` JSON array on the underlying
+ *  evaluation_category_scores row. Returns the updated array so the client
+ *  can swap into its optimistic state. Idempotent: a re-add is a no-op. */
+
+const AttachCategorySchema = z.object({
+  evaluationId: z.string().min(1),
+  categoryId: z.string().min(1),
+  messageId: z.string().min(1),
+});
+
+export async function attachCategoryToMessage(
+  input: unknown,
+): Promise<{ ok: true; highlightedMessageIds: string[] }> {
+  const parsed = parse(AttachCategorySchema, input);
+  return mutateHighlights(parsed, (existing) =>
+    existing.includes(parsed.messageId)
+      ? existing
+      : [...existing, parsed.messageId],
+  );
+}
+
+export async function removeCategoryFromMessage(
+  input: unknown,
+): Promise<{ ok: true; highlightedMessageIds: string[] }> {
+  const parsed = parse(AttachCategorySchema, input);
+  return mutateHighlights(parsed, (existing) =>
+    existing.filter((m) => m !== parsed.messageId),
+  );
+}
+
+async function mutateHighlights(
+  parsed: { evaluationId: string; categoryId: string; messageId: string },
+  transform: (existing: string[]) => string[],
+): Promise<{ ok: true; highlightedMessageIds: string[] }> {
+  const [row] = await db
+    .select({
+      highlightedMessageIds:
+        schema.evaluationCategoryScores.highlightedMessageIds,
+    })
+    .from(schema.evaluationCategoryScores)
+    .where(
+      and(
+        eq(
+          schema.evaluationCategoryScores.evaluationId,
+          parsed.evaluationId,
+        ),
+        eq(schema.evaluationCategoryScores.categoryId, parsed.categoryId),
+      ),
+    )
+    .limit(1);
+  if (!row) throw new Error("Category score row not found");
+
+  const next = transform(row.highlightedMessageIds);
+  if (sameArray(next, row.highlightedMessageIds)) {
+    return { ok: true, highlightedMessageIds: next };
+  }
+
+  await db
+    .update(schema.evaluationCategoryScores)
+    .set({ highlightedMessageIds: next })
+    .where(
+      and(
+        eq(
+          schema.evaluationCategoryScores.evaluationId,
+          parsed.evaluationId,
+        ),
+        eq(schema.evaluationCategoryScores.categoryId, parsed.categoryId),
+      ),
+    );
+
+  await revalidateForEvaluation(parsed.evaluationId);
+  return { ok: true, highlightedMessageIds: next };
+}
+
+function sameArray(a: string[], b: string[]): boolean {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return false;
+  return true;
+}
+
 /** Round-one current-user stub. Picks the first Customer Care Lead
  *  deterministically — the role that owns QA review in the seed narrative.
  *  Same pattern as `editCategoryScore` in src/lib/qa/actions.ts. Auth
@@ -158,8 +239,8 @@ async function revalidateForEvaluation(evaluationId: string): Promise<void> {
     .from(schema.evaluations)
     .where(eq(schema.evaluations.id, evaluationId))
     .limit(1);
-  if (!row) return;
-  revalidatePath(`/tickets/${row.ticketId}`);
+  revalidatePath(`/coaching/${evaluationId}`);
+  if (row) revalidatePath(`/tickets/${row.ticketId}`);
 }
 
 function parse<S extends z.ZodTypeAny>(schema: S, input: unknown): z.infer<S> {

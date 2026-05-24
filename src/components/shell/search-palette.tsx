@@ -4,6 +4,7 @@ import { Command } from "cmdk";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import {
+  ClipboardCheck,
   ClipboardList,
   Inbox,
   MessageCircleMore,
@@ -84,6 +85,12 @@ const VIEW_ENTITY_META: Record<
     iconClass: "text-icon-tickets",
     label: "Tickets",
     basePath: ENTITY_BASE_PATH.tickets,
+  },
+  coaching: {
+    icon: ClipboardCheck,
+    iconClass: "text-icon-coaching",
+    label: "Coaching",
+    basePath: ENTITY_BASE_PATH.coaching,
   },
 };
 

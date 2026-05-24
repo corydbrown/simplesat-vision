@@ -20,6 +20,7 @@ import { CSS } from "@dnd-kit/utilities";
 import {
   BarChart3,
   ChevronDown,
+  ClipboardCheck,
   GripVertical,
   Home,
   Inbox,
@@ -83,6 +84,7 @@ const ICONS = {
   UserSquare2,
   Users,
   BarChart3,
+  ClipboardCheck,
 } satisfies Record<string, LucideIcon>;
 
 // Stores the set of *expanded* section ids so an empty/missing value collapses

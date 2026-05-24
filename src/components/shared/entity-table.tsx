@@ -53,6 +53,13 @@ export type EntityTableProps<T> = {
    */
   drawerEntity?: DrawerEntity;
   /**
+   * When set (and `drawerEntity` is not), row click navigates to the path
+   * returned by this function as a full-page transition — the pattern for
+   * entities that don't yet have a drawer (e.g. Coaching, whose detail UI
+   * is a standalone page only).
+   */
+  rowHref?: (row: T) => string;
+  /**
    * Prefix for sort/group/page params (e.g. "d" → dsort, dgroup, dpage). Use
    * inside drawer-internal tables so they don't collide with outer page state.
    */
@@ -81,6 +88,7 @@ export function EntityTable<T>({
   basePath,
   rowHrefField,
   drawerEntity,
+  rowHref,
   paramPrefix = "",
   serverSorted = false,
   emptyMessage = "No rows.",
@@ -187,7 +195,27 @@ export function EntityTable<T>({
             scroll: false,
           });
         }
-      : undefined;
+      : rowHref
+        ? (e: React.MouseEvent) => {
+            const target = e.target as HTMLElement;
+            if (target.closest("a, button, [role='button']")) return;
+            // Honor modifier-key / middle-click new-tab behavior the same
+            // way the drawer path does — let the browser handle navigation
+            // itself in those cases (no preventDefault needed since rows
+            // aren't actual anchors).
+            if (
+              e.metaKey ||
+              e.ctrlKey ||
+              e.shiftKey ||
+              e.altKey ||
+              e.button !== 0
+            ) {
+              window.open(rowHref(row), "_blank", "noopener");
+              return;
+            }
+            router.push(rowHref(row));
+          }
+        : undefined;
     return (
       <tr
         key={id}

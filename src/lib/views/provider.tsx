@@ -56,6 +56,7 @@ function emptyByEntity(): ViewsByEntity {
     customers: SEED_VIEWS.customers,
     responses: SEED_VIEWS.responses,
     "team-members": SEED_VIEWS["team-members"],
+    coaching: SEED_VIEWS.coaching,
   };
 }
 

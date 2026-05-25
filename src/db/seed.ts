@@ -1384,14 +1384,20 @@ async function seed() {
 
   const TARGET_TICKETS = 50_000;
   // Number of tickets that get a fully-seeded message + event timeline.
-  // Starting small while we shape the data; expanding is a follow-up.
   // These are the "conversation-mockup" tickets that get QA evaluations.
-  const TARGET_TIMELINE_TICKETS = 50;
+  // Sized so every agent lands in the 5-15 evals range (25 agents × 6 = 150).
+  const EVALS_PER_AGENT = 6;
+  const TARGET_TIMELINE_TICKETS = teamMembers.length * EVALS_PER_AGENT;
   const tickets: NewTicket[] = [];
   const responses: NewResponse[] = [];
   const ticketMessages: NewTicketMessage[] = [];
   const ticketEvents: NewTicketEvent[] = [];
   let timelinesAttached = 0;
+  // Per-agent timeline quota — every agent gets EVALS_PER_AGENT evaluations
+  // so the QA dashboards have data for every row.
+  const agentTimelineCounts = new Map<string, number>(
+    agentIds.map((id) => [id, 0]),
+  );
   // Track which tickets got the full lifecycle treatment — these are the
   // ones that get tagged + QA-scored at the end of the seed run.
   const mockupTicketIds = new Set<string>();
@@ -1530,13 +1536,14 @@ async function seed() {
       surveyIdForLifecycle = pickFrom(surveyWeightPool);
     }
 
-    // Pick a fully-seeded timeline for the first TARGET_TIMELINE_TICKETS
-    // eligible (solved/closed) tickets. The 3% gate spreads chosen tickets
-    // across the corpus rather than clustering them at the start.
+    // Pick a fully-seeded timeline for solved/closed tickets, gated by a
+    // per-agent quota so every agent ends up with EVALS_PER_AGENT timelines.
+    // Tickets carry random `daysAgo` so temporal spread is preserved even
+    // though we no longer use a random selection gate.
     if (
       timelinesAttached < TARGET_TIMELINE_TICKETS &&
       (status === "solved" || status === "closed") &&
-      faker.number.int({ min: 0, max: 99 }) < 3
+      (agentTimelineCounts.get(agentId) ?? 0) < EVALS_PER_AGENT
     ) {
       const customer = customers.find((c) => c.id === customerId)!;
       const agent = teamMembers.find((t) => t.id === agentId)!;
@@ -1578,6 +1585,10 @@ async function seed() {
       messageCount = lifecycle.messageCount;
       agentMessageCount = lifecycle.agentMessageCount;
       timelinesAttached++;
+      agentTimelineCounts.set(
+        agentId,
+        (agentTimelineCounts.get(agentId) ?? 0) + 1,
+      );
       mockupTicketIds.add(ticketId);
     }
 

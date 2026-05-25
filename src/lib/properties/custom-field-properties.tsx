@@ -3,6 +3,7 @@
 import { ArrowRightLeft } from "lucide-react";
 import type { ReactNode } from "react";
 import { formatDate, formatNumber } from "@/lib/format";
+import { TimestampTooltip } from "@/components/shared/timestamp-tooltip";
 import type { CustomFieldDef } from "./custom-fields";
 import type { Property } from "./types";
 
@@ -49,9 +50,11 @@ function renderValue(
       const d = typeof raw === "string" ? new Date(raw) : raw;
       const valid = d instanceof Date && !Number.isNaN(d.getTime());
       return (
-        <span className="tabular-nums text-muted-foreground">
-          {valid ? formatDate(d as Date) : String(raw)}
-        </span>
+        <TimestampTooltip date={valid ? (d as Date) : null}>
+          <span className="tabular-nums text-muted-foreground">
+            {valid ? formatDate(d as Date) : String(raw)}
+          </span>
+        </TimestampTooltip>
       );
     }
     case "boolean":

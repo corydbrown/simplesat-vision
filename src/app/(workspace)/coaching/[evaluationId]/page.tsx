@@ -26,10 +26,10 @@ export default async function CoachingDetailPage(
           <DetailActions entityHref={`/coaching/${detail.evaluation.id}`} />
         }
       />
-      <div className="px-10 py-7">
+      <main className="px-14 py-10">
         <CoachingTicketHeader detail={detail} />
         <CoachingTicket detail={detail} />
-      </div>
+      </main>
     </>
   );
 }

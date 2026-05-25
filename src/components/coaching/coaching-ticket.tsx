@@ -791,7 +791,7 @@ export function CoachingTicket({ detail }: { detail: CoachingDetail }) {
   // ----- render -----
 
   return (
-    <div className="relative pb-[150px]">
+    <div className="relative">
       <div className="grid grid-cols-[1fr_380px] gap-6">
         <div className="min-w-0">
           <ActivityToggle
@@ -878,6 +878,7 @@ export function CoachingTicket({ detail }: { detail: CoachingDetail }) {
                 </div>
               );
             })}
+            <EndOfConversationRow />
           </div>
         </div>
 
@@ -989,6 +990,16 @@ function ActivityToggle({
         <span>Show activity</span>
         <Switch checked={on} onCheckedChange={onChange} />
       </label>
+    </div>
+  );
+}
+
+function EndOfConversationRow() {
+  return (
+    <div className="flex items-center gap-3 py-1.5 text-sm text-muted-foreground">
+      <div className="h-px flex-1 bg-border" />
+      <span>End of conversation</span>
+      <div className="h-px flex-1 bg-border" />
     </div>
   );
 }

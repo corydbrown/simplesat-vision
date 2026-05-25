@@ -234,28 +234,9 @@ Pieces:
 
 Detail body components (`CustomerDetailBody`, etc.) take an `inDrawer?: boolean` prop. When true: `paramName="dt"`, `paramPrefix="d"`, default tab materialized via `router.replace` on mount.
 
-**Animation (slide-in AND slide-out)** is load-bearing — read carefully. Two rules, both required:
+**Animation** is handled by Radix Dialog's `data-state` attribute + a CSS `transition-transform` rule on `DialogPrimitive.Content` (`data-[state=open]:translate-x-0 data-[state=closed]:translate-x-full`). Radix Presence keeps Content mounted until the transition ends, then unmounts. The drawer runs `modal={false}` — no overlay, no scroll lock, no focus trap — so the background stays scrollable. Outside-click closes via `onPointerDownOutside`, which we filter to skip clicks landing on Radix poppers (dropdowns, tooltips, hover cards) and `data-drawer-link` anchors.
 
-**1. Exit snapshot must be captured during render, AND bound to a local for the same render.** Effects run after commit, but `GlobalDrawer` has an early `if (!active) return null` — by the time an effect could capture the exit state, the drawer would already have unmounted. So we capture in the render body:
-
-```ts
-let effectiveExiting = exiting;
-if (!currentKey && prevParsedKey.current && !exiting) {
-  effectiveExiting = { entity, id, payload };
-  setExiting(effectiveExiting); // queued for next render
-}
-// `active` and `renderPayload` below must reference `effectiveExiting`,
-// not the state `exiting`. The queued setExiting only takes effect on
-// the next render — if this render relied on state alone, `active`
-// would compute null and React would briefly commit a null tree,
-// unmounting the drawer mid-transition.
-```
-
-**2. The close drive (`setIsOpenAnim(false)`) must stay in the `[exiting]` effect, NOT in render-phase.** The CSS transition needs two distinct commits: one with the drawer still at `translateX(0)` (so the browser has a paint baseline), then one at `translateX(100%)`. Driving the close from render-phase batches both changes into a single commit, collapsing the two-commit cycle and killing the animation. The effect runs post-commit, giving the browser its baseline frame before the transform flips.
-
-React queues the update, re-renders with `exiting` set, drawer paints its outgoing entity. The `[exiting]` effect then fires `setIsOpenAnim(false)`, causing a second commit where `translateX(100%)` is set — CSS transition animates over 220ms, then the cleanup timeout clears `exiting` and the drawer unmounts. The open direction uses a two-frame mount pattern (render closed, `requestAnimationFrame` flips to open). Re-opening mid-exit cancels the pending exit in the `[parsed]` effect.
-
-If you change this, mirror BOTH rules: render-phase capture with local binding, effect-phase close drive.
+The exit-snapshot machinery from earlier revisions is gone: `GlobalDrawer` only swaps `snapshot` when the URL points at a *new* entity, never clears it on close, so the closing drawer keeps painting its old content for the duration of the slide-out.
 
 ### ColumnStateProvider (`src/lib/column-prefs.tsx`)
 

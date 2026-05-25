@@ -4,6 +4,7 @@ import { ChevronsRight, GripVertical, Maximize2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { Dialog as DialogPrimitive } from "radix-ui";
 import {
   Tooltip,
   TooltipContent,
@@ -44,60 +45,32 @@ function saveWidth(width: number) {
 
 export function DetailDrawer({
   fullPageHref,
-  isOpen,
+  open,
   onClose,
   children,
 }: {
   fullPageHref: string;
-  isOpen: boolean;
+  open: boolean;
   onClose: () => void;
   children: React.ReactNode;
 }) {
-  const drawerRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
-  const [width, setWidth] = useState(DEFAULT_WIDTH);
+  // Initialize from localStorage during the first render. Safe because the
+  // drawer mounts inside a Radix Portal, which doesn't render during SSR —
+  // no hydration mismatch possible.
+  const [width, setWidth] = useState<number>(loadWidth);
   const [resizing, setResizing] = useState(false);
   const mod = useModKey();
-
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setWidth(loadWidth());
-  }, []);
+  const contentRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (width !== DEFAULT_WIDTH) saveWidth(width);
   }, [width]);
 
-  // Esc and Cmd+Enter live here because they're drawer-specific. Cmd+L
-  // is handled by DetailActions (works on standalone pages too).
+  // Cmd+Enter only — Esc is handled by Radix Dialog's built-in keyboard layer.
   useDetailHotkeys({
-    onClose: isOpen ? onClose : undefined,
-    onOpenFull: isOpen ? () => router.push(fullPageHref) : undefined,
+    onOpenFull: open ? () => router.push(fullPageHref) : undefined,
   });
-
-  // Close on outside click. Skip when any Radix popper (dropdown, tooltip,
-  // hover card) is currently mounted — the click is dismissing that, not
-  // the drawer.
-  useEffect(() => {
-    if (!isOpen) return;
-    const onClick = (e: MouseEvent) => {
-      if (!drawerRef.current) return;
-      const target = e.target as HTMLElement;
-      if (drawerRef.current.contains(target)) return;
-      if (target.closest("[data-radix-popper-content-wrapper]")) return;
-      if (target.closest("[data-drawer-link]")) return;
-      if (document.querySelector("[data-radix-popper-content-wrapper]")) return;
-      onClose();
-    };
-    const timer = window.setTimeout(
-      () => document.addEventListener("mousedown", onClick),
-      150,
-    );
-    return () => {
-      window.clearTimeout(timer);
-      document.removeEventListener("mousedown", onClick);
-    };
-  }, [isOpen, onClose]);
 
   const onResizeStart = useCallback(
     (e: React.PointerEvent) => {
@@ -120,67 +93,102 @@ export function DetailDrawer({
     [width],
   );
 
+  // Skip outside-close when the click landed in any open Radix popper
+  // (dropdown / tooltip / hover card) — those are dismissing themselves,
+  // not the drawer. Also skip clicks on DrawerLink anchors so cross-drawer
+  // navigation doesn't close the host drawer.
+  const handleInteractOutside = useCallback(
+    (e: Event) => {
+      const target = e.target as HTMLElement | null;
+      if (!target) return;
+      if (target.closest("[data-radix-popper-content-wrapper]")) {
+        e.preventDefault();
+        return;
+      }
+      if (target.closest("[data-drawer-link]")) {
+        e.preventDefault();
+        return;
+      }
+    },
+    [],
+  );
+
   return (
-    <div
-      ref={drawerRef}
-      style={{
-        width,
-        transform: isOpen ? "translateX(0)" : "translateX(100%)",
+    <DialogPrimitive.Root
+      open={open}
+      onOpenChange={(o) => {
+        if (!o) onClose();
       }}
-      className="fixed top-0 right-0 bottom-0 z-40 max-w-full bg-background border-l border-border flex flex-col transition-transform duration-200 ease-out"
+      modal={false}
     >
-      <div
-        onPointerDown={onResizeStart}
-        aria-label="Resize drawer"
-        role="separator"
-        className={`group absolute left-0 top-0 bottom-0 w-2 -translate-x-1/2 cursor-col-resize z-10 flex items-center justify-center ${
-          resizing ? "bg-foreground/10" : ""
-        }`}
-      >
-        <GripVertical
-          size={14}
-          className={`text-muted-foreground/40 transition-opacity ${
-            resizing ? "opacity-100" : "opacity-0 group-hover:opacity-100"
-          }`}
-        />
-      </div>
-      <div className="flex items-center justify-between border-b border-border px-3 py-2 shrink-0">
-        <div className="flex items-center gap-0.5">
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                type="button"
-                aria-label="Close drawer"
-                onClick={onClose}
-                className="cursor-pointer rounded p-1 text-muted-foreground hover:bg-accent hover:text-foreground"
-              >
-                <ChevronsRight size={16} />
-              </button>
-            </TooltipTrigger>
-            <TooltipContent side="bottom">
-              Close <Kbd>Esc</Kbd>
-            </TooltipContent>
-          </Tooltip>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Link
-                href={fullPageHref}
-                aria-label="Open in full page"
-                onClick={onClose}
-                className="cursor-pointer rounded p-1 text-muted-foreground hover:bg-accent hover:text-foreground"
-              >
-                <Maximize2 size={15} />
-              </Link>
-            </TooltipTrigger>
-            <TooltipContent side="bottom">
-              Open in full page <Kbd>{mod}</Kbd>
-              <Kbd>⏎</Kbd>
-            </TooltipContent>
-          </Tooltip>
-        </div>
-        <DetailActions entityHref={fullPageHref} />
-      </div>
-      <div className="flex-1 overflow-y-auto">{children}</div>
-    </div>
+      <DialogPrimitive.Portal>
+        <DialogPrimitive.Content
+          ref={contentRef}
+          aria-describedby={undefined}
+          onOpenAutoFocus={(e) => e.preventDefault()}
+          onCloseAutoFocus={(e) => e.preventDefault()}
+          onPointerDownOutside={handleInteractOutside}
+          onInteractOutside={handleInteractOutside}
+          style={{ width }}
+          className="fixed top-0 right-0 bottom-0 z-40 max-w-full bg-background border-l border-border flex flex-col transition-transform duration-200 ease-out data-[state=open]:translate-x-0 data-[state=closed]:translate-x-full"
+        >
+          <DialogPrimitive.Title className="sr-only">
+            Detail drawer
+          </DialogPrimitive.Title>
+          <div
+            onPointerDown={onResizeStart}
+            aria-label="Resize drawer"
+            role="separator"
+            className={`group absolute left-0 top-0 bottom-0 w-2 -translate-x-1/2 cursor-col-resize z-10 flex items-center justify-center ${
+              resizing ? "bg-foreground/10" : ""
+            }`}
+          >
+            <GripVertical
+              size={14}
+              className={`text-muted-foreground/40 transition-opacity ${
+                resizing ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+              }`}
+            />
+          </div>
+          <div className="flex items-center justify-between border-b border-border px-3 py-2 shrink-0">
+            <div className="flex items-center gap-0.5">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    type="button"
+                    aria-label="Close drawer"
+                    onClick={onClose}
+                    className="cursor-pointer rounded p-1 text-muted-foreground hover:bg-accent hover:text-foreground"
+                  >
+                    <ChevronsRight size={16} />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">
+                  Close <Kbd>Esc</Kbd>
+                </TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Link
+                    href={fullPageHref}
+                    aria-label="Open in full page"
+                    onClick={onClose}
+                    className="cursor-pointer rounded p-1 text-muted-foreground hover:bg-accent hover:text-foreground"
+                  >
+                    <Maximize2 size={15} />
+                  </Link>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">
+                  Open in full page <Kbd>{mod}</Kbd>
+                  <Kbd>⏎</Kbd>
+                </TooltipContent>
+              </Tooltip>
+            </div>
+            <DetailActions entityHref={fullPageHref} />
+          </div>
+          <div className="flex-1 overflow-y-auto">{children}</div>
+        </DialogPrimitive.Content>
+      </DialogPrimitive.Portal>
+    </DialogPrimitive.Root>
   );
 }

@@ -207,15 +207,18 @@ export function GlobalDrawer() {
   const parsed = useMemo(() => parseDrawerParam(drawerParam), [drawerParam]);
 
   const currentKey = parsed ? `${parsed.entity}:${parsed.id}` : null;
+  // Hold the last-shown payload through the exit animation so the closing
+  // drawer keeps painting its content (instead of flashing to a skeleton).
+  // We only refresh the snapshot when the URL points to a new entity —
+  // never when it goes to null. Radix Dialog handles the unmount timing.
   const [snapshot, setSnapshot] = useState<{
-    key: string | null;
+    key: string;
     payload: DrawerData | null;
     error: boolean;
-  }>({ key: null, payload: null, error: false });
+  } | null>(null);
 
-  // Sync from props at render time so an entity swap never paints stale content.
-  if (snapshot.key !== currentKey) {
-    const cached = currentKey ? cache.get(currentKey) ?? null : null;
+  if (currentKey && snapshot?.key !== currentKey) {
+    const cached = cache.get(currentKey) ?? null;
     setSnapshot({ key: currentKey, payload: cached, error: false });
   }
 
@@ -239,92 +242,24 @@ export function GlobalDrawer() {
         const next = { entity: parsed.entity, data: revived } as DrawerData;
         cache.set(currentKey, next);
         recordEntityView(buildEntryFromDrawerPayload(next));
-        setSnapshot({ key: currentKey, payload: next, error: false });
+        setSnapshot((s) =>
+          s?.key === currentKey
+            ? { key: currentKey, payload: next, error: false }
+            : s,
+        );
       })
       .catch(() => {
         if (myId !== requestId.current) return;
         setSnapshot((s) =>
-          s.key === currentKey ? { ...s, error: true } : s,
+          s?.key === currentKey ? { ...s, error: true } : s,
         );
       });
   }, [parsed, currentKey]);
 
-  const payload = snapshot.payload;
-  const error = snapshot.error;
+  // Nothing has ever been shown — don't mount Dialog at all.
+  if (!snapshot) return null;
 
-  // Animation state machine. The exit snapshot MUST be captured during
-  // render — not in an effect — because the early-return on `!active`
-  // happens before any effect runs. If we captured in an effect, the
-  // drawer would unmount the moment ?drawer= leaves the URL, before
-  // the exit animation could play.
-  type ExitState = {
-    entity: DrawerEntity;
-    id: string;
-    payload: DrawerData | null;
-  };
-  const [exiting, setExiting] = useState<ExitState | null>(null);
-  // Two-frame mount pattern: when the drawer first appears it renders
-  // with isOpenAnim=false (transform = translateX(100%)), then flips
-  // to true on the next frame so the CSS transition runs.
-  const [isOpenAnim, setIsOpenAnim] = useState(false);
-  const prevParsedKey = useRef<string | null>(null);
-
-  // Open→close transition: capture the exit snapshot synchronously during
-  // render. The early-return on `!active` below means an effect-based
-  // capture would unmount the drawer before its exit animation could play.
-  // We also bind the captured value to a local so this render itself sees
-  // it (the queued setExiting only takes effect on the next render — if we
-  // relied on state alone, this render would compute active=null and React
-  // would briefly commit a null tree, unmounting the drawer mid-transition).
-  // The close animation drive (setIsOpenAnim(false)) MUST stay in the
-  // [exiting] effect below — driving it from render-phase batches it into
-  // the same commit as the exit snapshot, collapsing the two-commit cycle
-  // the CSS transition needs.
-  /* eslint-disable react-hooks/refs */
-  let effectiveExiting = exiting;
-  if (!currentKey && prevParsedKey.current && !exiting) {
-    const prevKey = prevParsedKey.current;
-    const idx = prevKey.indexOf(":");
-    if (idx > 0) {
-      effectiveExiting = {
-        entity: prevKey.slice(0, idx) as DrawerEntity,
-        id: prevKey.slice(idx + 1),
-        payload,
-      };
-      setExiting(effectiveExiting);
-    }
-  }
-  prevParsedKey.current = currentKey;
-  /* eslint-enable react-hooks/refs */
-
-  // Trigger open animation on the frame after mount. Also cancels any
-  // pending exit (user re-opens before the exit animation finishes).
-  useEffect(() => {
-    if (!parsed) return;
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setExiting((curr) => (curr ? null : curr));
-    const raf = requestAnimationFrame(() => setIsOpenAnim(true));
-    return () => cancelAnimationFrame(raf);
-  }, [parsed]);
-
-  // Drive close animation + cleanup the exit snapshot after the transition
-  // completes. The setIsOpenAnim(false) MUST be here, not in render —
-  // running it post-commit gives the browser a paint frame with the drawer
-  // still at translateX(0) before flipping to translateX(100%), which is
-  // what makes the CSS transition fire.
-  useEffect(() => {
-    if (!exiting) return;
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setIsOpenAnim(false);
-    const t = window.setTimeout(() => setExiting(null), 220);
-    return () => window.clearTimeout(t);
-  }, [exiting]);
-
-  const active = parsed
-    ? { entity: parsed.entity, id: parsed.id }
-    : effectiveExiting
-      ? { entity: effectiveExiting.entity, id: effectiveExiting.id }
-      : null;
+  const active = parsed ?? parseDrawerParam(snapshot.key);
   if (!active) return null;
 
   const close = () => {
@@ -335,12 +270,13 @@ export function GlobalDrawer() {
     router.push(`${pathname}${qs ? `?${qs}` : ""}`, { scroll: false });
   };
 
-  const renderPayload = payload ?? (effectiveExiting?.payload ?? null);
+  const renderPayload = snapshot.payload;
+  const error = snapshot.error;
 
   return (
     <DetailDrawer
       fullPageHref={fullPagePath(active.entity, active.id)}
-      isOpen={isOpenAnim}
+      open={!!parsed}
       onClose={close}
     >
       <div>

@@ -285,7 +285,6 @@ Rules:
 
 - **Don't reintroduce SecondaryNav.** Views live in PrimaryNav now. Section layouts are pass-throughs.
 - **Don't put view counts in the nav.** Cleaner without them; totals live on the list page.
-- **Don't move the drawer's exit-snapshot capture into a `useEffect`** — it runs after the unmount check, so the drawer would unmount before the animation could play. AND **don't move the close drive (`setIsOpenAnim(false)`) into render-phase** — batching it with the exit capture collapses the two-commit cycle the CSS transition needs. The pattern is: exit snapshot during render (with local-binding so this render also sees it), close drive in the `[exiting]` effect. See [ARCHITECTURE.md](ARCHITECTURE.md) → "Drawer architecture → Animation".
 - **Don't add a SecondaryNav-style left column on detail pages.** Standalone detail = 2-col grid with sidebar right (not left).
 - **Don't reintroduce the sticky-first-column behavior**; Cory will spec a configurable version later.
 - **Don't add per-cell text-size classes inside pills** — stateful pills set their own `text-sm` internally; don't override from the call site.

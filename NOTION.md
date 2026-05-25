@@ -10,18 +10,32 @@ The Simplesat Vision prototype's backlog lives in a Notion database. Single sour
 
 ## Views
 
-- **Ready queue (Claude Code start here)** — `Status=Ready`, sorted Priority asc. Query URL: `https://www.notion.so/simplesat/47f44fc634ad41bdbafc5dca3b08beaa?v=366afb413b748160b0d7000c0c0cc28f`. Agents pick from here when Cory asks "what's next" or starts a new session — do not scan other views.
-- **Backlog (Cory triage)** — `Status=Backlog`. Where deferrals land. Cory reviews periodically and promotes items to Ready.
+- **Ready queue (Claude Code start here)** — `Status=Ready`, sorted Priority asc. Query URL: `https://www.notion.so/simplesat/47f44fc634ad41bdbafc5dca3b08beaa?v=366afb413b748160b0d7000c0c0cc28f`. Agents pick from here when Cory asks "what's next" or starts a new session.
+- **Backlog (Cory's near-term queue)** — `Status=Backlog`. Triaged tasks that are *close to ready*; Cory promotes them to Ready as bandwidth opens. When Cory says "review backlog," he means *Ready + Backlog* — these are the surfaces worth reasoning about together.
+- **Master backlog (parking lot)** — `Status=Master backlog`. Tasks that aren't ready to think about yet — future ideas, things that need a prerequisite. Don't review unless Cory asks specifically.
+- **New (Cory's triage inbox)** — `Status=New`. **Where agents and workers file new tasks now** (was: Backlog). Cory triages from New → Backlog (or Master backlog, or Declined). Filing into New keeps Backlog clean as a near-term queue.
 - **All tasks by status** — board view of everything.
 - **Needs Cory (Review + Blocked)** — surfaces what's waiting on Cory.
 - **Done log** — closed tasks, sorted by completed date.
+
+### Status lifecycle
+
+```
+[ New ] ── Cory triages ──▶ [ Backlog ] ── Cory promotes ──▶ [ Ready ] ──▶ [ In Progress ] ──▶ [ Done ]
+                            │                                                     │
+                            └─▶ [ Master backlog ]    [ Blocked ] ◀────────────────┘
+                            │
+                            └─▶ [ Declined ]
+```
+
+Agents file at `New`. Cory promotes through the lifecycle.
 
 ## Schema cheat sheet
 
 | Property | Type | Values / notes |
 |---|---|---|
 | Task | title | One-sentence task description |
-| Status | select | Backlog / Ready / In Progress / Blocked / Done / Declined |
+| Status | select | New / Master backlog / Backlog / Ready / In Progress / Blocked / Done / Declined |
 | Type | select | Feature / Bug / Design tweak / Performance / Refactor / Research/Spike / Docs |
 | Area | select | Frontend / Backend / AI/Prompts / Data model / Integrations / Mock data / Cross-cutting |
 | Priority | select | P0 / P1 / P2 / P3 |
@@ -59,7 +73,7 @@ Keep each bullet under ~120 chars. Multiple bullets are fine — history > terse
 
 When Cory agrees to defer scope — "let's not do that now," "v2," "punt to later," "follow-up" — create a Notion task **immediately** via the `notion-create-pages` tool. Defaults:
 
-- **Status:** Backlog (Cory triages to Ready later)
+- **Status:** `New` (Cory triages to Backlog / Master backlog / Declined). **NOT** `Backlog` — that status is now reserved for Cory's curated near-term queue.
 - **Type:** best guess from context (Feature / Refactor / Bug / Design tweak / Docs / Research-Spike / Performance)
 - **Area:** best guess (Frontend / Backend / Cross-cutting / etc.)
 - **Priority:** P2 by default. Use P0/P1 only when context says urgent. Use P3 for nice-to-haves.
@@ -69,7 +83,7 @@ When Cory agrees to defer scope — "let's not do that now," "v2," "punt to late
 - **Don't ask the user to pick values.** Cory triages later — agents pick reasonable defaults so capture is friction-free.
 - **Don't write to `Notes for me`** — that's Cory's column. All agent notes go in the page body.
 
-Then tell Cory inline: *"Logged in Notion backlog as task #N: [title]"*. The Task ID auto-assigns; grab it from the MCP response and quote it.
+Then tell Cory inline: *"Logged in Notion as task #N (status=New): [title]"*. The Task ID auto-assigns; grab it from the MCP response and quote it.
 
 ### On "what's next" / new-session start
 

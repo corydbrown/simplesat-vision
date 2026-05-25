@@ -61,7 +61,14 @@ const SECTIONS: NavSection[] = [
     icon: "BarChart3",
     iconClass: "text-icon-reports",
     href: "/reports",
-    views: [{ id: "new", label: "New report", href: "/reports" }],
+    views: [
+      { id: "new", label: "New report", href: "/reports" },
+      {
+        id: "coaching-insights",
+        label: "Coaching insights",
+        href: "/reports/coaching-insights",
+      },
+    ],
   },
 ];
 

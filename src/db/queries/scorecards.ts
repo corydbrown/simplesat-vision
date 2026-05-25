@@ -1,6 +1,7 @@
 import "server-only";
 import { asc, eq, sql } from "drizzle-orm";
 import { db, schema } from "../client";
+import type { ScorecardScaleType } from "@/db/schema";
 
 export type ScorecardSummary = {
   id: string;
@@ -61,8 +62,9 @@ export type ScorecardCategoryView = {
   criteriaCount: number;
 };
 
-/** Returns categories for a scorecard, ordered by `order`. Phase 2 will
- *  extend this to return full criteria + anchors when the editor needs them. */
+/** Returns categories for a scorecard, ordered by `order`. Shape used by the
+ *  read-only summary on `/settings/scorecards` and the Phase 1 stub. The
+ *  editor uses {@link getScorecardEditorView} which inlines full criteria. */
 export async function getScorecardCategories(
   scorecardId: string,
 ): Promise<ScorecardCategoryView[]> {
@@ -84,4 +86,106 @@ export async function getScorecardCategories(
     .orderBy(asc(schema.scorecardCategories.order));
 
   return rows;
+}
+
+export type ScorecardCriterionView = {
+  id: string;
+  text: string;
+  anchor5: string;
+  anchor3: string;
+  anchor1: string;
+  order: number;
+};
+
+export type ScorecardEditorCategory = {
+  id: string;
+  name: string;
+  description: string;
+  weightPercent: number;
+  scaleType: ScorecardScaleType;
+  isAutofail: boolean;
+  order: number;
+  criteria: ScorecardCriterionView[];
+};
+
+export type ScorecardEditorView = {
+  id: string;
+  name: string;
+  version: number;
+  isDefault: boolean;
+  enabled: boolean;
+  categories: ScorecardEditorCategory[];
+};
+
+/** Returns the full editable shape of a scorecard — categories with their
+ *  criteria inline. Used by the editor at `/settings/scorecards/<id>`. */
+export async function getScorecardEditorView(
+  scorecardId: string,
+): Promise<ScorecardEditorView | null> {
+  const [head] = await db
+    .select({
+      id: schema.scorecards.id,
+      name: schema.scorecards.name,
+      version: schema.scorecards.version,
+      isDefault: schema.scorecards.isDefault,
+      enabled: schema.scorecards.enabled,
+    })
+    .from(schema.scorecards)
+    .where(eq(schema.scorecards.id, scorecardId))
+    .limit(1);
+  if (!head) return null;
+
+  const categoryRows = await db
+    .select({
+      id: schema.scorecardCategories.id,
+      name: schema.scorecardCategories.name,
+      description: schema.scorecardCategories.description,
+      weightPercent: schema.scorecardCategories.weightPercent,
+      scaleType: schema.scorecardCategories.scaleType,
+      isAutofail: schema.scorecardCategories.isAutofail,
+      order: schema.scorecardCategories.order,
+    })
+    .from(schema.scorecardCategories)
+    .where(eq(schema.scorecardCategories.scorecardId, scorecardId))
+    .orderBy(asc(schema.scorecardCategories.order));
+
+  const criterionRows = await db
+    .select({
+      id: schema.scorecardCriteria.id,
+      categoryId: schema.scorecardCriteria.categoryId,
+      text: schema.scorecardCriteria.text,
+      anchor5: schema.scorecardCriteria.anchor5,
+      anchor3: schema.scorecardCriteria.anchor3,
+      anchor1: schema.scorecardCriteria.anchor1,
+      order: schema.scorecardCriteria.order,
+    })
+    .from(schema.scorecardCriteria)
+    .innerJoin(
+      schema.scorecardCategories,
+      eq(schema.scorecardCategories.id, schema.scorecardCriteria.categoryId),
+    )
+    .where(eq(schema.scorecardCategories.scorecardId, scorecardId))
+    .orderBy(asc(schema.scorecardCriteria.order));
+
+  const criteriaByCategoryId = new Map<string, ScorecardCriterionView[]>();
+  for (const c of criterionRows) {
+    const list = criteriaByCategoryId.get(c.categoryId) ?? [];
+    list.push({
+      id: c.id,
+      text: c.text,
+      anchor5: c.anchor5,
+      anchor3: c.anchor3,
+      anchor1: c.anchor1,
+      order: c.order,
+    });
+    criteriaByCategoryId.set(c.categoryId, list);
+  }
+
+  return {
+    ...head,
+    categories: categoryRows.map((cat) => ({
+      ...cat,
+      criteria: criteriaByCategoryId.get(cat.id) ?? [],
+    })),
+  };
 }

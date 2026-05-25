@@ -21,6 +21,7 @@ import { TierPill } from "@/components/shared/tier-pill";
 import type { CustomerListRow } from "@/db/queries/customers";
 import { CUSTOMER_FILTER_SPECS } from "@/lib/filters/specs/customers";
 import { formatDate, formatNumber } from "@/lib/format";
+import { TimestampTooltip } from "@/components/shared/timestamp-tooltip";
 import { CUSTOMER_CUSTOM_FIELDS } from "./custom-fields";
 import { customFieldProperties } from "./custom-field-properties";
 import type { Property } from "./types";
@@ -176,9 +177,11 @@ const CORE_PROPERTIES: Property<CustomerListRow>[] = [
     sortable: true,
     sortValue: (c) => c.lastSeen,
     cell: (c) => (
-      <span className="tabular-nums text-muted-foreground">
-        {formatDate(c.lastSeen)}
-      </span>
+      <TimestampTooltip date={c.lastSeen}>
+        <span className="tabular-nums text-muted-foreground">
+          {formatDate(c.lastSeen)}
+        </span>
+      </TimestampTooltip>
     ),
   },
   {

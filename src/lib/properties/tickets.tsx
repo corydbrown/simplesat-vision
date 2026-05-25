@@ -44,6 +44,7 @@ import { TagList } from "@/components/shared/tag";
 import type { TicketsRow } from "@/db/queries/tickets";
 import { TICKET_FILTER_SPECS } from "@/lib/filters/specs/tickets";
 import { formatDate, formatDuration } from "@/lib/format";
+import { TimestampTooltip } from "@/components/shared/timestamp-tooltip";
 import {
   QA_BUCKET_LABEL,
   qaScoreBucket,
@@ -438,9 +439,11 @@ export const TICKET_PROPERTIES: Property<TicketsRow>[] = [
     sortValue: (t) => t.createdAt,
     filter: TICKET_FILTER_SPECS.created_at,
     cell: (t) => (
-      <span className="tabular-nums text-muted-foreground">
-        {formatDate(t.createdAt)}
-      </span>
+      <TimestampTooltip date={t.createdAt}>
+        <span className="tabular-nums text-muted-foreground">
+          {formatDate(t.createdAt)}
+        </span>
+      </TimestampTooltip>
     ),
   },
   {
@@ -455,9 +458,11 @@ export const TICKET_PROPERTIES: Property<TicketsRow>[] = [
     sortValue: (t) => t.closedAt,
     filter: TICKET_FILTER_SPECS.closed_at,
     cell: (t) => (
-      <span className="tabular-nums text-muted-foreground">
-        {formatDate(t.closedAt)}
-      </span>
+      <TimestampTooltip date={t.closedAt}>
+        <span className="tabular-nums text-muted-foreground">
+          {formatDate(t.closedAt)}
+        </span>
+      </TimestampTooltip>
     ),
   },
   {
@@ -505,9 +510,11 @@ export const TICKET_PROPERTIES: Property<TicketsRow>[] = [
     sortValue: (t) => t.firstResponseAt,
     filter: TICKET_FILTER_SPECS.first_response_at,
     cell: (t) => (
-      <span className="tabular-nums text-muted-foreground">
-        {formatDate(t.firstResponseAt)}
-      </span>
+      <TimestampTooltip date={t.firstResponseAt}>
+        <span className="tabular-nums text-muted-foreground">
+          {formatDate(t.firstResponseAt)}
+        </span>
+      </TimestampTooltip>
     ),
   },
   {
@@ -522,9 +529,11 @@ export const TICKET_PROPERTIES: Property<TicketsRow>[] = [
     sortValue: (t) => t.solvedAt,
     filter: TICKET_FILTER_SPECS.solved_at,
     cell: (t) => (
-      <span className="tabular-nums text-muted-foreground">
-        {formatDate(t.solvedAt)}
-      </span>
+      <TimestampTooltip date={t.solvedAt}>
+        <span className="tabular-nums text-muted-foreground">
+          {formatDate(t.solvedAt)}
+        </span>
+      </TimestampTooltip>
     ),
   },
 ];

@@ -20,6 +20,7 @@ import { Tag } from "@/components/shared/tag";
 import type { ResponseListRow } from "@/db/queries/responses";
 import { RESPONSE_FILTER_SPECS } from "@/lib/filters/specs/responses";
 import { formatDateTime } from "@/lib/format";
+import { TimestampTooltip } from "@/components/shared/timestamp-tooltip";
 import { TOPIC_BY_ID } from "@/lib/topics";
 import type { Property } from "./types";
 
@@ -154,9 +155,11 @@ export const RESPONSE_PROPERTIES: Property<ResponseListRow>[] = [
     sortValue: (r) => r.respondedAt,
     filter: RESPONSE_FILTER_SPECS.responded_at,
     cell: (r) => (
-      <span className="tabular-nums text-muted-foreground">
-        {formatDateTime(r.respondedAt)}
-      </span>
+      <TimestampTooltip date={r.respondedAt}>
+        <span className="tabular-nums text-muted-foreground">
+          {formatDateTime(r.respondedAt)}
+        </span>
+      </TimestampTooltip>
     ),
   },
   {

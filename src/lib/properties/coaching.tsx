@@ -22,6 +22,7 @@ import type { EvaluationsRow } from "@/db/queries/evaluations";
 import type { QaEvaluationStatus } from "@/db/schema";
 import { COACHING_FILTER_SPECS } from "@/lib/filters/specs/coaching";
 import { formatDate } from "@/lib/format";
+import { TimestampTooltip } from "@/components/shared/timestamp-tooltip";
 import {
   QA_BUCKET_LABEL,
   qaScoreBucket,
@@ -187,9 +188,11 @@ export const COACHING_PROPERTIES: Property<EvaluationsRow>[] = [
     sortValue: (e) => e.scoredAt,
     filter: COACHING_FILTER_SPECS.scored_at,
     cell: (e) => (
-      <span className="tabular-nums text-muted-foreground">
-        {formatDate(e.scoredAt)}
-      </span>
+      <TimestampTooltip date={e.scoredAt}>
+        <span className="tabular-nums text-muted-foreground">
+          {formatDate(e.scoredAt)}
+        </span>
+      </TimestampTooltip>
     ),
   },
   {
@@ -205,9 +208,11 @@ export const COACHING_PROPERTIES: Property<EvaluationsRow>[] = [
     filter: COACHING_FILTER_SPECS.edited_at,
     cell: (e) =>
       e.editedAt ? (
-        <span className="tabular-nums text-muted-foreground">
-          {formatDate(e.editedAt)}
-        </span>
+        <TimestampTooltip date={e.editedAt}>
+          <span className="tabular-nums text-muted-foreground">
+            {formatDate(e.editedAt)}
+          </span>
+        </TimestampTooltip>
       ) : (
         <span className="text-muted-foreground/40">—</span>
       ),

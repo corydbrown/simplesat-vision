@@ -14,6 +14,7 @@ import {
 import { SurveyPill } from "@/components/shared/entity-pill";
 import type { SurveyRow } from "@/db/queries/surveys";
 import { formatDate, formatNumber } from "@/lib/format";
+import { TimestampTooltip } from "@/components/shared/timestamp-tooltip";
 import type { Property } from "./types";
 
 const METRIC_LABEL: Record<SurveyRow["metric"], string> = {
@@ -143,9 +144,11 @@ export const SURVEY_PROPERTIES: Property<SurveyRow>[] = [
     defaultVisible: false,
     kind: "text",
     cell: (s) => (
-      <span className="tabular-nums text-muted-foreground">
-        {formatDate(s.createdAt)}
-      </span>
+      <TimestampTooltip date={s.createdAt}>
+        <span className="tabular-nums text-muted-foreground">
+          {formatDate(s.createdAt)}
+        </span>
+      </TimestampTooltip>
     ),
   },
   {

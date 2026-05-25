@@ -18,6 +18,7 @@ import {
 } from "@/components/shared/entity-pill";
 import type { SurveyAnswer } from "@/db/schema";
 import { formatDateTime } from "@/lib/format";
+import { TimestampTooltip } from "@/components/shared/timestamp-tooltip";
 import type { Property } from "./types";
 
 export type AnswerRow = {
@@ -204,9 +205,11 @@ export const ANSWER_PROPERTIES: Property<AnswerRow>[] = [
     sortable: true,
     sortValue: (r) => r.respondedAt,
     cell: (r) => (
-      <span className="tabular-nums text-muted-foreground">
-        {formatDateTime(r.respondedAt)}
-      </span>
+      <TimestampTooltip date={r.respondedAt}>
+        <span className="tabular-nums text-muted-foreground">
+          {formatDateTime(r.respondedAt)}
+        </span>
+      </TimestampTooltip>
     ),
   },
   {

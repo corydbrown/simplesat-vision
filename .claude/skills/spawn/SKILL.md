@@ -1,6 +1,6 @@
 ---
 name: spawn
-description: Spawn a worker for a Notion task — fetches the task, runs nw with svpNN- prefix, writes BRIEF.md into the worktree, opens VS Code, posts Slack heartbeat. Worker just needs Cory to type "go" in the new session.
+description: Spawn a worker for a Notion task — fetches the task, runs nw with svpNN- prefix, writes BRIEF.md into the worktree, opens VS Code, updates Notion to In Progress. Worker just needs Cory to type "go" in the new session.
 ---
 
 # /spawn — one-shot worker spinup with brief-as-file
@@ -27,14 +27,12 @@ Eliminates copy-paste: instead of including the brief in the chat for Cory to pa
    - `Started at` → current ISO 8601 datetime with `+07:00` offset
    - Append note: `- YYYY-MM-DD: Spawned worktree feat/<branch> on port <N>. Brief written to BRIEF.md.`
 
-7. **Post Slack heartbeat** to `#simplesat-vision-prototype` (channel ID `C0B5AQ52FFZ`): `🛠 Spawned svp-N — <one-line title>. Port <N>. Cory: open the VS Code window + type "go".`
-
-8. **End-of-turn output** for Cory — a tight handoff:
+7. **End-of-turn output** for Cory — a tight handoff:
    > 🛠 SVP-NN spawned · port `<N>` · `feat/<branch>`. VS Code window opened. BRIEF.md written.
    >
    > **Open the new VS Code window → Cmd+Shift+P → "View: Show Claude Code" → New Session → type `go`.**
    >
-   > Worker will read BRIEF.md, plan, and execute. Slack heartbeats land in `#simplesat-vision-prototype`. PR will auto-open via /sweep when pushed.
+   > Worker will read BRIEF.md, plan, and execute. PR will auto-open via /sweep when pushed.
 
 ## BRIEF.md format
 
@@ -51,7 +49,7 @@ Eliminates copy-paste: instead of including the brief in the chat for Cory to pa
 
 <explicit criteria where worker should stop and re-check. Examples:
 - "If you find that <Y> turned out to be the case, stop — that changes the approach."
-- "If pre-existing pattern <X> doesn't compose with what's being asked, stop and Slack me."
+- "If pre-existing pattern <X> doesn't compose with what's being asked, commit WIP + leave a `// STOP — <reason>` comment + push. Supervisor's /sweep will catch it on the diff scan."
 If no specific criteria apply, omit this section but DO note: "Use STOP_CONDITIONS soft-stop judgment on premise-wrong situations.">
 
 ## Parallel workers active
@@ -71,15 +69,7 @@ If solo, write "None.">
 
 Per [STOP_CONDITIONS.md](STOP_CONDITIONS.md):
 - Hard stops: schema changes, auth/permissions, new deps, DECISIONS.md/CLAUDE.md changes → explicit yes required
-- Soft stops: 15 min blocked, scope drift > 10 files, brief premise wrong → commit WIP, push, Slack `@cory` in `#simplesat-vision-prototype`
-- Format: `@cory svp-N blocked: <reason>. WIP at <sha>. Worktree port <N>.`
-
-## Slack heartbeats — post to #simplesat-vision-prototype at these points
-
-- **Starting**: `svp-N starting — <one-line plan>`
-- **First commit**: `svp-N first commit pushed (<sha>) — <what was done>`
-- **PR opened**: `svp-N PR #N opened — ready for review`
-- **Blocked** (per STOP_CONDITIONS above)
+- Soft stops: 15 min blocked, scope drift > 10 files, brief premise wrong → commit WIP + leave a `// STOP — <reason>` comment at the line where you got stuck + push. The supervisor's `/sweep` scans the diff for `STOP —` markers and will surface the block to Cory.
 
 ## Full Notion task
 

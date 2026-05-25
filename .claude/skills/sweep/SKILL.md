@@ -1,9 +1,9 @@
 ---
 name: sweep
-description: On-demand sweep of open PRs + Slack escalations + auto-PR-on-pushed-branch. Eliminates "is the worker done?" checking — pushed work surfaces as an open PR ready for review within one sweep cycle.
+description: On-demand sweep of open PRs + in-code STOP markers + auto-PR-on-pushed-branch. Eliminates "is the worker done?" checking — pushed work surfaces as an open PR ready for review within one sweep cycle.
 ---
 
-# /sweep — review all open PRs, surface Slack escalations, auto-PR pushed branches
+# /sweep — review all open PRs, surface STOP markers, auto-PR pushed branches
 
 Usage: `/sweep`
 
@@ -15,7 +15,15 @@ On-demand alternative to `/loop 15m sweep…`. Use when:
 
 ## Steps
 
-1. **Read Slack escalations** from `#simplesat-vision-prototype` (channel ID `C0B5AQ52FFZ`) via `mcp__claude_ai_Slack__slack_read_channel`. Filter for messages newer than the last sweep that match the worker escalation format (`svp-N blocked: ...`). **Surface these first** — a blocked worker is more urgent than any PR.
+1. **Scan open PR diffs + pushed-branch tip commits for `STOP —` markers.** Workers leave `// STOP — <reason>` comments in code when soft-blocked (per STOP_CONDITIONS.md). Surface any found ones **first** — a blocked worker is more urgent than any PR.
+   ```bash
+   # In each pushed feat/svp* branch, grep the tip-of-branch diff:
+   git fetch origin --quiet
+   for branch in $(git ls-remote --heads origin 'feat/svp*' | awk '{print $2}' | sed 's|refs/heads/||'); do
+     git log origin/main..origin/$branch -p 2>/dev/null | grep -nE '^\+.*STOP —' | head -5
+   done
+   ```
+   If a STOP marker is found, report it as: `🛑 <branch> @ <file:line> — <reason quoted from the marker>`. Cory decides what to do — clear it, redirect the worker, or take over.
 
 2. **Detect pushed-but-not-PR'd branches.** Workers sometimes push their feature branch but stall before opening a PR (the SVP-71/74 failure mode). Catch and auto-PR:
    ```bash
@@ -42,7 +50,6 @@ On-demand alternative to `/loop 15m sweep…`. Use when:
    - Parse `SVP-N` from the branch name (`feat/svpNN-...` → `SVP-NN`).
    - Fetch the Notion task to get title + acceptance criteria.
    - `gh pr create` with title from the most-recent commit subject, body templated from the Notion task's Scope + Acceptance sections, plus a footer: `Auto-opened by /sweep — worker pushed but didn't open a PR.`
-   - Post Slack to `#simplesat-vision-prototype`: `🤖 /sweep auto-opened PR #N for svp-N (worker pushed without opening).`
    - Treat the freshly-opened PR as a NEW PR in the review step below.
 
    For each branch that has 0 commits ahead of main: silently ignore — it's a stale merged ref. Optional hygiene pass: report the count in the sweep output ("N stale remote refs detected — clean up via `gh api -X DELETE repos/<owner>/<repo>/git/refs/heads/<branch>` per branch, or batch via the cleanup skill once it supports remote pruning").
@@ -63,10 +70,10 @@ On-demand alternative to `/loop 15m sweep…`. Use when:
 
 6. **For SKIPPED PRs** (already reviewed, no new commits): one-line acknowledgment.
 
-7. **If no escalations + no new/updated PRs + no pushed-no-PR branches**: "no new PRs, no Slack escalations, no stalled workers" and end the turn.
+7. **If no STOP markers + no new/updated PRs + no pushed-no-PR branches**: "no new PRs, no STOP markers, no stalled workers" and end the turn.
 
 8. **End-of-turn output order**:
-   1. Slack escalations (most urgent)
+   1. STOP markers (most urgent)
    2. Auto-opened PRs (need first review)
    3. PR verdicts for new/updated PRs
    4. Skipped PR acknowledgments
@@ -82,5 +89,6 @@ On-demand alternative to `/loop 15m sweep…`. Use when:
 - `/review` — single-PR deep review
 - `/loop` — recurring autonomous version
 - [[feedback-nits-inline]] — fix nits in the same turn as the review
-- STOP_CONDITIONS.md → "Escalation channel" — Slack channel + format
+- STOP_CONDITIONS.md → "Escalation channel" — in-code STOP marker convention
 - CLAUDE.md → "Definition of done" — status block format
+- [[feedback-no-slack]] — Slack is intentionally NOT a coordination surface here

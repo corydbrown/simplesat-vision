@@ -1383,18 +1383,29 @@ async function seed() {
   const agentIds = teamMembers.map((t) => t.id!);
 
   const TARGET_TICKETS = 50_000;
-  // Number of tickets that get a fully-seeded message + event timeline.
-  // These are the "conversation-mockup" tickets that get QA evaluations.
-  // Sized so every agent lands in the 5-15 evals range (25 agents × 6 = 150).
-  const EVALS_PER_AGENT = 6;
-  const TARGET_TIMELINE_TICKETS = teamMembers.length * EVALS_PER_AGENT;
+  // Per-agent eval quotas — realistic skewed distribution. Some agents are
+  // veterans with heavy volume, most are mid-tier above the 20-eval "real
+  // averages" threshold, a few are ramping, and 2 are brand-new with no evals
+  // yet. The curve matches what a real team looks like at any given moment
+  // and gives every report surface (dense data, sparse data, empty states)
+  // realistic shape to render against. Sum ≈ 483 across 25 agents.
+  const AGENT_EVAL_QUOTAS = [
+    0, 0, //                                       2 brand new (no evals yet)
+    2, 4, 6, //                                    3 very new (below threshold)
+    10, 12, 14, 14, 15, 16, 18, //                 7 ramping juniors
+    20, 22, 22, 24, 25, 26, 28, 28, //             8 mid-tier (≥ 20 threshold)
+    30, 32, 35, 38, 42, //                         5 veterans
+  ];
+  const agentTimelineQuotas = new Map<string, number>(
+    agentIds.map((id, i) => [id, AGENT_EVAL_QUOTAS[i] ?? 0]),
+  );
+  const TARGET_TIMELINE_TICKETS = AGENT_EVAL_QUOTAS.reduce((a, b) => a + b, 0);
   const tickets: NewTicket[] = [];
   const responses: NewResponse[] = [];
   const ticketMessages: NewTicketMessage[] = [];
   const ticketEvents: NewTicketEvent[] = [];
   let timelinesAttached = 0;
-  // Per-agent timeline quota — every agent gets EVALS_PER_AGENT evaluations
-  // so the QA dashboards have data for every row.
+  // Track per-agent counts so we can gate against each agent's individual quota.
   const agentTimelineCounts = new Map<string, number>(
     agentIds.map((id) => [id, 0]),
   );
@@ -1536,14 +1547,15 @@ async function seed() {
       surveyIdForLifecycle = pickFrom(surveyWeightPool);
     }
 
-    // Pick a fully-seeded timeline for solved/closed tickets, gated by a
-    // per-agent quota so every agent ends up with EVALS_PER_AGENT timelines.
-    // Tickets carry random `daysAgo` so temporal spread is preserved even
-    // though we no longer use a random selection gate.
+    // Pick a fully-seeded timeline for solved/closed tickets, gated by the
+    // per-agent quota in `agentTimelineQuotas` so distribution stays skewed
+    // (some agents get many, some get few or none). Tickets carry random
+    // `daysAgo` so temporal spread is preserved.
     if (
       timelinesAttached < TARGET_TIMELINE_TICKETS &&
       (status === "solved" || status === "closed") &&
-      (agentTimelineCounts.get(agentId) ?? 0) < EVALS_PER_AGENT
+      (agentTimelineCounts.get(agentId) ?? 0) <
+        (agentTimelineQuotas.get(agentId) ?? 0)
     ) {
       const customer = customers.find((c) => c.id === customerId)!;
       const agent = teamMembers.find((t) => t.id === agentId)!;

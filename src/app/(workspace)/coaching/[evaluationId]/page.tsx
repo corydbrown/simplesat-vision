@@ -3,6 +3,7 @@ import { Topbar } from "@/components/shell/topbar";
 import { DetailActions } from "@/components/shared/detail-actions";
 import { CoachingTicket } from "@/components/coaching/coaching-ticket";
 import { CoachingTicketHeader } from "@/components/coaching/coaching-ticket-header";
+import { ConfigureScorecardItem } from "@/components/coaching/configure-scorecard-item";
 import { getCoachingDetail } from "@/db/queries/coaching";
 
 export default async function CoachingDetailPage(
@@ -23,7 +24,10 @@ export default async function CoachingDetailPage(
           { label: crumbLabel },
         ]}
         actions={
-          <DetailActions entityHref={`/coaching/${detail.evaluation.id}`} />
+          <DetailActions
+            entityHref={`/coaching/${detail.evaluation.id}`}
+            extraItems={<ConfigureScorecardItem />}
+          />
         }
       />
       <main className="px-14 py-10">

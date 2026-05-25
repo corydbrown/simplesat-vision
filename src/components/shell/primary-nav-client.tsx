@@ -27,10 +27,17 @@ import {
   MessageCircleMore,
   MoreHorizontal,
   Search,
+  Settings,
   UserSquare2,
   Users,
   type LucideIcon,
 } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -176,11 +183,34 @@ export function PrimaryNavClient({ sections }: { sections: NavSection[] }) {
         style={{ width }}
         className="flex h-full flex-col px-2 py-3"
       >
-        <div className="flex shrink-0 items-center gap-2 px-2 pb-3">
-          <div className="flex h-6 w-6 items-center justify-center rounded bg-foreground text-background text-base font-semibold">
-            B
-          </div>
-          <span className="font-medium text-foreground">Bloom Beauty</span>
+        <div className="flex shrink-0 items-center gap-1 px-2 pb-3">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                className="-mx-1 flex min-w-0 cursor-pointer items-center gap-2 rounded px-1 py-0.5 transition-colors hover:bg-accent/60 data-[state=open]:bg-accent/60"
+              >
+                <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded bg-foreground text-base font-semibold text-background">
+                  B
+                </div>
+                <span className="truncate font-medium text-foreground">
+                  Bloom Beauty
+                </span>
+                <ChevronDown
+                  size={13}
+                  className="shrink-0 text-muted-foreground/70"
+                />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="w-56">
+              <DropdownMenuItem asChild>
+                <Link href="/settings" className="cursor-pointer">
+                  <Settings size={14} className="text-muted-foreground" />
+                  Settings
+                </Link>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           <Tooltip>
             <TooltipTrigger asChild>
               <button

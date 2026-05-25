@@ -24,7 +24,16 @@ function buildAbsoluteUrl(href: string): string {
   return `${window.location.origin}${href}`;
 }
 
-export function DetailActions({ entityHref }: { entityHref: string }) {
+export function DetailActions({
+  entityHref,
+  extraItems,
+}: {
+  entityHref: string;
+  /** Page-specific menu items rendered above the standard
+   *  Edit/Duplicate/Archive/Delete row, separated by a divider. Each child
+   *  should be a `DropdownMenuItem` (or compatible). */
+  extraItems?: React.ReactNode;
+}) {
   const [copied, setCopied] = useState(false);
   const copyTimer = useRef<number | null>(null);
   const mod = useModKey();
@@ -84,7 +93,13 @@ export function DetailActions({ entityHref }: { entityHref: string }) {
           </TooltipTrigger>
           <TooltipContent side="bottom">Actions</TooltipContent>
         </Tooltip>
-        <DropdownMenuContent align="end" className="w-44">
+        <DropdownMenuContent align="end" className="w-48">
+          {extraItems && (
+            <>
+              {extraItems}
+              <DropdownMenuSeparator />
+            </>
+          )}
           <DropdownMenuItem disabled>Edit</DropdownMenuItem>
           <DropdownMenuItem disabled>Duplicate</DropdownMenuItem>
           <DropdownMenuItem disabled>Archive</DropdownMenuItem>

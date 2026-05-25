@@ -1,3 +1,5 @@
+import { avatarHash } from "./avatar-hash";
+
 // Deterministic name-to-color mapping. Stable across renders.
 const PALETTE = [
   "#ef4444", // red
@@ -31,8 +33,6 @@ export function initialsFromName(name: string): string {
   const parts = name.trim().split(/\s+/).slice(0, 2);
   return parts.map((p) => p[0]?.toUpperCase() ?? "").join("");
 }
-
-import { avatarHash } from "./avatar-hash";
 
 // Resolves to a self-hosted SVG under public/avatars/, generated at seed time
 // by scripts/generate-avatars.ts. If a seed wasn't pre-generated, the file

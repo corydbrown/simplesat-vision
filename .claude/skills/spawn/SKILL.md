@@ -30,9 +30,13 @@ Eliminates copy-paste: instead of including the brief in the chat for Cory to pa
 7. **End-of-turn output** for Cory — a tight handoff:
    > 🛠 SVP-NN spawned · port `<N>` · `feat/<branch>`. VS Code window opened. BRIEF.md written.
    >
+   > **Model:** <Sonnet | Opus> · **Plan mode:** <No (Auto) | Yes — toggle plan mode before approving>
+   >
    > **Open the new VS Code window → Cmd+Shift+P → "View: Show Claude Code" → New Session → type `go`.**
    >
    > Worker will read BRIEF.md, plan, and execute. PR will auto-open via /sweep when pushed.
+
+   Per [[feedback-opus-default]] and [[feedback-plan-mode]]: the brief's "Recommended model" and "Plan mode" lines are the canonical source — quote them verbatim in the handoff.
 
 ## BRIEF.md format
 
@@ -51,6 +55,14 @@ Eliminates copy-paste: instead of including the brief in the chat for Cory to pa
 - "If you find that <Y> turned out to be the case, stop — that changes the approach."
 - "If pre-existing pattern <X> doesn't compose with what's being asked, commit WIP + leave a `// STOP — <reason>` comment + push. Supervisor's /sweep will catch it on the diff scan."
 If no specific criteria apply, omit this section but DO note: "Use STOP_CONDITIONS soft-stop judgment on premise-wrong situations.">
+
+## Recommended model
+
+<One line: "Sonnet is fine — <one-line why>" OR "Opus — <one-line why>". Per [[feedback-opus-default]], default to Opus; only recommend Sonnet if the work is mechanical / well-scoped / no architectural decisions / Opus output would be byte-equivalent.>
+
+## Plan mode
+
+<"Yes — toggle plan mode before approving" OR "No — Auto mode is fine". Per [[feedback-plan-mode]], plan-mode-yes for load-bearing refactors, architectural decisions embedded in the task, tasks Sonnet has previously failed on, or multi-file plans where wrong-abstraction cost compounds.>
 
 ## Parallel workers active
 

@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { Avatar } from "@/components/shared/avatar";
 import { colorFromName, initialsFromName } from "@/lib/color-from-name";
 import type {
@@ -38,7 +39,6 @@ export function MessageBubble({
   onClickBubble,
   onClickComment,
   onClickCite,
-  onClickReact,
   onClickInspect,
   onClickCitationChip,
   onToggleReaction,
@@ -59,7 +59,6 @@ export function MessageBubble({
   onClickBubble: () => void;
   onClickComment: () => void;
   onClickCite: () => void;
-  onClickReact: () => void;
   onClickInspect: () => void;
   onClickCitationChip: (categoryId: string) => void;
   onToggleReaction: (emoji: CoachingReaction) => void;
@@ -76,6 +75,15 @@ export function MessageBubble({
   // and system bubbles open RIGHT.
   const pickerSide: "left" | "right" = isAgent ? "left" : "right";
 
+  const [reactionPickerOpen, setReactionPickerOpen] = useState(false);
+  // Keep the popup mounted while its own reaction picker is open, even if
+  // the cursor briefly leaves the hover target. Otherwise the Radix popover
+  // trigger would unmount mid-interaction.
+  const showPopup = popupVisible || reactionPickerOpen;
+  const reactedEmojis = new Set(
+    reactions.filter((r) => r.reactedByMe).map((r) => r.emoji),
+  );
+
   return (
     <div
       ref={ref}
@@ -85,8 +93,6 @@ export function MessageBubble({
         isAgent ? "flex-row-reverse" : "flex-row",
         isDimmed && "opacity-30 blur-[0.5px]",
       )}
-      onMouseEnter={() => onHoverChange(true)}
-      onMouseLeave={() => onHoverChange(false)}
     >
       <Avatar
         bg={avatarBg}
@@ -114,19 +120,31 @@ export function MessageBubble({
           </span>
         </div>
 
+        {/* Hover wrapper scoped to message body + chip row only — the
+         *  author/timestamp row above stays hover-neutral so we can hang
+         *  future affordances (date tooltip, author entity chip) on it
+         *  without fighting the actions popup. */}
+        <div
+          className="space-y-1"
+          onMouseEnter={() => onHoverChange(true)}
+          onMouseLeave={() => onHoverChange(false)}
+        >
         <div
           className={cn(
             "relative inline-block max-w-full",
             isAgent ? "self-end" : "self-start",
           )}
         >
-          {popupVisible && (
+          {showPopup && (
             <MessagePopup
               side="right"
               disableCite={!isAgent}
+              reactionPickerOpen={reactionPickerOpen}
+              onReactionPickerOpenChange={setReactionPickerOpen}
+              onPickReaction={onToggleReaction}
+              reactedEmojis={reactedEmojis}
               onComment={onClickComment}
               onCite={onClickCite}
-              onReact={onClickReact}
               onInspect={onClickInspect}
             />
           )}
@@ -191,6 +209,7 @@ export function MessageBubble({
             )}
           </div>
         )}
+        </div>
       </div>
     </div>
   );

@@ -1,16 +1,15 @@
-import Link from "next/link";
-import { ArrowUpRight } from "lucide-react";
 import {
   CustomerPill,
   TeamMemberPill,
+  TicketPill,
 } from "@/components/shared/entity-pill";
 import { EvaluationStatusPill } from "@/components/coaching/evaluation-status-pill";
 import { QaScoreBadge } from "@/components/shared/qa-score-badge";
 import type { CoachingDetail } from "@/db/queries/coaching";
 
 /** Server-rendered header block for the coaching detail page — ticket
- *  metadata + evaluation status + linked-ticket affordance. Sits above the
- *  interactive CoachingTicket client component. */
+ *  metadata + evaluation status. Sits above the interactive CoachingTicket
+ *  client component. */
 export function CoachingTicketHeader({
   detail,
 }: {
@@ -20,10 +19,12 @@ export function CoachingTicketHeader({
 
   return (
     <header className="mb-4 space-y-3">
-      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-        {ticket.helpdeskExternalId && (
-          <span className="font-mono">{ticket.helpdeskExternalId}</span>
-        )}
+      <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+        <TicketPill
+          id={ticket.id}
+          externalId={ticket.helpdeskExternalId}
+          size="sm"
+        />
         <span>·</span>
         <span className="capitalize">{ticket.channel}</span>
         <span>·</span>
@@ -31,7 +32,7 @@ export function CoachingTicketHeader({
         <span>·</span>
         <span className="capitalize">{ticket.status}</span>
       </div>
-      <h1 className="text-2xl font-semibold leading-snug text-foreground">
+      <h1 className="text-3xl font-semibold tracking-tight text-foreground">
         {ticket.subject}
       </h1>
       <div className="flex flex-wrap items-center gap-3 text-base text-muted-foreground">
@@ -69,16 +70,6 @@ export function CoachingTicketHeader({
           <EvaluationStatusPill status={evaluation.status} size="md" />
         </span>
       </div>
-      <Link
-        href={`/tickets/${ticket.id}`}
-        className="group inline-flex items-center gap-2 rounded -mx-1 px-1 py-0.5 text-sm bg-accent/40 hover:bg-accent"
-      >
-        <span className="text-muted-foreground">Open ticket</span>
-        <ArrowUpRight
-          size={12}
-          className="text-muted-foreground/60 group-hover:text-foreground"
-        />
-      </Link>
     </header>
   );
 }

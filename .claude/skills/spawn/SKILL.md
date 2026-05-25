@@ -25,7 +25,7 @@ Eliminates copy-paste: instead of including the brief in the chat for Cory to pa
 6. **Update Notion**:
    - Status → `In Progress`
    - `Started at` → current ISO 8601 datetime with `+07:00` offset
-   - **`Worker model`** → `Sonnet` or `Opus` from the brief's Recommended model line
+   - **Do NOT set `Worker model` at spawn.** I can't know what Cory will actually toggle to in his worker session. The brief's "Recommended model" is a suggestion; Cory may override. Worker model gets captured at **merge time** instead, from the `/model` output the worker pastes in the PR body (see brief's "Before opening the PR" section). If the worker forgets, leave it null — Cory can fix manually.
    - Append note: `- YYYY-MM-DD: Spawned worktree feat/<branch> on port <N>. Brief written to BRIEF.md.`
 
 7. **End-of-turn output** for Cory — one sentence per worker. Nothing more.
@@ -72,17 +72,21 @@ If solo, write "None.">
 - Manual walk of the changed surface in both light + dark mode
 - Playwright smoke for any new visible surface (see `playwright.config.ts` once SVP-Playwright lands)
 
-## Before opening the PR — tokens-used
+## Before opening the PR — tokens used + model
 
-Run `/cost` in your worker session right before pushing the PR. Paste the output into the PR body under a `## Tokens used` heading. Supervisor's `/post-merge` parses this and writes to the `Tokens used` Notion property. Format:
+Run `/cost` AND `/model` in your worker session right before pushing the PR. Paste both into the PR body under their headings. Supervisor's `/post-merge` parses these and writes to Notion. Format:
 
 ```
 ## Tokens used
 
 <paste of /cost output — supervisor parses the "Total tokens" line>
+
+## Worker model
+
+<paste of /model output — supervisor parses the active model name>
 ```
 
-If `/cost` is unavailable in your environment or you forget, no big deal — null data is honest data. But the supervisor's metrics tracking depends on this paste, so do it when you can.
+If you forget either, no big deal — null is honest data. But these are the load-bearing inputs for the supervisor's per-task metrics, so do it when you can.
 
 ## STOP_CONDITIONS
 

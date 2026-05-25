@@ -53,7 +53,12 @@ The PR must be **MERGED**. If not, abort and tell Cory.
      ```bash
      gh pr view <PR> --json body --jq '.body' | grep -A 10 '## Tokens used' | grep -iE 'total.*tokens?:' | head -1
      ```
-     Parse the number out (strip commas). If the heading is missing or the regex doesn't match, leave `Tokens used` null — the worker didn't paste `/cost`, and that's fine (null is honest).
+     Parse the number out (strip commas). If the heading is missing, leave `Tokens used` null.
+   - **Worker model**:
+     ```bash
+     gh pr view <PR> --json body --jq '.body' | grep -A 5 '## Worker model' | grep -iE 'opus|sonnet|haiku' | head -1
+     ```
+     Match the parsed name against the Notion select options — current options: `Opus 4.7 (1M context)`, `Opus 4.7`, `Sonnet 4.6`. Per [[feedback-opus-default]] the default is Opus, so if you can't parse + the worker didn't note differently, leave null rather than guessing.
 
 5. **Mark Notion task Done** — single `update_properties` call with everything:
    - Resolve the Notion task page by SVP-NN (search via `mcp__claude_ai_Notion__notion-search` or use cached ID).
@@ -62,6 +67,7 @@ The PR must be **MERGED**. If not, abort and tell Cory.
    - `Worker started` → first-commit datetime (from step 4), `is_datetime: 1`.
    - `Worker finished` → PR createdAt (from step 4), `is_datetime: 1`.
    - `Tokens used` → parsed number (from step 4), or omit if null.
+   - `Worker model` → parsed select option (from step 4), or omit if null.
    - `Repo link` → the PR URL.
    - Append a Claude Code note: `- YYYY-MM-DD: PR #N squash-merged as \`<sha>\`. <one-line of what shipped>. Worktree cleaned up.`
 

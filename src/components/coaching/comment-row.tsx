@@ -5,7 +5,7 @@ import { Pencil, Trash2 } from "lucide-react";
 import { Avatar } from "@/components/shared/avatar";
 import { Textarea } from "@/components/ui/textarea";
 import { formatRelative } from "@/lib/format";
-import { initialsFromName, colorFromName } from "@/lib/color-from-name";
+import { colorFromName, dicebearUrl, initialsFromName } from "@/lib/color-from-name";
 import type { CoachingMemberView } from "@/db/queries/coaching";
 import type { CommentRow as CommentRowData } from "@/lib/qa/coaching";
 import type { CoachingReaction } from "@/lib/qa/coaching";
@@ -71,6 +71,7 @@ export function CommentRow({
       <Avatar
         bg={avatarColor}
         initials={initialsFromName(displayName)}
+        imageUrl={dicebearUrl(displayName)}
         size="md"
       />
       <div className="min-w-0 flex-1 space-y-1">

@@ -1,7 +1,7 @@
 "use client";
 
 import { Avatar } from "@/components/shared/avatar";
-import { colorFromName, initialsFromName } from "@/lib/color-from-name";
+import { colorFromName, dicebearUrl, initialsFromName } from "@/lib/color-from-name";
 import type {
   CoachingCategoryView,
   CoachingMessageView,
@@ -91,6 +91,7 @@ export function MessageBubble({
       <Avatar
         bg={avatarBg}
         initials={initialsFromName(message.authorName)}
+        imageUrl={dicebearUrl(message.authorName)}
         size="lg"
       />
 

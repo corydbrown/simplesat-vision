@@ -1,3 +1,7 @@
+"use client";
+
+import { useState } from "react";
+
 const SIZES = {
   sm: "h-5 w-5 text-xs",
   md: "h-6 w-6 text-xs",
@@ -11,17 +15,35 @@ export function Avatar({
   bg,
   initials,
   size = "sm",
+  imageUrl,
 }: {
   bg: string;
   initials: string;
   size?: AvatarSize;
+  imageUrl?: string;
 }) {
+  const [imgFailed, setImgFailed] = useState(false);
+  const showImage = imageUrl && !imgFailed;
+
   return (
     <span
-      className={`flex shrink-0 items-center justify-center rounded-full font-semibold text-white ${SIZES[size]}`}
-      style={{ backgroundColor: bg }}
+      className={`flex shrink-0 items-center justify-center overflow-hidden rounded-full font-semibold text-white ${SIZES[size]}`}
+      style={showImage ? undefined : { backgroundColor: bg }}
     >
-      {initials || "?"}
+      {showImage ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={imageUrl}
+          alt=""
+          loading="lazy"
+          decoding="async"
+          referrerPolicy="no-referrer"
+          className="h-full w-full object-cover"
+          onError={() => setImgFailed(true)}
+        />
+      ) : (
+        initials || "?"
+      )}
     </span>
   );
 }

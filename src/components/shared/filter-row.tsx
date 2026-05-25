@@ -55,7 +55,7 @@ import {
   type RelativeUnit,
   type RelativeValue,
 } from "@/lib/filters/types";
-import { colorFromName, initialsFromName } from "@/lib/color-from-name";
+import { colorFromName, dicebearUrl, initialsFromName } from "@/lib/color-from-name";
 import { cn } from "@/lib/utils";
 
 /** Tailwind utility to strip the native number-input arrow buttons. */
@@ -395,6 +395,7 @@ function RelationChipSingle({
         <Avatar
           bg={colorFromName(label)}
           initials={initialsFromName(label)}
+          imageUrl={dicebearUrl(label)}
           size="sm"
         />
       )}
@@ -1316,6 +1317,7 @@ function RelationMultiInput({
             <Avatar
               bg={colorFromName(o.label)}
               initials={initialsFromName(o.label)}
+              imageUrl={dicebearUrl(o.label)}
               size="sm"
             />
           )}
@@ -1350,6 +1352,7 @@ function SelectedRelationPill({
           <Avatar
             bg={colorFromName(label)}
             initials={initialsFromName(label)}
+            imageUrl={dicebearUrl(label)}
             size="sm"
           />
         ) : undefined

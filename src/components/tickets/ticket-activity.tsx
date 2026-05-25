@@ -30,6 +30,7 @@ import type {
 } from "@/db/queries/tickets";
 import {
   colorFromName,
+  dicebearUrl,
   initialsFromName,
 } from "@/lib/color-from-name";
 import {
@@ -342,6 +343,7 @@ function MessageGroup({
           <Avatar
             bg={avatarColor}
             initials={initialsFromName(name)}
+            imageUrl={dicebearUrl(name)}
             size="lg"
           />
         ) : null}
@@ -440,6 +442,7 @@ function MessageGroup({
           <Avatar
             bg={avatarColor}
             initials={initialsFromName(name)}
+            imageUrl={dicebearUrl(name)}
             size="lg"
           />
         ) : null}

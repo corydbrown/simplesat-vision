@@ -20,7 +20,7 @@ import { RelationTabs } from "@/components/shared/relation-tabs";
 import { OpenInTable } from "@/components/shared/open-in-table";
 import { SortControl } from "@/components/shared/sort-control";
 import { decodeGroup } from "@/lib/group/url-state";
-import { initialsFromName } from "@/lib/color-from-name";
+import { dicebearUrl, initialsFromName } from "@/lib/color-from-name";
 import { recordEntityView } from "@/lib/recent-pages";
 import { formatNumber } from "@/lib/format";
 import type {
@@ -127,6 +127,7 @@ export function TeamMemberDetailBody({
       <Avatar
         bg={member.avatarColor}
         initials={initialsFromName(member.name)}
+        imageUrl={dicebearUrl(member.name)}
         size="xl"
       />
       <div className="min-w-0">

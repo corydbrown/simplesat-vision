@@ -12,7 +12,7 @@ import {
 import { Avatar } from "@/components/shared/avatar";
 import { EntityPopoverBody } from "./entity-popover";
 import { type DrawerEntity, fullPagePath } from "./global-drawer";
-import { colorFromName, initialsFromName } from "@/lib/color-from-name";
+import { colorFromName, dicebearUrl, initialsFromName } from "@/lib/color-from-name";
 
 type CommonProps = {
   size?: "sm" | "md";
@@ -97,6 +97,7 @@ export function CustomerPill({
           <Avatar
             bg={colorFromName(name)}
             initials={initialsFromName(name)}
+            imageUrl={dicebearUrl(name)}
             size={size === "md" ? "md" : "sm"}
           />
           <span className="truncate">{name}</span>
@@ -145,6 +146,7 @@ export function TeamMemberPill({
           <Avatar
             bg={avatarColor ?? colorFromName(name)}
             initials={initialsFromName(name)}
+            imageUrl={dicebearUrl(name)}
             size={size === "md" ? "md" : "sm"}
           />
           <span className="truncate">{name}</span>

@@ -5,15 +5,19 @@ import {
 } from "@/components/shared/entity-pill";
 import { EvaluationStatusPill } from "@/components/coaching/evaluation-status-pill";
 import { QaScoreBadge } from "@/components/shared/qa-score-badge";
+import { VersionPicker } from "@/components/coaching/version-picker";
 import type { CoachingDetail } from "@/db/queries/coaching";
+import type { EvaluationVersionRow } from "@/db/queries/evaluations";
 
 /** Server-rendered header block for the coaching detail page — ticket
  *  metadata + evaluation status. Sits above the interactive CoachingTicket
  *  client component. */
 export function CoachingTicketHeader({
   detail,
+  versions,
 }: {
   detail: CoachingDetail;
+  versions: EvaluationVersionRow[];
 }) {
   const { ticket, evaluation } = detail;
 
@@ -23,6 +27,11 @@ export function CoachingTicketHeader({
         <TicketPill
           id={ticket.id}
           externalId={ticket.helpdeskExternalId}
+          size="sm"
+        />
+        <VersionPicker
+          currentEvaluationId={evaluation.id}
+          versions={versions}
           size="sm"
         />
         <span>·</span>

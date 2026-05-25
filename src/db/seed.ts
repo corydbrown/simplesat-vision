@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { faker } from "@faker-js/faker";
+import { eq } from "drizzle-orm";
 import { db, schema } from "./client";
 import { prefixedId, setIdRandomSource } from "../lib/ids";
 import {
@@ -2076,6 +2077,102 @@ async function seed() {
       await tx
         .insert(schema.qaReactions)
         .values(reactionRows.slice(i, i + chunkSize));
+    }
+  });
+
+  // -------------------------------------------------------------------------
+  // Multi-version re-scores (SVP-129). Narrative: an admin used the scorecard
+  // editor once to bump the rubric to v2, then re-scored a handful of recent
+  // tickets to validate the new version. The picker on /coaching/[id] surfaces
+  // this — most tickets stay single-version (no pill), the re-scored subset
+  // shows v1 + v2 with a "newer version available" affordance on v1.
+  // -------------------------------------------------------------------------
+  console.log("Bumping default scorecard to v2 + adding re-scores...");
+  await db
+    .update(schema.scorecards)
+    .set({ version: 2, updatedAt: new Date(NOW) })
+    .where(eq(schema.scorecards.id, scorecardId));
+
+  const RE_SCORE_COUNT = 12;
+  const reScoreSourceEvals = evaluationRows.slice(0, RE_SCORE_COUNT);
+  const reScoreEvalRows: NewEvaluation[] = [];
+  const reScoreCategoryRows: NewEvaluationCategoryScore[] = [];
+  const reScoreCoachingNoteRows: NewCoachingNote[] = [];
+
+  for (const original of reScoreSourceEvals) {
+    const originalScoredAt = (original.scoredAt as Date).getTime();
+    // Re-scored ~3 days after the original, within the editor-bump window.
+    const reScoredAt = new Date(originalScoredAt + 3 * 24 * 60 * 60 * 1000);
+    // Small score nudge so the picker shows a visible diff between versions.
+    const drift = faker.number.int({ min: -6, max: 8 });
+    const newOverall = Math.max(0, Math.min(100, original.overallScore + drift));
+    const v2EvalId = prefixedId("evl");
+
+    reScoreEvalRows.push({
+      id: v2EvalId,
+      ticketId: original.ticketId,
+      scorecardId,
+      scorecardVersion: 2,
+      scoredTeamMemberId: original.scoredTeamMemberId,
+      overallScore: newOverall,
+      status: "ai_scored",
+      aiModel: original.aiModel,
+      aiConfidence: original.aiConfidence,
+      aiReasoningSummary: original.aiReasoningSummary,
+      scoredBy: original.scoredBy,
+      scoredAt: reScoredAt,
+      editedBy: null,
+      editedAt: null,
+      invalidatedReason: null,
+    });
+
+    // Mirror the original's category scores with the same per-category nudge
+    // so the totals roughly track. Real re-scoring would call the provider
+    // again — for seed purposes we just clone + drift, since the picker UI
+    // doesn't depend on category-level differences.
+    const originalCategoryRows = categoryScoreRows.filter(
+      (r) => r.evaluationId === original.id,
+    );
+    for (const cat of originalCategoryRows) {
+      reScoreCategoryRows.push({
+        id: prefixedId("ecs"),
+        evaluationId: v2EvalId,
+        categoryId: cat.categoryId,
+        aiScore: cat.aiScore,
+        humanScore: null,
+        effectiveScore: cat.aiScore,
+        aiReasoning: cat.aiReasoning,
+        highlightedMessageIds: cat.highlightedMessageIds,
+      });
+    }
+
+    const originalNote = coachingNoteRows.find(
+      (n) => n.evaluationId === original.id,
+    );
+    if (originalNote) {
+      reScoreCoachingNoteRows.push({
+        id: prefixedId("cnt"),
+        evaluationId: v2EvalId,
+        strengthPoints: originalNote.strengthPoints,
+        growthPoints: originalNote.growthPoints,
+        exampleMessageIds: originalNote.exampleMessageIds,
+        generatedBy: originalNote.generatedBy,
+        generatedAt: reScoredAt,
+      });
+    }
+  }
+
+  await db.transaction(async (tx) => {
+    if (reScoreEvalRows.length > 0) {
+      await tx.insert(schema.evaluations).values(reScoreEvalRows);
+    }
+    if (reScoreCategoryRows.length > 0) {
+      await tx
+        .insert(schema.evaluationCategoryScores)
+        .values(reScoreCategoryRows);
+    }
+    if (reScoreCoachingNoteRows.length > 0) {
+      await tx.insert(schema.coachingNotes).values(reScoreCoachingNoteRows);
     }
   });
 

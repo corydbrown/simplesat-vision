@@ -10,13 +10,31 @@ The Simplesat Vision prototype's backlog lives in a Notion database. Single sour
 
 ## Views
 
-- **Ready queue (Claude Code start here)** — `Status=Ready`, sorted Priority asc. Query URL: `https://www.notion.so/simplesat/47f44fc634ad41bdbafc5dca3b08beaa?v=366afb413b748160b0d7000c0c0cc28f`. Agents pick from here when Cory asks "what's next" or starts a new session.
-- **Backlog (Cory's near-term queue)** — `Status=Backlog`. Triaged tasks that are *close to ready*; Cory promotes them to Ready as bandwidth opens. When Cory says "review backlog," he means *Ready + Backlog* — these are the surfaces worth reasoning about together.
-- **Master backlog (parking lot)** — `Status=Master backlog`. Tasks that aren't ready to think about yet — future ideas, things that need a prerequisite. Don't review unless Cory asks specifically.
-- **New (Cory's triage inbox)** — `Status=New`. **Where agents and workers file new tasks now** (was: Backlog). Cory triages from New → Backlog (or Master backlog, or Declined). Filing into New keeps Backlog clean as a near-term queue.
-- **All tasks by status** — board view of everything.
-- **Needs Cory (Review + Blocked)** — surfaces what's waiting on Cory.
-- **Done log** — closed tasks, sorted by completed date.
+All views below filter the same Tasks data source by `Status`. Pick the view that matches the question you're answering — using a filtered view is the only reliable way to enumerate tasks by status (per [[feedback-verify-task-status]], semantic `notion-search` is NOT a status filter).
+
+| View | URL | When to use |
+|---|---|---|
+| **Ready** | `?v=36bafb413b748001a740000c7aa979fd` | Session start, "what's next", picking a spawn target. **Primary view.** |
+| **In Progress** | `?v=36bafb413b748056ba32000c006ca916` | Worker audit, "any stale tasks?", cleanup checks. |
+| **Backlog + Ready + In Progress** | `?v=36bafb413b7480b4bb85000c357e3cc6` | When Cory says "review backlog" or "what's actionable" — gives the full near-term picture in one query. **Use this for synthesizing recommendations.** |
+| **Backlog** | `?v=36bafb413b74801e946d000c934cdba3` | Cory's curated near-term queue (alone, without Ready/In Progress mixed in). |
+| **New** | `?v=36bafb413b7480b2b624000cf1377fd5` | Agent inbox — check after long sessions to see what got filed for triage. |
+| **Master backlog** | `?v=36bafb413b7480df9e11000cb182611b` | Parking lot. Only when Cory asks specifically. |
+| **Done** | `?v=36bafb413b748047a0ea000c13029ff1` | Verifying what shipped (rare — `git log --oneline` usually faster). |
+| **All (no filter)** | `?v=6fe63e9985594790b38d83793d91721b` | Last resort. Almost never preferred to a filtered view. |
+
+(Base URL for all: `https://www.notion.so/simplesat/47f44fc634ad41bdbafc5dca3b08beaa` + the `?v=...` above.)
+
+### Lifecycle and where each status fits
+
+- **New** — Cory's triage inbox; agents file new tasks here.
+- **Master backlog** — parking lot (future ideas, blocked-on-prerequisite stuff).
+- **Backlog** — Cory's curated near-term queue.
+- **Ready** — queue for worker spawn.
+- **In Progress** — actively being worked.
+- **Blocked** — waiting on Cory or external.
+- **Done** — shipped to main.
+- **Declined** — evaluated and rejected; will not ship.
 
 ### Status lifecycle
 

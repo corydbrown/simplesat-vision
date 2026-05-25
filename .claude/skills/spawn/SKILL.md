@@ -27,16 +27,10 @@ Eliminates copy-paste: instead of including the brief in the chat for Cory to pa
    - `Started at` → current ISO 8601 datetime with `+07:00` offset
    - Append note: `- YYYY-MM-DD: Spawned worktree feat/<branch> on port <N>. Brief written to BRIEF.md.`
 
-7. **End-of-turn output** for Cory — a tight handoff:
-   > 🛠 SVP-NN spawned · port `<N>` · `feat/<branch>`. VS Code window opened. BRIEF.md written.
-   >
-   > **Model:** <Sonnet | Opus> · **Plan mode:** <No (Auto) | Yes — toggle plan mode before approving>
-   >
-   > **Open the new VS Code window → Cmd+Shift+P → "View: Show Claude Code" → New Session → type `go`.**
-   >
-   > Worker will read BRIEF.md, plan, and execute. PR will auto-open via /sweep when pushed.
+7. **End-of-turn output** for Cory — one sentence per worker. Nothing more.
+   > 🛠 SVP-NN spawned · port `<N>` · `feat/<branch>` · <Sonnet | Opus> · plan-mode <off | on>
 
-   Per [[feedback-opus-default]] and [[feedback-plan-mode]]: the brief's "Recommended model" and "Plan mode" lines are the canonical source — quote them verbatim in the handoff.
+   Per [[feedback-concise-spawn-handoff]]: Cory drives session start from his side. No `Cmd+Shift+P` / `New Session` / `type go` / `toggle plan mode` boilerplate — the brief on disk declares model + plan-mode and that's the contract. If multiple workers spawn in one turn, one line each.
 
 ## BRIEF.md format
 

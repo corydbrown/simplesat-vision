@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { formatRelative } from "@/lib/format";
+import { TimestampTooltip } from "@/components/shared/timestamp-tooltip";
 import { colorFromName, dicebearUrl, initialsFromName } from "@/lib/color-from-name";
 import type { CoachingMemberView } from "@/db/queries/coaching";
 import type { CommentRow as CommentRowData } from "@/lib/qa/coaching";
@@ -91,7 +92,9 @@ export function CommentRow({
             {displayName}
           </span>
           <span className="text-sm text-muted-foreground/70">
-            {formatRelative(comment.createdAt)}
+            <TimestampTooltip date={comment.createdAt}>
+              <span>{formatRelative(comment.createdAt)}</span>
+            </TimestampTooltip>
             {editedSuffix}
           </span>
           {isOwn && !editing && (

@@ -87,6 +87,21 @@ const weekdayFullFormatter = new Intl.DateTimeFormat("en-US", {
   year: "numeric",
 });
 
+/** Full absolute date+time for hover tooltips on relative timestamps:
+ *  "May 24, 2026 at 3:42 PM". Locale-aware via Intl, never ISO. */
+export function formatAbsolute(
+  value: Date | number | string | null | undefined,
+): string {
+  if (value == null) return "-";
+  const date =
+    typeof value === "number"
+      ? new Date(value)
+      : typeof value === "string"
+        ? new Date(value)
+        : value;
+  return `${monthDayYearFormatter.format(date)} at ${timeOfDayFormatter.format(date)}`;
+}
+
 /** Activity-feed time: relative for the recent past (<24h: "3h ago",
  *  <7 days: "Mon at 2:14 PM"), then absolute (this year: "May 4, 2:14 PM",
  *  prior years: "May 4, 2024"). Designed to read at-a-glance in a stream

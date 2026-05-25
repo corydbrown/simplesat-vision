@@ -19,6 +19,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { DetailSection } from "@/components/shared/detail-section";
 import { QaScoreBadge } from "@/components/shared/qa-score-badge";
 import { formatNumber, formatTimelineDay } from "@/lib/format";
+import { TimestampTooltip } from "@/components/shared/timestamp-tooltip";
 import type {
   QaCategoryAverage,
   QaCsatCorrelationRow,
@@ -621,9 +622,11 @@ function QaRecentEvaluations({
               <span className="min-w-0 flex-1 truncate text-base text-foreground">
                 {row.ticketSubject}
               </span>
-              <span className="hidden text-base text-muted-foreground sm:inline">
-                {formatTimelineDay(new Date(row.scoredAtMs))}
-              </span>
+              <TimestampTooltip date={row.scoredAtMs}>
+                <span className="hidden text-base text-muted-foreground sm:inline">
+                  {formatTimelineDay(new Date(row.scoredAtMs))}
+                </span>
+              </TimestampTooltip>
               <ArrowUpRight className="size-3.5 text-muted-foreground opacity-60 group-hover/row:opacity-100" />
             </Link>
           </li>

@@ -162,6 +162,37 @@ export type EvaluationSummary = {
   autoFailed: boolean;
 };
 
+export type EvaluationVersionRow = {
+  id: string;
+  scorecardVersion: number;
+  overallScore: number;
+  scoredAt: Date;
+  status: QaEvaluationStatus;
+};
+
+/** Returns every evaluation for a given ticket, ordered newest-version-first.
+ *  Drives the version picker on the coaching detail page — when the scorecard
+ *  is edited + an eval is re-scored, multiple rows accumulate per ticket. */
+export async function listEvaluationsForTicket(
+  ticketId: string,
+): Promise<EvaluationVersionRow[]> {
+  const rows = await db
+    .select({
+      id: schema.evaluations.id,
+      scorecardVersion: schema.evaluations.scorecardVersion,
+      overallScore: schema.evaluations.overallScore,
+      scoredAt: schema.evaluations.scoredAt,
+      status: schema.evaluations.status,
+    })
+    .from(schema.evaluations)
+    .where(eq(schema.evaluations.ticketId, ticketId))
+    .orderBy(
+      desc(schema.evaluations.scorecardVersion),
+      desc(schema.evaluations.scoredAt),
+    );
+  return rows;
+}
+
 /** Minimal evaluation lookup for the placeholder detail route. The rich
  *  category + coaching breakdown lands in Batch 2 — for now we only need
  *  enough to render the placeholder summary card. */

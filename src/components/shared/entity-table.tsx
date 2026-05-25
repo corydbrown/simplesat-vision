@@ -232,8 +232,8 @@ export function EntityTable<T>({
                 minWidth: width,
                 maxWidth: width,
               }}
-              className={`px-gutter py-3 border-b border-border align-middle bg-background group-hover:bg-accent/50 ${
-                p.truncate !== false ? "truncate" : ""
+              className={`px-gutter py-3 border-b border-border align-middle bg-background group-hover:bg-accent/50 overflow-hidden whitespace-nowrap ${
+                p.kind === "text" ? "text-ellipsis" : ""
               } ${p.align === "right" ? "text-right" : ""}`}
             >
               {p.cell(row)}
@@ -408,14 +408,16 @@ function HeaderCell<T>({
         width,
         minWidth: width,
         maxWidth: width,
-        transform: CSS.Transform.toString(transform),
+        // CSS.Translate (not CSS.Transform) so the drag transform omits
+        // dnd-kit's scaleX/scaleY — those scale the header text against the
+        // width of whichever neighbor the cursor is over, which reads as the
+        // header label squeezing or stretching during the drag.
+        transform: CSS.Translate.toString(transform),
         transition,
         opacity: isDragging ? 0.5 : 1,
         zIndex: isDragging ? 25 : 20,
       }}
-      className={`px-gutter py-3 text-left font-medium text-base text-muted-foreground border-b border-border bg-background sticky top-0 ${
-        property.align === "right" ? "text-right" : ""
-      }`}
+      className="px-gutter py-3 text-left font-medium text-base text-muted-foreground border-b border-border bg-background sticky top-0"
     >
       <div className="flex items-center gap-1 relative">
         <span

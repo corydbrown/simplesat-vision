@@ -91,6 +91,7 @@ export const ANSWER_PROPERTIES: Property<AnswerRow>[] = [
     icon: HelpCircle,
     sourceEntity: "Answer",
     alwaysVisible: true,
+    kind: "text",
     sortable: true,
     sortValue: (r) => r.answer.question,
     cell: (r) => <span className="text-foreground">{r.answer.question}</span>,
@@ -102,6 +103,7 @@ export const ANSWER_PROPERTIES: Property<AnswerRow>[] = [
     icon: TagIcon,
     sourceEntity: "Answer",
     defaultVisible: true,
+    kind: "text",
     sortable: true,
     sortValue: (r) => r.answer.type,
     groupable: true,
@@ -198,6 +200,7 @@ export const ANSWER_PROPERTIES: Property<AnswerRow>[] = [
     icon: Calendar,
     sourceEntity: "Answer",
     defaultVisible: true,
+    kind: "text",
     sortable: true,
     sortValue: (r) => r.respondedAt,
     cell: (r) => (
@@ -213,6 +216,7 @@ export const ANSWER_PROPERTIES: Property<AnswerRow>[] = [
     icon: MessageSquare,
     sourceEntity: "Response",
     defaultVisible: false,
+    kind: "text",
     sortable: true,
     sortValue: (r) => r.responseId,
     cell: (r) => (

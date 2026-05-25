@@ -84,6 +84,7 @@ export function customFieldProperties<T extends WithCustomProps>(
       icon: ArrowRightLeft,
       sourceEntity,
       defaultVisible: def.defaultVisible,
+      kind: "text",
       align: def.dataType === "number" ? "right" : "left",
       sortable: true,
       sortValue: (row) => customFieldSortValue(def, row.customProperties?.[def.id]),

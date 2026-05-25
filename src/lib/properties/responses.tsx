@@ -50,6 +50,7 @@ export const RESPONSE_PROPERTIES: Property<ResponseListRow>[] = [
     icon: MessageSquare,
     sourceEntity: "Response",
     defaultVisible: true,
+    kind: "text",
     sortable: true,
     sortValue: (r) => r.comment,
     filter: RESPONSE_FILTER_SPECS.comment,
@@ -148,6 +149,7 @@ export const RESPONSE_PROPERTIES: Property<ResponseListRow>[] = [
     icon: Calendar,
     sourceEntity: "Response",
     defaultVisible: true,
+    kind: "text",
     sortable: true,
     sortValue: (r) => r.respondedAt,
     filter: RESPONSE_FILTER_SPECS.responded_at,
@@ -164,6 +166,7 @@ export const RESPONSE_PROPERTIES: Property<ResponseListRow>[] = [
     icon: Hash,
     sourceEntity: "Response",
     defaultVisible: false,
+    kind: "text",
     sortable: true,
     sortValue: (r) => r.id,
     cell: (r) => (

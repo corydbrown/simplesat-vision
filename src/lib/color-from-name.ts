@@ -1,3 +1,5 @@
+import { avatarHash } from "./avatar-hash";
+
 // Deterministic name-to-color mapping. Stable across renders.
 const PALETTE = [
   "#ef4444", // red
@@ -32,6 +34,9 @@ export function initialsFromName(name: string): string {
   return parts.map((p) => p[0]?.toUpperCase() ?? "").join("");
 }
 
+// Resolves to a self-hosted SVG under public/avatars/, generated at seed time
+// by scripts/generate-avatars.ts. If a seed wasn't pre-generated, the file
+// 404s and the Avatar component falls back to initials via <img onError>.
 export function dicebearUrl(seed: string): string {
-  return `https://api.dicebear.com/9.x/avataaars/svg?seed=${encodeURIComponent(seed)}`;
+  return `/avatars/${avatarHash(seed)}.svg`;
 }

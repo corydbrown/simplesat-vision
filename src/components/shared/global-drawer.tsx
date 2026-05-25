@@ -269,63 +269,61 @@ export function GlobalDrawer() {
   const [isOpenAnim, setIsOpenAnim] = useState(false);
   const prevParsedKey = useRef<string | null>(null);
 
-  // The block below reads and writes a ref during render and drives state
-  // transitions via render-phase setState. This is intentional — the early
-  // return on `!active` (further down) happens before any effect runs, so
-  // a useEffect-based capture would unmount the drawer before its exit
-  // animation could play. See CLAUDE.md "Don't reach for useEffect for
-  // the drawer close animation".
+  // Open→close transition: capture the exit snapshot synchronously during
+  // render. The early-return on `!active` below means an effect-based
+  // capture would unmount the drawer before its exit animation could play.
+  // We also bind the captured value to a local so this render itself sees
+  // it (the queued setExiting only takes effect on the next render — if we
+  // relied on state alone, this render would compute active=null and React
+  // would briefly commit a null tree, unmounting the drawer mid-transition).
+  // The close animation drive (setIsOpenAnim(false)) MUST stay in the
+  // [exiting] effect below — driving it from render-phase batches it into
+  // the same commit as the exit snapshot, collapsing the two-commit cycle
+  // the CSS transition needs.
   /* eslint-disable react-hooks/refs */
-  // Open→close transition: capture the exit snapshot synchronously so
-  // the early return below doesn't fire before we can paint the
-  // outgoing drawer.
+  let effectiveExiting = exiting;
   if (!currentKey && prevParsedKey.current && !exiting) {
     const prevKey = prevParsedKey.current;
     const idx = prevKey.indexOf(":");
     if (idx > 0) {
-      setExiting({
+      effectiveExiting = {
         entity: prevKey.slice(0, idx) as DrawerEntity,
         id: prevKey.slice(idx + 1),
         payload,
-      });
+      };
+      setExiting(effectiveExiting);
     }
-  }
-  // If we're back to fully closed (no parsed, no exiting), reset the
-  // open-anim flag for the next time the drawer opens.
-  if (!currentKey && !exiting && isOpenAnim) {
-    setIsOpenAnim(false);
-  }
-  // Reopen during a pending exit: cancel the exit snapshot so the open
-  // animation isn't fighting the close timeout.
-  if (currentKey && exiting) {
-    setExiting(null);
-  }
-  // Drive the close animation as soon as an exit snapshot exists.
-  // The cleanup timeout that clears the snapshot stays in an effect.
-  if (exiting && isOpenAnim) {
-    setIsOpenAnim(false);
   }
   prevParsedKey.current = currentKey;
   /* eslint-enable react-hooks/refs */
 
-  // Trigger open animation on the frame after mount.
+  // Trigger open animation on the frame after mount. Also cancels any
+  // pending exit (user re-opens before the exit animation finishes).
   useEffect(() => {
     if (!parsed) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setExiting((curr) => (curr ? null : curr));
     const raf = requestAnimationFrame(() => setIsOpenAnim(true));
     return () => cancelAnimationFrame(raf);
   }, [parsed]);
 
-  // Clear the exit snapshot once the close transition has completed.
+  // Drive close animation + cleanup the exit snapshot after the transition
+  // completes. The setIsOpenAnim(false) MUST be here, not in render —
+  // running it post-commit gives the browser a paint frame with the drawer
+  // still at translateX(0) before flipping to translateX(100%), which is
+  // what makes the CSS transition fire.
   useEffect(() => {
     if (!exiting) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setIsOpenAnim(false);
     const t = window.setTimeout(() => setExiting(null), 220);
     return () => window.clearTimeout(t);
   }, [exiting]);
 
   const active = parsed
     ? { entity: parsed.entity, id: parsed.id }
-    : exiting
-      ? { entity: exiting.entity, id: exiting.id }
+    : effectiveExiting
+      ? { entity: effectiveExiting.entity, id: effectiveExiting.id }
       : null;
   if (!active) return null;
 
@@ -337,7 +335,7 @@ export function GlobalDrawer() {
     router.push(`${pathname}${qs ? `?${qs}` : ""}`, { scroll: false });
   };
 
-  const renderPayload = payload ?? (exiting?.payload ?? null);
+  const renderPayload = payload ?? (effectiveExiting?.payload ?? null);
 
   return (
     <DetailDrawer

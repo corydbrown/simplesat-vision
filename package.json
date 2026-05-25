@@ -9,12 +9,15 @@
     "lint": "eslint",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
-    "db:seed": "tsx --conditions=react-server src/db/seed.ts",
+    "db:seed": "tsx --conditions=react-server src/db/seed.ts && npm run avatars:generate",
     "db:studio": "drizzle-kit studio",
-    "db:reset": "rm -f db/simplesat.db db/simplesat.db-shm db/simplesat.db-wal && npm run db:migrate && npm run db:seed"
+    "db:reset": "rm -f db/simplesat.db db/simplesat.db-shm db/simplesat.db-wal && npm run db:migrate && npm run db:seed",
+    "avatars:generate": "tsx --conditions=react-server scripts/generate-avatars.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.96.0",
+    "@dicebear/avataaars": "^9.4.2",
+    "@dicebear/core": "^9.4.2",
     "@dnd-kit/core": "^6.3.1",
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",

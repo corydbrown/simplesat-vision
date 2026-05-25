@@ -61,6 +61,7 @@ export const SURVEY_PROPERTIES: Property<SurveyRow>[] = [
     icon: Gauge,
     sourceEntity: "Survey",
     defaultVisible: true,
+    kind: "text",
     cell: (s) => (
       <span className="text-muted-foreground">{METRIC_LABEL[s.metric]}</span>
     ),
@@ -72,6 +73,7 @@ export const SURVEY_PROPERTIES: Property<SurveyRow>[] = [
     icon: Send,
     sourceEntity: "Survey",
     defaultVisible: true,
+    kind: "text",
     cell: (s) => (
       <span className="text-muted-foreground">{CHANNEL_LABEL[s.channel]}</span>
     ),
@@ -98,6 +100,7 @@ export const SURVEY_PROPERTIES: Property<SurveyRow>[] = [
     icon: Ruler,
     sourceEntity: "Survey",
     defaultVisible: false,
+    kind: "text",
     align: "right",
     cell: (s) => <span className="tabular-nums text-muted-foreground">{s.scale}</span>,
   },
@@ -108,6 +111,7 @@ export const SURVEY_PROPERTIES: Property<SurveyRow>[] = [
     icon: MessageSquare,
     sourceEntity: "Responses",
     defaultVisible: true,
+    kind: "text",
     align: "right",
     cell: (s) => (
       <span className="tabular-nums text-muted-foreground">
@@ -122,6 +126,7 @@ export const SURVEY_PROPERTIES: Property<SurveyRow>[] = [
     icon: Star,
     sourceEntity: "Responses",
     defaultVisible: true,
+    kind: "text",
     align: "right",
     cell: (s) => (
       <span className="tabular-nums text-muted-foreground">
@@ -136,6 +141,7 @@ export const SURVEY_PROPERTIES: Property<SurveyRow>[] = [
     icon: Calendar,
     sourceEntity: "Survey",
     defaultVisible: false,
+    kind: "text",
     cell: (s) => (
       <span className="tabular-nums text-muted-foreground">
         {formatDate(s.createdAt)}
@@ -149,6 +155,7 @@ export const SURVEY_PROPERTIES: Property<SurveyRow>[] = [
     icon: Hash,
     sourceEntity: "Survey",
     defaultVisible: false,
+    kind: "text",
     cell: (s) => (
       <span className="font-mono text-xs text-muted-foreground">{s.id}</span>
     ),

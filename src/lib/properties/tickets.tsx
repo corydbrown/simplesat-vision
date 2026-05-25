@@ -59,6 +59,7 @@ export const TICKET_PROPERTIES: Property<TicketsRow>[] = [
     icon: Hash,
     sourceEntity: "Ticket",
     alwaysVisible: true,
+    kind: "text",
     sortable: true,
     sortValue: (t) => t.helpdeskExternalId,
     filter: TICKET_FILTER_SPECS.external_id,
@@ -80,6 +81,7 @@ export const TICKET_PROPERTIES: Property<TicketsRow>[] = [
     icon: Type,
     sourceEntity: "Ticket",
     alwaysVisible: true,
+    kind: "text",
     sortable: true,
     sortValue: (t) => t.subject,
     filter: TICKET_FILTER_SPECS.subject,
@@ -138,6 +140,7 @@ export const TICKET_PROPERTIES: Property<TicketsRow>[] = [
     icon: Building2,
     sourceEntity: "Customer",
     defaultVisible: true,
+    kind: "text",
     sortable: true,
     sortValue: (t) => t.customer?.company ?? null,
     groupable: true,
@@ -205,6 +208,7 @@ export const TICKET_PROPERTIES: Property<TicketsRow>[] = [
     icon: Timer,
     sourceEntity: "Ticket",
     defaultVisible: true,
+    kind: "text",
     align: "right",
     sortable: true,
     sortValue: (t) =>
@@ -301,6 +305,7 @@ export const TICKET_PROPERTIES: Property<TicketsRow>[] = [
     icon: ArrowRightLeft,
     sourceEntity: "Ticket",
     defaultVisible: false,
+    kind: "text",
     filter: TICKET_FILTER_SPECS.had_transfer,
     cell: (t) => (
       <span className="text-muted-foreground">
@@ -315,6 +320,7 @@ export const TICKET_PROPERTIES: Property<TicketsRow>[] = [
     icon: ArrowRightLeft,
     sourceEntity: "Ticket",
     defaultVisible: false,
+    kind: "text",
     align: "right",
     filter: TICKET_FILTER_SPECS.reassignment_count,
     cell: (t) => (
@@ -330,6 +336,7 @@ export const TICKET_PROPERTIES: Property<TicketsRow>[] = [
     icon: Clock,
     sourceEntity: "Ticket",
     defaultVisible: false,
+    kind: "text",
     align: "right",
     filter: TICKET_FILTER_SPECS.queue_wait_hours,
     cell: (t) => (
@@ -347,6 +354,7 @@ export const TICKET_PROPERTIES: Property<TicketsRow>[] = [
     icon: AlertTriangle,
     sourceEntity: "Ticket",
     defaultVisible: false,
+    kind: "text",
     filter: TICKET_FILTER_SPECS.sla_breached,
     cell: (t) => (
       <span className="text-muted-foreground">
@@ -361,6 +369,7 @@ export const TICKET_PROPERTIES: Property<TicketsRow>[] = [
     icon: ChevronUp,
     sourceEntity: "Ticket",
     defaultVisible: false,
+    kind: "text",
     filter: TICKET_FILTER_SPECS.escalated,
     cell: (t) => (
       <span className="text-muted-foreground">
@@ -375,6 +384,7 @@ export const TICKET_PROPERTIES: Property<TicketsRow>[] = [
     icon: Bot,
     sourceEntity: "Ticket",
     defaultVisible: false,
+    kind: "text",
     filter: TICKET_FILTER_SPECS.ai_handoff,
     cell: (t) => (
       <span className="text-muted-foreground">
@@ -389,6 +399,7 @@ export const TICKET_PROPERTIES: Property<TicketsRow>[] = [
     icon: MessageCircle,
     sourceEntity: "Ticket",
     defaultVisible: false,
+    kind: "text",
     align: "right",
     filter: TICKET_FILTER_SPECS.customer_reply_count,
     cell: (t) => (
@@ -404,6 +415,7 @@ export const TICKET_PROPERTIES: Property<TicketsRow>[] = [
     icon: Hourglass,
     sourceEntity: "Ticket",
     defaultVisible: false,
+    kind: "text",
     align: "right",
     filter: TICKET_FILTER_SPECS.longest_idle_hours,
     cell: (t) => (
@@ -421,6 +433,7 @@ export const TICKET_PROPERTIES: Property<TicketsRow>[] = [
     icon: Calendar,
     sourceEntity: "Ticket",
     defaultVisible: true,
+    kind: "text",
     sortable: true,
     sortValue: (t) => t.createdAt,
     filter: TICKET_FILTER_SPECS.created_at,
@@ -437,6 +450,7 @@ export const TICKET_PROPERTIES: Property<TicketsRow>[] = [
     icon: CalendarCheck,
     sourceEntity: "Ticket",
     defaultVisible: true,
+    kind: "text",
     sortable: true,
     sortValue: (t) => t.closedAt,
     filter: TICKET_FILTER_SPECS.closed_at,
@@ -453,6 +467,7 @@ export const TICKET_PROPERTIES: Property<TicketsRow>[] = [
     icon: Hash,
     sourceEntity: "Ticket",
     defaultVisible: false,
+    kind: "text",
     sortable: true,
     sortValue: (t) => t.id,
     cell: (t) => (
@@ -467,6 +482,7 @@ export const TICKET_PROPERTIES: Property<TicketsRow>[] = [
     icon: Headphones,
     sourceEntity: "Ticket",
     defaultVisible: false,
+    kind: "text",
     sortable: true,
     sortValue: (t) => t.helpdesk,
     filter: TICKET_FILTER_SPECS.helpdesk,
@@ -484,6 +500,7 @@ export const TICKET_PROPERTIES: Property<TicketsRow>[] = [
     icon: CalendarClock,
     sourceEntity: "Ticket",
     defaultVisible: false,
+    kind: "text",
     sortable: true,
     sortValue: (t) => t.firstResponseAt,
     filter: TICKET_FILTER_SPECS.first_response_at,
@@ -500,6 +517,7 @@ export const TICKET_PROPERTIES: Property<TicketsRow>[] = [
     icon: CheckCircle2,
     sourceEntity: "Ticket",
     defaultVisible: false,
+    kind: "text",
     sortable: true,
     sortValue: (t) => t.solvedAt,
     filter: TICKET_FILTER_SPECS.solved_at,

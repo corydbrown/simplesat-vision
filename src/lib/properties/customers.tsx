@@ -45,6 +45,7 @@ const CORE_PROPERTIES: Property<CustomerListRow>[] = [
     icon: Mail,
     sourceEntity: "Customer",
     defaultVisible: true,
+    kind: "text",
     sortable: true,
     sortValue: (c) => c.email,
     filter: CUSTOMER_FILTER_SPECS.email,
@@ -72,6 +73,7 @@ const CORE_PROPERTIES: Property<CustomerListRow>[] = [
     icon: Languages,
     sourceEntity: "Customer",
     defaultVisible: false,
+    kind: "text",
     sortable: true,
     sortValue: (c) => c.language,
     filter: CUSTOMER_FILTER_SPECS.language,
@@ -92,6 +94,7 @@ const CORE_PROPERTIES: Property<CustomerListRow>[] = [
     icon: Building2,
     sourceEntity: "Customer",
     defaultVisible: true,
+    kind: "text",
     sortable: true,
     sortValue: (c) => c.company,
     filter: CUSTOMER_FILTER_SPECS.company,
@@ -108,6 +111,7 @@ const CORE_PROPERTIES: Property<CustomerListRow>[] = [
     sourceEntity: "Customer",
     defaultVisible: false,
     sortable: true,
+    kind: "text",
     sortValue: (c) => c.companyExternalId,
     filter: CUSTOMER_FILTER_SPECS.company_external_id,
     cell: (c) =>
@@ -133,6 +137,7 @@ const CORE_PROPERTIES: Property<CustomerListRow>[] = [
     sourceEntity: "Customer",
     defaultVisible: false,
     sortable: true,
+    kind: "text",
     sortValue: (c) => c.companyDomain,
     filter: CUSTOMER_FILTER_SPECS.company_domain,
     cell: (c) =>
@@ -151,6 +156,7 @@ const CORE_PROPERTIES: Property<CustomerListRow>[] = [
     defaultVisible: true,
     align: "right",
     sortable: true,
+    kind: "text",
     sortValue: (c) => c.totalTickets,
     filter: CUSTOMER_FILTER_SPECS.total_tickets,
     cell: (c) => (
@@ -166,6 +172,7 @@ const CORE_PROPERTIES: Property<CustomerListRow>[] = [
     icon: Clock,
     sourceEntity: "Tickets",
     defaultVisible: true,
+    kind: "text",
     sortable: true,
     sortValue: (c) => c.lastSeen,
     cell: (c) => (
@@ -193,6 +200,7 @@ const CORE_PROPERTIES: Property<CustomerListRow>[] = [
     icon: Hash,
     sourceEntity: "Customer",
     defaultVisible: false,
+    kind: "text",
     sortable: true,
     sortValue: (c) => c.id,
     cell: (c) => (

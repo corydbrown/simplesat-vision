@@ -45,7 +45,13 @@ export type Property<T> = {
   /** Client-side sort accessor. Required when `sortable: true` so embedded
    *  tables (which sort in memory rather than re-fetching) can order rows. */
   sortValue?: (row: T) => string | number | Date | null;
-  truncate?: boolean;
+  /** Shape of the rendered cell. `"text"` cells (spans wrapping a string,
+   *  number, or date) get `text-overflow: ellipsis` so long strings clip with
+   *  a `…`. `"component"` cells (pills, badges, tag lists, composite widgets)
+   *  get plain `overflow: hidden` so they clip cleanly without an ellipsis
+   *  appearing next to a pill at narrow widths. Defaults to `"component"` —
+   *  text cells opt in explicitly. */
+  kind?: "text" | "component";
   align?: "left" | "right";
   cell: (row: T) => ReactNode;
   detail?: (row: T) => ReactNode;

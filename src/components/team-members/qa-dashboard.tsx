@@ -16,6 +16,7 @@ import {
   YAxis,
 } from "recharts";
 import { Card, CardContent } from "@/components/ui/card";
+import { DashboardCard } from "@/components/shared/dashboard-card";
 import { DetailSection } from "@/components/shared/detail-section";
 import { QaScoreBadge } from "@/components/shared/qa-score-badge";
 import { formatNumber, formatTimelineDay } from "@/lib/format";
@@ -639,28 +640,6 @@ function QaRecentEvaluations({
 // ---------------------------------------------------------------------------
 // Layout primitives
 // ---------------------------------------------------------------------------
-
-function DashboardCard({
-  title,
-  trailing,
-  children,
-}: {
-  title: string;
-  trailing?: React.ReactNode;
-  children: React.ReactNode;
-}) {
-  return (
-    <Card>
-      <CardContent className="py-1">
-        <div className="mb-3 flex items-center justify-between gap-3">
-          <h3 className="text-base font-medium text-foreground">{title}</h3>
-          {trailing}
-        </div>
-        {children}
-      </CardContent>
-    </Card>
-  );
-}
 
 function EmptyCard({
   title,

@@ -18,6 +18,7 @@ import { StatusPill } from "@/components/tickets/status-pill";
 import { PriorityPill } from "@/components/tickets/priority-pill";
 import { ChannelPill } from "@/components/tickets/channel-pill";
 import { Avatar } from "@/components/shared/avatar";
+import { dicebearUrl } from "@/lib/color-from-name";
 import { StarRating } from "@/components/shared/star-rating";
 import { AvgRating } from "@/components/shared/avg-rating";
 import { StatCard } from "@/components/shared/stat-card";
@@ -1399,7 +1400,7 @@ export default async function DesignAuditPage() {
                     key={a.size}
                     className="flex flex-col items-center gap-2"
                   >
-                    <Avatar bg="#6366f1" initials="CR" size={a.size} />
+                    <Avatar bg="#6366f1" initials="CR" imageUrl={dicebearUrl("CR")} size={a.size} />
                     <div className="text-center">
                       <div className="text-sm font-medium">size={a.size}</div>
                       <div className="text-sm text-muted-foreground">

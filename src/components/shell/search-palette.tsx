@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/dialog";
 import { Avatar } from "@/components/shared/avatar";
 import { fullPagePath } from "@/components/shared/global-drawer";
-import { colorFromName, initialsFromName } from "@/lib/color-from-name";
+import { colorFromName, dicebearUrl, initialsFromName } from "@/lib/color-from-name";
 import { STATIC_INDEX, type SearchEntry } from "@/lib/search-index";
 import {
   useRecentPages,
@@ -434,6 +434,7 @@ function EntityIcon({
       <Avatar
         bg={colorFromName(entry.label)}
         initials={initialsFromName(entry.label)}
+        imageUrl={dicebearUrl(entry.label)}
         size="sm"
       />
     );
@@ -443,6 +444,7 @@ function EntityIcon({
       <Avatar
         bg={entry.avatarColor ?? colorFromName(entry.label)}
         initials={initialsFromName(entry.label)}
+        imageUrl={dicebearUrl(entry.label)}
         size="sm"
       />
     );

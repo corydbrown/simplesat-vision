@@ -3,6 +3,16 @@
 import { useState } from "react";
 import { Pencil, Trash2 } from "lucide-react";
 import { Avatar } from "@/components/shared/avatar";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { formatRelative } from "@/lib/format";
 import { colorFromName, dicebearUrl, initialsFromName } from "@/lib/color-from-name";
@@ -45,6 +55,7 @@ export function CommentRow({
 }) {
   const [editing, setEditing] = useState(editingExternally);
   const [draft, setDraft] = useState(comment.body);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
 
   function startEdit() {
     setDraft(comment.body);
@@ -105,7 +116,7 @@ export function CommentRow({
                 type="button"
                 onClick={(e) => {
                   e.stopPropagation();
-                  onDelete();
+                  setConfirmingDelete(true);
                 }}
                 aria-label="Delete comment"
                 className="flex size-6 cursor-pointer items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
@@ -170,6 +181,31 @@ export function CommentRow({
           />
         )}
       </div>
+
+      <AlertDialog
+        open={confirmingDelete}
+        onOpenChange={setConfirmingDelete}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this comment?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Once deleted, you can&apos;t get it back.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="cursor-pointer">
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={onDelete}
+              className="cursor-pointer bg-red-dark text-white hover:bg-red-darker"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </li>
   );
 }

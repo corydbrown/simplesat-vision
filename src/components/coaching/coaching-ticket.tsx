@@ -93,6 +93,10 @@ export function CoachingTicket({ detail }: { detail: CoachingDetail }) {
   const categoryRefs = useRef<Map<string, HTMLButtonElement | null>>(new Map());
   const inspectPanelRef = useRef<InspectPanelHandle | null>(null);
   const sidebarRef = useRef<HTMLElement | null>(null);
+  // Remembers the last focused message id after Esc-to-deselect so the next
+  // arrow keypress resumes from that position rather than jumping to the
+  // first/last message.
+  const lastFocusedMessageIdRef = useRef<string | null>(null);
 
   // ----- derived state -----
   const inspectMessage = inspectMessageId
@@ -399,7 +403,13 @@ export function CoachingTicket({ detail }: { detail: CoachingDetail }) {
     (delta: 1 | -1) => {
       const ids = messages.map((m) => m.id);
       setFocusedMessageId((curr) => {
-        if (!curr) return delta > 0 ? ids[0] : ids[ids.length - 1];
+        if (!curr) {
+          // After Esc-to-deselect, resume from the remembered index instead
+          // of jumping to the first/last message.
+          const remembered = lastFocusedMessageIdRef.current;
+          if (remembered && ids.includes(remembered)) return remembered;
+          return delta > 0 ? ids[0] : ids[ids.length - 1];
+        }
         const idx = ids.indexOf(curr);
         if (idx < 0) return ids[0];
         const next = Math.max(0, Math.min(ids.length - 1, idx + delta));
@@ -586,6 +596,14 @@ export function CoachingTicket({ detail }: { detail: CoachingDetail }) {
         if (activeCategoryId) {
           e.preventDefault();
           setActiveCategoryId(null);
+          return;
+        }
+        if (focusedSurface === "convo" && focusedMessageId) {
+          // Return to the unselected "clean" view — but remember the index so
+          // the next arrow keypress resumes from here.
+          e.preventDefault();
+          lastFocusedMessageIdRef.current = focusedMessageId;
+          setFocusedMessageId(null);
           return;
         }
         return;
@@ -836,12 +854,6 @@ export function CoachingTicket({ detail }: { detail: CoachingDetail }) {
                     onClickCite={() => {
                       if (msg.authorRole !== "agent") return;
                       openInspect(msg.id, { addCitation: true });
-                    }}
-                    onClickReact={() => {
-                      const el = messageRefs.current.get(msg.id);
-                      el?.querySelector<HTMLButtonElement>(
-                        '[aria-label="Add reaction"]',
-                      )?.click();
                     }}
                     onClickInspect={() => openInspect(msg.id)}
                     onClickCitationChip={(catId) => {

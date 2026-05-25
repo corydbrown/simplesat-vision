@@ -47,7 +47,7 @@ export class MockScoringProvider implements ScoringProvider {
           return {
             categoryId: category.id,
             aiScore: failed ? 0 : 1,
-            aiReasoning: buildBinaryReasoning(faker, category.name, failed),
+            aiReasoning: buildBinaryReasoning(faker, failed),
             highlightedMessageIds: failed ? messageIds.slice(0, 1) : [],
           };
         }
@@ -55,7 +55,7 @@ export class MockScoringProvider implements ScoringProvider {
         return {
           categoryId: category.id,
           aiScore,
-          aiReasoning: buildLikertReasoning(faker, category.name, aiScore),
+          aiReasoning: buildLikertReasoning(faker, aiScore),
           highlightedMessageIds: messageIds,
         };
       });
@@ -191,17 +191,12 @@ const LIKERT_REASONING_BY_SCORE: Record<number, string[]> = {
   ],
 };
 
-function buildLikertReasoning(
-  faker: Faker,
-  categoryName: string,
-  score: number,
-): string {
+function buildLikertReasoning(faker: Faker, score: number): string {
   // SVP-77: reasoning text is reference-free. Supporting message ids live on
   // `highlightedMessageIds` (structured field) — the UI renders them as a
   // chip-row, no regex over reasoning text.
   const pool = LIKERT_REASONING_BY_SCORE[score] ?? LIKERT_REASONING_BY_SCORE[3];
-  const base = faker.helpers.arrayElement(pool);
-  return `${categoryName}: ${base}`;
+  return faker.helpers.arrayElement(pool);
 }
 
 const BINARY_PASS_REASONS = [
@@ -217,14 +212,9 @@ const BINARY_FAIL_REASONS = [
   "Conversation closed with the customer's question unanswered and no follow-up scheduled.",
 ];
 
-function buildBinaryReasoning(
-  faker: Faker,
-  categoryName: string,
-  failed: boolean,
-): string {
+function buildBinaryReasoning(faker: Faker, failed: boolean): string {
   const pool = failed ? BINARY_FAIL_REASONS : BINARY_PASS_REASONS;
-  const base = faker.helpers.arrayElement(pool);
-  return `${categoryName}: ${base}`;
+  return faker.helpers.arrayElement(pool);
 }
 
 /** Decide whether a binary category fails. Only ever true on auto-fail

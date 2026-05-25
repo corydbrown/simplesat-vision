@@ -39,21 +39,41 @@ The PR must be **MERGED**. If not, abort and tell Cory.
    - `git branch -d feat/svp<N>-*` (lowercase `-d` refuses unmerged; the branch should be merged so this works). If you used `gh pr merge --delete-branch` in step 1, the local delete may have already happened or failed silently because the worktree held the branch — running it now finishes the job.
    - `git fetch --prune` to clean remote refs.
 
-4. **Mark Notion task Done**:
-   - Resolve the Notion task page by SVP-NN (search Notion via `mcp__claude_ai_Notion__notion-search` with the SVP-NN, or use cached ID if known).
+4. **Capture metrics from GitHub + PR body** (do this BEFORE the Notion write so all properties land in one update):
+   - **First commit timestamp** (`Worker started`):
+     ```bash
+     gh pr view <PR> --json commits --jq '.commits[0].committedDate'
+     ```
+     This is the FIRST commit on the branch (not the most-recent). The `.commits` array is chronological.
+   - **PR createdAt** (`Worker finished`):
+     ```bash
+     gh pr view <PR> --json createdAt --jq '.createdAt'
+     ```
+   - **Tokens used**:
+     ```bash
+     gh pr view <PR> --json body --jq '.body' | grep -A 10 '## Tokens used' | grep -iE 'total.*tokens?:' | head -1
+     ```
+     Parse the number out (strip commas). If the heading is missing or the regex doesn't match, leave `Tokens used` null — the worker didn't paste `/cost`, and that's fine (null is honest).
+
+5. **Mark Notion task Done** — single `update_properties` call with everything:
+   - Resolve the Notion task page by SVP-NN (search via `mcp__claude_ai_Notion__notion-search` or use cached ID).
    - `Status` → `Done`.
-   - `Completed at` → current datetime (ISO 8601 with `+07:00` offset; `is_datetime: 1`).
+   - `Completed at` → current datetime (ISO 8601 with `+07:00` offset; `is_datetime: 1`). This is the supervisor-merge time.
+   - `Worker started` → first-commit datetime (from step 4), `is_datetime: 1`.
+   - `Worker finished` → PR createdAt (from step 4), `is_datetime: 1`.
+   - `Tokens used` → parsed number (from step 4), or omit if null.
    - `Repo link` → the PR URL.
    - Append a Claude Code note: `- YYYY-MM-DD: PR #N squash-merged as \`<sha>\`. <one-line of what shipped>. Worktree cleaned up.`
 
-5. **Scan the merge diff for DECISIONS.md deferrals**:
+6. **Scan the merge diff for DECISIONS.md deferrals**:
    - `gh pr view <PR> --json files --jq '.files[] | select(.filename == "DECISIONS.md")'`.
    - If `DECISIONS.md` changed, `git diff <merge-commit>~1 <merge-commit> -- DECISIONS.md` and grep for new "Phase N deferred (v2)" / "future work" / "out of scope" entries.
    - For each new deferral that does NOT already exist as a Notion Backlog task, **file it now** via `mcp__claude_ai_Notion__notion-create-pages` — Status: Backlog, defaults per NOTION.md.
    - Per [[feedback-nits-inline]], don't file PR review nits as follow-ups (those should have been fixed inline before merge). But DECISIONS.md deferrals ARE architectural choices that warrant tracking.
 
-6. **End-of-turn output**:
+7. **End-of-turn output**:
    - Confirm cleanup with the merge commit SHA + worktree path removed + branch deleted.
+   - Note the metrics captured (worker duration + tokens, or "no /cost paste — Tokens used null").
    - Note any DECISIONS.md deferrals filed.
    - Updated worktree count + open PR count.
 

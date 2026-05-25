@@ -25,6 +25,7 @@ Eliminates copy-paste: instead of including the brief in the chat for Cory to pa
 6. **Update Notion**:
    - Status → `In Progress`
    - `Started at` → current ISO 8601 datetime with `+07:00` offset
+   - **`Worker model`** → `Sonnet` or `Opus` from the brief's Recommended model line
    - Append note: `- YYYY-MM-DD: Spawned worktree feat/<branch> on port <N>. Brief written to BRIEF.md.`
 
 7. **End-of-turn output** for Cory — one sentence per worker. Nothing more.
@@ -70,6 +71,18 @@ If solo, write "None.">
 - Dev server boots at `localhost:<port>`
 - Manual walk of the changed surface in both light + dark mode
 - Playwright smoke for any new visible surface (see `playwright.config.ts` once SVP-Playwright lands)
+
+## Before opening the PR — tokens-used
+
+Run `/cost` in your worker session right before pushing the PR. Paste the output into the PR body under a `## Tokens used` heading. Supervisor's `/post-merge` parses this and writes to the `Tokens used` Notion property. Format:
+
+```
+## Tokens used
+
+<paste of /cost output — supervisor parses the "Total tokens" line>
+```
+
+If `/cost` is unavailable in your environment or you forget, no big deal — null data is honest data. But the supervisor's metrics tracking depends on this paste, so do it when you can.
 
 ## STOP_CONDITIONS
 

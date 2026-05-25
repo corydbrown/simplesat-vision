@@ -34,7 +34,10 @@ export function Avatar({
         // eslint-disable-next-line @next/next/no-img-element
         <img
           src={imageUrl}
-          alt={initials}
+          alt=""
+          loading="lazy"
+          decoding="async"
+          referrerPolicy="no-referrer"
           className="h-full w-full object-cover"
           onError={() => setImgFailed(true)}
         />

@@ -4,6 +4,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { DetailSection } from "@/components/shared/detail-section";
 import { formatRelative } from "@/lib/format";
+import { TimestampTooltip } from "@/components/shared/timestamp-tooltip";
 import { QaScoreBadge } from "@/components/shared/qa-score-badge";
 import { QaStatusPill } from "@/components/qa/qa-status-pill";
 import type { QaEvaluationView } from "@/db/queries/tickets";
@@ -57,8 +58,11 @@ function ScoredCard({ evaluation }: { evaluation: QaEvaluationView }) {
         />
         <QaStatusPill status={evaluation.status} />
         <span className="text-base text-muted-foreground">
-          Scored {formatRelative(evaluation.scoredAt)} by{" "}
-          {evaluation.scorer.displayName}
+          Scored{" "}
+          <TimestampTooltip date={evaluation.scoredAt}>
+            <span>{formatRelative(evaluation.scoredAt)}</span>
+          </TimestampTooltip>{" "}
+          by {evaluation.scorer.displayName}
         </span>
         <Link
           href={`/coaching/${evaluation.id}`}

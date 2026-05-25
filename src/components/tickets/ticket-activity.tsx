@@ -34,10 +34,11 @@ import {
   initialsFromName,
 } from "@/lib/color-from-name";
 import {
-  formatDateTime,
+  formatAbsolute,
   formatSmartTime,
   formatTimelineDay,
 } from "@/lib/format";
+import { TimestampTooltip } from "@/components/shared/timestamp-tooltip";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -296,11 +297,14 @@ function Bubble({
        *  cluttering the meta row above. Solo and first bubbles already show
        *  the time in the meta row, so suppress for those. */}
       {position !== "solo" && position !== "first" && (
+        // `pointer-events-none` + opacity-revealed-on-hover means a Tooltip
+        // wrapper here can't fire. Keep the native `title` fallback so the
+        // absolute date+time is still discoverable.
         <span
           className={`pointer-events-none absolute top-2.5 ${
             side === "left" ? "left-full ml-2" : "right-full mr-2"
           } whitespace-nowrap text-xs text-muted-foreground opacity-0 transition-opacity group-hover/bubble:opacity-100`}
-          title={formatDateTime(message.createdAt)}
+          title={formatAbsolute(message.createdAt)}
         >
           {formatSmartTime(message.createdAt)}
         </span>
@@ -363,12 +367,11 @@ function MessageGroup({
         >
           {side === "right" && (
             <>
-              <span
-                className="text-sm text-muted-foreground"
-                title={formatDateTime(first.createdAt)}
-              >
-                {formatSmartTime(first.createdAt)}
-              </span>
+              <TimestampTooltip date={first.createdAt}>
+                <span className="text-sm text-muted-foreground">
+                  {formatSmartTime(first.createdAt)}
+                </span>
+              </TimestampTooltip>
               <span className="text-muted-foreground/60">·</span>
               <ChannelTag channel={first.channel} />
               {tone === "note" ? (
@@ -403,12 +406,11 @@ function MessageGroup({
               )}
               <ChannelTag channel={first.channel} />
               <span className="text-muted-foreground/60">·</span>
-              <span
-                className="text-sm text-muted-foreground"
-                title={formatDateTime(first.createdAt)}
-              >
-                {formatSmartTime(first.createdAt)}
-              </span>
+              <TimestampTooltip date={first.createdAt}>
+                <span className="text-sm text-muted-foreground">
+                  {formatSmartTime(first.createdAt)}
+                </span>
+              </TimestampTooltip>
             </>
           )}
         </div>
@@ -669,9 +671,9 @@ function EventRow({ event }: { event: TicketEventView }) {
         )}
       </span>
       <span className="text-muted-foreground/60">·</span>
-      <span title={formatDateTime(event.createdAt)}>
-        {formatSmartTime(event.createdAt)}
-      </span>
+      <TimestampTooltip date={event.createdAt}>
+        <span>{formatSmartTime(event.createdAt)}</span>
+      </TimestampTooltip>
     </div>
   );
 }
@@ -699,12 +701,11 @@ function TerminalEventCard({ event }: { event: TicketEventView }) {
           {isSolved ? "Solved" : "Closed"} by {actorName}
         </span>
         <span className="text-muted-foreground/80">·</span>
-        <span
-          className="text-muted-foreground"
-          title={formatDateTime(event.createdAt)}
-        >
-          {formatSmartTime(event.createdAt)}
-        </span>
+        <TimestampTooltip date={event.createdAt}>
+          <span className="text-muted-foreground">
+            {formatSmartTime(event.createdAt)}
+          </span>
+        </TimestampTooltip>
       </div>
     </div>
   );
@@ -718,9 +719,11 @@ function DayDivider({ date }: { date: Date }) {
   return (
     <div className="flex items-center gap-3 pt-3 pb-2">
       <div className="h-px flex-1 bg-border" />
-      <span className="text-base font-medium text-muted-foreground">
-        {formatTimelineDay(date)}
-      </span>
+      <TimestampTooltip date={date}>
+        <span className="text-base font-medium text-muted-foreground">
+          {formatTimelineDay(date)}
+        </span>
+      </TimestampTooltip>
       <div className="h-px flex-1 bg-border" />
     </div>
   );

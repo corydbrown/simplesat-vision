@@ -8,6 +8,7 @@ import type {
   CoachingMessageView,
 } from "@/db/queries/coaching";
 import { formatSmartTime } from "@/lib/format";
+import { TimestampTooltip } from "@/components/shared/timestamp-tooltip";
 import type { CoachingReaction } from "@/lib/qa/coaching";
 import { cn } from "@/lib/utils";
 import { CitationChip } from "./citation-chip";
@@ -116,9 +117,11 @@ export function MessageBubble({
           <span className="font-medium text-foreground">
             {message.authorName}
           </span>
-          <span className="text-muted-foreground">
-            {formatSmartTime(new Date(message.createdAt))}
-          </span>
+          <TimestampTooltip date={message.createdAt}>
+            <span className="text-muted-foreground">
+              {formatSmartTime(new Date(message.createdAt))}
+            </span>
+          </TimestampTooltip>
         </div>
 
         {/* Hover wrapper scoped to message body + chip row only — the

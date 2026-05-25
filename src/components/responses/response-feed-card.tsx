@@ -7,6 +7,7 @@ import { CompanyPill, TicketPill, TeamMemberPill } from "@/components/shared/ent
 import { Tag } from "@/components/shared/tag";
 import type { ResponseListRow } from "@/db/queries/responses";
 import { formatRelative } from "@/lib/format";
+import { TimestampTooltip } from "@/components/shared/timestamp-tooltip";
 
 // Twitter/Slack-feed-style card for one response. Click anywhere on the
 // card (except inner links) opens the response in the drawer. Mirrors the
@@ -56,7 +57,9 @@ export function ResponseFeedCard({ row }: { row: ResponseListRow }) {
           </div>
         </div>
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <span className="tabular-nums">{formatRelative(row.respondedAt)}</span>
+          <TimestampTooltip date={row.respondedAt}>
+            <span className="tabular-nums">{formatRelative(row.respondedAt)}</span>
+          </TimestampTooltip>
           <Link
             href={standalonePath}
             aria-label="Open response in full page"

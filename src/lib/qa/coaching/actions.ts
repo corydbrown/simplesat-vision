@@ -15,6 +15,7 @@ import { and, asc, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db, schema } from "@/db/client";
+import { requireWorkspace } from "@/lib/workspace";
 import { getCommentProvider } from "./index";
 import { COACHING_REACTIONS } from "./reactions";
 import type { CommentRow, ReactionRow } from "./types";
@@ -172,12 +173,17 @@ async function mutateHighlights(
   parsed: { evaluationId: string; categoryId: string; messageId: string },
   transform: (existing: string[]) => string[],
 ): Promise<{ ok: true; highlightedMessageIds: string[] }> {
+  const workspaceId = await requireWorkspace();
   const [row] = await db
     .select({
       highlightedMessageIds:
         schema.evaluationCategoryScores.highlightedMessageIds,
     })
     .from(schema.evaluationCategoryScores)
+    .innerJoin(
+      schema.evaluations,
+      eq(schema.evaluations.id, schema.evaluationCategoryScores.evaluationId),
+    )
     .where(
       and(
         eq(
@@ -185,6 +191,7 @@ async function mutateHighlights(
           parsed.evaluationId,
         ),
         eq(schema.evaluationCategoryScores.categoryId, parsed.categoryId),
+        eq(schema.evaluations.workspaceId, workspaceId),
       ),
     )
     .limit(1);

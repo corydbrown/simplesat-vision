@@ -87,7 +87,7 @@ The first user message in a `/spawn`-launched session is typically just `go` or 
 - STOP_CONDITIONS.md governs when to escalate vs improvise.
 - Pre-flight gates run before "ready for review" — see the brief.
 - Push your branch when the work is in a coherent state, even before opening a PR. The supervisor's `/sweep` auto-opens PRs for pushed-but-not-PR'd branches.
-- **Before opening the PR**, run `/cost` and `/model`, then embed timing + tokens + model into the PR body as a `## Worker metrics` section (see brief for the exact shape). This is how the supervisor's `/post-merge` populates the Notion task metrics — without it, worker timing falls back to inaccurate first-commit timestamps.
+- **Ship with `/wrap`, not raw `gh pr create`.** `/wrap` captures timing + tokens + model and constructs the PR body in the exact shape `/post-merge` parses. It's the only way the `## Worker metrics` block lands consistently — hand-rolled metrics drift (workers forget `/cost`, paste placeholders, skip the section) and silently corrupt the Notion `Tokens used` column.
 
 ## Working with Cory — concierge mode
 

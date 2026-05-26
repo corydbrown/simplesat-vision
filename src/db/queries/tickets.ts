@@ -1,6 +1,7 @@
 import "server-only";
 import { and, asc, desc, eq, sql, type AnyColumn, type SQL } from "drizzle-orm";
 import { db, schema } from "../client";
+import { requireWorkspace } from "@/lib/workspace";
 import { compileListFilters } from "@/lib/filters/compile-list";
 import {
   TICKET_FILTER_FIELDS,
@@ -175,11 +176,14 @@ export async function listTickets({
   filters?: Filter[];
   groupBy?: GroupSpec | null;
 }): Promise<{ rows: TicketsRow[]; total: number }> {
+  const workspaceId = await requireWorkspace();
   const orderByList = buildTicketOrderBy(sorts);
   const groupOrderBy = compileGroupOrderBy(groupBy ?? null, TICKET_GROUP_FIELDS);
-  const where = filters
+  const filterWhere = filters
     ? compileListFilters(filters, TICKET_FILTER_FIELDS)
     : undefined;
+  const workspaceWhere = eq(schema.tickets.workspaceId, workspaceId);
+  const where = filterWhere ? and(workspaceWhere, filterWhere) : workspaceWhere;
 
   const offset = (page - 1) * pageSize;
 
@@ -222,7 +226,8 @@ export async function listTickets({
     );
 
   const [rawRows, total] = await Promise.all([
-    (where ? baseQuery.where(where) : baseQuery)
+    baseQuery
+      .where(where)
       .orderBy(...groupOrderBy, ...orderByList)
       .limit(pageSize)
       .offset(offset),
@@ -331,6 +336,7 @@ export type TicketDetail = TicketsRow & {
 };
 
 export async function getTicketById(id: string): Promise<TicketDetail | null> {
+  const workspaceId = await requireWorkspace();
   const [r] = await db
     .select({
       ticket: schema.tickets,
@@ -368,7 +374,12 @@ export async function getTicketById(id: string): Promise<TicketDetail | null> {
       schema.responses,
       eq(schema.responses.ticketId, schema.tickets.id),
     )
-    .where(eq(schema.tickets.id, id))
+    .where(
+      and(
+        eq(schema.tickets.id, id),
+        eq(schema.tickets.workspaceId, workspaceId),
+      ),
+    )
     .limit(1);
 
   if (!r) return null;

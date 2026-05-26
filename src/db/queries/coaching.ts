@@ -1,6 +1,7 @@
 import "server-only";
 import { and, asc, eq, inArray } from "drizzle-orm";
 import { db, schema } from "../client";
+import { requireWorkspace } from "@/lib/workspace";
 import type {
   QaEvaluationStatus,
   ScorecardScaleType,
@@ -108,6 +109,7 @@ export type CoachingDetail = {
 export async function getCoachingDetail(
   evaluationId: string,
 ): Promise<CoachingDetail | null> {
+  const workspaceId = await requireWorkspace();
   const [head] = await db
     .select({
       evaluation: schema.evaluations,
@@ -153,7 +155,12 @@ export async function getCoachingDetail(
       schema.tickets,
       eq(schema.tickets.id, schema.evaluations.ticketId),
     )
-    .where(eq(schema.evaluations.id, evaluationId))
+    .where(
+      and(
+        eq(schema.evaluations.id, evaluationId),
+        eq(schema.evaluations.workspaceId, workspaceId),
+      ),
+    )
     .limit(1);
 
   if (!head || !head.ticket) return null;
@@ -290,7 +297,7 @@ export async function getCoachingDetail(
       .orderBy(asc(schema.scorecardVersionCategories.order)),
     provider.listComments(evaluation.id),
     provider.listReactions(evaluation.id),
-    resolveCurrentUserId(),
+    resolveCurrentUserId(workspaceId),
   ]);
 
   const customer = customerRows[0] ?? null;
@@ -487,12 +494,18 @@ export async function getCoachingDetail(
 }
 
 /** Round-one current-user stub — mirrors the resolver in qa/coaching/actions.ts
- *  and qa/actions.ts. Picks the first Customer Care Lead deterministically. */
-async function resolveCurrentUserId(): Promise<string> {
+ *  and qa/actions.ts. Picks the first Customer Care Lead deterministically
+ *  within the active workspace. */
+async function resolveCurrentUserId(workspaceId: string): Promise<string> {
   const [manager] = await db
     .select({ id: schema.teamMembers.id })
     .from(schema.teamMembers)
-    .where(eq(schema.teamMembers.role, "Customer Care Lead"))
+    .where(
+      and(
+        eq(schema.teamMembers.role, "Customer Care Lead"),
+        eq(schema.teamMembers.workspaceId, workspaceId),
+      ),
+    )
     .orderBy(asc(schema.teamMembers.name))
     .limit(1);
   if (!manager) throw new Error("No current user available");

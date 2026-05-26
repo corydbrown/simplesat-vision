@@ -1,6 +1,7 @@
 import "server-only";
 import { sql } from "drizzle-orm";
 import { db } from "../client";
+import { requireWorkspace } from "@/lib/workspace";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -49,22 +50,29 @@ export type CoachingInsightsTiles = {
 };
 
 /** "Latest evaluation per ticket": filter to the row with the max scoredAt for
- *  each ticket, excluding invalidated rows. Used as a CTE in several places. */
-const LATEST_EVAL_CTE = sql`
-  latest_evals AS (
-    SELECT e.*
-    FROM evaluations e
-    WHERE e.status != 'invalidated'
-      AND e.scored_at = (
-        SELECT MAX(e2.scored_at)
-        FROM evaluations e2
-        WHERE e2.ticket_id = e.ticket_id
-          AND e2.status != 'invalidated'
-      )
-  )
-`;
+ *  each ticket, excluding invalidated rows. Used as a CTE in several places.
+ *  Workspace is baked into both the outer scan and the correlated subquery so
+ *  every downstream consumer inherits scoping without re-stating it. */
+function latestEvalCte(workspaceId: string) {
+  return sql`
+    latest_evals AS (
+      SELECT e.*
+      FROM evaluations e
+      WHERE e.status != 'invalidated'
+        AND e.workspace_id = ${workspaceId}
+        AND e.scored_at = (
+          SELECT MAX(e2.scored_at)
+          FROM evaluations e2
+          WHERE e2.ticket_id = e.ticket_id
+            AND e2.status != 'invalidated'
+            AND e2.workspace_id = ${workspaceId}
+        )
+    )
+  `;
+}
 
 export async function getCoachingInsightsTiles(): Promise<CoachingInsightsTiles> {
+  const workspaceId = await requireWorkspace();
   const { current, prior } = windowsRelativeToNow(30);
 
   // Avg QA score — current vs prior window (latest eval per ticket, scored within window)
@@ -72,7 +80,7 @@ export async function getCoachingInsightsTiles(): Promise<CoachingInsightsTiles>
     current_avg: number | null;
     prior_avg: number | null;
   }>(sql`
-    WITH ${LATEST_EVAL_CTE}
+    WITH ${latestEvalCte(workspaceId)}
     SELECT
       AVG(CASE WHEN scored_at >= ${current.from} AND scored_at < ${current.to}
         THEN CAST(overall_score AS REAL) END) AS current_avg,
@@ -90,10 +98,12 @@ export async function getCoachingInsightsTiles(): Promise<CoachingInsightsTiles>
     SELECT
       (SELECT COUNT(DISTINCT ticket_id)
         FROM evaluations
-        WHERE status != 'invalidated') AS evaluated,
+        WHERE status != 'invalidated'
+          AND workspace_id = ${workspaceId}) AS evaluated,
       (SELECT COUNT(*)
         FROM tickets
-        WHERE status IN ('solved', 'closed')) AS eligible
+        WHERE status IN ('solved', 'closed')
+          AND workspace_id = ${workspaceId}) AS eligible
   `);
   const pctRow = pctRows[0];
 
@@ -108,19 +118,24 @@ export async function getCoachingInsightsTiles(): Promise<CoachingInsightsTiles>
       AVG(CASE WHEN responded_at >= ${prior.from} AND responded_at < ${prior.to}
         THEN CAST(rating AS REAL) * 5.0 / scale END) AS prior_avg
     FROM responses
+    WHERE workspace_id = ${workspaceId}
   `);
   const csatRow = csatRows[0];
 
   // AI accuracy — % of category scores where human_score equals ai_score
   // (only among rows where a human override exists at all). Sample size = N with override.
+  // evaluation_category_scores has no workspace_id of its own — scope via the
+  // parent evaluation row.
   const accuracyRows = await db.all<{
     matches: number;
     overrides: number;
   }>(sql`
     SELECT
-      SUM(CASE WHEN human_score IS NOT NULL AND human_score = ai_score THEN 1 ELSE 0 END) AS matches,
-      SUM(CASE WHEN human_score IS NOT NULL THEN 1 ELSE 0 END) AS overrides
-    FROM evaluation_category_scores
+      SUM(CASE WHEN ecs.human_score IS NOT NULL AND ecs.human_score = ecs.ai_score THEN 1 ELSE 0 END) AS matches,
+      SUM(CASE WHEN ecs.human_score IS NOT NULL THEN 1 ELSE 0 END) AS overrides
+    FROM evaluation_category_scores ecs
+    JOIN evaluations e ON e.id = ecs.evaluation_id
+    WHERE e.workspace_id = ${workspaceId}
   `);
   const accuracyRow = accuracyRows[0];
 
@@ -183,19 +198,22 @@ const BUCKET_ORDER: CorrelationBucket["bucket"][] = [
 export async function getCoachingCorrelationBuckets(): Promise<
   CorrelationBucket[]
 > {
+  const workspaceId = await requireWorkspace();
   const rows = await db.all<{
     bucket: CorrelationBucket["bucket"];
     ticket_count: number;
     avg_csat: number | null;
   }>(sql`
-    WITH ${LATEST_EVAL_CTE},
+    WITH ${latestEvalCte(workspaceId)},
     ticket_pairs AS (
       SELECT
         le.ticket_id,
         le.overall_score,
         CAST(r.rating AS REAL) * 5.0 / r.scale AS csat
       FROM latest_evals le
-      LEFT JOIN responses r ON r.ticket_id = le.ticket_id
+      LEFT JOIN responses r
+        ON r.ticket_id = le.ticket_id
+        AND r.workspace_id = ${workspaceId}
     )
     SELECT
       CASE
@@ -255,7 +273,10 @@ export type CoachingHeatmap = {
 };
 
 export async function getCoachingHeatmap(): Promise<CoachingHeatmap> {
-  // Default scorecard's categories
+  const workspaceId = await requireWorkspace();
+
+  // Default scorecard's categories. scorecard_categories is a leaf of
+  // scorecards — scope via the parent.
   const categories = await db.all<{
     id: string;
     name: string;
@@ -266,11 +287,15 @@ export async function getCoachingHeatmap(): Promise<CoachingHeatmap> {
     FROM scorecard_categories c
     JOIN scorecards s ON s.id = c.scorecard_id
     WHERE s.is_default = 1
+      AND s.workspace_id = ${workspaceId}
     ORDER BY c."order" ASC
   `);
   const scorecardId = categories[0]?.scorecard_id ?? null;
 
-  // Agents with at least one (latest, non-invalidated) evaluation
+  // Agents with at least one (latest, non-invalidated) evaluation.
+  // latest_evals is workspace-scoped via the CTE; tm gets its own filter so
+  // we don't surface team members from another workspace whose ids collide
+  // (defense-in-depth — ids are prefixed, but the filter is cheap).
   const agents = await db.all<{
     id: string;
     name: string;
@@ -278,24 +303,26 @@ export async function getCoachingHeatmap(): Promise<CoachingHeatmap> {
     avatar_color: string;
     eval_count: number;
   }>(sql`
-    WITH ${LATEST_EVAL_CTE}
+    WITH ${latestEvalCte(workspaceId)}
     SELECT
       tm.id, tm.name, tm.team, tm.avatar_color,
       COUNT(le.id) AS eval_count
     FROM team_members tm
     JOIN latest_evals le ON le.scored_team_member_id = tm.id
+    WHERE tm.workspace_id = ${workspaceId}
     GROUP BY tm.id
     ORDER BY eval_count DESC, tm.name ASC
   `);
 
-  // Cells — agent × category avg effective_score
+  // Cells — agent × category avg effective_score. evaluation_category_scores
+  // inherits via the latest_evals JOIN.
   const cells = await db.all<{
     agent_id: string;
     category_id: string;
     avg_score: number;
     sample_size: number;
   }>(sql`
-    WITH ${LATEST_EVAL_CTE}
+    WITH ${latestEvalCte(workspaceId)}
     SELECT
       le.scored_team_member_id AS agent_id,
       ecs.category_id,
@@ -368,26 +395,31 @@ const VERB_LABEL: Record<EventSignalVerb, string> = {
   reassigned_multiple: "Tickets reassigned 2+ times",
 };
 
-async function getTotalTickets(): Promise<number> {
+async function getTotalTickets(workspaceId: string): Promise<number> {
   const rows = await db.all<{ n: number }>(sql`
     SELECT COUNT(*) AS n FROM tickets
+    WHERE workspace_id = ${workspaceId}
   `);
   return Number(rows[0]?.n ?? 0);
 }
 
-async function getOverallAvgCsat(): Promise<number | null> {
+async function getOverallAvgCsat(workspaceId: string): Promise<number | null> {
   const rows = await db.all<{ avg: number | null }>(sql`
-    SELECT AVG(CAST(rating AS REAL) * 5.0 / scale) AS avg FROM responses
+    SELECT AVG(CAST(rating AS REAL) * 5.0 / scale) AS avg
+    FROM responses
+    WHERE workspace_id = ${workspaceId}
   `);
   const v = rows[0]?.avg;
   return v == null ? null : Number(v);
 }
 
-/** For a single verb, count distinct tickets, csat delta, top actors. */
+/** For a single verb, count distinct tickets, csat delta, top actors.
+ *  ticket_events is a leaf — scope via JOIN to its parent ticket. */
 async function signalForVerb(
   verb: "escalated" | "sla_breached" | "ai_handoff",
   totalTickets: number,
   overallCsat: number | null,
+  workspaceId: string,
 ): Promise<EventSignal> {
   const ticketRows = await db.all<{ ticket_id: string; avg_csat: number | null }>(sql`
     SELECT
@@ -396,7 +428,9 @@ async function signalForVerb(
         FROM responses r
         WHERE r.ticket_id = te.ticket_id) AS avg_csat
     FROM ticket_events te
+    JOIN tickets t ON t.id = te.ticket_id
     WHERE te.verb = ${verb}
+      AND t.workspace_id = ${workspaceId}
   `);
   const ticketCount = ticketRows.length;
 
@@ -416,9 +450,11 @@ async function signalForVerb(
   }>(sql`
     SELECT te.actor_team_member_id, tm.name, COUNT(*) AS n
     FROM ticket_events te
+    JOIN tickets t ON t.id = te.ticket_id
     LEFT JOIN team_members tm ON tm.id = te.actor_team_member_id
     WHERE te.verb = ${verb}
       AND te.actor_team_member_id IS NOT NULL
+      AND t.workspace_id = ${workspaceId}
     GROUP BY te.actor_team_member_id
     ORDER BY n DESC
     LIMIT 3
@@ -443,13 +479,16 @@ async function signalForVerb(
 async function signalForReassignedMultiple(
   totalTickets: number,
   overallCsat: number | null,
+  workspaceId: string,
 ): Promise<EventSignal> {
   const ticketRows = await db.all<{ ticket_id: string; avg_csat: number | null }>(sql`
     WITH reassigned AS (
-      SELECT ticket_id
-      FROM ticket_events
-      WHERE verb = 'assignee_changed'
-      GROUP BY ticket_id
+      SELECT te.ticket_id
+      FROM ticket_events te
+      JOIN tickets t ON t.id = te.ticket_id
+      WHERE te.verb = 'assignee_changed'
+        AND t.workspace_id = ${workspaceId}
+      GROUP BY te.ticket_id
       HAVING COUNT(*) >= 2
     )
     SELECT
@@ -477,10 +516,12 @@ async function signalForReassignedMultiple(
     n: number;
   }>(sql`
     WITH reassigned AS (
-      SELECT ticket_id
-      FROM ticket_events
-      WHERE verb = 'assignee_changed'
-      GROUP BY ticket_id
+      SELECT te.ticket_id
+      FROM ticket_events te
+      JOIN tickets t ON t.id = te.ticket_id
+      WHERE te.verb = 'assignee_changed'
+        AND t.workspace_id = ${workspaceId}
+      GROUP BY te.ticket_id
       HAVING COUNT(*) >= 2
     )
     SELECT te.previous_value, tm.name, COUNT(*) AS n
@@ -509,15 +550,16 @@ async function signalForReassignedMultiple(
 }
 
 export async function getCoachingEventSignals(): Promise<EventSignal[]> {
+  const workspaceId = await requireWorkspace();
   const [totalTickets, overallCsat] = await Promise.all([
-    getTotalTickets(),
-    getOverallAvgCsat(),
+    getTotalTickets(workspaceId),
+    getOverallAvgCsat(workspaceId),
   ]);
   const [escalated, slaBreached, aiHandoff, reassigned] = await Promise.all([
-    signalForVerb("escalated", totalTickets, overallCsat),
-    signalForVerb("sla_breached", totalTickets, overallCsat),
-    signalForVerb("ai_handoff", totalTickets, overallCsat),
-    signalForReassignedMultiple(totalTickets, overallCsat),
+    signalForVerb("escalated", totalTickets, overallCsat, workspaceId),
+    signalForVerb("sla_breached", totalTickets, overallCsat, workspaceId),
+    signalForVerb("ai_handoff", totalTickets, overallCsat, workspaceId),
+    signalForReassignedMultiple(totalTickets, overallCsat, workspaceId),
   ]);
   return [escalated, slaBreached, aiHandoff, reassigned];
 }

@@ -433,6 +433,20 @@ export const tickets = sqliteTable(
   },
   (t) => [
     index("tickets_workspace_id_idx").on(t.workspaceId),
+    // Composite covers the listCustomers t_agg subquery: GROUP BY customer_id
+    // WHERE workspace_id = ?, with MAX(created_at). Lets SQLite do an
+    // index-only scan instead of 50K rowid lookups (SVP-162).
+    index("tickets_workspace_customer_created_idx").on(
+      t.workspaceId,
+      t.customerId,
+      t.createdAt,
+    ),
+    // Lets the /tickets default sort (closed_at DESC) push LIMIT 50 down
+    // into the index scan rather than fetching every workspace row, running
+    // per-row signal subqueries, then sorting (SVP-162). NULLs sort last in
+    // a DESC scan, which matches the existing list behavior (open tickets
+    // appear after closed ones).
+    index("tickets_workspace_closed_at_idx").on(t.workspaceId, t.closedAt),
     index("tickets_customer_id_idx").on(t.customerId),
     index("tickets_assigned_team_member_id_idx").on(t.assignedTeamMemberId),
     index("tickets_status_idx").on(t.status),
@@ -489,6 +503,14 @@ export const ticketMessages = sqliteTable(
   },
   (t) => [
     index("ticket_messages_ticket_id_idx").on(t.ticketId),
+    // Covers the per-ticket signal subqueries — customer reply count, first
+    // agent message (queue wait). Without this each listTickets row triggers
+    // a heap lookup per match; with it the subquery is index-only (SVP-162).
+    index("ticket_messages_ticket_author_created_idx").on(
+      t.ticketId,
+      t.authorRole,
+      t.createdAt,
+    ),
     index("ticket_messages_created_at_idx").on(t.createdAt),
     index("ticket_messages_team_member_id_idx").on(t.teamMemberId),
     index("ticket_messages_customer_id_idx").on(t.customerId),
@@ -557,6 +579,15 @@ export const ticketEvents = sqliteTable(
   },
   (t) => [
     index("ticket_events_ticket_id_idx").on(t.ticketId),
+    // Covers the per-ticket signal subqueries (had_transfer, reassignment_count,
+    // sla_breached, escalated, ai_handoff). Trailing previous_value lets the
+    // had_transfer filter (previous_value IS NOT NULL) stay index-only
+    // (SVP-162).
+    index("ticket_events_ticket_verb_prev_idx").on(
+      t.ticketId,
+      t.verb,
+      t.previousValue,
+    ),
     index("ticket_events_created_at_idx").on(t.createdAt),
     index("ticket_events_verb_idx").on(t.verb),
     index("ticket_events_actor_team_member_id_idx").on(t.actorTeamMemberId),
@@ -604,6 +635,14 @@ export const responses = sqliteTable(
   },
   (t) => [
     index("responses_workspace_id_idx").on(t.workspaceId),
+    // Composite covers the listCustomers r_agg subquery: GROUP BY customer_id
+    // WHERE workspace_id = ?, with AVG(rating). Lets SQLite do an index-only
+    // scan instead of rowid lookups (SVP-162).
+    index("responses_workspace_customer_rating_idx").on(
+      t.workspaceId,
+      t.customerId,
+      t.rating,
+    ),
     index("responses_ticket_id_idx").on(t.ticketId),
     index("responses_customer_id_idx").on(t.customerId),
     index("responses_team_member_id_idx").on(t.teamMemberId),
@@ -870,6 +909,12 @@ export const evaluations = sqliteTable(
   (t) => [
     index("evaluations_workspace_id_idx").on(t.workspaceId),
     index("evaluations_ticket_id_idx").on(t.ticketId),
+    // Covers ticketQaScoreExpr / ticketQaStatusExpr: latest evaluation per
+    // ticket via WHERE ticket_id = ? ORDER BY scored_at DESC LIMIT 1. The
+    // listTickets page hits these for every visible row; without this index
+    // SQLite seeks ticket_id then sorts scored_at row-by-row from the heap
+    // (SVP-162).
+    index("evaluations_ticket_scored_at_idx").on(t.ticketId, t.scoredAt),
     index("evaluations_scorecard_id_idx").on(t.scorecardId),
     index("evaluations_scorecard_version_id_idx").on(t.scorecardVersionId),
     index("evaluations_scored_team_member_id_idx").on(t.scoredTeamMemberId),

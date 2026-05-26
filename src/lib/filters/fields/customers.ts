@@ -4,12 +4,19 @@ import { schema } from "@/db/client";
 import { buildFilterFields } from "@/lib/filters/build-fields";
 import { CUSTOMER_FILTER_SPECS } from "@/lib/filters/specs/customers";
 
-// Subquery-backed expressions used for both filtering and list selection /
-// sorting. Defined here so the query file can import them without circularity
-// (the query imports the field map; the field map must not import back).
-export const customerTotalTicketsExpr = sql<number>`(SELECT COUNT(*) FROM tickets WHERE tickets.customer_id = customers.id)`;
-export const customerAvgRatingExpr = sql<number | null>`(SELECT AVG(CAST(rating as REAL)) FROM responses WHERE responses.customer_id = customers.id)`;
-export const customerLastSeenExpr = sql<number | null>`(SELECT MAX(tickets.created_at) FROM tickets WHERE tickets.customer_id = customers.id)`;
+// Customer aggregate expressions reference per-workspace aggregate subqueries
+// (`t_agg`, `r_agg`) that listCustomers always joins. The previous shape used
+// correlated scalar subqueries against tickets/responses — fine at small scale
+// but quadratic against Bloom-scale data (3 subqueries × 1,200 customers =
+// 3,600 index seeks per request, 87s wall clock — see SVP-162).
+//
+// These expressions are valid ONLY inside the listCustomers query, where the
+// `t_agg` / `r_agg` subqueries are in scope. Any new query that wants to
+// reuse the filter map must define the same aggregate joins or supply its
+// own field map.
+export const customerTotalTicketsExpr = sql<number>`COALESCE(t_agg.total_tickets, 0)`;
+export const customerAvgRatingExpr = sql<number | null>`r_agg.avg_rating`;
+export const customerLastSeenExpr = sql<number | null>`t_agg.last_seen`;
 
 export const CUSTOMER_FILTER_FIELDS = buildFilterFields(CUSTOMER_FILTER_SPECS, {
   name: schema.customers.name,

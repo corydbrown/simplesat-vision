@@ -1,18 +1,10 @@
-import { listSavedViews, replaceSavedViews } from "./actions";
+import { replaceSavedViews } from "./actions";
 import type { EntityKey, SavedView } from "./types";
 
 const LEGACY_STORAGE_PREFIX = "simplesat:savedViews:";
 
 function legacyKey(entity: EntityKey): string {
   return `${LEGACY_STORAGE_PREFIX}${entity}`;
-}
-
-/** Loads the entity's saved views from the server. Returns [] when the
- *  workspace has no rows yet — the provider treats that as "either seed
- *  defaults or port from localStorage". The legacy `null` sentinel is gone:
- *  with server storage, "no rows" is the only empty state we can observe. */
-export async function loadSavedViews(entity: EntityKey): Promise<SavedView[]> {
-  return listSavedViews(entity);
 }
 
 /** Bulk-replaces the entity's saved views on the server. Used by the seed

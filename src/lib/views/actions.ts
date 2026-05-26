@@ -4,11 +4,13 @@ import { z } from "zod";
 import {
   createSavedView as createSavedViewQuery,
   deleteSavedView as deleteSavedViewQuery,
+  listAllSavedViews as listAllSavedViewsQuery,
   listSavedViews as listSavedViewsQuery,
   renameSavedView as renameSavedViewQuery,
   reorderSavedViews as reorderSavedViewsQuery,
   replaceSavedViews as replaceSavedViewsQuery,
   updateSavedView as updateSavedViewQuery,
+  type SavedViewsByEntity,
 } from "@/db/queries/saved-views";
 import {
   CreateInputSchema,
@@ -41,6 +43,13 @@ function validate<T>(schema: z.ZodType<T>, input: unknown): T {
 export async function listSavedViews(entity: EntityKey): Promise<SavedView[]> {
   const validated = validate(EntitySchema, entity);
   return listSavedViewsQuery(validated);
+}
+
+/** Returns every entity's saved views in a single round trip. Used by the
+ *  ViewsProvider hydration path; per-entity callers should keep using
+ *  listSavedViews. */
+export async function listAllSavedViews(): Promise<SavedViewsByEntity> {
+  return listAllSavedViewsQuery();
 }
 
 export async function createSavedView(

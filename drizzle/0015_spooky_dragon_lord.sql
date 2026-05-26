@@ -1,0 +1,1 @@
+CREATE INDEX `tickets_workspace_closed_at_idx` ON `tickets` (`workspace_id`,`closed_at`);

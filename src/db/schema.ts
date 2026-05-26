@@ -505,8 +505,10 @@ export const responses = sqliteTable(
  *  hydrated from src/lib/qa/default-scorecard.ts at seed; Phase 2 will allow
  *  multiple scorecards per workspace. No `account_id` yet — the seam is left
  *  clean for multi-tenant later (see CLAUDE.md → Trajectory). `version`
- *  bumps when a manager edits the rubric; existing evaluations stay pinned
- *  to the version that produced them via `evaluations.scorecard_version`. */
+ *  bumps when a manager edits the rubric; each bump writes an immutable
+ *  `scorecard_versions` snapshot, and evaluations FK into that snapshot via
+ *  `evaluations.scorecard_version_id`. The integer on this row mirrors the
+ *  *current* (latest) version for convenience. */
 export const scorecards = sqliteTable(
   "scorecards",
   {
@@ -586,6 +588,109 @@ export const scorecardCriteria = sqliteTable(
   ],
 );
 
+/** Immutable snapshot of a scorecard at the moment a `version` was minted.
+ *  Every save of the scorecard editor produces a new row here capturing the
+ *  rubric text (categories + criteria) as it stood when that version went
+ *  live. Evaluations FK into this row via `evaluations.scorecard_version_id`
+ *  so historical evals continue to render the rubric they were scored
+ *  against, even after the live `scorecard_categories` / `scorecard_criteria`
+ *  text is edited.
+ *
+ *  `auto_fail_floor` is snapshotted here even though today it's a global
+ *  constant (PRD default 30) — when it becomes per-scorecard, the seam is
+ *  already in place. */
+export const scorecardVersions = sqliteTable(
+  "scorecard_versions",
+  {
+    id: text("id").primaryKey(),
+    scorecardId: text("scorecard_id")
+      .notNull()
+      .references(() => scorecards.id, { onDelete: "cascade" }),
+    version: integer("version").notNull(),
+    name: text("name").notNull(),
+    autoFailFloor: integer("auto_fail_floor").notNull(),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+  },
+  (t) => [
+    index("scorecard_versions_scorecard_id_idx").on(t.scorecardId),
+    uniqueIndex("scorecard_versions_scorecard_id_version_idx").on(
+      t.scorecardId,
+      t.version,
+    ),
+  ],
+);
+
+/** Snapshot of a category inside a `scorecard_versions` row. Mirrors
+ *  `scorecard_categories` shape. `source_category_id` is the logical
+ *  category identity (the live `scorecard_categories.id` at snapshot time) —
+ *  cross-version rollups (heatmap, agent profile) aggregate evaluation
+ *  category scores by this logical id, while eval-time text resolves via
+ *  this row. */
+export const scorecardVersionCategories = sqliteTable(
+  "scorecard_version_categories",
+  {
+    id: text("id").primaryKey(),
+    scorecardVersionId: text("scorecard_version_id")
+      .notNull()
+      .references(() => scorecardVersions.id, { onDelete: "cascade" }),
+    sourceCategoryId: text("source_category_id")
+      .notNull()
+      .references(() => scorecardCategories.id),
+    name: text("name").notNull(),
+    description: text("description").notNull().default(""),
+    weightPercent: integer("weight_percent").notNull().default(0),
+    scaleType: text("scale_type", {
+      enum: ["likert_5", "binary", "three_state"],
+    })
+      .notNull()
+      .$type<ScorecardScaleType>()
+      .default("likert_5"),
+    order: integer("order").notNull().default(0),
+    isAutofail: integer("is_autofail", { mode: "boolean" })
+      .notNull()
+      .default(false),
+  },
+  (t) => [
+    index("scorecard_version_categories_version_id_idx").on(
+      t.scorecardVersionId,
+    ),
+    index("scorecard_version_categories_source_id_idx").on(t.sourceCategoryId),
+    uniqueIndex("scorecard_version_categories_version_source_idx").on(
+      t.scorecardVersionId,
+      t.sourceCategoryId,
+    ),
+  ],
+);
+
+/** Snapshot of a criterion inside a `scorecard_version_categories` row.
+ *  Mirrors `scorecard_criteria` shape. `source_criterion_id` is the logical
+ *  criterion identity (the live `scorecard_criteria.id` at snapshot time). */
+export const scorecardVersionCriteria = sqliteTable(
+  "scorecard_version_criteria",
+  {
+    id: text("id").primaryKey(),
+    versionCategoryId: text("version_category_id")
+      .notNull()
+      .references(() => scorecardVersionCategories.id, {
+        onDelete: "cascade",
+      }),
+    sourceCriterionId: text("source_criterion_id")
+      .notNull()
+      .references(() => scorecardCriteria.id),
+    text: text("text").notNull(),
+    anchor5: text("anchor_5").notNull().default(""),
+    anchor3: text("anchor_3").notNull().default(""),
+    anchor1: text("anchor_1").notNull().default(""),
+    order: integer("order").notNull().default(0),
+  },
+  (t) => [
+    index("scorecard_version_criteria_category_id_idx").on(t.versionCategoryId),
+    index("scorecard_version_criteria_source_id_idx").on(t.sourceCriterionId),
+  ],
+);
+
 /** One QA evaluation of one ticket against one scorecard version. The
  *  scoring provider (mock or LLM, selected via env) writes one row here plus
  *  one per-category row in `evaluation_category_scores` and one coaching
@@ -601,10 +706,13 @@ export const evaluations = sqliteTable(
     scorecardId: text("scorecard_id")
       .notNull()
       .references(() => scorecards.id),
-    /** Snapshot of `scorecards.version` at scoring time. Lets us reconstruct
-     *  which rubric the score was produced against even if the scorecard has
-     *  since been edited. */
-    scorecardVersion: integer("scorecard_version").notNull(),
+    /** FK into `scorecard_versions` — the immutable rubric snapshot this
+     *  evaluation was scored against. The integer version number lives on
+     *  that row; resolve via join. Older evaluations keep their original
+     *  snapshot even after the scorecard is edited. */
+    scorecardVersionId: text("scorecard_version_id")
+      .notNull()
+      .references(() => scorecardVersions.id),
     /** The team member whose work is being scored (the assigned agent on
      *  the ticket at scoring time). Distinct from `scored_by` (which is the
      *  identity that produced the score — provider name + optional human). */
@@ -642,6 +750,7 @@ export const evaluations = sqliteTable(
   (t) => [
     index("evaluations_ticket_id_idx").on(t.ticketId),
     index("evaluations_scorecard_id_idx").on(t.scorecardId),
+    index("evaluations_scorecard_version_id_idx").on(t.scorecardVersionId),
     index("evaluations_scored_team_member_id_idx").on(t.scoredTeamMemberId),
     index("evaluations_status_idx").on(t.status),
     index("evaluations_scored_at_idx").on(t.scoredAt),
@@ -893,6 +1002,16 @@ export type ScorecardCategory = typeof scorecardCategories.$inferSelect;
 export type NewScorecardCategory = typeof scorecardCategories.$inferInsert;
 export type ScorecardCriterion = typeof scorecardCriteria.$inferSelect;
 export type NewScorecardCriterion = typeof scorecardCriteria.$inferInsert;
+export type ScorecardVersion = typeof scorecardVersions.$inferSelect;
+export type NewScorecardVersion = typeof scorecardVersions.$inferInsert;
+export type ScorecardVersionCategory =
+  typeof scorecardVersionCategories.$inferSelect;
+export type NewScorecardVersionCategory =
+  typeof scorecardVersionCategories.$inferInsert;
+export type ScorecardVersionCriterion =
+  typeof scorecardVersionCriteria.$inferSelect;
+export type NewScorecardVersionCriterion =
+  typeof scorecardVersionCriteria.$inferInsert;
 export type Evaluation = typeof evaluations.$inferSelect;
 export type NewEvaluation = typeof evaluations.$inferInsert;
 export type EvaluationCategoryScore = typeof evaluationCategoryScores.$inferSelect;

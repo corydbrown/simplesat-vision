@@ -179,15 +179,22 @@ export async function listEvaluationsForTicket(
   const rows = await db
     .select({
       id: schema.evaluations.id,
-      scorecardVersion: schema.evaluations.scorecardVersion,
+      scorecardVersion: schema.scorecardVersions.version,
       overallScore: schema.evaluations.overallScore,
       scoredAt: schema.evaluations.scoredAt,
       status: schema.evaluations.status,
     })
     .from(schema.evaluations)
+    .innerJoin(
+      schema.scorecardVersions,
+      eq(
+        schema.scorecardVersions.id,
+        schema.evaluations.scorecardVersionId,
+      ),
+    )
     .where(eq(schema.evaluations.ticketId, ticketId))
     .orderBy(
-      desc(schema.evaluations.scorecardVersion),
+      desc(schema.scorecardVersions.version),
       desc(schema.evaluations.scoredAt),
     );
   return rows;

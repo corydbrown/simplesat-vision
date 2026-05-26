@@ -1,5 +1,5 @@
 import "server-only";
-import { asc, eq, inArray } from "drizzle-orm";
+import { and, asc, eq, inArray } from "drizzle-orm";
 import { db, schema } from "../client";
 import type {
   QaEvaluationStatus,
@@ -113,8 +113,8 @@ export async function getCoachingDetail(
       evaluation: schema.evaluations,
       scorecard: {
         id: schema.scorecards.id,
-        name: schema.scorecards.name,
-        version: schema.scorecards.version,
+        name: schema.scorecardVersions.name,
+        version: schema.scorecardVersions.version,
       },
       scoredAgent: {
         id: schema.teamMembers.id,
@@ -137,6 +137,13 @@ export async function getCoachingDetail(
     .innerJoin(
       schema.scorecards,
       eq(schema.scorecards.id, schema.evaluations.scorecardId),
+    )
+    .innerJoin(
+      schema.scorecardVersions,
+      eq(
+        schema.scorecardVersions.id,
+        schema.evaluations.scorecardVersionId,
+      ),
     )
     .leftJoin(
       schema.teamMembers,
@@ -260,21 +267,27 @@ export async function getCoachingDetail(
       .orderBy(asc(schema.ticketEvents.createdAt)),
     db
       .select({
-        category: schema.scorecardCategories,
+        category: schema.scorecardVersionCategories,
         score: schema.evaluationCategoryScores,
       })
       .from(schema.evaluationCategoryScores)
       .innerJoin(
-        schema.scorecardCategories,
+        schema.scorecardVersionCategories,
         eq(
-          schema.scorecardCategories.id,
+          schema.scorecardVersionCategories.sourceCategoryId,
           schema.evaluationCategoryScores.categoryId,
         ),
       )
       .where(
-        eq(schema.evaluationCategoryScores.evaluationId, evaluation.id),
+        and(
+          eq(schema.evaluationCategoryScores.evaluationId, evaluation.id),
+          eq(
+            schema.scorecardVersionCategories.scorecardVersionId,
+            evaluation.scorecardVersionId,
+          ),
+        ),
       )
-      .orderBy(asc(schema.scorecardCategories.order)),
+      .orderBy(asc(schema.scorecardVersionCategories.order)),
     provider.listComments(evaluation.id),
     provider.listReactions(evaluation.id),
     resolveCurrentUserId(),
@@ -332,7 +345,9 @@ export async function getCoachingDetail(
   });
 
   const categories: CoachingCategoryView[] = categoryRows.map((row) => ({
-    id: row.category.id,
+    // Logical category id (matches evaluation_category_scores.categoryId).
+    // The snapshot row's own id is internal and never reaches the UI.
+    id: row.category.sourceCategoryId,
     name: row.category.name,
     description: row.category.description,
     scaleType: row.category.scaleType,

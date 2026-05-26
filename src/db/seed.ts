@@ -13,6 +13,7 @@ import { rollupTopics } from "../lib/topics";
 import { DEFAULT_SCORECARD } from "../lib/qa/default-scorecard";
 import { MockScoringProvider } from "../lib/qa/scoring";
 import { COACHING_REACTIONS } from "../lib/qa/coaching";
+import { snapshotScorecard } from "../lib/scorecards/snapshot";
 import { SEED_VIEWS } from "../lib/views/seed";
 import type { EntityKey } from "../lib/views/types";
 import { replaceSavedViews } from "./queries/saved-views";
@@ -1209,6 +1210,9 @@ async function seed() {
   await db.delete(schema.coachingNotes);
   await db.delete(schema.evaluationCategoryScores);
   await db.delete(schema.evaluations);
+  await db.delete(schema.scorecardVersionCriteria);
+  await db.delete(schema.scorecardVersionCategories);
+  await db.delete(schema.scorecardVersions);
   await db.delete(schema.scorecardCriteria);
   await db.delete(schema.scorecardCategories);
   await db.delete(schema.scorecards);
@@ -1799,10 +1803,15 @@ async function seed() {
     });
     criterionIdsByCategoryName.set(category.name, criterionIds);
   });
-  await db.transaction(async (tx) => {
+  const v1ScorecardVersionId = await db.transaction(async (tx) => {
     await tx.insert(schema.scorecards).values(scorecardRow);
     await tx.insert(schema.scorecardCategories).values(categoryRows);
     await tx.insert(schema.scorecardCriteria).values(criterionRows);
+    return await snapshotScorecard(tx, {
+      scorecardId,
+      version: DEFAULT_SCORECARD.version,
+      createdAt: new Date(NOW),
+    });
   });
 
   console.log(
@@ -1891,7 +1900,7 @@ async function seed() {
       id: evaluationId,
       ticketId: ticket.id!,
       scorecardId,
-      scorecardVersion: DEFAULT_SCORECARD.version,
+      scorecardVersionId: v1ScorecardVersionId,
       scoredTeamMemberId: ticket.assignedTeamMemberId!,
       overallScore: output.overallScore,
       status: editedStatus,
@@ -2094,12 +2103,52 @@ async function seed() {
   // tickets to validate the new version. The picker on /coaching/[id] surfaces
   // this — most tickets stay single-version (no pill), the re-scored subset
   // shows v1 + v2 with a "newer version available" affordance on v1.
+  //
+  // The v2 bump also rewrites one criterion's text (SVP-131 narrative) so
+  // opening a v1 coaching page shows the *original* text while a v2 page
+  // shows the edited text — that's the snapshot table doing its job.
   // -------------------------------------------------------------------------
   console.log("Bumping default scorecard to v2 + adding re-scores...");
+  const customerConnectionCategoryId = categoryIdByName.get(
+    "Customer Connection",
+  );
+  const customerConnectionCriterionIds = criterionIdsByCategoryName.get(
+    "Customer Connection",
+  );
+  if (customerConnectionCategoryId && customerConnectionCriterionIds?.[0]) {
+    await db
+      .update(schema.scorecardCriteria)
+      .set({
+        text:
+          "Did the agent demonstrate genuine understanding, personalize the interaction, AND proactively name an emotion when the customer was upset?",
+        anchor3:
+          "Agent addressed the issue politely and named the customer's situation, but missed an opportunity to acknowledge the emotional weight when the customer was clearly frustrated.",
+      })
+      .where(
+        eq(schema.scorecardCriteria.id, customerConnectionCriterionIds[0]),
+      );
+    await db
+      .update(schema.scorecardCategories)
+      .set({
+        description:
+          "Did the agent demonstrate genuine understanding of the customer's situation and emotional state? Did they proactively name the emotion when the customer was upset?\n\nCriteria:\n- Acknowledged the customer's specific issue\n- Paraphrased or restated the problem\n- Named the emotion when the customer was frustrated, anxious, or upset\n- Matched tone to the customer's emotional state\n- Avoided robotic / templated phrasing",
+      })
+      .where(
+        eq(schema.scorecardCategories.id, customerConnectionCategoryId),
+      );
+  }
+  const v2BumpAt = new Date(NOW);
   await db
     .update(schema.scorecards)
-    .set({ version: 2, updatedAt: new Date(NOW) })
+    .set({ version: 2, updatedAt: v2BumpAt })
     .where(eq(schema.scorecards.id, scorecardId));
+  const v2ScorecardVersionId = await db.transaction(async (tx) =>
+    snapshotScorecard(tx, {
+      scorecardId,
+      version: 2,
+      createdAt: v2BumpAt,
+    }),
+  );
 
   const RE_SCORE_COUNT = 12;
   const reScoreSourceEvals = evaluationRows.slice(0, RE_SCORE_COUNT);
@@ -2120,7 +2169,7 @@ async function seed() {
       id: v2EvalId,
       ticketId: original.ticketId,
       scorecardId,
-      scorecardVersion: 2,
+      scorecardVersionId: v2ScorecardVersionId,
       scoredTeamMemberId: original.scoredTeamMemberId,
       overallScore: newOverall,
       status: "ai_scored",
@@ -2208,6 +2257,7 @@ async function seed() {
     ticketMessageCount,
     ticketEventCount,
     scorecardCount,
+    scorecardVersionCount,
     scorecardCategoryCount,
     scorecardCriterionCount,
     evaluationCount,
@@ -2226,6 +2276,7 @@ async function seed() {
     db.$count(schema.ticketMessages),
     db.$count(schema.ticketEvents),
     db.$count(schema.scorecards),
+    db.$count(schema.scorecardVersions),
     db.$count(schema.scorecardCategories),
     db.$count(schema.scorecardCriteria),
     db.$count(schema.evaluations),
@@ -2246,6 +2297,7 @@ async function seed() {
     ticketEvents: ticketEventCount,
     timelinesAttached,
     scorecards: scorecardCount,
+    scorecardVersions: scorecardVersionCount,
     scorecardCategories: scorecardCategoryCount,
     scorecardCriteria: scorecardCriterionCount,
     evaluations: evaluationCount,

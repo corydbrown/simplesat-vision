@@ -226,14 +226,14 @@ Rules:
 | Framework | Next.js 16 (App Router, Turbopack, React 19) |
 | Lang | TypeScript strict |
 | Styling | Tailwind v4 + shadcn/ui (Radix-based, copy-paste components) |
-| Data | Drizzle ORM + better-sqlite3, local file at `db/simplesat.db` |
+| Data | Drizzle ORM + `@libsql/client` (Turso for hosted, `file:db/simplesat.db` for local) |
 | Tables | Custom EntityTable (TanStack-free) driven by Property registry |
 | DnD | dnd-kit (column reorder; pivot editor) |
 | Charts | Recharts (reserved for future Reports phase) |
 | Icons | Lucide |
 | Font | Lato via `next/font/google`, with system stack fallback |
 | Seed | Faker, deterministic via `faker.seed(42)` |
-| Deploy target | Vercel (would swap to Turso/libSQL for SQLite hosting) |
+| Deploy target | Vercel (Turso for the hosted SQLite — already wired) |
 
 **Do not** add: state management libraries, CSS-in-JS, testing setup, auth, or Storybook (Storybook hides drift by isolating components — the audit page surfaces drift by putting everything side by side; revisit once the design system stabilizes and someone besides Cory is building UI).
 

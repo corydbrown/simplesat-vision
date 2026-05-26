@@ -6,6 +6,7 @@ import { z } from "zod";
 import { db, schema } from "@/db/client";
 import { DEFAULT_SCORECARD } from "@/lib/qa/default-scorecard";
 import { MockScoringProvider } from "@/lib/qa/scoring";
+import { snapshotScorecard } from "@/lib/scorecards/snapshot";
 import type {
   ScoringInput,
   ScoringMessage,
@@ -48,11 +49,12 @@ export type SaveScorecardResult = {
 };
 
 /** Persist edits to a scorecard. The rubric (categories + criteria) is
- *  mutated in place by id; `scorecards.version` is bumped so any new
- *  evaluations record the new snapshot integer. Existing evaluations keep
- *  their original `scorecardVersion` value — they are intentionally not
- *  cascade-updated. Promoting the integer `version` into a full
- *  `scorecard_versions` snapshot table is a deferred Phase 2 follow-up. */
+ *  mutated in place by id; `scorecards.version` is bumped and an immutable
+ *  `scorecard_versions` snapshot is captured so any new evaluations can FK
+ *  into the rubric as it stood at save time. Existing evaluations stay
+ *  pinned to the snapshot they were scored against — when the editor
+ *  changes a criterion's text, old coaching pages keep showing the
+ *  pre-edit text. */
 export async function saveScorecard(
   input: unknown,
 ): Promise<SaveScorecardResult> {
@@ -135,6 +137,10 @@ export async function saveScorecard(
       .where(eq(schema.scorecards.id, parsed.scorecardId))
       .returning({ version: schema.scorecards.version });
     if (!updated) throw new Error("Scorecard not found");
+    await snapshotScorecard(tx, {
+      scorecardId: parsed.scorecardId,
+      version: updated.version,
+    });
     return updated.version;
   });
 

@@ -1,5 +1,5 @@
 import "server-only";
-import { asc, desc, eq, sql, type AnyColumn, type SQL } from "drizzle-orm";
+import { and, asc, desc, eq, sql, type AnyColumn, type SQL } from "drizzle-orm";
 import { db, schema } from "../client";
 import { compileListFilters } from "@/lib/filters/compile-list";
 import {
@@ -434,16 +434,19 @@ export async function getTicketById(id: string): Promise<TicketDetail | null> {
       .select({
         evaluation: schema.evaluations,
         scorecard: {
-          name: schema.scorecards.name,
+          name: schema.scorecardVersions.name,
+          version: schema.scorecardVersions.version,
         },
         category: {
-          id: schema.scorecardCategories.id,
-          name: schema.scorecardCategories.name,
-          description: schema.scorecardCategories.description,
-          scaleType: schema.scorecardCategories.scaleType,
-          weightPercent: schema.scorecardCategories.weightPercent,
-          isAutofail: schema.scorecardCategories.isAutofail,
-          order: schema.scorecardCategories.order,
+          // Logical id (live scorecard_categories.id) — what the UI uses to
+          // reference categories for highlight + edit server actions.
+          id: schema.scorecardVersionCategories.sourceCategoryId,
+          name: schema.scorecardVersionCategories.name,
+          description: schema.scorecardVersionCategories.description,
+          scaleType: schema.scorecardVersionCategories.scaleType,
+          weightPercent: schema.scorecardVersionCategories.weightPercent,
+          isAutofail: schema.scorecardVersionCategories.isAutofail,
+          order: schema.scorecardVersionCategories.order,
         },
         categoryScore: {
           aiScore: schema.evaluationCategoryScores.aiScore,
@@ -466,9 +469,12 @@ export async function getTicketById(id: string): Promise<TicketDetail | null> {
         },
       })
       .from(schema.evaluations)
-      .leftJoin(
-        schema.scorecards,
-        eq(schema.scorecards.id, schema.evaluations.scorecardId),
+      .innerJoin(
+        schema.scorecardVersions,
+        eq(
+          schema.scorecardVersions.id,
+          schema.evaluations.scorecardVersionId,
+        ),
       )
       .innerJoin(
         schema.evaluationCategoryScores,
@@ -478,10 +484,16 @@ export async function getTicketById(id: string): Promise<TicketDetail | null> {
         ),
       )
       .innerJoin(
-        schema.scorecardCategories,
-        eq(
-          schema.scorecardCategories.id,
-          schema.evaluationCategoryScores.categoryId,
+        schema.scorecardVersionCategories,
+        and(
+          eq(
+            schema.scorecardVersionCategories.scorecardVersionId,
+            schema.evaluations.scorecardVersionId,
+          ),
+          eq(
+            schema.scorecardVersionCategories.sourceCategoryId,
+            schema.evaluationCategoryScores.categoryId,
+          ),
         ),
       )
       .leftJoin(
@@ -495,7 +507,7 @@ export async function getTicketById(id: string): Promise<TicketDetail | null> {
       .where(eq(schema.evaluations.ticketId, id))
       .orderBy(
         desc(schema.evaluations.scoredAt),
-        asc(schema.scorecardCategories.order),
+        asc(schema.scorecardVersionCategories.order),
       ),
   ]);
 
@@ -577,7 +589,7 @@ export async function getTicketById(id: string): Promise<TicketDetail | null> {
       ticketId: head.ticketId,
       scorecardId: head.scorecardId,
       scorecardName: headRow.scorecard?.name ?? "Scorecard",
-      scorecardVersion: head.scorecardVersion,
+      scorecardVersion: headRow.scorecard?.version ?? 1,
       overallScore: head.overallScore,
       status: head.status,
       aiConfidence: head.aiConfidence,

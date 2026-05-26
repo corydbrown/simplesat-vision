@@ -1,6 +1,7 @@
 import "server-only";
-import { asc, eq, sql } from "drizzle-orm";
+import { and, asc, eq, sql } from "drizzle-orm";
 import { db, schema } from "../client";
+import { requireWorkspace } from "@/lib/workspace";
 import type { ScorecardScaleType } from "@/db/schema";
 
 export type ScorecardSummary = {
@@ -18,6 +19,7 @@ export type ScorecardSummary = {
  *  (the default), but the query shape is multi-row from the start so Phase 2
  *  doesn't need to refactor. */
 export async function listScorecards(): Promise<ScorecardSummary[]> {
+  const workspaceId = await requireWorkspace();
   const rows = await db
     .select({
       id: schema.scorecards.id,
@@ -38,6 +40,7 @@ export async function listScorecards(): Promise<ScorecardSummary[]> {
       )`,
     })
     .from(schema.scorecards)
+    .where(eq(schema.scorecards.workspaceId, workspaceId))
     .orderBy(asc(schema.scorecards.name));
 
   return rows.map((r) => ({
@@ -68,6 +71,7 @@ export type ScorecardCategoryView = {
 export async function getScorecardCategories(
   scorecardId: string,
 ): Promise<ScorecardCategoryView[]> {
+  const workspaceId = await requireWorkspace();
   const rows = await db
     .select({
       id: schema.scorecardCategories.id,
@@ -82,7 +86,13 @@ export async function getScorecardCategories(
       )`,
     })
     .from(schema.scorecardCategories)
-    .where(eq(schema.scorecardCategories.scorecardId, scorecardId))
+    .innerJoin(schema.scorecards, eq(schema.scorecards.id, schema.scorecardCategories.scorecardId))
+    .where(
+      and(
+        eq(schema.scorecardCategories.scorecardId, scorecardId),
+        eq(schema.scorecards.workspaceId, workspaceId),
+      ),
+    )
     .orderBy(asc(schema.scorecardCategories.order));
 
   return rows;
@@ -122,6 +132,7 @@ export type ScorecardEditorView = {
 export async function getScorecardEditorView(
   scorecardId: string,
 ): Promise<ScorecardEditorView | null> {
+  const workspaceId = await requireWorkspace();
   const [head] = await db
     .select({
       id: schema.scorecards.id,
@@ -131,7 +142,7 @@ export async function getScorecardEditorView(
       enabled: schema.scorecards.enabled,
     })
     .from(schema.scorecards)
-    .where(eq(schema.scorecards.id, scorecardId))
+    .where(and(eq(schema.scorecards.id, scorecardId), eq(schema.scorecards.workspaceId, workspaceId)))
     .limit(1);
   if (!head) return null;
 

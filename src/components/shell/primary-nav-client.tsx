@@ -28,7 +28,6 @@ import {
   MessageCircleMore,
   MoreHorizontal,
   Search,
-  Settings,
   UserSquare2,
   Users,
   type LucideIcon,
@@ -40,6 +39,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { WorkspaceSwitcher } from "./workspace-switcher";
+import type { WorkspaceSummary } from "@/db/queries/workspaces";
 import {
   Avatar,
   AvatarFallback,
@@ -131,9 +132,13 @@ function saveExpanded(set: Set<string>) {
 export function PrimaryNavClient({
   sections,
   user,
+  workspaces,
+  activeWorkspaceId,
 }: {
   sections: NavSection[];
   user: User | null;
+  workspaces: WorkspaceSummary[];
+  activeWorkspaceId: string | null;
 }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -198,33 +203,10 @@ export function PrimaryNavClient({
         className="flex h-full flex-col px-2 py-3"
       >
         <div className="flex shrink-0 items-center gap-1 px-2 pb-3">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button
-                type="button"
-                className="-mx-1 flex min-w-0 cursor-pointer items-center gap-2 rounded px-1 py-0.5 transition-colors hover:bg-accent/60 data-[state=open]:bg-accent/60"
-              >
-                <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded bg-foreground text-base font-semibold text-background">
-                  B
-                </div>
-                <span className="truncate font-medium text-foreground">
-                  Bloom Beauty
-                </span>
-                <ChevronDown
-                  size={13}
-                  className="shrink-0 text-muted-foreground/70"
-                />
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="w-56">
-              <DropdownMenuItem asChild>
-                <Link href="/settings" className="cursor-pointer">
-                  <Settings size={14} className="text-muted-foreground" />
-                  Settings
-                </Link>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <WorkspaceSwitcher
+            workspaces={workspaces}
+            activeId={activeWorkspaceId}
+          />
           <Tooltip>
             <TooltipTrigger asChild>
               <button

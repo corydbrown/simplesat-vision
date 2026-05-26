@@ -115,6 +115,8 @@ Append to the task's `## Claude Code notes`: `- YYYY-MM-DD: Spawned worktree fea
 
 Append to the task's `## Claude Code notes`: `- YYYY-MM-DD: PR #N merged. <one-line of what shipped>.` Set `Status=Done`, `Completed at=<today>`, and `Repo link=<PR URL>` as properties.
 
+Worker metrics — `Worker started`, `Worker finished`, `Tokens used`, `Worker model` — are populated by `/post-merge` from a **`## Worker metrics` section in the PR body** that the worker writes at PR-open time (see spawn skill's BRIEF.md template). The legacy first-commit / PR-createdAt fallback exists for PRs that lack the section, but it produces inaccurate timing (typically 2–3 min when actual work was 15–30 min) — surface it to Cory when the fallback kicks in so the worker convention can be reinforced.
+
 There is no "In Review" status — tasks stay `In Progress` through review and flip to `Done` only on merge.
 
 ### On decline (decided against, not executed)

@@ -73,7 +73,10 @@ If you only read one section of this file: read **Conventions** and **Don't do**
 
 ## Worker session bootstrap (auto-loaded)
 
-If this session is running in a **worktree** (cwd matches `simplesat-vision-worktrees/svp<N>-*`), check for `BRIEF.md` at the worktree root **on the first user message**.
+If this session is running in a **worktree** (cwd matches `simplesat-vision-worktrees/svp<N>-*`), then **on the first user message**:
+
+1. **Capture the start timestamp** — run `date -Iseconds > .worker-meta` (only if `.worker-meta` doesn't already exist; preserves the original start across restarts).
+2. **Check for `BRIEF.md`** at the worktree root.
 
 - If `BRIEF.md` exists → it IS the task definition. Read it end-to-end, plan, and execute. Don't wait for additional instructions from Cory; the brief is the contract.
 - If `BRIEF.md` does NOT exist → this is an ad-hoc worker session. Ask Cory what the task is.
@@ -84,6 +87,7 @@ The first user message in a `/spawn`-launched session is typically just `go` or 
 - STOP_CONDITIONS.md governs when to escalate vs improvise.
 - Pre-flight gates run before "ready for review" — see the brief.
 - Push your branch when the work is in a coherent state, even before opening a PR. The supervisor's `/sweep` auto-opens PRs for pushed-but-not-PR'd branches.
+- **Before opening the PR**, run `/cost` and `/model`, then embed timing + tokens + model into the PR body as a `## Worker metrics` section (see brief for the exact shape). This is how the supervisor's `/post-merge` populates the Notion task metrics — without it, worker timing falls back to inaccurate first-commit timestamps.
 
 ## Working with Cory — concierge mode
 

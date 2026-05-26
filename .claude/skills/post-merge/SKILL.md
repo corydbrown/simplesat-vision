@@ -39,26 +39,35 @@ The PR must be **MERGED**. If not, abort and tell Cory.
    - `git branch -d feat/svp<N>-*` (lowercase `-d` refuses unmerged; the branch should be merged so this works). If you used `gh pr merge --delete-branch` in step 1, the local delete may have already happened or failed silently because the worktree held the branch — running it now finishes the job.
    - `git fetch --prune` to clean remote refs.
 
-4. **Capture metrics from GitHub + PR body** (do this BEFORE the Notion write so all properties land in one update):
-   - **First commit timestamp** (`Worker started`):
+4. **Capture metrics from the PR body's `## Worker metrics` section** (do this BEFORE the Notion write so all properties land in one update):
+   - Pull the PR body once:
      ```bash
-     gh pr view <PR> --json commits --jq '.commits[0].committedDate'
+     gh pr view <PR> --json body --jq '.body' > /tmp/pr-<PR>-body.md
      ```
-     This is the FIRST commit on the branch (not the most-recent). The `.commits` array is chronological.
-   - **PR createdAt** (`Worker finished`):
+   - Locate the `## Worker metrics` section and parse the four lines:
      ```bash
-     gh pr view <PR> --json createdAt --jq '.createdAt'
+     awk '/^## Worker metrics/,/^## /' /tmp/pr-<PR>-body.md
      ```
-   - **Tokens used**:
+     Expected shape:
+     ```
+     ## Worker metrics
+
+     - Started: 2026-05-26T09:31:00+07:00
+     - Finished: 2026-05-26T09:48:00+07:00
+     - Tokens: 142500
+     - Model: claude-opus-4-7
+     ```
+   - Map to Notion:
+     - `Started:` → `Worker started` (ISO 8601, `is_datetime: 1`)
+     - `Finished:` → `Worker finished` (ISO 8601, `is_datetime: 1`)
+     - `Tokens:` → `Tokens used` (number; strip commas if present)
+     - `Model:` → `Worker model` (select). Map to Notion options: `claude-opus-4-7` → `Opus 4.7`; `claude-opus-4-7-1m` or similar → `Opus 4.7 (1M context)`; `claude-sonnet-4-6` → `Sonnet 4.6`. Per [[feedback-verify-task-status]] (null beats wrong for derived Notion data), if the name doesn't match a known option, leave null — don't guess.
+   - **If `## Worker metrics` is missing entirely**, fall back to the legacy path (and flag it to Cory as a worker-side miss to surface later):
      ```bash
-     gh pr view <PR> --json body --jq '.body' | grep -A 10 '## Tokens used' | grep -iE 'total.*tokens?:' | head -1
+     gh pr view <PR> --json commits --jq '.commits[0].committedDate'   # → Worker started (inaccurate; first commit)
+     gh pr view <PR> --json createdAt --jq '.createdAt'                # → Worker finished
      ```
-     Parse the number out (strip commas). If the heading is missing, leave `Tokens used` null.
-   - **Worker model**:
-     ```bash
-     gh pr view <PR> --json body --jq '.body' | grep -A 5 '## Worker model' | grep -iE 'opus|sonnet|haiku' | head -1
-     ```
-     Match the parsed name against the Notion select options — current options: `Opus 4.7 (1M context)`, `Opus 4.7`, `Sonnet 4.6`. Per [[feedback-opus-default]] the default is Opus, so if you can't parse + the worker didn't note differently, leave null rather than guessing.
+     Leave `Tokens used` and `Worker model` null in the fallback case.
 
 5. **Mark Notion task Done** — single `update_properties` call with everything:
    - Resolve the Notion task page by SVP-NN (search via `mcp__claude_ai_Notion__notion-search` or use cached ID).

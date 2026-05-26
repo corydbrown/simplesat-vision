@@ -72,21 +72,44 @@ If solo, write "None.">
 - Manual walk of the changed surface in both light + dark mode
 - Playwright smoke for any new visible surface (see `playwright.config.ts` once SVP-Playwright lands)
 
-## Before opening the PR — tokens used + model
+## Before opening the PR — worker metrics
 
-Run `/cost` AND `/model` in your worker session right before pushing the PR. Paste both into the PR body under their headings. Supervisor's `/post-merge` parses these and writes to Notion. Format:
+The supervisor populates Notion's worker-time + tokens + model from a `## Worker metrics` section in the PR body. Build it like this right before pushing:
 
+```bash
+# 1. End timestamp + reconstruct start
+END=$(date -Iseconds)
+START=$(cat .worker-meta)  # written by the worker-bootstrap on first message
+
+# 2. Capture /cost and /model
+#    Run /cost and /model in chat; copy the "Total tokens" number and the model name.
+
+# 3. Write the PR body to .pr-body.md (gitignored), e.g.:
+cat > .pr-body.md <<EOF
+## Summary
+
+<1–3 bullets of what shipped>
+
+## Test plan
+
+- [ ] <bulleted checklist>
+
+## Worker metrics
+
+- Started: $START
+- Finished: $END
+- Tokens: <number from /cost, no commas>
+- Model: <name from /model, e.g. claude-opus-4-7>
+EOF
+
+# 4. Push + create PR
+git push -u origin "$(git branch --show-current)"
+gh pr create --title "<title>" --body-file .pr-body.md
 ```
-## Tokens used
 
-<paste of /cost output — supervisor parses the "Total tokens" line>
+`Started` comes from `.worker-meta` (written by the worker-bootstrap on the first user message — see CLAUDE.md → "Worker session bootstrap"). `Finished` is wall-clock at PR-open. We don't track pause/resume yet — auto-mode work is rarely interrupted; if you do pause for a Cory question, the wall-clock will be slightly inflated, which is fine.
 
-## Worker model
-
-<paste of /model output — supervisor parses the active model name>
-```
-
-If you forget either, no big deal — null is honest data. But these are the load-bearing inputs for the supervisor's per-task metrics, so do it when you can.
+If you forget the section, the supervisor falls back to first-commit / PR-createdAt and the timing will be wrong — please don't forget. Tokens and Model are likewise null-honest if missing.
 
 ## STOP_CONDITIONS
 

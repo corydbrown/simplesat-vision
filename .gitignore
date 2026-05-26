@@ -48,3 +48,7 @@ next-env.d.ts
 
 # Worker brief (per-worktree, never committed)
 BRIEF.md
+
+# Worker-local metadata (start timestamp, PR body staging)
+.worker-meta
+.pr-body.md

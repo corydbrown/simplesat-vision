@@ -116,6 +116,9 @@ export const surveys = sqliteTable(
   "surveys",
   {
     id: text("id").primaryKey(),
+    workspaceId: text("workspace_id")
+      .notNull()
+      .references(() => workspaces.id),
     name: text("name").notNull(),
     metric: text("metric", {
       enum: ["csat", "nps", "ces", "five_star", "custom"],
@@ -149,6 +152,7 @@ export const surveys = sqliteTable(
       .default(sql`(unixepoch() * 1000)`),
   },
   (t) => [
+    index("surveys_workspace_id_idx").on(t.workspaceId),
     index("surveys_metric_idx").on(t.metric),
     index("surveys_channel_idx").on(t.channel),
     index("surveys_status_idx").on(t.status),
@@ -159,6 +163,9 @@ export const customers = sqliteTable(
   "customers",
   {
     id: text("id").primaryKey(),
+    workspaceId: text("workspace_id")
+      .notNull()
+      .references(() => workspaces.id),
     /** Core: customer's display name. */
     name: text("name").notNull(),
     /** Core: primary email (login + helpdesk identity). */
@@ -203,6 +210,7 @@ export const customers = sqliteTable(
       .default(sql`(unixepoch() * 1000)`),
   },
   (t) => [
+    index("customers_workspace_id_idx").on(t.workspaceId),
     index("customers_company_idx").on(t.company),
     index("customers_tier_idx").on(t.tier),
     index("customers_language_idx").on(t.language),
@@ -216,6 +224,9 @@ export const teamMemberGroups = sqliteTable(
   "team_member_groups",
   {
     id: text("id").primaryKey(),
+    workspaceId: text("workspace_id")
+      .notNull()
+      .references(() => workspaces.id),
     name: text("name").notNull(),
     description: text("description"),
     createdAt: integer("created_at", { mode: "timestamp_ms" })
@@ -225,13 +236,19 @@ export const teamMemberGroups = sqliteTable(
       .notNull()
       .default(sql`(unixepoch() * 1000)`),
   },
-  (t) => [index("team_member_groups_name_idx").on(t.name)],
+  (t) => [
+    index("team_member_groups_workspace_id_idx").on(t.workspaceId),
+    index("team_member_groups_name_idx").on(t.name),
+  ],
 );
 
 export const teamMembers = sqliteTable(
   "team_members",
   {
     id: text("id").primaryKey(),
+    workspaceId: text("workspace_id")
+      .notNull()
+      .references(() => workspaces.id),
     /** Core: display name. */
     name: text("name").notNull(),
     /** Core: work email (also helpdesk login). */
@@ -263,6 +280,7 @@ export const teamMembers = sqliteTable(
       .default(sql`(unixepoch() * 1000)`),
   },
   (t) => [
+    index("team_members_workspace_id_idx").on(t.workspaceId),
     index("team_members_team_idx").on(t.team),
     index("team_members_region_idx").on(t.region),
     index("team_members_group_id_idx").on(t.groupId),
@@ -293,10 +311,76 @@ export const users = sqliteTable(
   ],
 );
 
+export type WorkspaceIntegrationType = "intercom" | "zendesk" | "mock";
+export type WorkspaceRole = "admin" | "member";
+
+/** A tenant boundary. Every row in a root data table (customers, tickets,
+ *  surveys, scorecards, etc.) belongs to exactly one workspace; leaf tables
+ *  inherit scope via FK chain. `integrationType` records which help-desk
+ *  source feeds this workspace's seed (today: `mock` = Bloom Beauty fixture
+ *  data; `intercom` / `zendesk` = empty until Epic 3 wires real ingestion).
+ *  `createdBy` is nullable for the seeded demo workspaces (no owning user
+ *  exists at seed time); real workspace-creation flows fill it. */
+export const workspaces = sqliteTable(
+  "workspaces",
+  {
+    id: text("id").primaryKey(),
+    name: text("name").notNull(),
+    slug: text("slug").notNull(),
+    logoUrl: text("logo_url"),
+    integrationType: text("integration_type", {
+      enum: ["intercom", "zendesk", "mock"],
+    })
+      .notNull()
+      .$type<WorkspaceIntegrationType>()
+      .default("mock"),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+    createdBy: text("created_by").references(() => users.id),
+  },
+  (t) => [uniqueIndex("workspaces_slug_unq").on(t.slug)],
+);
+
+/** Membership join: which users belong to which workspaces, and in what role.
+ *  Phase 1 pilot grants every new WorkOS-authenticated user `admin` on all
+ *  seeded workspaces (see /callback). Future invite / role flows replace the
+ *  auto-grant. */
+export const userWorkspaces = sqliteTable(
+  "user_workspaces",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id),
+    workspaceId: text("workspace_id")
+      .notNull()
+      .references(() => workspaces.id),
+    role: text("role", { enum: ["admin", "member"] })
+      .notNull()
+      .$type<WorkspaceRole>()
+      .default("member"),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+  },
+  (t) => [
+    uniqueIndex("user_workspaces_user_id_workspace_id_unq").on(
+      t.userId,
+      t.workspaceId,
+    ),
+    index("user_workspaces_user_id_idx").on(t.userId),
+    index("user_workspaces_workspace_id_idx").on(t.workspaceId),
+  ],
+);
+
 export const tickets = sqliteTable(
   "tickets",
   {
     id: text("id").primaryKey(),
+    workspaceId: text("workspace_id")
+      .notNull()
+      .references(() => workspaces.id),
     subject: text("subject").notNull(),
     status: text("status", {
       enum: ["open", "pending", "solved", "closed"],
@@ -348,6 +432,7 @@ export const tickets = sqliteTable(
     }).$type<SurveyNotSentReason>(),
   },
   (t) => [
+    index("tickets_workspace_id_idx").on(t.workspaceId),
     index("tickets_customer_id_idx").on(t.customerId),
     index("tickets_assigned_team_member_id_idx").on(t.assignedTeamMemberId),
     index("tickets_status_idx").on(t.status),
@@ -482,6 +567,9 @@ export const responses = sqliteTable(
   "responses",
   {
     id: text("id").primaryKey(),
+    workspaceId: text("workspace_id")
+      .notNull()
+      .references(() => workspaces.id),
     ticketId: text("ticket_id")
       .notNull()
       .references(() => tickets.id),
@@ -515,6 +603,7 @@ export const responses = sqliteTable(
       .default(sql`'[]'`),
   },
   (t) => [
+    index("responses_workspace_id_idx").on(t.workspaceId),
     index("responses_ticket_id_idx").on(t.ticketId),
     index("responses_customer_id_idx").on(t.customerId),
     index("responses_team_member_id_idx").on(t.teamMemberId),
@@ -537,6 +626,9 @@ export const scorecards = sqliteTable(
   "scorecards",
   {
     id: text("id").primaryKey(),
+    workspaceId: text("workspace_id")
+      .notNull()
+      .references(() => workspaces.id),
     name: text("name").notNull(),
     isDefault: integer("is_default", { mode: "boolean" })
       .notNull()
@@ -551,6 +643,7 @@ export const scorecards = sqliteTable(
       .default(sql`(unixepoch() * 1000)`),
   },
   (t) => [
+    index("scorecards_workspace_id_idx").on(t.workspaceId),
     index("scorecards_is_default_idx").on(t.isDefault),
     index("scorecards_enabled_idx").on(t.enabled),
   ],
@@ -724,6 +817,9 @@ export const evaluations = sqliteTable(
   "evaluations",
   {
     id: text("id").primaryKey(),
+    workspaceId: text("workspace_id")
+      .notNull()
+      .references(() => workspaces.id),
     ticketId: text("ticket_id")
       .notNull()
       .references(() => tickets.id, { onDelete: "cascade" }),
@@ -772,6 +868,7 @@ export const evaluations = sqliteTable(
     invalidatedReason: text("invalidated_reason"),
   },
   (t) => [
+    index("evaluations_workspace_id_idx").on(t.workspaceId),
     index("evaluations_ticket_id_idx").on(t.ticketId),
     index("evaluations_scorecard_id_idx").on(t.scorecardId),
     index("evaluations_scorecard_version_id_idx").on(t.scorecardVersionId),
@@ -825,6 +922,9 @@ export const coachingNotes = sqliteTable(
   "coaching_notes",
   {
     id: text("id").primaryKey(),
+    workspaceId: text("workspace_id")
+      .notNull()
+      .references(() => workspaces.id),
     evaluationId: text("evaluation_id")
       .notNull()
       .references(() => evaluations.id, { onDelete: "cascade" }),
@@ -844,6 +944,7 @@ export const coachingNotes = sqliteTable(
     generatedAt: integer("generated_at", { mode: "timestamp_ms" }).notNull(),
   },
   (t) => [
+    index("coaching_notes_workspace_id_idx").on(t.workspaceId),
     index("coaching_notes_evaluation_id_idx").on(t.evaluationId),
   ],
 );
@@ -878,6 +979,9 @@ export const qaComments = sqliteTable(
   "qa_comments",
   {
     id: text("id").primaryKey(),
+    workspaceId: text("workspace_id")
+      .notNull()
+      .references(() => workspaces.id),
     evaluationId: text("evaluation_id")
       .notNull()
       .references(() => evaluations.id, { onDelete: "cascade" }),
@@ -907,6 +1011,7 @@ export const qaComments = sqliteTable(
       .default(sql`(unixepoch() * 1000)`),
   },
   (t) => [
+    index("qa_comments_workspace_id_idx").on(t.workspaceId),
     index("qa_comments_evaluation_id_idx").on(t.evaluationId),
     index("qa_comments_message_id_idx").on(t.messageId),
     index("qa_comments_activity_id_idx").on(t.activityId),
@@ -927,6 +1032,9 @@ export const qaReactions = sqliteTable(
   "qa_reactions",
   {
     id: text("id").primaryKey(),
+    workspaceId: text("workspace_id")
+      .notNull()
+      .references(() => workspaces.id),
     targetType: text("target_type", {
       enum: ["message", "comment", "activity"],
     })
@@ -951,6 +1059,7 @@ export const qaReactions = sqliteTable(
       .default(sql`(unixepoch() * 1000)`),
   },
   (t) => [
+    index("qa_reactions_workspace_id_idx").on(t.workspaceId),
     index("qa_reactions_evaluation_id_idx").on(t.evaluationId),
     index("qa_reactions_target_idx").on(t.targetType, t.targetId),
     index("qa_reactions_author_id_idx").on(t.authorId),
@@ -977,7 +1086,9 @@ export const savedViews = sqliteTable(
      *  are expected (`tickets.detractors` vs `responses.detractors`), which
      *  is why the primary key is composite. */
     id: text("id").notNull(),
-    workspaceId: text("workspace_id").notNull(),
+    workspaceId: text("workspace_id")
+      .notNull()
+      .references(() => workspaces.id),
     entity: text("entity", {
       enum: ["tickets", "customers", "responses", "team-members", "coaching"],
     }).notNull(),
@@ -1003,6 +1114,11 @@ export const savedViews = sqliteTable(
 
 export type SavedViewRow = typeof savedViews.$inferSelect;
 export type NewSavedViewRow = typeof savedViews.$inferInsert;
+
+export type Workspace = typeof workspaces.$inferSelect;
+export type NewWorkspace = typeof workspaces.$inferInsert;
+export type UserWorkspace = typeof userWorkspaces.$inferSelect;
+export type NewUserWorkspace = typeof userWorkspaces.$inferInsert;
 
 export type Customer = typeof customers.$inferSelect;
 export type NewCustomer = typeof customers.$inferInsert;

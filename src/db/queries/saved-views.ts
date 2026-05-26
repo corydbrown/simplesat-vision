@@ -1,7 +1,7 @@
 import "server-only";
 import { and, asc, eq, sql } from "drizzle-orm";
 import { db, schema } from "../client";
-import { WORKSPACE_ID } from "@/lib/workspace";
+import { DEMO_WORKSPACE_ID } from "@/lib/workspace-id";
 import type { EntityKey, SavedView, ViewState } from "@/lib/views/types";
 
 function rowToView(row: typeof schema.savedViews.$inferSelect): SavedView {
@@ -19,7 +19,7 @@ export async function listSavedViews(entity: EntityKey): Promise<SavedView[]> {
     .from(schema.savedViews)
     .where(
       and(
-        eq(schema.savedViews.workspaceId, WORKSPACE_ID),
+        eq(schema.savedViews.workspaceId, DEMO_WORKSPACE_ID),
         eq(schema.savedViews.entity, entity),
       ),
     )
@@ -44,14 +44,14 @@ export async function createSavedView(
     .from(schema.savedViews)
     .where(
       and(
-        eq(schema.savedViews.workspaceId, WORKSPACE_ID),
+        eq(schema.savedViews.workspaceId, DEMO_WORKSPACE_ID),
         eq(schema.savedViews.entity, entity),
       ),
     );
   const position = Number(maxPos) + 1;
   await db.insert(schema.savedViews).values({
     id: view.id,
-    workspaceId: WORKSPACE_ID,
+    workspaceId: DEMO_WORKSPACE_ID,
     entity,
     name: view.name,
     state: view.state as unknown as Record<string, unknown>,
@@ -73,7 +73,7 @@ export async function updateSavedView(
     })
     .where(
       and(
-        eq(schema.savedViews.workspaceId, WORKSPACE_ID),
+        eq(schema.savedViews.workspaceId, DEMO_WORKSPACE_ID),
         eq(schema.savedViews.entity, entity),
         eq(schema.savedViews.id, id),
       ),
@@ -92,7 +92,7 @@ export async function renameSavedView(
     .set({ name: trimmed, updatedAt: new Date() })
     .where(
       and(
-        eq(schema.savedViews.workspaceId, WORKSPACE_ID),
+        eq(schema.savedViews.workspaceId, DEMO_WORKSPACE_ID),
         eq(schema.savedViews.entity, entity),
         eq(schema.savedViews.id, id),
       ),
@@ -107,7 +107,7 @@ export async function deleteSavedView(
     .delete(schema.savedViews)
     .where(
       and(
-        eq(schema.savedViews.workspaceId, WORKSPACE_ID),
+        eq(schema.savedViews.workspaceId, DEMO_WORKSPACE_ID),
         eq(schema.savedViews.entity, entity),
         eq(schema.savedViews.id, id),
       ),
@@ -130,7 +130,7 @@ export async function reorderSavedViews(
         .set({ position: i, updatedAt: new Date() })
         .where(
           and(
-            eq(schema.savedViews.workspaceId, WORKSPACE_ID),
+            eq(schema.savedViews.workspaceId, DEMO_WORKSPACE_ID),
             eq(schema.savedViews.entity, entity),
             eq(schema.savedViews.id, ids[i]),
           ),
@@ -152,7 +152,7 @@ export async function replaceSavedViews(
       .delete(schema.savedViews)
       .where(
         and(
-          eq(schema.savedViews.workspaceId, WORKSPACE_ID),
+          eq(schema.savedViews.workspaceId, DEMO_WORKSPACE_ID),
           eq(schema.savedViews.entity, entity),
         ),
       );
@@ -160,7 +160,7 @@ export async function replaceSavedViews(
     await tx.insert(schema.savedViews).values(
       views.map((view, i) => ({
         id: view.id,
-        workspaceId: WORKSPACE_ID,
+        workspaceId: DEMO_WORKSPACE_ID,
         entity,
         name: view.name,
         state: view.state as unknown as Record<string, unknown>,

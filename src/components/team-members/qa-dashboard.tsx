@@ -5,11 +5,6 @@ import { AlertTriangle, ArrowUpRight, Check } from "lucide-react";
 import {
   Line,
   LineChart,
-  PolarAngleAxis,
-  PolarGrid,
-  PolarRadiusAxis,
-  Radar,
-  RadarChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -18,29 +13,49 @@ import {
 import { Card, CardContent } from "@/components/ui/card";
 import { DashboardCard } from "@/components/shared/dashboard-card";
 import { DetailSection } from "@/components/shared/detail-section";
-import { QaScoreBadge } from "@/components/shared/qa-score-badge";
+import { EntityTable } from "@/components/shared/entity-table";
+import { ColumnStateProvider } from "@/lib/column-prefs";
+import { StatCard, type StatCardDelta } from "@/components/shared/stat-card";
+import { EVALUATION_PROPERTIES } from "@/lib/properties/evaluations";
 import { formatNumber, formatTimelineDay } from "@/lib/format";
 import { TimestampTooltip } from "@/components/shared/timestamp-tooltip";
+import { QaScoreBadge } from "@/components/shared/qa-score-badge";
 import type {
   QaCategoryAverage,
   QaCsatCorrelationRow,
   QaRecentEvaluation,
   QaTopPoint,
   QaWeeklyTrendPoint,
+  SparklinePoint,
+  TeamMemberCoachingFeedItem,
   TeamMemberQaRollup,
+  TeamMemberQaSparklines,
+  TeamMemberQaTiles,
 } from "@/db/queries/team-members";
 
-const MIN_EVALUATIONS_FOR_RADAR = 3;
+const MIN_EVALUATIONS_FOR_CATEGORIES = 3;
 const MIN_WEEKS_FOR_TREND = 2;
 const MIN_COACHING_FOR_TOPLISTS = 3;
 const MIN_PAIRED_FOR_CSAT = 20;
+/** Normalized-score delta where we call out "meaningfully better/worse." Below
+ *  this threshold we render the delta in muted text so noise reads as neutral. */
+const CATEGORY_DELTA_THRESHOLD = 3;
 
 type Props = {
   memberName: string;
   rollup: TeamMemberQaRollup;
+  tiles: TeamMemberQaTiles;
+  sparklines: TeamMemberQaSparklines;
+  coachingFeed: TeamMemberCoachingFeedItem[];
 };
 
-export function QaDashboard({ memberName, rollup }: Props) {
+export function QaDashboard({
+  memberName,
+  rollup,
+  tiles,
+  sparklines,
+  coachingFeed,
+}: Props) {
   const {
     evaluationCount,
     coachingNoteCount,
@@ -56,19 +71,23 @@ export function QaDashboard({ memberName, rollup }: Props) {
   if (evaluationCount === 0) {
     return (
       <DetailSection title="QA performance">
-        <EmptyCard
-          title="No evaluations yet"
-          description={`${memberName} hasn't been scored on any tickets yet. Coaching insights, category averages, and trend will populate once evaluations roll in.`}
-        />
+        <QaTilesRow tiles={tiles} sparklines={sparklines} />
+        <div className="mt-4">
+          <EmptyCard
+            title="No evaluations yet"
+            description={`${memberName} hasn't been scored on any tickets yet. Category breakdown, trend, and coaching insights will populate once evaluations roll in.`}
+          />
+        </div>
       </DetailSection>
     );
   }
 
   return (
     <DetailSection title="QA performance">
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <QaRadar
-          memberName={memberName}
+      <QaTilesRow tiles={tiles} sparklines={sparklines} />
+
+      <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-[1fr_1fr]">
+        <QaCategoryBreakdown
           rows={categoryAverages}
           evaluationCount={evaluationCount}
         />
@@ -80,6 +99,14 @@ export function QaDashboard({ memberName, rollup }: Props) {
       </div>
 
       <div className="mt-4">
+        <QaRecentEvaluationsTable
+          rows={recentEvaluations}
+          totalCount={evaluationCount}
+        />
+      </div>
+
+      <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-[1fr_1fr]">
+        <QaCoachingFeed items={coachingFeed} />
         <QaStrengthsGrowth
           strengths={strengths}
           growthAreas={growthAreas}
@@ -93,195 +120,216 @@ export function QaDashboard({ memberName, rollup }: Props) {
           pairedResponseCount={pairedResponseCount}
         />
       </div>
-
-      <div className="mt-4">
-        <QaRecentEvaluations
-          rows={recentEvaluations}
-          totalCount={evaluationCount}
-        />
-      </div>
     </DetailSection>
   );
 }
 
 // ---------------------------------------------------------------------------
-// Radar — per-category averages, member vs team overlay
+// Top-line stats — 4 tiles with sparklines + 30d-vs-prior-30d deltas
 // ---------------------------------------------------------------------------
 
-function QaRadar({
-  memberName,
+function QaTilesRow({
+  tiles,
+  sparklines,
+}: {
+  tiles: TeamMemberQaTiles;
+  sparklines: TeamMemberQaSparklines;
+}) {
+  return (
+    <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+      <StatCard
+        label="Total evals"
+        value={formatNumber(tiles.totalEvals)}
+        hint="All-time, excludes invalidated"
+      />
+      <StatCard
+        label="Avg QA score (30d)"
+        value={<TileValueWithSparkline value={formatScore(tiles.avgScore.current)} points={sparklines.score} />}
+        delta={scoreDelta(tiles.avgScore.delta)}
+      />
+      <StatCard
+        label="Avg CSAT (30d)"
+        value={<TileValueWithSparkline value={formatCsat(tiles.avgCsat.current)} points={sparklines.csat} />}
+        delta={csatDelta(tiles.avgCsat.delta)}
+      />
+      <StatCard
+        label="AI-acceptance rate"
+        value={
+          tiles.aiAcceptance.pct == null ? "—" : formatPercent(tiles.aiAcceptance.pct)
+        }
+        hint={
+          tiles.aiAcceptance.totalScores === 0
+            ? "No scores yet"
+            : `${formatNumber(tiles.aiAcceptance.overrides)} of ${formatNumber(tiles.aiAcceptance.totalScores)} overridden`
+        }
+      />
+    </div>
+  );
+}
+
+/** Sparkline rendered alongside the main tile number. Fixed-size (not
+ *  ResponsiveContainer) — the parent StatCard's flex layout doesn't give
+ *  Recharts a measured frame on first render, and the sparkline is
+ *  intentionally small enough that a hard dimension is appropriate. */
+function TileValueWithSparkline({
+  value,
+  points,
+}: {
+  value: string;
+  points: SparklinePoint[];
+}) {
+  const hasData = points.some((p) => p.value != null);
+  return (
+    <div className="flex items-center justify-between gap-2">
+      <span>{value}</span>
+      {hasData ? (
+        <LineChart width={80} height={28} data={points}>
+          <Line
+            type="monotone"
+            dataKey="value"
+            stroke="var(--primary)"
+            strokeWidth={1.5}
+            dot={false}
+            connectNulls
+            isAnimationActive={false}
+          />
+        </LineChart>
+      ) : null}
+    </div>
+  );
+}
+
+function formatScore(value: number | null): string {
+  if (value == null) return "—";
+  return value.toFixed(1);
+}
+
+function formatPercent(value: number | null): string {
+  if (value == null) return "—";
+  return `${value.toFixed(1)}%`;
+}
+
+function formatCsat(value: number | null): string {
+  if (value == null) return "—";
+  return `${value.toFixed(2)} / 5`;
+}
+
+function scoreDelta(delta: number | null): StatCardDelta | undefined {
+  if (delta == null) return undefined;
+  const sign = delta >= 0 ? "+" : "";
+  return {
+    label: `${sign}${delta.toFixed(1)}`,
+    direction: deltaDirection(delta, 0.5),
+    hint: "vs. prior 30 days",
+  };
+}
+
+function csatDelta(delta: number | null): StatCardDelta | undefined {
+  if (delta == null) return undefined;
+  const sign = delta >= 0 ? "+" : "";
+  return {
+    label: `${sign}${delta.toFixed(2)} stars`,
+    direction: deltaDirection(delta, 0.05),
+    hint: "vs. prior 30 days",
+  };
+}
+
+function deltaDirection(
+  delta: number,
+  neutralThreshold: number,
+): StatCardDelta["direction"] {
+  if (Math.abs(delta) < neutralThreshold) return "neutral";
+  return delta > 0 ? "good" : "bad";
+}
+
+// ---------------------------------------------------------------------------
+// Category breakdown — row-per-category bar with member, team, delta
+// ---------------------------------------------------------------------------
+
+function QaCategoryBreakdown({
   rows,
   evaluationCount,
 }: {
-  memberName: string;
   rows: QaCategoryAverage[];
   evaluationCount: number;
 }) {
-  if (evaluationCount < MIN_EVALUATIONS_FOR_RADAR) {
+  if (evaluationCount < MIN_EVALUATIONS_FOR_CATEGORIES) {
     return (
       <DashboardCard title="Category breakdown">
         <EmptyHint
-          message={`Need at least ${MIN_EVALUATIONS_FOR_RADAR} evaluations to chart category strengths — ${memberName} has ${evaluationCount}.`}
+          message={`Need at least ${MIN_EVALUATIONS_FOR_CATEGORIES} evaluations to compare category performance — there are ${evaluationCount}.`}
         />
       </DashboardCard>
     );
   }
 
-  const data = rows.map((r) => ({
-    name: r.name,
-    member: r.memberAvg == null ? 0 : Math.round(r.memberAvg),
-    team: r.teamAvg == null ? 0 : Math.round(r.teamAvg),
-    memberRaw: r.memberAvg,
-    teamRaw: r.teamAvg,
-  }));
-
   return (
     <DashboardCard title="Category breakdown">
-      <div className="h-72">
-        <ResponsiveContainer width="100%" height="100%">
-          <RadarChart data={data} outerRadius="78%">
-            <PolarGrid stroke="var(--border)" />
-            <PolarAngleAxis
-              dataKey="name"
-              tick={{
-                fill: "var(--muted-foreground)",
-                fontSize: 12,
-              }}
-            />
-            <PolarRadiusAxis
-              angle={90}
-              domain={[0, 100]}
-              tick={false}
-              axisLine={false}
-              stroke="var(--border)"
-            />
-            <Radar
-              name="Team average"
-              dataKey="team"
-              stroke="var(--muted-foreground)"
-              fill="var(--muted-foreground)"
-              fillOpacity={0.1}
-              strokeOpacity={0.6}
-              strokeDasharray="4 4"
-            />
-            <Radar
-              name={memberName}
-              dataKey="member"
-              stroke="var(--primary)"
-              fill="var(--primary)"
-              fillOpacity={0.25}
-            />
-            <Tooltip
-              content={<RadarTooltip memberName={memberName} />}
-              cursor={{ stroke: "var(--border)" }}
-            />
-          </RadarChart>
-        </ResponsiveContainer>
-      </div>
-      <LegendRow memberName={memberName} />
+      <ul className="space-y-3">
+        {rows.map((row) => (
+          <CategoryRow key={row.categoryId} row={row} />
+        ))}
+      </ul>
     </DashboardCard>
   );
 }
 
-function RadarTooltip({
-  active,
-  payload,
-  memberName,
-}: {
-  active?: boolean;
-  payload?: Array<{
-    payload: {
-      name: string;
-      memberRaw: number | null;
-      teamRaw: number | null;
-    };
-  }>;
-  memberName: string;
-}) {
-  if (!active || !payload || payload.length === 0) return null;
-  const row = payload[0].payload;
+function CategoryRow({ row }: { row: QaCategoryAverage }) {
+  const member = row.memberAvg;
+  const team = row.teamAvg;
+  const delta = member != null && team != null ? member - team : null;
+  const deltaTone =
+    delta == null || Math.abs(delta) < CATEGORY_DELTA_THRESHOLD
+      ? "text-muted-foreground"
+      : delta > 0
+        ? "text-green-dark"
+        : "text-red-dark";
+  const deltaLabel =
+    delta == null
+      ? "—"
+      : `${delta >= 0 ? "+" : ""}${delta.toFixed(0)} vs team`;
+
   return (
-    <div className="rounded-md border border-border bg-popover px-3 py-2 text-base shadow-md">
-      <div className="mb-1 font-medium text-popover-foreground">{row.name}</div>
-      <div className="space-y-0.5">
-        <TooltipRow
-          label={memberName}
-          value={row.memberRaw}
-          color="var(--primary)"
-        />
-        <TooltipRow
-          label="Team average"
-          value={row.teamRaw}
-          color="var(--muted-foreground)"
-        />
+    <li>
+      <div className="mb-1 flex items-baseline justify-between gap-3 text-base">
+        <span className="truncate text-foreground">{row.name}</span>
+        <span className={`shrink-0 tabular-nums ${deltaTone}`}>{deltaLabel}</span>
       </div>
-    </div>
-  );
-}
-
-function TooltipRow({
-  label,
-  value,
-  color,
-}: {
-  label: string;
-  value: number | null;
-  color: string;
-}) {
-  return (
-    <div className="flex items-center justify-between gap-3 text-sm">
-      <span className="inline-flex items-center gap-1.5 text-muted-foreground">
-        <span
-          className="inline-block size-2 rounded-full"
-          style={{ background: color }}
-        />
-        {label}
-      </span>
-      <span className="font-medium tabular-nums text-foreground">
-        {value == null ? "—" : `${Math.round(value)}`}
-      </span>
-    </div>
-  );
-}
-
-function LegendRow({ memberName }: { memberName: string }) {
-  return (
-    <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
-      <LegendDot color="var(--primary)" filled label={memberName} />
-      <LegendDot
-        color="var(--muted-foreground)"
-        filled={false}
-        label="Team average"
-      />
-    </div>
-  );
-}
-
-function LegendDot({
-  color,
-  filled,
-  label,
-}: {
-  color: string;
-  filled: boolean;
-  label: string;
-}) {
-  return (
-    <span className="inline-flex items-center gap-1.5">
-      <span
-        className="inline-block h-0.5 w-4"
-        style={{
-          background: filled ? color : "transparent",
-          borderTop: filled ? "none" : `2px dashed ${color}`,
-        }}
-      />
-      {label}
-    </span>
+      <div className="relative h-2 rounded bg-muted">
+        {team != null ? (
+          <div
+            className="absolute inset-y-0 w-px bg-muted-foreground"
+            style={{ left: `${Math.min(100, Math.max(0, team))}%` }}
+            aria-hidden
+          />
+        ) : null}
+        {member != null ? (
+          <div
+            className="h-full rounded bg-primary"
+            style={{ width: `${Math.min(100, Math.max(0, member))}%` }}
+          />
+        ) : null}
+      </div>
+      <div className="mt-1 flex items-baseline justify-between gap-3 text-sm text-muted-foreground">
+        <span>
+          <span className="tabular-nums text-foreground">
+            {member == null ? "—" : Math.round(member)}
+          </span>{" "}
+          this agent
+        </span>
+        <span>
+          team avg{" "}
+          <span className="tabular-nums text-foreground">
+            {team == null ? "—" : Math.round(team)}
+          </span>
+        </span>
+      </div>
+    </li>
   );
 }
 
 // ---------------------------------------------------------------------------
-// Weekly trend chart — member vs team
+// Weekly trend — keep from SVP-69 (matches brief's intent for a trend chart)
 // ---------------------------------------------------------------------------
 
 function QaTrendChart({
@@ -316,7 +364,7 @@ function QaTrendChart({
 
   return (
     <DashboardCard title="Weekly score trend">
-      <div className="h-72">
+      <div className="h-56">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart
             data={data}
@@ -408,8 +456,183 @@ function TrendTooltip({
   );
 }
 
+function TooltipRow({
+  label,
+  value,
+  color,
+}: {
+  label: string;
+  value: number | null;
+  color: string;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-3 text-sm">
+      <span className="inline-flex items-center gap-1.5 text-muted-foreground">
+        <span
+          className="inline-block size-2 rounded-full"
+          style={{ background: color }}
+        />
+        {label}
+      </span>
+      <span className="font-medium tabular-nums text-foreground">
+        {value == null ? "—" : `${Math.round(value)}`}
+      </span>
+    </div>
+  );
+}
+
+function LegendRow({ memberName }: { memberName: string }) {
+  return (
+    <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
+      <LegendDot color="var(--primary)" filled label={memberName} />
+      <LegendDot
+        color="var(--muted-foreground)"
+        filled={false}
+        label="Team average"
+      />
+    </div>
+  );
+}
+
+function LegendDot({
+  color,
+  filled,
+  label,
+}: {
+  color: string;
+  filled: boolean;
+  label: string;
+}) {
+  return (
+    <span className="inline-flex items-center gap-1.5">
+      <span
+        className="inline-block h-0.5 w-4"
+        style={{
+          background: filled ? color : "transparent",
+          borderTop: filled ? "none" : `2px dashed ${color}`,
+        }}
+      />
+      {label}
+    </span>
+  );
+}
+
 // ---------------------------------------------------------------------------
-// Strengths / growth
+// Recent evaluations — EntityTable (row click → full coaching page)
+// ---------------------------------------------------------------------------
+
+function QaRecentEvaluationsTable({
+  rows,
+  totalCount,
+}: {
+  rows: QaRecentEvaluation[];
+  totalCount: number;
+}) {
+  if (rows.length === 0) {
+    return (
+      <DashboardCard title="Recent evaluations">
+        <EmptyHint message="No evaluations yet." />
+      </DashboardCard>
+    );
+  }
+
+  return (
+    <DashboardCard
+      title="Recent evaluations"
+      trailing={
+        totalCount > rows.length ? (
+          <span className="text-base text-muted-foreground">
+            Showing {rows.length} of {formatNumber(totalCount)}
+          </span>
+        ) : null
+      }
+    >
+      <ColumnStateProvider
+        tableId="team-member-evaluations"
+        properties={EVALUATION_PROPERTIES}
+      >
+        <EntityTable
+          rows={rows}
+          idField="id"
+          properties={EVALUATION_PROPERTIES}
+          page={1}
+          pageSize={Math.max(rows.length, 1)}
+          total={rows.length}
+          serverSorted
+          rowHref={(row) => `/coaching/${row.id}`}
+          emptyMessage="No evaluations yet."
+        />
+      </ColumnStateProvider>
+    </DashboardCard>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Recent coaching notes — per-eval feed (latest strength + growth)
+// ---------------------------------------------------------------------------
+
+function QaCoachingFeed({ items }: { items: TeamMemberCoachingFeedItem[] }) {
+  if (items.length === 0) {
+    return (
+      <DashboardCard title="Recent coaching notes">
+        <EmptyHint message="No coaching notes generated yet. They'll appear here as evaluations are reviewed." />
+      </DashboardCard>
+    );
+  }
+  return (
+    <DashboardCard
+      title="Recent coaching notes"
+      trailing={
+        <Link
+          href="/coaching"
+          className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+        >
+          Open coaching
+          <ArrowUpRight className="size-3.5" />
+        </Link>
+      }
+    >
+      <ul className="divide-y divide-border">
+        {items.map((item) => (
+          <li key={item.evaluationId}>
+            <Link
+              href={`/coaching/${item.evaluationId}`}
+              className="group/note -mx-1 block rounded-md px-1 py-2.5 transition-colors hover:bg-accent/40"
+            >
+              <div className="mb-1 flex items-center gap-2">
+                <QaScoreBadge score={item.overallScore} status={item.status} />
+                <span className="min-w-0 flex-1 truncate text-base text-foreground">
+                  {item.ticketSubject}
+                </span>
+                <TimestampTooltip date={item.scoredAtMs}>
+                  <span className="hidden text-base text-muted-foreground sm:inline">
+                    {formatTimelineDay(new Date(item.scoredAtMs))}
+                  </span>
+                </TimestampTooltip>
+                <ArrowUpRight className="size-3.5 text-muted-foreground opacity-60 group-hover/note:opacity-100" />
+              </div>
+              {item.strengthPoint ? (
+                <div className="ml-1 flex items-start gap-1.5 text-base text-foreground">
+                  <Check className="mt-1 size-3.5 shrink-0 text-green-dark" />
+                  <span className="min-w-0 flex-1">{item.strengthPoint}</span>
+                </div>
+              ) : null}
+              {item.growthPoint ? (
+                <div className="ml-1 mt-0.5 flex items-start gap-1.5 text-base text-foreground">
+                  <AlertTriangle className="mt-1 size-3.5 shrink-0 text-yellow-dark" />
+                  <span className="min-w-0 flex-1">{item.growthPoint}</span>
+                </div>
+              ) : null}
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </DashboardCard>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Strengths / growth — aggregate rollup (pattern view)
 // ---------------------------------------------------------------------------
 
 function QaStrengthsGrowth({
@@ -579,61 +802,6 @@ function CsatRow({
         </span>
       </span>
     </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Recent evaluations list
-// ---------------------------------------------------------------------------
-
-function QaRecentEvaluations({
-  rows,
-  totalCount,
-}: {
-  rows: QaRecentEvaluation[];
-  totalCount: number;
-}) {
-  if (rows.length === 0) {
-    return (
-      <DashboardCard title="Recent evaluations">
-        <EmptyHint message="No evaluations yet." />
-      </DashboardCard>
-    );
-  }
-
-  return (
-    <DashboardCard
-      title="Recent evaluations"
-      trailing={
-        totalCount > rows.length ? (
-          <span className="text-base text-muted-foreground">
-            Showing {rows.length} of {formatNumber(totalCount)}
-          </span>
-        ) : null
-      }
-    >
-      <ul className="divide-y divide-border">
-        {rows.map((row) => (
-          <li key={row.id}>
-            <Link
-              href={`/tickets/${row.ticketId}#qa`}
-              className="group/row -mx-1 flex items-center gap-3 rounded-md px-1 py-2 transition-colors hover:bg-accent/40"
-            >
-              <QaScoreBadge score={row.overallScore} status={row.status} />
-              <span className="min-w-0 flex-1 truncate text-base text-foreground">
-                {row.ticketSubject}
-              </span>
-              <TimestampTooltip date={row.scoredAtMs}>
-                <span className="hidden text-base text-muted-foreground sm:inline">
-                  {formatTimelineDay(new Date(row.scoredAtMs))}
-                </span>
-              </TimestampTooltip>
-              <ArrowUpRight className="size-3.5 text-muted-foreground opacity-60 group-hover/row:opacity-100" />
-            </Link>
-          </li>
-        ))}
-      </ul>
-    </DashboardCard>
   );
 }
 

@@ -353,6 +353,11 @@ export type QaRecentEvaluation = {
   overallScore: number;
   status: QaEvaluationStatus;
   scoredAtMs: number;
+  /** Highest-scoring category on this evaluation (normalized 0-100). Null when
+   *  the evaluation has no category scores or all are equal. */
+  topCategory: { name: string; score: number } | null;
+  /** Lowest-scoring category. Null under the same conditions as topCategory. */
+  lowestCategory: { name: string; score: number } | null;
 };
 
 export type TeamMemberQaRollup = {
@@ -734,18 +739,52 @@ export async function getTeamMemberQaRollup(
   });
 
   // ---------------------------------------------------------------------------
-  // Recent N evaluations — already ordered desc by scoredAt above.
+  // Recent N evaluations — already ordered desc by scoredAt above. Enriched
+  // with top/lowest category (normalized 0-100) so the EntityTable can show
+  // "where they shined / fell short" without a second round-trip.
   // ---------------------------------------------------------------------------
+  const categoryNameById = new Map(categoryRows.map((c) => [c.id, c.name]));
+  const scoresByEvalId = new Map<
+    string,
+    { categoryId: string; normalized: number }[]
+  >();
+  for (const row of memberCategoryScoreRows) {
+    const arr = scoresByEvalId.get(row.evaluationId) ?? [];
+    arr.push({
+      categoryId: row.categoryId,
+      normalized: normalizeCategoryScore(row.effectiveScore, row.scaleType),
+    });
+    scoresByEvalId.set(row.evaluationId, arr);
+  }
+
   const recentEvaluations: QaRecentEvaluation[] = memberEvalRows
     .slice(0, recentLimit)
-    .map((e) => ({
-      id: e.id,
-      ticketId: e.ticketId,
-      ticketSubject: e.subject,
-      overallScore: e.overallScore,
-      status: e.status,
-      scoredAtMs: e.scoredAt.getTime(),
-    }));
+    .map((e) => {
+      const scores = scoresByEvalId.get(e.id) ?? [];
+      let top: { name: string; score: number } | null = null;
+      let lowest: { name: string; score: number } | null = null;
+      if (scores.length > 0) {
+        const sorted = [...scores].sort((a, b) => b.normalized - a.normalized);
+        const highest = sorted[0];
+        const worst = sorted[sorted.length - 1];
+        const topName = categoryNameById.get(highest.categoryId);
+        const lowName = categoryNameById.get(worst.categoryId);
+        if (topName) top = { name: topName, score: highest.normalized };
+        if (lowName && (sorted.length > 1 || worst !== highest)) {
+          lowest = { name: lowName, score: worst.normalized };
+        }
+      }
+      return {
+        id: e.id,
+        ticketId: e.ticketId,
+        ticketSubject: e.subject,
+        overallScore: e.overallScore,
+        status: e.status,
+        scoredAtMs: e.scoredAt.getTime(),
+        topCategory: top,
+        lowestCategory: lowest,
+      };
+    });
 
   return {
     evaluationCount,
@@ -758,6 +797,258 @@ export async function getTeamMemberQaRollup(
     csatCorrelations,
     recentEvaluations,
   };
+}
+
+// ---------------------------------------------------------------------------
+// Per-agent QA tiles (SVP-130) — mirrors the team-level tiles in
+// coaching-insights.ts but scoped to a single member. Uses the same 30-day vs
+// prior-30-day window. AI-acceptance is the "no override" variant called for
+// in the SVP-130 brief, distinct from the team-level "match-when-overridden"
+// AI-accuracy tile.
+// ---------------------------------------------------------------------------
+
+export type TileWindow = {
+  current: number | null;
+  prior: number | null;
+  delta: number | null;
+};
+
+export type TeamMemberQaTiles = {
+  totalEvals: number;
+  avgScore: TileWindow;
+  avgCsat: TileWindow & { scale: number };
+  aiAcceptance: {
+    pct: number | null;
+    totalScores: number;
+    overrides: number;
+  };
+};
+
+export type SparklinePoint = { ts: number; value: number | null };
+
+export type TeamMemberQaSparklines = {
+  /** Daily buckets covering the last 30 days; value is null on days without
+   *  a non-invalidated evaluation. Recharts renders with connectNulls so the
+   *  line stays continuous through gaps. */
+  score: SparklinePoint[];
+  csat: SparklinePoint[];
+};
+
+export type TeamMemberCoachingFeedItem = {
+  evaluationId: string;
+  ticketId: string;
+  ticketSubject: string;
+  scoredAtMs: number;
+  overallScore: number;
+  status: QaEvaluationStatus;
+  strengthPoint: string | null;
+  growthPoint: string | null;
+};
+
+const SPARKLINE_DAYS = 30;
+const TILE_WINDOW_DAYS = 30;
+
+function dayStartUtcMs(ms: number): number {
+  const d = new Date(ms);
+  return Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
+}
+
+export async function getTeamMemberQaTiles(
+  memberId: string,
+): Promise<TeamMemberQaTiles> {
+  const now = Date.now();
+  const span = TILE_WINDOW_DAYS * MS_PER_DAY;
+  const currentFrom = now - span;
+  const priorFrom = now - 2 * span;
+
+  const scoreRows = await db.all<{
+    current_avg: number | null;
+    prior_avg: number | null;
+    total: number;
+  }>(sql`
+    SELECT
+      AVG(CASE WHEN scored_at >= ${currentFrom} AND scored_at < ${now}
+        THEN CAST(overall_score AS REAL) END) AS current_avg,
+      AVG(CASE WHEN scored_at >= ${priorFrom} AND scored_at < ${currentFrom}
+        THEN CAST(overall_score AS REAL) END) AS prior_avg,
+      COUNT(*) AS total
+    FROM evaluations
+    WHERE scored_team_member_id = ${memberId}
+      AND status != 'invalidated'
+  `);
+  const scoreRow = scoreRows[0];
+
+  const csatRows = await db.all<{
+    current_avg: number | null;
+    prior_avg: number | null;
+  }>(sql`
+    SELECT
+      AVG(CASE WHEN responded_at >= ${currentFrom} AND responded_at < ${now}
+        THEN CAST(rating AS REAL) * 5.0 / scale END) AS current_avg,
+      AVG(CASE WHEN responded_at >= ${priorFrom} AND responded_at < ${currentFrom}
+        THEN CAST(rating AS REAL) * 5.0 / scale END) AS prior_avg
+    FROM responses
+    WHERE team_member_id = ${memberId}
+  `);
+  const csatRow = csatRows[0];
+
+  const acceptanceRows = await db.all<{
+    total_scores: number;
+    overrides: number;
+  }>(sql`
+    SELECT
+      COUNT(*) AS total_scores,
+      SUM(CASE WHEN ecs.human_score IS NOT NULL THEN 1 ELSE 0 END) AS overrides
+    FROM evaluation_category_scores ecs
+    INNER JOIN evaluations e ON e.id = ecs.evaluation_id
+    WHERE e.scored_team_member_id = ${memberId}
+      AND e.status != 'invalidated'
+  `);
+  const acceptanceRow = acceptanceRows[0];
+  const totalScores = Number(acceptanceRow?.total_scores ?? 0);
+  const overrides = Number(acceptanceRow?.overrides ?? 0);
+
+  const currentScore = scoreRow.current_avg;
+  const priorScore = scoreRow.prior_avg;
+  const currentCsat = csatRow.current_avg;
+  const priorCsat = csatRow.prior_avg;
+
+  return {
+    totalEvals: Number(scoreRow.total ?? 0),
+    avgScore: {
+      current: currentScore == null ? null : Number(currentScore),
+      prior: priorScore == null ? null : Number(priorScore),
+      delta:
+        currentScore != null && priorScore != null
+          ? Number(currentScore) - Number(priorScore)
+          : null,
+    },
+    avgCsat: {
+      current: currentCsat == null ? null : Number(currentCsat),
+      prior: priorCsat == null ? null : Number(priorCsat),
+      delta:
+        currentCsat != null && priorCsat != null
+          ? Number(currentCsat) - Number(priorCsat)
+          : null,
+      scale: 5,
+    },
+    aiAcceptance: {
+      pct: totalScores > 0 ? ((totalScores - overrides) / totalScores) * 100 : null,
+      totalScores,
+      overrides,
+    },
+  };
+}
+
+export async function getTeamMemberQaSparklines(
+  memberId: string,
+): Promise<TeamMemberQaSparklines> {
+  const today = dayStartUtcMs(Date.now());
+  const cutoff = today - (SPARKLINE_DAYS - 1) * MS_PER_DAY;
+
+  type DayAcc = { sum: number; n: number };
+  const scoreByDay = new Map<number, DayAcc>();
+  const csatByDay = new Map<number, DayAcc>();
+  for (let i = 0; i < SPARKLINE_DAYS; i += 1) {
+    const ts = today - i * MS_PER_DAY;
+    scoreByDay.set(ts, { sum: 0, n: 0 });
+    csatByDay.set(ts, { sum: 0, n: 0 });
+  }
+
+  const evalRows = await db
+    .select({
+      scoredAt: schema.evaluations.scoredAt,
+      overallScore: schema.evaluations.overallScore,
+    })
+    .from(schema.evaluations)
+    .where(
+      and(
+        eq(schema.evaluations.scoredTeamMemberId, memberId),
+        ne(schema.evaluations.status, "invalidated"),
+      ),
+    );
+  for (const row of evalRows) {
+    const ms = row.scoredAt.getTime();
+    if (ms < cutoff) continue;
+    const bucket = dayStartUtcMs(ms);
+    const acc = scoreByDay.get(bucket);
+    if (!acc) continue;
+    acc.sum += row.overallScore;
+    acc.n += 1;
+  }
+
+  const respRows = await db
+    .select({
+      respondedAt: schema.responses.respondedAt,
+      rating: schema.responses.rating,
+      scale: schema.responses.scale,
+    })
+    .from(schema.responses)
+    .where(eq(schema.responses.teamMemberId, memberId));
+  for (const row of respRows) {
+    const ms = row.respondedAt.getTime();
+    if (ms < cutoff) continue;
+    const bucket = dayStartUtcMs(ms);
+    const acc = csatByDay.get(bucket);
+    if (!acc) continue;
+    acc.sum += row.scale > 0 ? (row.rating / row.scale) * 5 : row.rating;
+    acc.n += 1;
+  }
+
+  const toPoints = (m: Map<number, DayAcc>): SparklinePoint[] =>
+    Array.from(m.entries())
+      .sort((a, b) => a[0] - b[0])
+      .map(([ts, acc]) => ({
+        ts,
+        value: acc.n > 0 ? acc.sum / acc.n : null,
+      }));
+
+  return { score: toPoints(scoreByDay), csat: toPoints(csatByDay) };
+}
+
+export async function getTeamMemberCoachingFeed(
+  memberId: string,
+  limit = 8,
+): Promise<TeamMemberCoachingFeedItem[]> {
+  const rows = await db
+    .select({
+      evaluationId: schema.evaluations.id,
+      ticketId: schema.evaluations.ticketId,
+      ticketSubject: schema.tickets.subject,
+      scoredAt: schema.evaluations.scoredAt,
+      overallScore: schema.evaluations.overallScore,
+      status: schema.evaluations.status,
+      strengthPoints: schema.coachingNotes.strengthPoints,
+      growthPoints: schema.coachingNotes.growthPoints,
+    })
+    .from(schema.coachingNotes)
+    .innerJoin(
+      schema.evaluations,
+      eq(schema.evaluations.id, schema.coachingNotes.evaluationId),
+    )
+    .innerJoin(
+      schema.tickets,
+      eq(schema.tickets.id, schema.evaluations.ticketId),
+    )
+    .where(
+      and(
+        eq(schema.evaluations.scoredTeamMemberId, memberId),
+        ne(schema.evaluations.status, "invalidated"),
+      ),
+    )
+    .orderBy(desc(schema.evaluations.scoredAt))
+    .limit(limit);
+
+  return rows.map((r) => ({
+    evaluationId: r.evaluationId,
+    ticketId: r.ticketId,
+    ticketSubject: r.ticketSubject,
+    scoredAtMs: r.scoredAt.getTime(),
+    overallScore: r.overallScore,
+    status: r.status,
+    strengthPoint: r.strengthPoints[0] ?? null,
+    growthPoint: r.growthPoints[0] ?? null,
+  }));
 }
 
 export async function getRatingHistogram(

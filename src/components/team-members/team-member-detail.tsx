@@ -24,9 +24,12 @@ import { dicebearUrl, initialsFromName } from "@/lib/color-from-name";
 import { recordEntityView } from "@/lib/recent-pages";
 import { formatNumber } from "@/lib/format";
 import type {
+  TeamMemberCoachingFeedItem,
   TeamMemberDetail,
   TeamMemberListRow,
   TeamMemberQaRollup,
+  TeamMemberQaSparklines,
+  TeamMemberQaTiles,
 } from "@/db/queries/team-members";
 import type { TicketsRow } from "@/db/queries/tickets";
 import type { ResponseListRow } from "@/db/queries/responses";
@@ -75,6 +78,9 @@ export function TeamMemberDetailBody({
   responses,
   histogram,
   qaRollup,
+  qaTiles,
+  qaSparklines,
+  coachingFeed,
   inDrawer = false,
 }: {
   member: TeamMemberDetail;
@@ -83,6 +89,9 @@ export function TeamMemberDetailBody({
   responses: ResponseListRow[];
   histogram: { rating: number; count: number }[];
   qaRollup: TeamMemberQaRollup;
+  qaTiles: TeamMemberQaTiles;
+  qaSparklines: TeamMemberQaSparklines;
+  coachingFeed: TeamMemberCoachingFeedItem[];
   inDrawer?: boolean;
 }) {
   const router = useRouter();
@@ -176,7 +185,13 @@ export function TeamMemberDetailBody({
         </div>
       </DetailSection>
 
-      <QaDashboard memberName={member.name} rollup={qaRollup} />
+      <QaDashboard
+        memberName={member.name}
+        rollup={qaRollup}
+        tiles={qaTiles}
+        sparklines={qaSparklines}
+        coachingFeed={coachingFeed}
+      />
 
       <div className="mt-6">
         <RelationTabs

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { ArrowUpRight, Check, ChevronDown } from "lucide-react";
+import { Check, ChevronDown } from "lucide-react";
 import {
   Popover,
   PopoverContent,
@@ -67,16 +67,6 @@ export function VersionPicker({
         </button>
       </PopoverTrigger>
       <PopoverContent align="start" sideOffset={6} className="w-80 p-0">
-        {!isLatest && (
-          <Link
-            href={`/coaching/${latest.id}`}
-            onClick={() => setOpen(false)}
-            className="flex items-center justify-between gap-2 border-b bg-primary/10 px-3 py-2 text-sm font-medium text-primary hover:bg-primary/15"
-          >
-            <span>Newer version available — v{latest.scorecardVersion}</span>
-            <ArrowUpRight size={14} />
-          </Link>
-        )}
         <ul className="max-h-80 overflow-y-auto py-1">
           {versions.map((v) => {
             const isCurrent = v.id === currentEvaluationId;

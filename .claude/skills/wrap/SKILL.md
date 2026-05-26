@@ -41,28 +41,18 @@ gh pr list --head "$BRANCH" --json number,url,state --jq '.[0]'
 
 If a PR already exists and is `OPEN`, we'll update it (`gh pr edit --body-file`) instead of creating a new one. If it's `MERGED` or `CLOSED`, stop and tell Cory — something's off.
 
-### 2. Gather title + summary + test plan in ONE plain chat message
+### 2. Build title + summary + test plan from defaults — DO NOT ASK
 
-**Critical: DO NOT use `AskUserQuestion`.** That tool renders a modal with radio options and an "Other" field — wrong primitive for free-text input. Cory has flagged this UX as broken twice. Use a single plain chat message instead, and read Cory's free-text reply.
+**Just ship.** Per Cory: don't wait for him to confirm title/summary/test plan. Construct sensible defaults and proceed directly to step 3 — the PR opens immediately. Cory can `gh pr edit` after if he wants to tweak.
 
-Send this message (exactly one block, ask for all three at once):
+Defaults to use:
+- **Title**: the last commit subject (`git log -1 --pretty=%s`). Don't prefix anything — the commit convention already includes the type tag (e.g. `feat(skill): SVP-137 — /wrap skill`). Keep under ~70 chars; truncate if needed.
+- **Summary**: one bullet derived from `git log -1 --pretty=%b` (first non-empty line). If the commit body is empty, fall back to the brief's one-line task statement. If both are unavailable, fall back to the title.
+- **Test plan**: `- [ ] Manual verification` as a single placeholder bullet. Worker can pre-populate this from their own pre-flight checks if they tracked them (e.g., "tsc + lint clean", "dev walk of X") — that's even better than the placeholder.
 
-> Ready to ship. I'll use these defaults unless you reply with overrides:
->
-> **Title** (inferred from last commit): `<LAST_SUBJECT>`
-> **Summary**: <one-line auto-derived from `git log -1 --pretty=%b` first non-empty line, OR the brief title>
-> **Test plan**: `- [ ] Manual verification`
->
-> Reply with anything you want to change (`title: ...`, `summary: bullet 1 / bullet 2`, `test: ...`), or just say "ship" to accept all defaults.
+**Critical: DO NOT use `AskUserQuestion` or any other prompt.** No modal, no chat message asking for confirmation. Build the body, push, open the PR. Cory will catch up via the PR view.
 
-Then **wait for Cory's reply** as a regular chat message. Parse it:
-- If reply is "ship" / "go" / empty acceptance → use all defaults
-- If reply contains `title: ...` → override title
-- If reply contains `summary: a / b / c` (slash-separated) → split into bullets
-- If reply contains `test: a / b / c` → split into checkbox bullets
-- Any combination is fine
-
-Keep the title under ~70 chars. Don't auto-prefix anything — the commit subject convention already includes the type tag (e.g. `feat(skill): SVP-137 — /wrap skill`).
+If the worker is genuinely uncertain about something load-bearing (e.g., the work is incomplete and they're not sure if it should ship at all), that's a soft-stop case — push WIP + leave a `// STOP — <reason>` comment + don't ship. Don't paper over uncertainty by asking via `/wrap`.
 
 ### 3. Construct `.pr-body.md`
 

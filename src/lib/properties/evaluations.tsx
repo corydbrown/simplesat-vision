@@ -18,6 +18,7 @@ export const EVALUATION_PROPERTIES: Property<QaRecentEvaluation>[] = [
     icon: Calendar,
     sourceEntity: "Evaluation",
     alwaysVisible: true,
+    kind: "text",
     sortable: true,
     sortValue: (e) => e.scoredAtMs,
     cell: (e) => (
@@ -49,6 +50,7 @@ export const EVALUATION_PROPERTIES: Property<QaRecentEvaluation>[] = [
     icon: Hash,
     sourceEntity: "Evaluation",
     defaultVisible: true,
+    kind: "component",
     sortable: true,
     sortValue: (e) => e.overallScore,
     cell: (e) => <QaScoreBadge score={e.overallScore} status={e.status} />,

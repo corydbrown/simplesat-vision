@@ -95,6 +95,7 @@ export const TICKET_PROPERTIES: Property<TicketsRow>[] = [
     icon: CircleDot,
     sourceEntity: "Ticket",
     defaultVisible: true,
+    kind: "component",
     sortable: true,
     sortValue: (t) => t.status,
     filter: TICKET_FILTER_SPECS.status,
@@ -110,6 +111,7 @@ export const TICKET_PROPERTIES: Property<TicketsRow>[] = [
     icon: Flag,
     sourceEntity: "Ticket",
     defaultVisible: true,
+    kind: "component",
     sortable: true,
     sortValue: (t) => t.priority,
     filter: TICKET_FILTER_SPECS.priority,
@@ -125,6 +127,7 @@ export const TICKET_PROPERTIES: Property<TicketsRow>[] = [
     icon: User,
     sourceEntity: "Customer",
     defaultVisible: true,
+    kind: "component",
     sortable: true,
     sortValue: (t) => t.customer?.name ?? null,
     cell: (t) =>
@@ -161,6 +164,7 @@ export const TICKET_PROPERTIES: Property<TicketsRow>[] = [
     icon: UserCircle2,
     sourceEntity: "Team member",
     defaultVisible: true,
+    kind: "component",
     sortable: true,
     sortValue: (t) => t.assignee?.name ?? null,
     groupable: true,
@@ -184,6 +188,7 @@ export const TICKET_PROPERTIES: Property<TicketsRow>[] = [
     icon: Inbox,
     sourceEntity: "Ticket",
     defaultVisible: true,
+    kind: "component",
     sortable: true,
     sortValue: (t) => t.channel,
     filter: TICKET_FILTER_SPECS.channel,
@@ -199,6 +204,7 @@ export const TICKET_PROPERTIES: Property<TicketsRow>[] = [
     icon: TagIcon,
     sourceEntity: "Ticket",
     defaultVisible: true,
+    kind: "component",
     filter: TICKET_FILTER_SPECS.tags,
     cell: (t) => <TagList tags={t.tags} />,
   },
@@ -227,6 +233,7 @@ export const TICKET_PROPERTIES: Property<TicketsRow>[] = [
     icon: ClipboardCheck,
     sourceEntity: "Response",
     defaultVisible: true,
+    kind: "component",
     sortable: true,
     sortValue: (t) =>
       // Mirror the SQL CASE ordering in tickets.ts; keep the two in sync.
@@ -248,6 +255,7 @@ export const TICKET_PROPERTIES: Property<TicketsRow>[] = [
     icon: Star,
     sourceEntity: "Response",
     defaultVisible: true,
+    kind: "component",
     sortable: true,
     sortValue: (t) => t.response?.rating ?? null,
     cell: (t) =>
@@ -268,6 +276,7 @@ export const TICKET_PROPERTIES: Property<TicketsRow>[] = [
     icon: Gauge,
     sourceEntity: "Ticket",
     defaultVisible: true,
+    kind: "component",
     // Lower scores are the actionable case ("which tickets need review?"), so
     // ascending order is the useful default direction even though the column
     // shows a 0-100 value. The "Needs QA review" saved view applies asc
@@ -292,6 +301,7 @@ export const TICKET_PROPERTIES: Property<TicketsRow>[] = [
     icon: Sparkles,
     sourceEntity: "Ticket",
     defaultVisible: true,
+    kind: "component",
     cell: (t) => <SignalsCell signals={t.signals} />,
   },
   // -- Ticket-event signals (filter-only columns) -------------------------

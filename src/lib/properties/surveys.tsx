@@ -53,6 +53,7 @@ export const SURVEY_PROPERTIES: Property<SurveyRow>[] = [
     icon: ClipboardList,
     sourceEntity: "Survey",
     alwaysVisible: true,
+    kind: "component",
     cell: (s) => <SurveyPill id={s.id} name={s.name} metric={s.metric} />,
   },
   {
@@ -86,6 +87,7 @@ export const SURVEY_PROPERTIES: Property<SurveyRow>[] = [
     icon: CircleDot,
     sourceEntity: "Survey",
     defaultVisible: true,
+    kind: "component",
     cell: (s) => (
       <span
         className={`inline-flex items-center rounded-full px-2 py-0.5 text-sm font-medium ${STATUS_TONE[s.status]}`}

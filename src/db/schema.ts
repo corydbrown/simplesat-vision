@@ -269,6 +269,30 @@ export const teamMembers = sqliteTable(
   ],
 );
 
+/** Authenticated humans. A `user` is a person who logs into the prototype
+ *  via WorkOS AuthKit. Distinct from `team_members` (helpdesk agents): a
+ *  user may or may not also be a team_member, and a team_member may or may
+ *  not have a user account. The email-match seam between them lands in a
+ *  later epic. */
+export const users = sqliteTable(
+  "users",
+  {
+    id: text("id").primaryKey(),
+    workosId: text("workos_id").notNull(),
+    email: text("email").notNull(),
+    name: text("name"),
+    avatarUrl: text("avatar_url"),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+    lastSeenAt: integer("last_seen_at", { mode: "timestamp_ms" }),
+  },
+  (t) => [
+    uniqueIndex("users_workos_id_unq").on(t.workosId),
+    uniqueIndex("users_email_unq").on(t.email),
+  ],
+);
+
 export const tickets = sqliteTable(
   "tickets",
   {
@@ -984,6 +1008,8 @@ export type Customer = typeof customers.$inferSelect;
 export type NewCustomer = typeof customers.$inferInsert;
 export type TeamMember = typeof teamMembers.$inferSelect;
 export type NewTeamMember = typeof teamMembers.$inferInsert;
+export type User = typeof users.$inferSelect;
+export type NewUser = typeof users.$inferInsert;
 export type Ticket = typeof tickets.$inferSelect;
 export type NewTicket = typeof tickets.$inferInsert;
 export type Response = typeof responses.$inferSelect;

@@ -418,6 +418,7 @@ async function signalForVerb(
     FROM ticket_events te
     LEFT JOIN team_members tm ON tm.id = te.actor_team_member_id
     WHERE te.verb = ${verb}
+      AND te.actor_team_member_id IS NOT NULL
     GROUP BY te.actor_team_member_id
     ORDER BY n DESC
     LIMIT 3
@@ -429,13 +430,11 @@ async function signalForVerb(
     ticketCount,
     ticketShare: totalTickets > 0 ? ticketCount / totalTickets : 0,
     csatDelta,
-    topActors: actorRows
-      .filter((a) => a.actor_team_member_id != null)
-      .map((a) => ({
-        id: a.actor_team_member_id,
-        name: a.name ?? "Unknown",
-        count: Number(a.n),
-      })),
+    topActors: actorRows.map((a) => ({
+      id: a.actor_team_member_id,
+      name: a.name ?? "Unknown",
+      count: Number(a.n),
+    })),
   };
 }
 

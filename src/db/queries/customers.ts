@@ -1,6 +1,7 @@
 import "server-only";
-import { asc, desc, eq, sql, type AnyColumn, type SQL } from "drizzle-orm";
+import { and, asc, desc, eq, sql, type AnyColumn, type SQL } from "drizzle-orm";
 import { db, schema } from "../client";
+import { requireWorkspace } from "@/lib/workspace";
 import { compileListFilters } from "@/lib/filters/compile-list";
 import {
   CUSTOMER_FILTER_FIELDS,
@@ -96,9 +97,12 @@ export async function listCustomers({
   groupBy?: GroupSpec | null;
   filters?: Filter[];
 } = {}): Promise<{ rows: CustomerListRow[]; total: number }> {
-  const where = filters
+  const workspaceId = await requireWorkspace();
+  const filterWhere = filters
     ? compileListFilters(filters, CUSTOMER_FILTER_FIELDS)
     : undefined;
+  const workspaceWhere = eq(schema.customers.workspaceId, workspaceId);
+  const where = filterWhere ? and(workspaceWhere, filterWhere) : workspaceWhere;
 
   const baseQuery = db
     .select({
@@ -118,10 +122,9 @@ export async function listCustomers({
     .from(schema.customers);
 
   const groupOrderBy = compileGroupOrderBy(groupBy ?? null, CUSTOMER_GROUP_FIELDS);
-  const rows = await (where ? baseQuery.where(where) : baseQuery).orderBy(
-    ...groupOrderBy,
-    ...buildCustomerOrderBy(sorts),
-  );
+  const rows = await baseQuery
+    .where(where)
+    .orderBy(...groupOrderBy, ...buildCustomerOrderBy(sorts));
 
   return {
     rows: rows.map((r) => ({
@@ -146,10 +149,16 @@ export type CustomerDetail = Customer & {
 export async function getCustomerById(
   id: string,
 ): Promise<CustomerDetail | null> {
+  const workspaceId = await requireWorkspace();
   const [customer] = await db
     .select()
     .from(schema.customers)
-    .where(eq(schema.customers.id, id))
+    .where(
+      and(
+        eq(schema.customers.id, id),
+        eq(schema.customers.workspaceId, workspaceId),
+      ),
+    )
     .limit(1);
   if (!customer) return null;
 
@@ -181,6 +190,7 @@ export async function getCustomerTickets(
   limit = 50,
   groupBy?: GroupSpec | null,
 ): Promise<import("./tickets").TicketsRow[]> {
+  const workspaceId = await requireWorkspace();
   const rawRows = await db
     .select({
       ticket: schema.tickets,
@@ -218,7 +228,12 @@ export async function getCustomerTickets(
       schema.responses,
       eq(schema.responses.ticketId, schema.tickets.id),
     )
-    .where(eq(schema.tickets.customerId, customerId))
+    .where(
+      and(
+        eq(schema.tickets.customerId, customerId),
+        eq(schema.tickets.workspaceId, workspaceId),
+      ),
+    )
     .orderBy(
       ...compileGroupOrderBy(groupBy ?? null, TICKET_GROUP_FIELDS),
       desc(schema.tickets.createdAt),
@@ -241,6 +256,7 @@ export async function getCustomerResponses(
   limit = 50,
   groupBy?: GroupSpec | null,
 ): Promise<import("./responses").ResponseListRow[]> {
+  const workspaceId = await requireWorkspace();
   const groupOrderBy = compileGroupOrderBy(groupBy ?? null, RESPONSE_GROUP_FIELDS);
   return db
     .select({
@@ -274,7 +290,12 @@ export async function getCustomerResponses(
       schema.teamMembers,
       eq(schema.teamMembers.id, schema.responses.teamMemberId),
     )
-    .where(eq(schema.responses.customerId, customerId))
+    .where(
+      and(
+        eq(schema.responses.customerId, customerId),
+        eq(schema.responses.workspaceId, workspaceId),
+      ),
+    )
     .orderBy(...groupOrderBy, desc(schema.responses.respondedAt))
     .limit(limit);
 }

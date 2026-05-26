@@ -1,6 +1,7 @@
 import "server-only";
-import { asc, desc, eq, type AnyColumn, type SQL } from "drizzle-orm";
+import { and, asc, desc, eq, type AnyColumn, type SQL } from "drizzle-orm";
 import { db, schema } from "../client";
+import { requireWorkspace } from "@/lib/workspace";
 import { compileListFilters } from "@/lib/filters/compile-list";
 import { RESPONSE_FILTER_FIELDS } from "@/lib/filters/fields/responses";
 import type { Filter } from "@/lib/filters/types";
@@ -64,9 +65,12 @@ export async function listResponses({
   rows: ResponseListRow[];
   total: number;
 }> {
-  const where = filters
+  const workspaceId = await requireWorkspace();
+  const filterWhere = filters
     ? compileListFilters(filters, RESPONSE_FILTER_FIELDS)
     : undefined;
+  const workspaceWhere = eq(schema.responses.workspaceId, workspaceId);
+  const where = filterWhere ? and(workspaceWhere, filterWhere) : workspaceWhere;
   const groupOrderBy = compileGroupOrderBy(groupBy ?? null, RESPONSE_GROUP_FIELDS);
 
   const baseQuery = db
@@ -103,7 +107,8 @@ export async function listResponses({
     );
 
   const [rows, total] = await Promise.all([
-    (where ? baseQuery.where(where) : baseQuery)
+    baseQuery
+      .where(where)
       .orderBy(...groupOrderBy, ...buildResponseOrderBy(sorts))
       .limit(limit),
     db.$count(schema.responses, where),
@@ -136,6 +141,7 @@ export type ResponseDetail = Response & {
 export async function getResponseById(
   id: string,
 ): Promise<ResponseDetail | null> {
+  const workspaceId = await requireWorkspace();
   const [row] = await db
     .select({
       response: schema.responses,
@@ -165,7 +171,12 @@ export async function getResponseById(
       schema.teamMembers,
       eq(schema.teamMembers.id, schema.responses.teamMemberId),
     )
-    .where(eq(schema.responses.id, id))
+    .where(
+      and(
+        eq(schema.responses.id, id),
+        eq(schema.responses.workspaceId, workspaceId),
+      ),
+    )
     .limit(1);
 
   if (!row) return null;

@@ -1,6 +1,7 @@
 import "server-only";
-import { desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
 import { db, schema } from "../client";
+import { requireWorkspace } from "@/lib/workspace";
 import { compileGroupOrderBy } from "@/lib/group/compile";
 import { RESPONSE_GROUP_FIELDS } from "@/lib/group/fields/responses";
 import type { GroupSpec } from "@/lib/group/types";
@@ -22,6 +23,7 @@ const totalResponsesExpr = sql<number>`(SELECT COUNT(*) FROM responses WHERE res
 const avgRatingExpr = sql<number | null>`(SELECT AVG(CAST(rating as REAL)) FROM responses WHERE responses.survey_id = surveys.id)`;
 
 export async function listSurveys(): Promise<SurveyRow[]> {
+  const workspaceId = await requireWorkspace();
   const rows = await db
     .select({
       id: schema.surveys.id,
@@ -35,6 +37,7 @@ export async function listSurveys(): Promise<SurveyRow[]> {
       createdAt: schema.surveys.createdAt,
     })
     .from(schema.surveys)
+    .where(eq(schema.surveys.workspaceId, workspaceId))
     .orderBy(desc(totalResponsesExpr));
 
   return rows.map((r) => ({
@@ -53,10 +56,16 @@ export type SurveyDetail = Survey & {
 };
 
 export async function getSurveyById(id: string): Promise<SurveyDetail | null> {
+  const workspaceId = await requireWorkspace();
   const [survey] = await db
     .select()
     .from(schema.surveys)
-    .where(eq(schema.surveys.id, id))
+    .where(
+      and(
+        eq(schema.surveys.id, id),
+        eq(schema.surveys.workspaceId, workspaceId),
+      ),
+    )
     .limit(1);
   if (!survey) return null;
 
@@ -87,6 +96,7 @@ export async function getSurveyResponses(
   limit = 50,
   groupBy?: GroupSpec | null,
 ): Promise<import("./responses").ResponseListRow[]> {
+  const workspaceId = await requireWorkspace();
   const groupOrderBy = compileGroupOrderBy(groupBy ?? null, RESPONSE_GROUP_FIELDS);
   return db
     .select({
@@ -117,7 +127,12 @@ export async function getSurveyResponses(
       schema.teamMembers,
       eq(schema.teamMembers.id, schema.responses.teamMemberId),
     )
-    .where(eq(schema.responses.surveyId, surveyId))
+    .where(
+      and(
+        eq(schema.responses.surveyId, surveyId),
+        eq(schema.responses.workspaceId, workspaceId),
+      ),
+    )
     .orderBy(...groupOrderBy, desc(schema.responses.respondedAt))
     .limit(limit);
 }

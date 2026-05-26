@@ -198,7 +198,10 @@ function buildFilter(
   }
 }
 
-export function compileReport(config: ReportConfig): CompiledQuery | null {
+export function compileReport(
+  config: ReportConfig,
+  workspaceId: string,
+): CompiledQuery | null {
   const baseTable = BASE_TABLE[config.base];
 
   const rowAliases: AxisAlias[] = [];
@@ -263,8 +266,10 @@ export function compileReport(config: ReportConfig): CompiledQuery | null {
     });
   }
 
-  // Filters
-  const whereSqls: SQL[] = [];
+  // Filters — workspace scope is always-on; user filters are layered on top.
+  const whereSqls: SQL[] = [
+    sql`${sql.raw(`${baseTable}.workspace_id`)} = ${workspaceId}`,
+  ];
   for (const f of config.filters) {
     const field = findField(config.base, f.propertyId);
     if (!field) continue;

@@ -1,5 +1,6 @@
 import "server-only";
-import { sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
+import { requireWorkspace } from "@/lib/workspace";
 import { db, schema } from "../client";
 
 export type DecliningCustomer = {
@@ -27,6 +28,7 @@ export type SurveysNotFiredBreakdown = {
 export async function getDecliningCustomers(
   limit = 5,
 ): Promise<DecliningCustomer[]> {
+  const workspaceId = await requireWorkspace();
   const rows = await db.all<{
     id: string;
     name: string;
@@ -39,6 +41,7 @@ export async function getDecliningCustomers(
       COUNT(r.id) as response_count
     FROM customers c
     JOIN responses r ON r.customer_id = c.id
+    WHERE c.workspace_id = ${workspaceId}
     GROUP BY c.id
     HAVING COUNT(r.id) >= 5
     ORDER BY avg_rating ASC
@@ -56,6 +59,7 @@ export async function getDecliningCustomers(
 export async function getLowPerformingAgents(
   limit = 5,
 ): Promise<LowPerformingAgent[]> {
+  const workspaceId = await requireWorkspace();
   const rows = await db.all<{
     id: string;
     name: string;
@@ -69,6 +73,7 @@ export async function getLowPerformingAgents(
       COUNT(r.id) as response_count
     FROM team_members tm
     JOIN responses r ON r.team_member_id = tm.id
+    WHERE tm.workspace_id = ${workspaceId}
     GROUP BY tm.id
     HAVING COUNT(r.id) >= 20
     ORDER BY avg_rating ASC
@@ -85,6 +90,7 @@ export async function getLowPerformingAgents(
 }
 
 export async function getSurveysNotFiredThisWeek(): Promise<SurveysNotFiredBreakdown> {
+  const workspaceId = await requireWorkspace();
   const weekAgoMs = Date.now() - 7 * 24 * 60 * 60 * 1000;
   const rows = await db
     .select({
@@ -93,7 +99,10 @@ export async function getSurveysNotFiredThisWeek(): Promise<SurveysNotFiredBreak
     })
     .from(schema.tickets)
     .where(
-      sql`${schema.tickets.surveyNotSentReason} IS NOT NULL AND ${schema.tickets.createdAt} >= ${weekAgoMs}`,
+      and(
+        eq(schema.tickets.workspaceId, workspaceId),
+        sql`${schema.tickets.surveyNotSentReason} IS NOT NULL AND ${schema.tickets.createdAt} >= ${weekAgoMs}`,
+      ),
     )
     .groupBy(schema.tickets.surveyNotSentReason);
 

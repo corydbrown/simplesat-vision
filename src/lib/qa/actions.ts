@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db, schema } from "@/db/client";
 import { DEFAULT_SCORECARD } from "@/lib/qa/default-scorecard";
+import { requireWorkspace } from "@/lib/workspace";
 
 /** Result returned to the client after a successful inline edit. Carries the
  *  values the card needs to swap into display mode without a full refetch. */
@@ -35,6 +36,7 @@ const InputSchema = z.object({
 export async function editCategoryScore(
   input: unknown,
 ): Promise<EditCategoryScoreResult> {
+  const workspaceId = await requireWorkspace();
   let parsed: z.infer<typeof InputSchema>;
   try {
     parsed = InputSchema.parse(input);
@@ -45,6 +47,18 @@ export async function editCategoryScore(
     }
     throw err;
   }
+
+  const [evalExists] = await db
+    .select({ id: schema.evaluations.id })
+    .from(schema.evaluations)
+    .where(
+      and(
+        eq(schema.evaluations.id, parsed.evaluationId),
+        eq(schema.evaluations.workspaceId, workspaceId),
+      ),
+    )
+    .limit(1);
+  if (!evalExists) throw new Error("Evaluation not found");
 
   // Validate scale-shape before persisting: binary categories accept 0|1,
   // likert_5 accepts 1-5, three_state accepts 0|1|2. Catches mismatched

@@ -1,11 +1,12 @@
 "use server";
 
-import { asc, desc, eq, like, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, like, or, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db, schema } from "@/db/client";
 import { DEFAULT_SCORECARD } from "@/lib/qa/default-scorecard";
 import { MockScoringProvider } from "@/lib/qa/scoring";
+import { requireWorkspace } from "@/lib/workspace";
 import { snapshotScorecard } from "@/lib/scorecards/snapshot";
 import type {
   ScoringInput,
@@ -58,8 +59,21 @@ export type SaveScorecardResult = {
 export async function saveScorecard(
   input: unknown,
 ): Promise<SaveScorecardResult> {
+  const workspaceId = await requireWorkspace();
   const parsed = SaveScorecardSchema.parse(input);
   validateWeights(parsed);
+
+  const [existingCard] = await db
+    .select({ id: schema.scorecards.id })
+    .from(schema.scorecards)
+    .where(
+      and(
+        eq(schema.scorecards.id, parsed.scorecardId),
+        eq(schema.scorecards.workspaceId, workspaceId),
+      ),
+    )
+    .limit(1);
+  if (!existingCard) throw new Error("Scorecard not found");
 
   // Confirm every id in the payload still belongs to this scorecard. Prevents
   // a stale client from writing across scorecards.

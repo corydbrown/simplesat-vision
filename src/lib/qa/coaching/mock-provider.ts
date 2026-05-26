@@ -52,9 +52,6 @@ export class MockCommentProvider implements CommentProvider {
 
     const now = new Date();
     const id = prefixedId("qac");
-    // Phase 1: hardcoded workspace pending the requireWorkspace() rollout in
-    // Phase 2 — the evaluation row already carries workspace_id, so the swap
-    // is a lookup via input.evaluationId once query callers move over.
     const row = {
       id,
       workspaceId: DEMO_WORKSPACE_ID,

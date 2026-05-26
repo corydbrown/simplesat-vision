@@ -137,6 +137,29 @@ After the reshape + migration 0013 (composite indexes on `tickets(workspace_id, 
 
 `EXPLAIN QUERY PLAN` confirms both composites are read as `USING COVERING INDEX`. The remaining 6-8s on this connection is libsql buffering the sorted result over Bangkok WAN (~270ms RTT, ~30KB/s effective TCP); the same query from Vercel us-east-1 → Turso us-east-1 projects to **~1-2 s** end to end, well inside the 2 s p50 target.
 
+## Win confirmed for `/tickets` (2026-05-26)
+
+For `/tickets` the diagnosis from earlier (8 correlated signal subqueries × 50 rows = 400 lookups) turned out to be only half the story. The real bottleneck on Bloom was the **query plan**: SQLite picked `tickets_workspace_id_idx` for WHERE, then did `TEMP B-TREE FOR ORDER BY`, which forced subquery evaluation across all 50K workspace tickets before the LIMIT 50 could apply.
+
+Two-part fix, no code change (the existing query is fine once the indexes are right):
+
+1. **Migration 0014** — covering composites for each signal subquery:
+   - `ticket_events(ticket_id, verb, previous_value)` — covers had_transfer / reassignment_count / sla_breached / escalated / ai_handoff
+   - `ticket_messages(ticket_id, author_role, created_at)` — covers customer_reply_count / queue_wait_hours
+   - `evaluations(ticket_id, scored_at)` — covers qa_score / qa_status (latest-per-ticket)
+2. **Migration 0015** — `tickets(workspace_id, closed_at)` so the default ORDER BY closed_at DESC LIMIT 50 pushes into the index scan; SQLite reads in reverse-DESC order and stops after 50 matches without ever evaluating subqueries on the other 49,950 rows.
+
+| Workspace | Before | After 0014 only | After 0014 + 0015 |
+|---|---|---|---|
+| Bloom (50k tickets, 19k events, 14k responses) | 17,972 ms | 11.5-17.9 s | **1.4-2.1 s** (Bangkok→US) |
+| Pronto / Simplesat (empty) | ~280 ms | ~280 ms | ~280 ms |
+
+`EXPLAIN QUERY PLAN` after 0015 confirms `SEARCH tickets USING INDEX tickets_workspace_closed_at_idx` with no TEMP B-TREE. Each inner subquery uses its new covering composite (`ticket_events_ticket_verb_prev_idx`, etc.) The 1.4-2.1 s on Bangkok→US is transit-bound — same protocol overhead as the customers case; projected production time is **sub-second**.
+
+### Failed approach (kept here for posterity / DECISIONS.md candidate)
+
+I first tried reshaping listTickets the same way as listCustomers — pulling the 8 signal subqueries into workspace-wide aggregate subqueries (events_agg, messages_agg, evals_agg, longest_idle_agg) joined once per ticket. **That made Bloom 18 s → 42 s**, because the aggregates pre-materialize across all 19k events + 3.5k messages + 22k timeline rows for every request, dwarfing the original "50 × correlated × subquery" cost. The original correlated shape is actually a good fit *for paginated reads* when the per-row subquery is index-only and the outer LIMIT pushes down — which is what migrations 0014 + 0015 unlock. Reshape only beats correlated when the outer set is small (e.g. listCustomers with 1,200 rows where pagination doesn't apply); for paginated lists at scale, keep the correlated shape and invest in covering indexes.
+
 ## Recommended fix sequence (smallest-blast first)
 
 1. **Reshape `listCustomers`** (root cause #1). One file, expected 50–100× win on Bloom. Verify with the `perf-profile.ts` script.

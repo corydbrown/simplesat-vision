@@ -2,7 +2,6 @@
 
 import { sql } from "drizzle-orm";
 import { db } from "@/db/client";
-import { requireWorkspace } from "@/lib/workspace";
 import { TOPIC_BY_ID } from "@/lib/topics";
 import { requireWorkspace } from "@/lib/workspace";
 import type { MultiEnumValueOption } from "../multi-enum-resolvers";

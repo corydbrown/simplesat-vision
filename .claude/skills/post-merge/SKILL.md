@@ -58,9 +58,9 @@ The PR must be **MERGED**. If not, abort and tell Cory.
      - Model: claude-opus-4-7
      ```
    - Map to Notion:
-     - `Started:` → `Worker started` (ISO 8601, `is_datetime: 1`)
-     - `Finished:` → `Worker finished` (ISO 8601, `is_datetime: 1`)
-     - `Tokens:` → `Tokens used` (number; strip commas if present)
+     - `Started:` → `Worker started` (ISO 8601, `is_datetime: 1`). If the value isn't a parseable timestamp (e.g., "TBD", "unknown", "—", blank), leave null.
+     - `Finished:` → `Worker finished` (ISO 8601, `is_datetime: 1`). Same null-on-unparseable rule.
+     - `Tokens:` → `Tokens used` (number; strip commas if present). **If the value is not a number** (e.g., "unknown", "TBD", "—", "n/a", blank), leave null — don't write the string. Common worker-side miss: they forget to run `/cost` and put a placeholder. Honest null beats a corrupted number column. Flag the miss in the end-of-turn output so Cory can reinforce the convention.
      - `Model:` → `Worker model` (select). Map to Notion options: `claude-opus-4-7` → `Opus 4.7`; `claude-opus-4-7-1m` or similar → `Opus 4.7 (1M context)`; `claude-sonnet-4-6` → `Sonnet 4.6`. Per [[feedback-verify-task-status]] (null beats wrong for derived Notion data), if the name doesn't match a known option, leave null — don't guess.
    - **If `## Worker metrics` is missing entirely**, fall back to the legacy path (and flag it to Cory as a worker-side miss to surface later):
      ```bash

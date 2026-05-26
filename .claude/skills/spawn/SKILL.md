@@ -98,8 +98,8 @@ cat > .pr-body.md <<EOF
 
 - Started: $START
 - Finished: $END
-- Tokens: <number from /cost, no commas>
-- Model: <name from /model, e.g. claude-opus-4-7>
+- Tokens: <number from /cost, no commas — if you forgot to run /cost, write nothing after the colon, do NOT write "unknown" or "TBD">
+- Model: <name from /model, e.g. claude-opus-4-7 — if missing, leave blank>
 EOF
 
 # 4. Push + create PR

@@ -1,4 +1,4 @@
-import type { MultiEnumResolver } from "@/lib/filters/multi-enum-resolvers";
+import type { MultiEnumResolver } from "@/lib/filters/multi-enum-types";
 import {
   BOOLEAN_OPS,
   DATE_OPS,

@@ -65,7 +65,9 @@ export function CoachingHeatmapSection({
           )} (${data?.sampleSize ?? 0} evals)`;
         }}
         emptyTooltip={() => "No evaluations in this category yet"}
-        hrefFor={(agentId) => `/team-members/${agentId}`}
+        hrefFor={(agentId, categoryId) =>
+          `/team-members/${agentId}?category=${categoryId}`
+        }
       />
     </DashboardCard>
   );

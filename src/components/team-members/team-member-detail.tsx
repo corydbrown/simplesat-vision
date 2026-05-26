@@ -101,6 +101,7 @@ export function TeamMemberDetailBody({
   const rawTab = searchParams.get(paramName);
   const tab: "tickets" | "responses" =
     rawTab === "responses" ? "responses" : "tickets";
+  const focusedCategoryId = searchParams.get("category") ?? null;
 
   useEffect(() => {
     if (!inDrawer || rawTab) return;
@@ -191,6 +192,7 @@ export function TeamMemberDetailBody({
         tiles={qaTiles}
         sparklines={qaSparklines}
         coachingFeed={coachingFeed}
+        focusedCategoryId={focusedCategoryId}
       />
 
       <div className="mt-6">

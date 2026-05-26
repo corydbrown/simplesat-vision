@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { AlertTriangle, ArrowUpRight, Check } from "lucide-react";
+import { AlertTriangle, ArrowUpRight, Check, X } from "lucide-react";
 import {
   Line,
   LineChart,
@@ -47,6 +47,9 @@ type Props = {
   tiles: TeamMemberQaTiles;
   sparklines: TeamMemberQaSparklines;
   coachingFeed: TeamMemberCoachingFeedItem[];
+  /** When set (drill-in from heatmap), filter evals to this category and
+   *  highlight the matching row in the category breakdown. */
+  focusedCategoryId?: string | null;
 };
 
 export function QaDashboard({
@@ -55,6 +58,7 @@ export function QaDashboard({
   tiles,
   sparklines,
   coachingFeed,
+  focusedCategoryId = null,
 }: Props) {
   const {
     evaluationCount,
@@ -67,6 +71,14 @@ export function QaDashboard({
     csatCorrelations,
     recentEvaluations,
   } = rollup;
+
+  const focusedCategory = focusedCategoryId
+    ? categoryAverages.find((c) => c.categoryId === focusedCategoryId) ?? null
+    : null;
+
+  const filteredEvaluations = focusedCategoryId
+    ? recentEvaluations.filter((e) => e.categoryIds.includes(focusedCategoryId))
+    : recentEvaluations;
 
   if (evaluationCount === 0) {
     return (
@@ -86,10 +98,15 @@ export function QaDashboard({
     <DetailSection title="QA performance">
       <QaTilesRow tiles={tiles} sparklines={sparklines} />
 
+      {focusedCategory ? (
+        <CategoryFocusBanner categoryName={focusedCategory.name} />
+      ) : null}
+
       <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-[1fr_1fr]">
         <QaCategoryBreakdown
           rows={categoryAverages}
           evaluationCount={evaluationCount}
+          focusedCategoryId={focusedCategoryId}
         />
         <QaTrendChart
           memberName={memberName}
@@ -100,8 +117,10 @@ export function QaDashboard({
 
       <div className="mt-4">
         <QaRecentEvaluationsTable
-          rows={recentEvaluations}
+          rows={filteredEvaluations}
           totalCount={evaluationCount}
+          focusedCategoryId={focusedCategoryId}
+          focusedCategoryName={focusedCategory?.name ?? null}
         />
       </div>
 
@@ -249,9 +268,11 @@ function deltaDirection(
 function QaCategoryBreakdown({
   rows,
   evaluationCount,
+  focusedCategoryId,
 }: {
   rows: QaCategoryAverage[];
   evaluationCount: number;
+  focusedCategoryId?: string | null;
 }) {
   if (evaluationCount < MIN_EVALUATIONS_FOR_CATEGORIES) {
     return (
@@ -267,14 +288,24 @@ function QaCategoryBreakdown({
     <DashboardCard title="Category breakdown">
       <ul className="space-y-3">
         {rows.map((row) => (
-          <CategoryRow key={row.categoryId} row={row} />
+          <CategoryRow
+            key={row.categoryId}
+            row={row}
+            highlighted={focusedCategoryId === row.categoryId}
+          />
         ))}
       </ul>
     </DashboardCard>
   );
 }
 
-function CategoryRow({ row }: { row: QaCategoryAverage }) {
+function CategoryRow({
+  row,
+  highlighted = false,
+}: {
+  row: QaCategoryAverage;
+  highlighted?: boolean;
+}) {
   const member = row.memberAvg;
   const team = row.teamAvg;
   const delta = member != null && team != null ? member - team : null;
@@ -290,7 +321,13 @@ function CategoryRow({ row }: { row: QaCategoryAverage }) {
       : `${delta >= 0 ? "+" : ""}${delta.toFixed(0)} vs team`;
 
   return (
-    <li>
+    <li
+      className={
+        highlighted
+          ? "-mx-3 rounded-md bg-accent/50 px-3 py-1 ring-1 ring-border"
+          : undefined
+      }
+    >
       <div className="mb-1 flex items-baseline justify-between gap-3 text-base">
         <span className="truncate text-foreground">{row.name}</span>
         <span className={`shrink-0 tabular-nums ${deltaTone}`}>{deltaLabel}</span>
@@ -524,26 +561,42 @@ function LegendDot({
 function QaRecentEvaluationsTable({
   rows,
   totalCount,
+  focusedCategoryId,
+  focusedCategoryName,
 }: {
   rows: QaRecentEvaluation[];
   totalCount: number;
+  focusedCategoryId?: string | null;
+  focusedCategoryName?: string | null;
 }) {
   if (rows.length === 0) {
     return (
       <DashboardCard title="Recent evaluations">
-        <EmptyHint message="No evaluations yet." />
+        <EmptyHint
+          message={
+            focusedCategoryId
+              ? `No evaluations found for this category.`
+              : "No evaluations yet."
+          }
+        />
       </DashboardCard>
     );
   }
+
+  const trailingLabel = focusedCategoryId
+    ? focusedCategoryName
+      ? `Filtered to: ${focusedCategoryName}`
+      : "Category filtered"
+    : totalCount > rows.length
+      ? `Showing ${rows.length} of ${formatNumber(totalCount)}`
+      : null;
 
   return (
     <DashboardCard
       title="Recent evaluations"
       trailing={
-        totalCount > rows.length ? (
-          <span className="text-base text-muted-foreground">
-            Showing {rows.length} of {formatNumber(totalCount)}
-          </span>
+        trailingLabel ? (
+          <span className="text-base text-muted-foreground">{trailingLabel}</span>
         ) : null
       }
     >
@@ -801,6 +854,29 @@ function CsatRow({
           / 5 · n={formatNumber(sample)}
         </span>
       </span>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Category focus banner — shown when drilling in from the heatmap
+// ---------------------------------------------------------------------------
+
+function CategoryFocusBanner({ categoryName }: { categoryName: string }) {
+  return (
+    <div className="mt-4 flex items-center gap-2 rounded-md border border-border bg-accent/30 px-4 py-2.5 text-base">
+      <span className="flex-1 text-foreground">
+        Showing evaluations for{" "}
+        <span className="font-medium">{categoryName}</span>
+      </span>
+      <Link
+        href="?"
+        className="inline-flex items-center gap-1 text-muted-foreground hover:text-foreground"
+        title="Clear category filter"
+      >
+        <X className="size-3.5" />
+        Clear
+      </Link>
     </div>
   );
 }

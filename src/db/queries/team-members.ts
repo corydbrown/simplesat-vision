@@ -10,6 +10,7 @@ import {
   type SQL,
 } from "drizzle-orm";
 import { db, schema } from "../client";
+import { requireWorkspace } from "@/lib/workspace";
 import { compileListFilters } from "@/lib/filters/compile-list";
 import {
   TEAM_MEMBER_FILTER_FIELDS,
@@ -114,9 +115,12 @@ export async function listTeamMembers({
   rows: TeamMemberListRow[];
   total: number;
 }> {
-  const where = filters
+  const workspaceId = await requireWorkspace();
+  const filterWhere = filters
     ? compileListFilters(filters, TEAM_MEMBER_FILTER_FIELDS)
     : undefined;
+  const workspaceWhere = eq(schema.teamMembers.workspaceId, workspaceId);
+  const where = filterWhere ? and(workspaceWhere, filterWhere) : workspaceWhere;
 
   const baseQuery = db
     .select({
@@ -145,10 +149,9 @@ export async function listTeamMembers({
     groupBy ?? null,
     TEAM_MEMBER_GROUP_FIELDS,
   );
-  const rows = await (where ? baseQuery.where(where) : baseQuery).orderBy(
-    ...groupOrderBy,
-    ...buildTeamMemberOrderBy(sorts),
-  );
+  const rows = await baseQuery
+    .where(where)
+    .orderBy(...groupOrderBy, ...buildTeamMemberOrderBy(sorts));
 
   return {
     rows: rows.map((r) => ({
@@ -172,13 +175,21 @@ export type TeamMemberDetail = TeamMember & {
 export async function getTeamMemberById(
   id: string,
 ): Promise<TeamMemberDetail | null> {
+  const workspaceId = await requireWorkspace();
   const [member] = await db
     .select()
     .from(schema.teamMembers)
-    .where(eq(schema.teamMembers.id, id))
+    .where(
+      and(
+        eq(schema.teamMembers.id, id),
+        eq(schema.teamMembers.workspaceId, workspaceId),
+      ),
+    )
     .limit(1);
   if (!member) return null;
 
+  // Stats subqueries scope on team_member_id, which is workspace-bound through
+  // the FK chain (a member id maps to exactly one workspace).
   const [stats] = await db
     .select({
       totalTickets: sql<number>`(SELECT COUNT(*) FROM tickets WHERE assigned_team_member_id = ${id})`,
@@ -203,6 +214,7 @@ export async function getTeamMemberTickets(
   limit = 50,
   groupBy?: GroupSpec | null,
 ): Promise<import("./tickets").TicketsRow[]> {
+  const workspaceId = await requireWorkspace();
   const rawRows = await db
     .select({
       ticket: schema.tickets,
@@ -240,7 +252,12 @@ export async function getTeamMemberTickets(
       schema.responses,
       eq(schema.responses.ticketId, schema.tickets.id),
     )
-    .where(eq(schema.tickets.assignedTeamMemberId, memberId))
+    .where(
+      and(
+        eq(schema.tickets.assignedTeamMemberId, memberId),
+        eq(schema.tickets.workspaceId, workspaceId),
+      ),
+    )
     .orderBy(
       ...compileGroupOrderBy(groupBy ?? null, TICKET_GROUP_FIELDS),
       desc(schema.tickets.createdAt),
@@ -263,6 +280,7 @@ export async function getTeamMemberResponses(
   limit = 50,
   groupBy?: GroupSpec | null,
 ): Promise<import("./responses").ResponseListRow[]> {
+  const workspaceId = await requireWorkspace();
   const groupOrderBy = compileGroupOrderBy(groupBy ?? null, RESPONSE_GROUP_FIELDS);
   return db
     .select({
@@ -296,7 +314,12 @@ export async function getTeamMemberResponses(
       schema.teamMembers,
       eq(schema.teamMembers.id, schema.responses.teamMemberId),
     )
-    .where(eq(schema.responses.teamMemberId, memberId))
+    .where(
+      and(
+        eq(schema.responses.teamMemberId, memberId),
+        eq(schema.responses.workspaceId, workspaceId),
+      ),
+    )
     .orderBy(...groupOrderBy, desc(schema.responses.respondedAt))
     .limit(limit);
 }
@@ -442,6 +465,7 @@ export async function getTeamMemberQaRollup(
   memberId: string,
   options: { trendWeeks?: number; recentLimit?: number } = {},
 ): Promise<TeamMemberQaRollup> {
+  const workspaceId = await requireWorkspace();
   const trendWeeks = options.trendWeeks ?? QA_TREND_WEEKS;
   const recentLimit = options.recentLimit ?? 10;
 
@@ -469,6 +493,11 @@ export async function getTeamMemberQaRollup(
         isAutofail: schema.scorecardCategories.isAutofail,
       })
       .from(schema.scorecardCategories)
+      .innerJoin(
+        schema.scorecards,
+        eq(schema.scorecards.id, schema.scorecardCategories.scorecardId),
+      )
+      .where(eq(schema.scorecards.workspaceId, workspaceId))
       .orderBy(asc(schema.scorecardCategories.order)),
     db
       .select({
@@ -486,6 +515,7 @@ export async function getTeamMemberQaRollup(
       )
       .where(
         and(
+          eq(schema.evaluations.workspaceId, workspaceId),
           eq(schema.evaluations.scoredTeamMemberId, memberId),
           ne(schema.evaluations.status, "invalidated"),
         ),
@@ -512,6 +542,7 @@ export async function getTeamMemberQaRollup(
       )
       .where(
         and(
+          eq(schema.evaluations.workspaceId, workspaceId),
           eq(schema.evaluations.scoredTeamMemberId, memberId),
           ne(schema.evaluations.status, "invalidated"),
         ),
@@ -528,6 +559,7 @@ export async function getTeamMemberQaRollup(
       )
       .where(
         and(
+          eq(schema.coachingNotes.workspaceId, workspaceId),
           eq(schema.evaluations.scoredTeamMemberId, memberId),
           ne(schema.evaluations.status, "invalidated"),
         ),
@@ -549,6 +581,7 @@ export async function getTeamMemberQaRollup(
       )
       .where(
         and(
+          eq(schema.evaluations.workspaceId, workspaceId),
           eq(schema.evaluations.scoredTeamMemberId, memberId),
           ne(schema.evaluations.status, "invalidated"),
         ),
@@ -568,6 +601,7 @@ export async function getTeamMemberQaRollup(
       )
       .where(
         and(
+          eq(schema.evaluations.workspaceId, workspaceId),
           ne(schema.evaluations.scoredTeamMemberId, memberId),
           ne(schema.evaluations.status, "invalidated"),
         ),
@@ -582,7 +616,12 @@ export async function getTeamMemberQaRollup(
         memberId: schema.evaluations.scoredTeamMemberId,
       })
       .from(schema.evaluations)
-      .where(ne(schema.evaluations.status, "invalidated")),
+      .where(
+        and(
+          eq(schema.evaluations.workspaceId, workspaceId),
+          ne(schema.evaluations.status, "invalidated"),
+        ),
+      ),
   ]);
 
   const evaluationCount = memberEvalRows.length;
@@ -860,6 +899,7 @@ function dayStartUtcMs(ms: number): number {
 export async function getTeamMemberQaTiles(
   memberId: string,
 ): Promise<TeamMemberQaTiles> {
+  const workspaceId = await requireWorkspace();
   const now = Date.now();
   const span = TILE_WINDOW_DAYS * MS_PER_DAY;
   const currentFrom = now - span;
@@ -877,7 +917,8 @@ export async function getTeamMemberQaTiles(
         THEN CAST(overall_score AS REAL) END) AS prior_avg,
       COUNT(*) AS total
     FROM evaluations
-    WHERE scored_team_member_id = ${memberId}
+    WHERE workspace_id = ${workspaceId}
+      AND scored_team_member_id = ${memberId}
       AND status != 'invalidated'
   `);
   const scoreRow = scoreRows[0];
@@ -892,7 +933,8 @@ export async function getTeamMemberQaTiles(
       AVG(CASE WHEN responded_at >= ${priorFrom} AND responded_at < ${currentFrom}
         THEN CAST(rating AS REAL) * 5.0 / scale END) AS prior_avg
     FROM responses
-    WHERE team_member_id = ${memberId}
+    WHERE workspace_id = ${workspaceId}
+      AND team_member_id = ${memberId}
   `);
   const csatRow = csatRows[0];
 
@@ -905,7 +947,8 @@ export async function getTeamMemberQaTiles(
       SUM(CASE WHEN ecs.human_score IS NOT NULL THEN 1 ELSE 0 END) AS overrides
     FROM evaluation_category_scores ecs
     INNER JOIN evaluations e ON e.id = ecs.evaluation_id
-    WHERE e.scored_team_member_id = ${memberId}
+    WHERE e.workspace_id = ${workspaceId}
+      AND e.scored_team_member_id = ${memberId}
       AND e.status != 'invalidated'
   `);
   const acceptanceRow = acceptanceRows[0];
@@ -947,6 +990,7 @@ export async function getTeamMemberQaTiles(
 export async function getTeamMemberQaSparklines(
   memberId: string,
 ): Promise<TeamMemberQaSparklines> {
+  const workspaceId = await requireWorkspace();
   const today = dayStartUtcMs(Date.now());
   const cutoff = today - (SPARKLINE_DAYS - 1) * MS_PER_DAY;
 
@@ -967,6 +1011,7 @@ export async function getTeamMemberQaSparklines(
     .from(schema.evaluations)
     .where(
       and(
+        eq(schema.evaluations.workspaceId, workspaceId),
         eq(schema.evaluations.scoredTeamMemberId, memberId),
         ne(schema.evaluations.status, "invalidated"),
       ),
@@ -988,7 +1033,12 @@ export async function getTeamMemberQaSparklines(
       scale: schema.responses.scale,
     })
     .from(schema.responses)
-    .where(eq(schema.responses.teamMemberId, memberId));
+    .where(
+      and(
+        eq(schema.responses.workspaceId, workspaceId),
+        eq(schema.responses.teamMemberId, memberId),
+      ),
+    );
   for (const row of respRows) {
     const ms = row.respondedAt.getTime();
     if (ms < cutoff) continue;
@@ -1014,6 +1064,7 @@ export async function getTeamMemberCoachingFeed(
   memberId: string,
   limit = 8,
 ): Promise<TeamMemberCoachingFeedItem[]> {
+  const workspaceId = await requireWorkspace();
   const rows = await db
     .select({
       evaluationId: schema.evaluations.id,
@@ -1036,6 +1087,7 @@ export async function getTeamMemberCoachingFeed(
     )
     .where(
       and(
+        eq(schema.coachingNotes.workspaceId, workspaceId),
         eq(schema.evaluations.scoredTeamMemberId, memberId),
         ne(schema.evaluations.status, "invalidated"),
       ),
@@ -1058,13 +1110,19 @@ export async function getTeamMemberCoachingFeed(
 export async function getRatingHistogram(
   memberId: string,
 ): Promise<{ rating: number; count: number }[]> {
+  const workspaceId = await requireWorkspace();
   const rows = await db
     .select({
       rating: schema.responses.rating,
       count: sql<number>`COUNT(*)`.as("count"),
     })
     .from(schema.responses)
-    .where(eq(schema.responses.teamMemberId, memberId))
+    .where(
+      and(
+        eq(schema.responses.workspaceId, workspaceId),
+        eq(schema.responses.teamMemberId, memberId),
+      ),
+    )
     .groupBy(schema.responses.rating);
 
   return rows.map((r) => ({

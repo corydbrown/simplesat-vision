@@ -41,27 +41,30 @@ gh pr list --head "$BRANCH" --json number,url,state --jq '.[0]'
 
 If a PR already exists and is `OPEN`, we'll update it (`gh pr edit --body-file`) instead of creating a new one. If it's `MERGED` or `CLOSED`, stop and tell Cory — something's off.
 
-### 2. Prompt for PR title
+### 2. Gather title + summary + test plan in ONE plain chat message
 
-Show the worker the inferred title (last commit subject) and ask:
+**Critical: DO NOT use `AskUserQuestion`.** That tool renders a modal with radio options and an "Other" field — wrong primitive for free-text input. Cory has flagged this UX as broken twice. Use a single plain chat message instead, and read Cory's free-text reply.
 
-> **PR title** (press Enter to accept `<LAST_SUBJECT>`, or type a new one):
+Send this message (exactly one block, ask for all three at once):
 
-Keep it under ~70 chars. Don't auto-prefix anything — the commit subject convention already includes the type tag (e.g. `feat(skill): SVP-137 — /wrap skill`).
+> Ready to ship. I'll use these defaults unless you reply with overrides:
+>
+> **Title** (inferred from last commit): `<LAST_SUBJECT>`
+> **Summary**: <one-line auto-derived from `git log -1 --pretty=%b` first non-empty line, OR the brief title>
+> **Test plan**: `- [ ] Manual verification`
+>
+> Reply with anything you want to change (`title: ...`, `summary: bullet 1 / bullet 2`, `test: ...`), or just say "ship" to accept all defaults.
 
-### 3. Prompt for summary
+Then **wait for Cory's reply** as a regular chat message. Parse it:
+- If reply is "ship" / "go" / empty acceptance → use all defaults
+- If reply contains `title: ...` → override title
+- If reply contains `summary: a / b / c` (slash-separated) → split into bullets
+- If reply contains `test: a / b / c` → split into checkbox bullets
+- Any combination is fine
 
-> **Summary** — 1–3 bullets of what shipped. One bullet per line. Empty line to finish:
+Keep the title under ~70 chars. Don't auto-prefix anything — the commit subject convention already includes the type tag (e.g. `feat(skill): SVP-137 — /wrap skill`).
 
-Collect into a list. If the worker just hits Enter immediately, fall back to a one-line summary derived from the last commit body (`git log -1 --pretty=%b` first non-empty line), or from the brief title if even that's empty.
-
-### 4. Prompt for test plan
-
-> **Test plan** — what you tested. One bullet per line. Empty line to finish:
-
-3–5 bullets is typical. Each becomes a `- [ ] <bullet>` checkbox in the PR body. If the worker types nothing, write a single `- [ ] Manual verification` placeholder so the section isn't empty.
-
-### 5. Construct `.pr-body.md`
+### 3. Construct `.pr-body.md`
 
 Exact shape — `/post-merge` parses this by awk-section + line prefix, so the format is load-bearing:
 

@@ -123,6 +123,7 @@ export const ANSWER_PROPERTIES: Property<AnswerRow>[] = [
     icon: MessageSquare,
     sourceEntity: "Answer",
     defaultVisible: true,
+    kind: "component",
     sortable: true,
     sortValue: (r) => {
       const v = r.answer.value;
@@ -139,6 +140,7 @@ export const ANSWER_PROPERTIES: Property<AnswerRow>[] = [
     icon: TicketIcon,
     sourceEntity: "Ticket",
     defaultVisible: true,
+    kind: "component",
     sortable: true,
     sortValue: (r) => r.ticketSubject ?? r.ticketExternalId,
     cell: (r) =>
@@ -159,6 +161,7 @@ export const ANSWER_PROPERTIES: Property<AnswerRow>[] = [
     icon: User,
     sourceEntity: "Customer",
     defaultVisible: true,
+    kind: "component",
     sortable: true,
     sortValue: (r) => r.customerName,
     groupable: true,
@@ -178,6 +181,7 @@ export const ANSWER_PROPERTIES: Property<AnswerRow>[] = [
     icon: UserCircle2,
     sourceEntity: "Team member",
     defaultVisible: true,
+    kind: "component",
     sortable: true,
     sortValue: (r) => r.teamMemberName,
     groupable: true,

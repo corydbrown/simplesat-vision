@@ -32,6 +32,7 @@ export const RESPONSE_PROPERTIES: Property<ResponseListRow>[] = [
     icon: Star,
     sourceEntity: "Response",
     alwaysVisible: true,
+    kind: "component",
     sortable: true,
     sortValue: (r) => r.rating,
     filter: RESPONSE_FILTER_SPECS.rating,
@@ -69,6 +70,7 @@ export const RESPONSE_PROPERTIES: Property<ResponseListRow>[] = [
     icon: TicketIcon,
     sourceEntity: "Ticket",
     defaultVisible: true,
+    kind: "component",
     sortable: true,
     sortValue: (r) => r.ticketSubject ?? r.ticketExternalId,
     cell: (r) =>
@@ -89,6 +91,7 @@ export const RESPONSE_PROPERTIES: Property<ResponseListRow>[] = [
     icon: User,
     sourceEntity: "Customer",
     defaultVisible: true,
+    kind: "component",
     sortable: true,
     sortValue: (r) => r.customerName,
     groupable: true,
@@ -108,6 +111,7 @@ export const RESPONSE_PROPERTIES: Property<ResponseListRow>[] = [
     icon: UserCircle2,
     sourceEntity: "Team member",
     defaultVisible: true,
+    kind: "component",
     sortable: true,
     sortValue: (r) => r.teamMemberName,
     groupable: true,
@@ -131,6 +135,7 @@ export const RESPONSE_PROPERTIES: Property<ResponseListRow>[] = [
     icon: TagIcon,
     sourceEntity: "Response",
     defaultVisible: false,
+    kind: "component",
     filter: RESPONSE_FILTER_SPECS.topics,
     cell: (r) =>
       r.topics.length === 0 ? (

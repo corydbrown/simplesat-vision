@@ -46,6 +46,7 @@ export const COACHING_PROPERTIES: Property<EvaluationsRow>[] = [
     icon: Inbox,
     sourceEntity: "Ticket",
     alwaysVisible: true,
+    kind: "component",
     sortable: true,
     sortValue: (e) => e.ticket?.subject ?? null,
     cell: (e) =>
@@ -66,6 +67,7 @@ export const COACHING_PROPERTIES: Property<EvaluationsRow>[] = [
     icon: Gauge,
     sourceEntity: "Coaching",
     alwaysVisible: true,
+    kind: "component",
     align: "right",
     // Worst-first is the actionable default for managers triaging the
     // review queue — mirrors the "Needs my attention" saved view sort.
@@ -85,6 +87,7 @@ export const COACHING_PROPERTIES: Property<EvaluationsRow>[] = [
     icon: CircleDot,
     sourceEntity: "Coaching",
     defaultVisible: true,
+    kind: "component",
     sortable: true,
     sortValue: (e) => e.status,
     filter: COACHING_FILTER_SPECS.status,
@@ -102,6 +105,7 @@ export const COACHING_PROPERTIES: Property<EvaluationsRow>[] = [
     icon: UserCircle2,
     sourceEntity: "Team member",
     defaultVisible: true,
+    kind: "component",
     sortable: true,
     sortValue: (e) => e.scoredTeamMember?.name ?? null,
     filter: COACHING_FILTER_SPECS.scored_team_member,
@@ -146,6 +150,7 @@ export const COACHING_PROPERTIES: Property<EvaluationsRow>[] = [
     icon: ShieldAlert,
     sourceEntity: "Coaching",
     defaultVisible: true,
+    kind: "component",
     sortable: true,
     sortValue: (e) => (e.autoFailed ? 1 : 0),
     filter: COACHING_FILTER_SPECS.auto_failed,

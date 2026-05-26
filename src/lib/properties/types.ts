@@ -49,8 +49,9 @@ export type Property<T> = {
    *  number, or date) get `text-overflow: ellipsis` so long strings clip with
    *  a `…`. `"component"` cells (pills, badges, tag lists, composite widgets)
    *  get plain `overflow: hidden` so they clip cleanly without an ellipsis
-   *  appearing next to a pill at narrow widths. Defaults to `"component"` —
-   *  text cells opt in explicitly. */
+   *  appearing next to a pill at narrow widths. Defaults to `"text"` —
+   *  component cells opt in explicitly so a freshly added text property is
+   *  safe-by-default (ellipsis applies). */
   kind?: "text" | "component";
   align?: "left" | "right";
   cell: (row: T) => ReactNode;

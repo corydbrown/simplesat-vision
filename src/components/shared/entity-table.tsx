@@ -233,7 +233,7 @@ export function EntityTable<T>({
                 maxWidth: width,
               }}
               className={`px-gutter py-3 border-b border-border align-middle bg-background group-hover:bg-accent/50 overflow-hidden whitespace-nowrap ${
-                p.kind === "text" ? "text-ellipsis" : ""
+                p.kind === "component" ? "" : "text-ellipsis"
               } ${p.align === "right" ? "text-right" : ""}`}
             >
               {p.cell(row)}

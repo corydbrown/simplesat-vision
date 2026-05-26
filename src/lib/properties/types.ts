@@ -1,7 +1,7 @@
 import type { ComponentType, ReactNode } from "react";
 import type { LucideProps } from "lucide-react";
 import type { z } from "zod";
-import type { DynamicValuesKey } from "@/lib/filters/multi-enum-resolvers";
+import type { DynamicValuesKey } from "@/lib/filters/multi-enum-types";
 import type { FilterDataType, FilterOp } from "@/lib/filters/types";
 import type { ColumnStateSchema } from "./schemas";
 

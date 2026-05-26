@@ -1,14 +1,6 @@
 "use client";
 
-import {
-  Check,
-  ChevronDown,
-  FlaskConical,
-  Headphones,
-  MessageCircle,
-  Settings,
-  type LucideIcon,
-} from "lucide-react";
+import { Check, ChevronDown, Settings } from "lucide-react";
 import Link from "next/link";
 import {
   DropdownMenu,
@@ -19,20 +11,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import type { WorkspaceSummary } from "@/db/queries/workspaces";
-import type { WorkspaceIntegrationType } from "@/db/schema";
 import { setActiveWorkspace } from "@/lib/workspaces/actions";
-
-const INTEGRATION_ICON: Record<WorkspaceIntegrationType, LucideIcon> = {
-  intercom: MessageCircle,
-  zendesk: Headphones,
-  mock: FlaskConical,
-};
-
-const INTEGRATION_LABEL: Record<WorkspaceIntegrationType, string> = {
-  intercom: "Intercom",
-  zendesk: "Zendesk",
-  mock: "Demo data",
-};
 
 function initial(name: string): string {
   return name.trim().charAt(0).toUpperCase() || "?";
@@ -53,8 +32,6 @@ export function WorkspaceSwitcher({
   // requireWorkspace() the moment the user loads any list page.
   if (!active) return null;
 
-  const ActiveIcon = INTEGRATION_ICON[active.integrationType];
-
   // Single-workspace user: render the trigger shape as a static label. No
   // dropdown — the only meaningful action is the Settings link, which lives
   // on the user pill / settings page anyway.
@@ -68,11 +45,6 @@ export function WorkspaceSwitcher({
         <span className="truncate font-medium text-foreground">
           {active.name}
         </span>
-        <ActiveIcon
-          size={11}
-          aria-hidden
-          className="shrink-0 text-muted-foreground/60"
-        />
       </div>
     );
   }
@@ -88,11 +60,6 @@ export function WorkspaceSwitcher({
           <span className="truncate font-medium text-foreground">
             {active.name}
           </span>
-          <ActiveIcon
-            size={11}
-            aria-hidden
-            className="shrink-0 text-muted-foreground/60"
-          />
           <ChevronDown
             size={13}
             className="shrink-0 text-muted-foreground/70"
@@ -104,7 +71,6 @@ export function WorkspaceSwitcher({
           Switch workspace
         </DropdownMenuLabel>
         {workspaces.map((w) => {
-          const Icon = INTEGRATION_ICON[w.integrationType];
           const isActive = w.id === active.id;
           return (
             <form key={w.id} action={setActiveWorkspace.bind(null, w.id)}>
@@ -119,16 +85,11 @@ export function WorkspaceSwitcher({
                   className="flex w-full cursor-pointer items-center gap-2"
                 >
                   <WorkspaceAvatar name={w.name} />
-                  <span className="min-w-0 flex-1 truncate text-base text-foreground">
+                  <span className="min-w-0 flex-1 truncate text-left">
                     {w.name}
                   </span>
-                  <Icon
-                    size={12}
-                    aria-label={INTEGRATION_LABEL[w.integrationType]}
-                    className="shrink-0 text-muted-foreground/70"
-                  />
                   {isActive ? (
-                    <Check size={14} className="shrink-0 text-foreground" />
+                    <Check size={14} className="shrink-0" />
                   ) : (
                     <span aria-hidden className="w-3.5 shrink-0" />
                   )}
@@ -139,7 +100,7 @@ export function WorkspaceSwitcher({
         })}
         <DropdownMenuSeparator />
         <DropdownMenuItem asChild>
-          <Link href="/settings" className="cursor-pointer">
+          <Link href="/settings/workspace" className="cursor-pointer">
             <Settings size={14} className="text-muted-foreground" />
             Settings
           </Link>
@@ -150,10 +111,14 @@ export function WorkspaceSwitcher({
 }
 
 function WorkspaceAvatar({ name }: { name: string }) {
+  // `!text-background` defends against the dropdown item's
+  // `focus:**:text-accent-foreground` cascade, which would otherwise drop the
+  // letter to the same color as the avatar background on hover and erase the
+  // glyph.
   return (
     <div
       aria-hidden
-      className="flex h-6 w-6 shrink-0 items-center justify-center rounded bg-foreground text-base font-semibold text-background"
+      className="flex h-6 w-6 shrink-0 items-center justify-center rounded bg-foreground text-base font-semibold !text-background"
     >
       {initial(name)}
     </div>

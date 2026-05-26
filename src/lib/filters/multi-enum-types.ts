@@ -16,3 +16,12 @@ export type MultiEnumValueOption = {
 /** One resolver per multi_enum field. Returns the distinct values currently
  *  present in the underlying JSON-array column, with occurrence counts. */
 export type MultiEnumResolver = () => Promise<MultiEnumValueOption[]>;
+
+/** Registered multi_enum resolver keys. Listed explicitly (rather than
+ *  `keyof typeof MULTI_ENUM_RESOLVERS`) so client modules — `PropertyFilter`,
+ *  the property registries — can import the union without a transitive
+ *  reference to the server-only resolver registry. The registry in
+ *  `multi-enum-resolvers.ts` enforces coverage via `satisfies Record<
+ *  DynamicValuesKey, MultiEnumResolver>`, so adding a key here without
+ *  registering its resolver fails at type-check. */
+export type DynamicValuesKey = "ticket.tags" | "response.topics";

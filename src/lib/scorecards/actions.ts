@@ -259,6 +259,15 @@ export async function previewScoreWithDraft(
     })),
   };
 
+  const [responseRow] = await db
+    .select({ rating: schema.responses.rating, scale: schema.responses.scale })
+    .from(schema.responses)
+    .where(eq(schema.responses.ticketId, ticket.id))
+    .limit(1);
+  const responseRating = responseRow
+    ? Math.round((responseRow.rating * 5) / responseRow.scale)
+    : null;
+
   const scoringInput: ScoringInput = {
     ticket: {
       id: ticket.id,
@@ -269,6 +278,7 @@ export async function previewScoreWithDraft(
       createdAt: ticket.createdAt,
       solvedAt: ticket.solvedAt,
       tags: ticket.tags,
+      responseRating,
     },
     messages,
     scorecard: scoringScorecard,

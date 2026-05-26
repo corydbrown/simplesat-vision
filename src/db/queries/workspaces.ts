@@ -3,13 +3,14 @@ import { and, asc, eq } from "drizzle-orm";
 import { db, schema } from "../client";
 import { requireWorkspace } from "@/lib/workspace";
 import { getCurrentUser } from "@/lib/auth";
+import type { WorkspaceIntegrationType } from "../schema";
 
 export type WorkspaceDetails = {
   id: string;
   name: string;
   slug: string;
   logoUrl: string | null;
-  integrationType: "intercom" | "zendesk" | "mock";
+  integrationType: WorkspaceIntegrationType;
   createdAt: number;
   createdByName: string | null;
   createdByEmail: string | null;
@@ -22,6 +23,13 @@ export type WorkspaceMember = {
   avatarUrl: string | null;
   role: "admin" | "member";
   joinedAt: number;
+};
+
+export type WorkspaceSummary = {
+  id: string;
+  name: string;
+  slug: string;
+  integrationType: WorkspaceIntegrationType;
 };
 
 /** Returns the active workspace with creator details. Creator is a separate
@@ -114,4 +122,31 @@ export async function getCurrentUserRole(): Promise<"admin" | "member" | null> {
     .limit(1);
 
   return row?.role ?? null;
+}
+
+/** Lists every workspace the given user belongs to. WORKSPACE-SCOPING-EXEMPT
+ *  by design: this powers the workspace switcher, which by definition has to
+ *  read across workspaces FOR a single user. Do NOT call `requireWorkspace()`
+ *  here — that would either return only the active workspace (defeating the
+ *  switcher) or recurse. Membership is enforced via the `user_workspaces`
+ *  join: rows the user doesn't have membership in are excluded by the join
+ *  itself. */
+export async function listWorkspacesForUser(
+  userId: string,
+): Promise<WorkspaceSummary[]> {
+  const rows = await db
+    .select({
+      id: schema.workspaces.id,
+      name: schema.workspaces.name,
+      slug: schema.workspaces.slug,
+      integrationType: schema.workspaces.integrationType,
+    })
+    .from(schema.userWorkspaces)
+    .innerJoin(
+      schema.workspaces,
+      eq(schema.userWorkspaces.workspaceId, schema.workspaces.id),
+    )
+    .where(eq(schema.userWorkspaces.userId, userId))
+    .orderBy(asc(schema.workspaces.name));
+  return rows;
 }

@@ -32,7 +32,7 @@ export class MockScoringProvider implements ScoringProvider {
     const faker = new Faker({ locale: [en] });
     faker.seed(hashSeed(input.ticket.id));
 
-    const targetOverall = pickTargetOverall(faker);
+    const targetOverall = pickTargetOverall(faker, input.ticket.responseRating);
     const autoFailTriggered = targetOverall.bucket === "autofail";
 
     const categoryScores: ScoringCategoryResult[] = input.scorecard.categories
@@ -101,15 +101,57 @@ function hashSeed(id: string): number {
 type OverallBucket = "excellent" | "good" | "poor" | "autofail";
 type OverallTarget = { bucket: OverallBucket; center: number };
 
-function pickTargetOverall(faker: Faker): OverallTarget {
+function pickTargetOverall(
+  faker: Faker,
+  responseRating: number | null,
+): OverallTarget {
   const roll = faker.number.int({ min: 0, max: 99 });
-  if (roll < 70)
-    return { bucket: "good", center: faker.number.int({ min: 72, max: 85 }) };
-  if (roll < 85)
-    return { bucket: "excellent", center: faker.number.int({ min: 90, max: 97 }) };
-  if (roll < 95)
-    return { bucket: "poor", center: faker.number.int({ min: 45, max: 62 }) };
-  return { bucket: "autofail", center: 30 };
+  const bucket = pickBucket(roll, responseRating);
+  return { bucket, center: centerForBucket(faker, bucket) };
+}
+
+/** Bucket selection conditioned on CSAT. Tickets that earned a high rating
+ *  skew toward excellent/good QA scores; low-rated tickets skew toward poor
+ *  and auto-fail. Null (no response) keeps the original unconditioned
+ *  distribution — the slope target only applies to tickets with CSAT. */
+function pickBucket(roll: number, responseRating: number | null): OverallBucket {
+  if (responseRating === 5) {
+    if (roll < 80) return "excellent";
+    return "good";
+  }
+  if (responseRating === 4) {
+    if (roll < 70) return "good";
+    if (roll < 90) return "excellent";
+    return "poor";
+  }
+  if (responseRating === 3) {
+    if (roll < 60) return "good";
+    if (roll < 90) return "poor";
+    return "excellent";
+  }
+  if (responseRating === 2 || responseRating === 1) {
+    if (roll < 60) return "poor";
+    if (roll < 85) return "autofail";
+    return "good";
+  }
+  // No response — fall back to the original distribution.
+  if (roll < 70) return "good";
+  if (roll < 85) return "excellent";
+  if (roll < 95) return "poor";
+  return "autofail";
+}
+
+function centerForBucket(faker: Faker, bucket: OverallBucket): number {
+  switch (bucket) {
+    case "good":
+      return faker.number.int({ min: 72, max: 85 });
+    case "excellent":
+      return faker.number.int({ min: 90, max: 97 });
+    case "poor":
+      return faker.number.int({ min: 45, max: 62 });
+    case "autofail":
+      return 30;
+  }
 }
 
 function likertForTarget(faker: Faker, center0to100: number): number {

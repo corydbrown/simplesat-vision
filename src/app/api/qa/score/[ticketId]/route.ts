@@ -114,6 +114,15 @@ export async function GET(
     createdAt: m.createdAt,
   }));
 
+  const [responseRow] = await db
+    .select({ rating: schema.responses.rating, scale: schema.responses.scale })
+    .from(schema.responses)
+    .where(eq(schema.responses.ticketId, ticketId))
+    .limit(1);
+  const responseRating = responseRow
+    ? Math.round((responseRow.rating * 5) / responseRow.scale)
+    : null;
+
   const input: ScoringInput = {
     ticket: {
       id: ticket.id,
@@ -124,6 +133,7 @@ export async function GET(
       createdAt: ticket.createdAt,
       solvedAt: ticket.solvedAt,
       tags: ticket.tags,
+      responseRating,
     },
     messages,
     scorecard: scoringScorecard,

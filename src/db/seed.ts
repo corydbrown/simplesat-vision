@@ -1853,9 +1853,16 @@ async function seed() {
   const categoryScoreRows: NewEvaluationCategoryScore[] = [];
   const coachingNoteRows: NewCoachingNote[] = [];
 
+  const responseByTicketId = new Map<string, NewResponse>();
+  for (const r of responses) responseByTicketId.set(r.ticketId, r);
+
   for (const ticket of tickets) {
     if (!mockupTicketIds.has(ticket.id!)) continue;
     const messages = messagesByTicketId.get(ticket.id!) ?? [];
+    const ticketResponse = responseByTicketId.get(ticket.id!);
+    const responseRating = ticketResponse
+      ? Math.round((ticketResponse.rating * 5) / ticketResponse.scale)
+      : null;
     const input: ScoringInput = {
       ticket: {
         id: ticket.id!,
@@ -1866,6 +1873,7 @@ async function seed() {
         createdAt: ticket.createdAt as Date,
         solvedAt: (ticket.solvedAt as Date | null) ?? null,
         tags: ticket.tags ?? [],
+        responseRating,
       },
       messages,
       scorecard: scoringScorecard,

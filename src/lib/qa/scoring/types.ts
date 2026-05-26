@@ -26,6 +26,11 @@ export type ScoringInput = {
     createdAt: Date;
     solvedAt: Date | null;
     tags: string[];
+    /** Customer's CSAT response rating projected to a 1-5 scale, or null if
+     *  no response exists for the ticket. The mock provider conditions its
+     *  bucket roll on this so seeded QA scores correlate with CSAT — null
+     *  preserves the unconditioned distribution. */
+    responseRating: number | null;
   };
   /** Full message log (customer + agent + system) in chronological order.
    *  Message ids surface in highlighted_message_ids on the output, which is

@@ -1,6 +1,7 @@
 import "server-only";
-import { asc, desc, eq, type AnyColumn, type SQL } from "drizzle-orm";
+import { and, asc, desc, eq, type AnyColumn, type SQL } from "drizzle-orm";
 import { db, schema } from "../client";
+import { requireWorkspace } from "@/lib/workspace";
 import { compileListFilters } from "@/lib/filters/compile-list";
 import {
   COACHING_FILTER_FIELDS,
@@ -78,14 +79,17 @@ export async function listEvaluations({
   filters?: Filter[];
   groupBy?: GroupSpec | null;
 }): Promise<{ rows: EvaluationsRow[]; total: number }> {
+  const workspaceId = await requireWorkspace();
   const orderByList = buildEvaluationOrderBy(sorts);
   const groupOrderBy = compileGroupOrderBy(
     groupBy ?? null,
     COACHING_GROUP_FIELDS,
   );
-  const where = filters
+  const filterWhere = filters
     ? compileListFilters(filters, COACHING_FILTER_FIELDS)
     : undefined;
+  const workspaceWhere = eq(schema.evaluations.workspaceId, workspaceId);
+  const where = filterWhere ? and(workspaceWhere, filterWhere) : workspaceWhere;
 
   const offset = (page - 1) * pageSize;
 
@@ -124,7 +128,8 @@ export async function listEvaluations({
     );
 
   const [rawRows, total] = await Promise.all([
-    (where ? baseQuery.where(where) : baseQuery)
+    baseQuery
+      .where(where)
       .orderBy(...groupOrderBy, ...orderByList)
       .limit(pageSize)
       .offset(offset),
@@ -176,6 +181,7 @@ export type EvaluationVersionRow = {
 export async function listEvaluationsForTicket(
   ticketId: string,
 ): Promise<EvaluationVersionRow[]> {
+  const workspaceId = await requireWorkspace();
   const rows = await db
     .select({
       id: schema.evaluations.id,
@@ -192,7 +198,12 @@ export async function listEvaluationsForTicket(
         schema.evaluations.scorecardVersionId,
       ),
     )
-    .where(eq(schema.evaluations.ticketId, ticketId))
+    .where(
+      and(
+        eq(schema.evaluations.ticketId, ticketId),
+        eq(schema.evaluations.workspaceId, workspaceId),
+      ),
+    )
     .orderBy(
       desc(schema.scorecardVersions.version),
       desc(schema.evaluations.scoredAt),
@@ -206,6 +217,7 @@ export async function listEvaluationsForTicket(
 export async function getEvaluationById(
   id: string,
 ): Promise<EvaluationSummary | null> {
+  const workspaceId = await requireWorkspace();
   const [r] = await db
     .select({
       evaluation: schema.evaluations,
@@ -238,7 +250,12 @@ export async function getEvaluationById(
       schema.tickets,
       eq(schema.tickets.id, schema.evaluations.ticketId),
     )
-    .where(eq(schema.evaluations.id, id))
+    .where(
+      and(
+        eq(schema.evaluations.id, id),
+        eq(schema.evaluations.workspaceId, workspaceId),
+      ),
+    )
     .limit(1);
 
   if (!r) return null;

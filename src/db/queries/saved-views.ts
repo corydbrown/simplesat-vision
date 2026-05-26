@@ -31,6 +31,44 @@ export async function listSavedViews(entity: EntityKey): Promise<SavedView[]> {
   return rows.map(rowToView);
 }
 
+export type SavedViewsByEntity = Record<EntityKey, SavedView[]>;
+
+function emptySavedViewsByEntity(): SavedViewsByEntity {
+  return {
+    tickets: [],
+    customers: [],
+    responses: [],
+    "team-members": [],
+    coaching: [],
+  };
+}
+
+/** Single-round-trip variant of listSavedViews — returns every entity's
+ *  saved views at once. The ViewsProvider hydration path uses this so the
+ *  first paint pays for one server action + one DB query instead of five
+ *  parallel ones (SVP-162). Server-side ORDER BY mirrors listSavedViews;
+ *  we re-group by entity in memory after the fetch. */
+export async function listAllSavedViews(): Promise<SavedViewsByEntity> {
+  const workspaceId = await requireWorkspace();
+  // No entity filter — savedViews.entity is constrained by the column enum,
+  // and we want every entity's rows anyway. Group in memory after the fetch.
+  const rows = await db
+    .select()
+    .from(schema.savedViews)
+    .where(eq(schema.savedViews.workspaceId, workspaceId))
+    .orderBy(
+      asc(schema.savedViews.entity),
+      asc(schema.savedViews.position),
+      asc(schema.savedViews.createdAt),
+    );
+
+  const byEntity = emptySavedViewsByEntity();
+  for (const row of rows) {
+    byEntity[row.entity as EntityKey].push(rowToView(row));
+  }
+  return byEntity;
+}
+
 /** Append-at-end create. Position is MAX(position)+1 so the sidebar drag-
  *  reorder UI (SVP-33) keeps newly created views below the existing manual
  *  order instead of shuffling them in alphabetically. */

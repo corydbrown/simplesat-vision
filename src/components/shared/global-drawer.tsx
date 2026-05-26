@@ -17,9 +17,12 @@ import {
 import type { CustomerDetail, CustomerListRow } from "@/db/queries/customers";
 import type { TicketDetail, TicketsRow } from "@/db/queries/tickets";
 import type {
+  TeamMemberCoachingFeedItem,
   TeamMemberDetail,
   TeamMemberListRow,
   TeamMemberQaRollup,
+  TeamMemberQaSparklines,
+  TeamMemberQaTiles,
 } from "@/db/queries/team-members";
 import type { ResponseDetail, ResponseListRow } from "@/db/queries/responses";
 import type { SurveyDetail, SurveyRow } from "@/db/queries/surveys";
@@ -109,6 +112,9 @@ type DrawerData =
         responses: ResponseListRow[];
         histogram: { rating: number; count: number }[];
         qaRollup: TeamMemberQaRollup;
+        qaTiles: TeamMemberQaTiles;
+        qaSparklines: TeamMemberQaSparklines;
+        coachingFeed: TeamMemberCoachingFeedItem[];
       };
     }
   | {
@@ -375,6 +381,9 @@ export function GlobalDrawer() {
             responses={renderPayload.data.responses}
             histogram={renderPayload.data.histogram}
             qaRollup={renderPayload.data.qaRollup}
+            qaTiles={renderPayload.data.qaTiles}
+            qaSparklines={renderPayload.data.qaSparklines}
+            coachingFeed={renderPayload.data.coachingFeed}
             inDrawer
           />
         ) : renderPayload.entity === "response" ? (

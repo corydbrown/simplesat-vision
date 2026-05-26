@@ -7,7 +7,10 @@ import { eq } from "drizzle-orm";
 import {
   getRatingHistogram,
   getTeamMemberById,
+  getTeamMemberCoachingFeed,
   getTeamMemberQaRollup,
+  getTeamMemberQaSparklines,
+  getTeamMemberQaTiles,
   getTeamMemberResponses,
   getTeamMemberTickets,
 } from "@/db/queries/team-members";
@@ -21,11 +24,23 @@ export default async function TeamMemberDetailPage(
   const member = await getTeamMemberById(id);
   if (!member) notFound();
 
-  const [tickets, responses, histogram, qaRollup, group] = await Promise.all([
+  const [
+    tickets,
+    responses,
+    histogram,
+    qaRollup,
+    qaTiles,
+    qaSparklines,
+    coachingFeed,
+    group,
+  ] = await Promise.all([
     getTeamMemberTickets(id, 50),
     getTeamMemberResponses(id, 50),
     getRatingHistogram(id),
     getTeamMemberQaRollup(id),
+    getTeamMemberQaTiles(id),
+    getTeamMemberQaSparklines(id),
+    getTeamMemberCoachingFeed(id, 8),
     member.groupId
       ? db
           .select({ name: schema.teamMemberGroups.name })
@@ -69,6 +84,9 @@ export default async function TeamMemberDetailPage(
         responses={responses}
         histogram={histogram}
         qaRollup={qaRollup}
+        qaTiles={qaTiles}
+        qaSparklines={qaSparklines}
+        coachingFeed={coachingFeed}
       />
     </>
   );

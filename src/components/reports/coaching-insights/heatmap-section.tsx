@@ -1,7 +1,6 @@
 import { DashboardCard } from "@/components/shared/dashboard-card";
 import { Heatmap, type HeatmapCell } from "@/components/shared/heatmap";
 import type { CoachingHeatmap } from "@/db/queries/coaching-insights";
-import { encodeFilters } from "@/lib/filters/url-state";
 
 /** Map an avg category score (0-100) to a production hue token class set.
  *  Same ladder as QaScoreBadge, but applied as a cell background. */
@@ -66,16 +65,7 @@ export function CoachingHeatmapSection({
           )} (${data?.sampleSize ?? 0} evals)`;
         }}
         emptyTooltip={() => "No evaluations in this category yet"}
-        hrefFor={(agentId) => {
-          const f = encodeFilters([
-            {
-              propertyId: "scored_team_member",
-              op: "in",
-              value: [agentId],
-            },
-          ]);
-          return `/coaching?f=${f}`;
-        }}
+        hrefFor={(agentId) => `/team-members/${agentId}`}
       />
     </DashboardCard>
   );

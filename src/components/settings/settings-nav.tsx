@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ClipboardCheck, type LucideIcon } from "lucide-react";
+import { ClipboardCheck, Settings2, type LucideIcon } from "lucide-react";
 
 type SettingsNavItem = {
   id: string;
@@ -15,6 +15,13 @@ type SettingsNavItem = {
 };
 
 const ITEMS: SettingsNavItem[] = [
+  {
+    id: "workspace",
+    label: "Workspace",
+    href: "/settings/workspace",
+    icon: Settings2,
+    match: "/settings/workspace",
+  },
   {
     id: "scorecards",
     label: "Scorecards",

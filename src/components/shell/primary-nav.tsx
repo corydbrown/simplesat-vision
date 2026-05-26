@@ -2,6 +2,7 @@ import { PrimaryNavClient } from "./primary-nav-client";
 import type { NavSection } from "./primary-nav-client";
 import { NAV_SECTION_ORDER } from "@/lib/views/seed";
 import type { EntityKey } from "@/lib/views/types";
+import { getCurrentUser } from "@/lib/auth";
 
 // Server-rendered nav metadata. Per-entity saved views are filled in
 // client-side from localStorage via ViewsProvider — keeping that read out of
@@ -72,6 +73,7 @@ const SECTIONS: NavSection[] = [
   },
 ];
 
-export function PrimaryNav() {
-  return <PrimaryNavClient sections={SECTIONS} />;
+export async function PrimaryNav() {
+  const user = await getCurrentUser();
+  return <PrimaryNavClient sections={SECTIONS} user={user} />;
 }

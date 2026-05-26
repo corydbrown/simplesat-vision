@@ -433,6 +433,14 @@ export const tickets = sqliteTable(
   },
   (t) => [
     index("tickets_workspace_id_idx").on(t.workspaceId),
+    // Composite covers the listCustomers t_agg subquery: GROUP BY customer_id
+    // WHERE workspace_id = ?, with MAX(created_at). Lets SQLite do an
+    // index-only scan instead of 50K rowid lookups (SVP-162).
+    index("tickets_workspace_customer_created_idx").on(
+      t.workspaceId,
+      t.customerId,
+      t.createdAt,
+    ),
     index("tickets_customer_id_idx").on(t.customerId),
     index("tickets_assigned_team_member_id_idx").on(t.assignedTeamMemberId),
     index("tickets_status_idx").on(t.status),
@@ -604,6 +612,14 @@ export const responses = sqliteTable(
   },
   (t) => [
     index("responses_workspace_id_idx").on(t.workspaceId),
+    // Composite covers the listCustomers r_agg subquery: GROUP BY customer_id
+    // WHERE workspace_id = ?, with AVG(rating). Lets SQLite do an index-only
+    // scan instead of rowid lookups (SVP-162).
+    index("responses_workspace_customer_rating_idx").on(
+      t.workspaceId,
+      t.customerId,
+      t.rating,
+    ),
     index("responses_ticket_id_idx").on(t.ticketId),
     index("responses_customer_id_idx").on(t.customerId),
     index("responses_team_member_id_idx").on(t.teamMemberId),

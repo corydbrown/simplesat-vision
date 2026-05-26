@@ -104,7 +104,41 @@ export async function listCustomers({
   const workspaceWhere = eq(schema.customers.workspaceId, workspaceId);
   const where = filterWhere ? and(workspaceWhere, filterWhere) : workspaceWhere;
 
-  const baseQuery = db
+  // Per-customer aggregates, computed once per workspace and joined back onto
+  // the customer row. Replaces three correlated scalar subqueries that fanned
+  // out to thousands of index seeks per request (see comment in
+  // src/lib/filters/fields/customers.ts and SVP-162).
+  //
+  // The aliases (`t_agg`, `r_agg`) are referenced by literal SQL in the
+  // customer field expressions; keep them stable.
+  const ticketAgg = db
+    .select({
+      customerId: schema.tickets.customerId,
+      totalTickets: sql<number>`COUNT(*)`.as("total_tickets"),
+      lastSeen: sql<number | null>`MAX(${schema.tickets.createdAt})`.as(
+        "last_seen",
+      ),
+    })
+    .from(schema.tickets)
+    .where(eq(schema.tickets.workspaceId, workspaceId))
+    .groupBy(schema.tickets.customerId)
+    .as("t_agg");
+
+  const responseAgg = db
+    .select({
+      customerId: schema.responses.customerId,
+      avgRating: sql<number | null>`AVG(CAST(${schema.responses.rating} AS REAL))`.as(
+        "avg_rating",
+      ),
+    })
+    .from(schema.responses)
+    .where(eq(schema.responses.workspaceId, workspaceId))
+    .groupBy(schema.responses.customerId)
+    .as("r_agg");
+
+  const groupOrderBy = compileGroupOrderBy(groupBy ?? null, CUSTOMER_GROUP_FIELDS);
+
+  const rows = await db
     .select({
       id: schema.customers.id,
       name: schema.customers.name,
@@ -119,10 +153,9 @@ export async function listCustomers({
       avgRating: avgRatingExpr,
       lastSeen: lastSeenExpr,
     })
-    .from(schema.customers);
-
-  const groupOrderBy = compileGroupOrderBy(groupBy ?? null, CUSTOMER_GROUP_FIELDS);
-  const rows = await baseQuery
+    .from(schema.customers)
+    .leftJoin(ticketAgg, eq(ticketAgg.customerId, schema.customers.id))
+    .leftJoin(responseAgg, eq(responseAgg.customerId, schema.customers.id))
     .where(where)
     .orderBy(...groupOrderBy, ...buildCustomerOrderBy(sorts));
 

@@ -1,0 +1,2 @@
+CREATE INDEX `responses_workspace_customer_rating_idx` ON `responses` (`workspace_id`,`customer_id`,`rating`);--> statement-breakpoint
+CREATE INDEX `tickets_workspace_customer_created_idx` ON `tickets` (`workspace_id`,`customer_id`,`created_at`);

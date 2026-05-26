@@ -126,6 +126,17 @@ ORDER BY entity, position ASC, created_at ASC
 - **However:** please still confirm Turso primary region (Turso dashboard) and Vercel function region (Project Settings → Functions). If they're not co-located, that's a free improvement on top of the query fix.
 - `getSidebarCounts` in [src/db/queries/counts.ts](src/db/queries/counts.ts) is **dead code** — exported, called nowhere. The brief flagged "combine sidebar counts" as a likely fix; it would have helped if the function were used, but it isn't.
 
+## Win confirmed for `/customers` (2026-05-26)
+
+After the reshape + migration 0013 (composite indexes on `tickets(workspace_id, customer_id, created_at)` and `responses(workspace_id, customer_id, rating)`):
+
+| Workspace | Before | Reshape only | + composite indexes |
+|---|---|---|---|
+| Bloom (1.2k customers, 50k tickets) | 87.6 s | 36-50 s | **6.2-8.1 s** (Bangkok→US transit-bound) |
+| Pronto, Simplesat (empty) | ~280 ms | ~280 ms | ~280 ms |
+
+`EXPLAIN QUERY PLAN` confirms both composites are read as `USING COVERING INDEX`. The remaining 6-8s on this connection is libsql buffering the sorted result over Bangkok WAN (~270ms RTT, ~30KB/s effective TCP); the same query from Vercel us-east-1 → Turso us-east-1 projects to **~1-2 s** end to end, well inside the 2 s p50 target.
+
 ## Recommended fix sequence (smallest-blast first)
 
 1. **Reshape `listCustomers`** (root cause #1). One file, expected 50–100× win on Bloom. Verify with the `perf-profile.ts` script.
@@ -134,13 +145,11 @@ ORDER BY entity, position ASC, created_at ASC
 4. **Repeat the reshape on the drawer tables** (`listTicketsForCustomer`, `listResponsesForCustomer`, etc.) once the list-page pattern lands. Less critical for the 60s number but same bug shape.
 5. **(Punt for now)** Indexes look correct already. No new index needed for the listCustomers reshape. The listTickets reshape might benefit from `(ticket_id, verb)` composite indexes on `ticket_events` / `ticket_messages`; verify after the reshape — don't pre-index.
 
-## Follow-up #4 — schema gap
+## Follow-up #4 — schema (CORRECTION, 2026-05-26)
 
-`responses` rows don't carry `workspace_id` directly; the proposed listCustomers reshape needs to either:
-- (a) **add `workspace_id` to `responses`** (backfill via `ticket_id → tickets.workspace_id`) — proper, but a schema change (STOP_CONDITION; needs Cory's yes), OR
-- (b) **join through `tickets`** in the derived table: `LEFT JOIN (SELECT r.customer_id, AVG(...) FROM responses r JOIN tickets t ON t.id=r.ticket_id WHERE t.workspace_id = ? GROUP BY r.customer_id)` — works today without a schema change, slightly less ergonomic.
+Earlier draft of this doc claimed `responses` lacked `workspace_id`. **That was wrong** — the column was added by migration 0012 (NOT NULL, indexed) and is reflected in [src/db/schema.ts](src/db/schema.ts) at the `responses` table definition. No migration needed. The reshape can filter `responses.workspace_id = ?` directly.
 
-I'd lean (a) longer-term (matches the production-shape posture in CLAUDE.md — multi-tenant scoping should be a flat column on every entity), but (b) is fine for the immediate fix. **Want me to file (a) as a follow-up?**
+The mistake came from inferring the schema from the production SQL (which doesn't reference responses.workspace_id) rather than reading the schema file. Lesson logged.
 
 ## Instrumentation kept on branch (env-gated)
 

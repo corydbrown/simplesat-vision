@@ -251,7 +251,7 @@ async function baselineRtt() {
 }
 
 async function main() {
-  console.log(`Profiling against: ${url.replace(/\/\/.*@/, "//<redacted>@")}`);
+  console.log(`Profiling against: ${url!.replace(/\/\/.*@/, "//<redacted>@")}`);
   await baselineRtt();
 
   // Find workspaces by name.

@@ -64,15 +64,25 @@ const GET_FIRST_USER_WORKSPACE_SQL = `
   LIMIT 1
 `;
 
+// listCustomers post-SVP-162 reshape: workspace-scoped t_agg / r_agg subqueries
+// joined once per customer. See src/db/queries/customers.ts.
 const LIST_CUSTOMERS_SQL = `
   SELECT
     customers.id, customers.name, customers.email, customers.company,
     customers.company_external_id, customers.company_domain, customers.language,
     customers.tier, customers.custom_properties,
-    (SELECT COUNT(*) FROM tickets WHERE tickets.customer_id = customers.id) AS total_tickets,
-    (SELECT AVG(CAST(rating as REAL)) FROM responses WHERE responses.customer_id = customers.id) AS avg_rating,
-    (SELECT MAX(tickets.created_at) FROM tickets WHERE tickets.customer_id = customers.id) AS last_seen
+    COALESCE(t_agg.total_tickets, 0) AS total_tickets,
+    r_agg.avg_rating                  AS avg_rating,
+    t_agg.last_seen                   AS last_seen
   FROM customers
+  LEFT JOIN (
+    SELECT customer_id, COUNT(*) AS total_tickets, MAX(created_at) AS last_seen
+    FROM tickets WHERE workspace_id = ? GROUP BY customer_id
+  ) t_agg ON t_agg.customer_id = customers.id
+  LEFT JOIN (
+    SELECT customer_id, AVG(CAST(rating AS REAL)) AS avg_rating
+    FROM responses WHERE workspace_id = ? GROUP BY customer_id
+  ) r_agg ON r_agg.customer_id = customers.id
   WHERE customers.workspace_id = ?
   ORDER BY last_seen DESC
 `;
@@ -107,7 +117,7 @@ const LIST_TICKETS_SELECT_SQL = `
   LEFT JOIN team_members ON team_members.id = tickets.assigned_team_member_id
   LEFT JOIN responses    ON responses.ticket_id = tickets.id
   WHERE tickets.workspace_id = ?
-  ORDER BY tickets.created_at DESC
+  ORDER BY tickets.closed_at DESC
   LIMIT 50 OFFSET 0
 `;
 
@@ -181,7 +191,10 @@ async function profileWorkspace(name: string, workspaceId: string, userId: strin
   // (list + count). listCustomers runs one query that returns all rows.
   console.log("\n  /customers:");
   const customersTiming = await timed("listCustomers", () =>
-    client.execute({ sql: LIST_CUSTOMERS_SQL, args: [workspaceId] }),
+    client.execute({
+      sql: LIST_CUSTOMERS_SQL,
+      args: [workspaceId, workspaceId, workspaceId],
+    }),
   );
   console.log(`    ${customersTiming.ms.toFixed(0)}ms (${customersTiming.rowCount} rows)`);
 

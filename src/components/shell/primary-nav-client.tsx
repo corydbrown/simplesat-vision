@@ -24,6 +24,7 @@ import {
   GripVertical,
   Home,
   Inbox,
+  LogOut,
   MessageCircleMore,
   MoreHorizontal,
   Search,
@@ -36,8 +37,15 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Avatar,
+  AvatarFallback,
+  AvatarImage,
+} from "@/components/ui/avatar";
+import type { User } from "@/db/schema";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -120,7 +128,13 @@ function saveExpanded(set: Set<string>) {
   }
 }
 
-export function PrimaryNavClient({ sections }: { sections: NavSection[] }) {
+export function PrimaryNavClient({
+  sections,
+  user,
+}: {
+  sections: NavSection[];
+  user: User | null;
+}) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const { width, collapsed, setWidth } = useSidebar();
@@ -266,6 +280,12 @@ export function PrimaryNavClient({ sections }: { sections: NavSection[] }) {
             ))}
           </div>
         </div>
+
+        {user && (
+          <div className="shrink-0 border-t border-border pt-2">
+            <UserPill user={user} />
+          </div>
+        )}
       </div>
 
       {/* Drag handle on right edge — wider than visible for easier grab.
@@ -599,5 +619,68 @@ function SidebarViewKebab({
         <MoreHorizontal size={14} />
       </button>
     </ViewActionsMenu>
+  );
+}
+
+function userInitials(user: User): string {
+  if (user.name) {
+    const parts = user.name.trim().split(/\s+/);
+    if (parts.length >= 2) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+    return parts[0][0].toUpperCase();
+  }
+  return user.email[0].toUpperCase();
+}
+
+function UserPill({ user }: { user: User }) {
+  const displayName = user.name ?? user.email;
+  const initials = userInitials(user);
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button
+          type="button"
+          className="-mx-1 flex w-[calc(100%+0.5rem)] cursor-pointer items-center gap-2 rounded px-1 py-1.5 text-left transition-colors hover:bg-accent/60 data-[state=open]:bg-accent/60"
+        >
+          <Avatar size="sm" className="shrink-0">
+            {user.avatarUrl && (
+              <AvatarImage src={user.avatarUrl} alt={displayName} />
+            )}
+            <AvatarFallback>{initials}</AvatarFallback>
+          </Avatar>
+          <span className="min-w-0 flex-1 truncate text-base font-medium text-foreground">
+            {displayName}
+          </span>
+        </button>
+      </DropdownMenuTrigger>
+
+      <DropdownMenuContent side="top" align="start" className="w-56">
+        <div className="flex items-center gap-3 px-2 py-2">
+          <Avatar size="default" className="shrink-0">
+            {user.avatarUrl && (
+              <AvatarImage src={user.avatarUrl} alt={displayName} />
+            )}
+            <AvatarFallback>{initials}</AvatarFallback>
+          </Avatar>
+          <div className="min-w-0 flex-1">
+            {user.name && (
+              <p className="truncate text-base font-medium text-foreground">
+                {user.name}
+              </p>
+            )}
+            <p className="truncate text-sm text-muted-foreground">
+              {user.email}
+            </p>
+          </div>
+        </div>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem asChild>
+          <Link href="/logout" className="cursor-pointer">
+            <LogOut size={14} className="text-muted-foreground" />
+            Sign out
+          </Link>
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }

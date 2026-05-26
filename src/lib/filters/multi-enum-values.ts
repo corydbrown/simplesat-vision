@@ -3,10 +3,8 @@
 import {
   MULTI_ENUM_RESOLVERS,
   type DynamicValuesKey,
-  type MultiEnumValueOption,
 } from "./multi-enum-resolvers";
-
-export type { MultiEnumValueOption };
+import type { MultiEnumValueOption } from "./multi-enum-types";
 
 /** Fetch the distinct values currently present in a JSON-array column, with
  *  occurrence counts. Keyed by the `dynamicValuesKey` declared on the

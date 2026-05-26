@@ -2,20 +2,11 @@ import "server-only";
 import { RESPONSE_MULTI_ENUM_RESOLVERS } from "./specs/responses";
 import { TICKET_MULTI_ENUM_RESOLVERS } from "./specs/tickets";
 
-/** Distinct value + label + occurrence count returned by every multi_enum
- *  resolver and rendered in the dynamic-values popover. */
-export type MultiEnumValueOption = {
-  value: string;
-  /** Human-readable label. Equals `value` unless the resolver overrides it
-   *  (e.g. topics resolve slugs → display labels). */
-  label: string;
-  count: number;
-};
-
-/** One resolver per multi_enum field. Returns the distinct values currently
- *  present in the underlying JSON-array column, with occurrence counts,
- *  sorted by count desc then value asc. */
-export type MultiEnumResolver = () => Promise<MultiEnumValueOption[]>;
+// Types moved to `multi-enum-types.ts` (client-safe) so client components
+// can import the type without dragging in this server-only module. Re-export
+// here for back-compat with existing server-side imports.
+export type { MultiEnumValueOption, MultiEnumResolver } from "./multi-enum-types";
+import type { MultiEnumResolver } from "./multi-enum-types";
 
 /** Central resolver registry. Each entity's spec file owns its resolvers
  *  alongside its specs; this file just stitches them together. The keys

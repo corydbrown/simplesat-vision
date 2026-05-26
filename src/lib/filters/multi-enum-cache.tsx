@@ -14,7 +14,7 @@
 // preventing it.
 
 import { useEffect, useState } from "react";
-import type { MultiEnumValueOption } from "./multi-enum-resolvers";
+import type { MultiEnumValueOption } from "./multi-enum-types";
 import { fetchMultiEnumValues } from "./multi-enum-values";
 
 const optionsCache = new Map<string, MultiEnumValueOption[]>();

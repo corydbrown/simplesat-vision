@@ -1,7 +1,8 @@
 "use server";
 
-import { inArray, like, or } from "drizzle-orm";
+import { and, eq, inArray, like, or } from "drizzle-orm";
 import { db, schema } from "@/db/client";
+import { requireWorkspace } from "@/lib/workspace";
 import type { RelationEntity } from "./descriptor";
 
 export type RelationOption = {
@@ -20,6 +21,7 @@ export async function searchRelationOptions(
   entity: RelationEntity,
   query: string,
 ): Promise<RelationOption[]> {
+  const workspaceId = await requireWorkspace();
   const q = query.trim();
   switch (entity) {
     case "customer": {
@@ -31,12 +33,15 @@ export async function searchRelationOptions(
         })
         .from(schema.customers)
         .where(
-          q
-            ? or(
-                like(schema.customers.name, `%${q}%`),
-                like(schema.customers.email, `%${q}%`),
-              )
-            : undefined,
+          and(
+            eq(schema.customers.workspaceId, workspaceId),
+            q
+              ? or(
+                  like(schema.customers.name, `%${q}%`),
+                  like(schema.customers.email, `%${q}%`),
+                )
+              : undefined,
+          ),
         )
         .orderBy(schema.customers.name)
         .limit(SEARCH_LIMIT);
@@ -51,7 +56,12 @@ export async function searchRelationOptions(
           avatarColor: schema.teamMembers.avatarColor,
         })
         .from(schema.teamMembers)
-        .where(q ? like(schema.teamMembers.name, `%${q}%`) : undefined)
+        .where(
+          and(
+            eq(schema.teamMembers.workspaceId, workspaceId),
+            q ? like(schema.teamMembers.name, `%${q}%`) : undefined,
+          ),
+        )
         .orderBy(schema.teamMembers.name)
         .limit(SEARCH_LIMIT);
       return rows.map((r) => ({
@@ -64,7 +74,12 @@ export async function searchRelationOptions(
       const rows = await db
         .select({ id: schema.surveys.id, name: schema.surveys.name })
         .from(schema.surveys)
-        .where(q ? like(schema.surveys.name, `%${q}%`) : undefined)
+        .where(
+          and(
+            eq(schema.surveys.workspaceId, workspaceId),
+            q ? like(schema.surveys.name, `%${q}%`) : undefined,
+          ),
+        )
         .orderBy(schema.surveys.name)
         .limit(SEARCH_LIMIT);
       return rows.map((r) => ({ value: r.id, label: r.name }));
@@ -78,12 +93,15 @@ export async function searchRelationOptions(
         })
         .from(schema.tickets)
         .where(
-          q
-            ? or(
-                like(schema.tickets.subject, `%${q}%`),
-                like(schema.tickets.helpdeskExternalId, `%${q}%`),
-              )
-            : undefined,
+          and(
+            eq(schema.tickets.workspaceId, workspaceId),
+            q
+              ? or(
+                  like(schema.tickets.subject, `%${q}%`),
+                  like(schema.tickets.helpdeskExternalId, `%${q}%`),
+                )
+              : undefined,
+          ),
         )
         .orderBy(schema.tickets.createdAt)
         .limit(SEARCH_LIMIT);
@@ -102,6 +120,7 @@ export async function resolveRelationLabels(
   ids: string[],
 ): Promise<Record<string, string>> {
   if (ids.length === 0) return {};
+  const workspaceId = await requireWorkspace();
   switch (entity) {
     case "customer": {
       const rows = await db
@@ -111,7 +130,12 @@ export async function resolveRelationLabels(
           email: schema.customers.email,
         })
         .from(schema.customers)
-        .where(inArray(schema.customers.id, ids));
+        .where(
+          and(
+            eq(schema.customers.workspaceId, workspaceId),
+            inArray(schema.customers.id, ids),
+          ),
+        );
       return Object.fromEntries(
         rows.map((r) => [r.id, r.name || r.email] as const),
       );
@@ -120,14 +144,24 @@ export async function resolveRelationLabels(
       const rows = await db
         .select({ id: schema.teamMembers.id, name: schema.teamMembers.name })
         .from(schema.teamMembers)
-        .where(inArray(schema.teamMembers.id, ids));
+        .where(
+          and(
+            eq(schema.teamMembers.workspaceId, workspaceId),
+            inArray(schema.teamMembers.id, ids),
+          ),
+        );
       return Object.fromEntries(rows.map((r) => [r.id, r.name] as const));
     }
     case "survey": {
       const rows = await db
         .select({ id: schema.surveys.id, name: schema.surveys.name })
         .from(schema.surveys)
-        .where(inArray(schema.surveys.id, ids));
+        .where(
+          and(
+            eq(schema.surveys.workspaceId, workspaceId),
+            inArray(schema.surveys.id, ids),
+          ),
+        );
       return Object.fromEntries(rows.map((r) => [r.id, r.name] as const));
     }
     case "ticket": {
@@ -138,7 +172,12 @@ export async function resolveRelationLabels(
           externalId: schema.tickets.helpdeskExternalId,
         })
         .from(schema.tickets)
-        .where(inArray(schema.tickets.id, ids));
+        .where(
+          and(
+            eq(schema.tickets.workspaceId, workspaceId),
+            inArray(schema.tickets.id, ids),
+          ),
+        );
       return Object.fromEntries(
         rows.map(
           (r) =>

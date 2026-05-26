@@ -4,6 +4,7 @@ import { compileReport } from "@/lib/reports/compile";
 import { buildPivot, type PivotCellKey } from "@/lib/reports/pivot";
 import type { FieldDataType } from "@/lib/reports/pivot-fields";
 import type { AxisFieldSort, ReportConfig, ValueDef } from "@/lib/reports/types";
+import { requireWorkspace } from "@/lib/workspace";
 
 export type ReportAxisMeta = {
   label: string;
@@ -30,7 +31,8 @@ export type ReportResult = {
 export async function runReport(
   config: ReportConfig,
 ): Promise<ReportResult | null> {
-  const compiled = compileReport(config);
+  const workspaceId = await requireWorkspace();
+  const compiled = compileReport(config, workspaceId);
   if (!compiled) return null;
 
   const rows = await db.all<Record<string, unknown>>(compiled.query);

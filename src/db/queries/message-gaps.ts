@@ -1,5 +1,6 @@
 import "server-only";
-import { asc, eq } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
+import { requireWorkspace } from "@/lib/workspace";
 import { db, schema } from "../client";
 
 export type CadenceBucket = "fast" | "medium" | "slow";
@@ -44,6 +45,7 @@ function waitingRoleFor(
 }
 
 export async function getMessageGaps(ticketId: string): Promise<MessageGap[]> {
+  const workspaceId = await requireWorkspace();
   const rows = await db
     .select({
       id: schema.ticketMessages.id,
@@ -51,7 +53,16 @@ export async function getMessageGaps(ticketId: string): Promise<MessageGap[]> {
       createdAt: schema.ticketMessages.createdAt,
     })
     .from(schema.ticketMessages)
-    .where(eq(schema.ticketMessages.ticketId, ticketId))
+    .innerJoin(
+      schema.tickets,
+      eq(schema.tickets.id, schema.ticketMessages.ticketId),
+    )
+    .where(
+      and(
+        eq(schema.ticketMessages.ticketId, ticketId),
+        eq(schema.tickets.workspaceId, workspaceId),
+      ),
+    )
     .orderBy(asc(schema.ticketMessages.createdAt));
 
   const out: MessageGap[] = [];

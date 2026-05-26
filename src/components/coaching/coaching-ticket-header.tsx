@@ -1,3 +1,5 @@
+import Link from "next/link";
+import { ArrowUpRight } from "lucide-react";
 import {
   CustomerPill,
   TeamMemberPill,
@@ -20,6 +22,11 @@ export function CoachingTicketHeader({
   versions: EvaluationVersionRow[];
 }) {
   const { ticket, evaluation } = detail;
+  const latestVersion = versions[0];
+  const isOlderVersion =
+    versions.length > 1 &&
+    latestVersion !== undefined &&
+    latestVersion.id !== evaluation.id;
 
   return (
     <header className="mb-4 space-y-3">
@@ -34,6 +41,15 @@ export function CoachingTicketHeader({
           versions={versions}
           size="sm"
         />
+        {isOlderVersion && (
+          <Link
+            href={`/coaching/${latestVersion.id}`}
+            className="inline-flex items-center gap-1 text-blue-dark hover:underline"
+          >
+            <span>Newer version available · v{latestVersion.scorecardVersion}</span>
+            <ArrowUpRight size={12} />
+          </Link>
+        )}
         <span>·</span>
         <span className="capitalize">{ticket.channel}</span>
         <span>·</span>

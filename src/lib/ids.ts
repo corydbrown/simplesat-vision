@@ -24,7 +24,8 @@ export type IdPrefix =
   | "ecs"
   | "cnt"
   | "qac"
-  | "qrx";
+  | "qrx"
+  | "usr";
 
 export function prefixedId(prefix: IdPrefix): string {
   return `${prefix}_${generate()}`;

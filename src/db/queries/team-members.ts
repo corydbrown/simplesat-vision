@@ -353,6 +353,9 @@ export type QaRecentEvaluation = {
   overallScore: number;
   status: QaEvaluationStatus;
   scoredAtMs: number;
+  /** Category IDs that have a score on this evaluation — used for
+   *  category-focused filtering when drilling in from the heatmap. */
+  categoryIds: string[];
   /** Highest-scoring category on this evaluation (normalized 0-100). Null when
    *  the evaluation has no category scores or all are equal. */
   topCategory: { name: string; score: number } | null;
@@ -781,6 +784,7 @@ export async function getTeamMemberQaRollup(
         overallScore: e.overallScore,
         status: e.status,
         scoredAtMs: e.scoredAt.getTime(),
+        categoryIds: scores.map((s) => s.categoryId),
         topCategory: top,
         lowestCategory: lowest,
       };

@@ -17,6 +17,7 @@ import { snapshotScorecard } from "../lib/scorecards/snapshot";
 import { SEED_VIEWS } from "../lib/views/seed";
 import type { EntityKey } from "../lib/views/types";
 import { replaceSavedViews } from "./queries/saved-views";
+import { DEMO_WORKSPACE_ID } from "../lib/workspace-id";
 import type {
   ScoringInput,
   ScoringMessage,
@@ -1225,11 +1226,74 @@ async function seed() {
   await db.delete(schema.teamMemberGroups);
   await db.delete(schema.surveys);
   await db.delete(schema.savedViews);
+  await db.delete(schema.userWorkspaces);
+  await db.delete(schema.workspaces);
+
+  console.log("Seeding workspaces...");
+  // All three seeded workspaces use deterministic ids — they're system seeds
+  // referenced by name from migration backfill, tests, and the multi-workspace
+  // switcher fixtures. User-created workspaces (future invite flow) will use
+  // `prefixedId("wks")` with random suffixes.
+  const bloomWorkspaceId = DEMO_WORKSPACE_ID;
+  const simplesatWorkspaceId = "wks_simplesat";
+  const prontoWorkspaceId = "wks_pronto";
+  await db.insert(schema.workspaces).values([
+    {
+      id: bloomWorkspaceId,
+      name: "Bloom Beauty",
+      slug: "bloom-beauty",
+      integrationType: "mock",
+      createdAt: new Date(NOW),
+      createdBy: null,
+    },
+    {
+      id: simplesatWorkspaceId,
+      name: "Simplesat",
+      slug: "simplesat",
+      integrationType: "intercom",
+      createdAt: new Date(NOW),
+      createdBy: null,
+    },
+    {
+      id: prontoWorkspaceId,
+      name: "Pronto Marketing",
+      slug: "pronto",
+      integrationType: "zendesk",
+      createdAt: new Date(NOW),
+      createdBy: null,
+    },
+  ]);
+
+  // Any user already in the users table (typically Cory's WorkOS account
+  // post-/callback) gets admin on all 3 workspaces. New users are wired up
+  // by /callback on first login.
+  const existingUsers = await db
+    .select({ id: schema.users.id })
+    .from(schema.users);
+  if (existingUsers.length > 0) {
+    const workspaceIds = [
+      bloomWorkspaceId,
+      simplesatWorkspaceId,
+      prontoWorkspaceId,
+    ];
+    await db.insert(schema.userWorkspaces).values(
+      existingUsers.flatMap((u) =>
+        workspaceIds.map((wid) => ({
+          id: prefixedId("uwk"),
+          userId: u.id,
+          workspaceId: wid,
+          role: "admin" as const,
+          createdAt: new Date(NOW),
+        })),
+      ),
+    );
+  }
 
   console.log("Generating team member groups...");
   const teamMemberGroups: NewTeamMemberGroup[] = TEAM_MEMBER_GROUP_SPECS.map(
     (spec) => ({
       id: prefixedId("tmg"),
+      workspaceId: DEMO_WORKSPACE_ID,
       name: spec.name,
       description: spec.description,
       createdAt: new Date(NOW - faker.number.int({ min: 365, max: 900 }) * ONE_DAY),
@@ -1244,6 +1308,7 @@ async function seed() {
   console.log("Generating surveys...");
   const surveys: NewSurvey[] = SURVEY_SPECS.map((spec) => ({
     id: prefixedId("svy"),
+    workspaceId: DEMO_WORKSPACE_ID,
     name: spec.name,
     metric: spec.metric,
     channel: spec.channel,
@@ -1270,6 +1335,7 @@ async function seed() {
   for (const account of NAMED_DETRACTOR_COMPANIES) {
     customers.push({
       id: prefixedId("cus"),
+      workspaceId: DEMO_WORKSPACE_ID,
       name: faker.person.fullName(),
       email: faker.internet
         .email()
@@ -1305,6 +1371,7 @@ async function seed() {
 
     customers.push({
       id: prefixedId("cus"),
+      workspaceId: DEMO_WORKSPACE_ID,
       name: faker.person.fullName(),
       email,
       tier,
@@ -1339,6 +1406,7 @@ async function seed() {
     const team = i < 10 ? TEAMS[0] : i < 20 ? TEAMS[1] : TEAMS[2];
     teamMembers.push({
       id: prefixedId("tm"),
+      workspaceId: DEMO_WORKSPACE_ID,
       name: faker.person.fullName(),
       email: faker.internet.email().toLowerCase(),
       role: pickFrom(SUPPORT_ROLES),
@@ -1530,6 +1598,7 @@ async function seed() {
 
       responseEntry = {
         id: prefixedId("rsp"),
+        workspaceId: DEMO_WORKSPACE_ID,
         ticketId,
         customerId,
         teamMemberId: agentId,
@@ -1703,6 +1772,7 @@ async function seed() {
 
     tickets.push({
       id: ticketId,
+      workspaceId: DEMO_WORKSPACE_ID,
       subject,
       status,
       channel,
@@ -1761,6 +1831,7 @@ async function seed() {
   const scorecardId = prefixedId("sc");
   const scorecardRow: NewScorecard = {
     id: scorecardId,
+    workspaceId: DEMO_WORKSPACE_ID,
     name: DEFAULT_SCORECARD.name,
     isDefault: DEFAULT_SCORECARD.isDefault,
     enabled: DEFAULT_SCORECARD.enabled,
@@ -1898,6 +1969,7 @@ async function seed() {
 
     evaluationRows.push({
       id: evaluationId,
+      workspaceId: DEMO_WORKSPACE_ID,
       ticketId: ticket.id!,
       scorecardId,
       scorecardVersionId: v1ScorecardVersionId,
@@ -1930,6 +2002,7 @@ async function seed() {
 
     coachingNoteRows.push({
       id: prefixedId("cnt"),
+      workspaceId: DEMO_WORKSPACE_ID,
       evaluationId,
       strengthPoints: output.coachingNote.strengthPoints,
       growthPoints: output.coachingNote.growthPoints,
@@ -2018,6 +2091,7 @@ async function seed() {
       );
       commentRows.push({
         id,
+        workspaceId: DEMO_WORKSPACE_ID,
         evaluationId,
         messageId,
         activityId: null,
@@ -2042,6 +2116,7 @@ async function seed() {
         usedAuthors.add(key);
         reactionRows.push({
           id: prefixedId("qrx"),
+          workspaceId: DEMO_WORKSPACE_ID,
           targetType: "message",
           targetId: m.id,
           evaluationId,
@@ -2067,6 +2142,7 @@ async function seed() {
         usedAuthors.add(key);
         reactionRows.push({
           id: prefixedId("qrx"),
+          workspaceId: DEMO_WORKSPACE_ID,
           targetType: "comment",
           targetId: cid,
           evaluationId,
@@ -2167,6 +2243,7 @@ async function seed() {
 
     reScoreEvalRows.push({
       id: v2EvalId,
+      workspaceId: DEMO_WORKSPACE_ID,
       ticketId: original.ticketId,
       scorecardId,
       scorecardVersionId: v2ScorecardVersionId,
@@ -2209,6 +2286,7 @@ async function seed() {
     if (originalNote) {
       reScoreCoachingNoteRows.push({
         id: prefixedId("cnt"),
+        workspaceId: DEMO_WORKSPACE_ID,
         evaluationId: v2EvalId,
         strengthPoints: originalNote.strengthPoints,
         growthPoints: originalNote.growthPoints,
@@ -2248,6 +2326,7 @@ async function seed() {
 
   console.log("Done. Final counts:");
   const [
+    workspaceCount,
     surveyCount,
     customerCount,
     teamMemberCount,
@@ -2267,6 +2346,7 @@ async function seed() {
     qaReactionCount,
     savedViewCount,
   ] = await Promise.all([
+    db.$count(schema.workspaces),
     db.$count(schema.surveys),
     db.$count(schema.customers),
     db.$count(schema.teamMembers),
@@ -2287,6 +2367,7 @@ async function seed() {
     db.$count(schema.savedViews),
   ]);
   console.log({
+    workspaces: workspaceCount,
     surveys: surveyCount,
     customers: customerCount,
     teamMembers: teamMemberCount,

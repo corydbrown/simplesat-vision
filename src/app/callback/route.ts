@@ -2,7 +2,7 @@ import { handleAuth } from "@workos-inc/authkit-nextjs";
 import { eq } from "drizzle-orm";
 
 import { db } from "@/db/client";
-import { users } from "@/db/schema";
+import { userWorkspaces, users, workspaces } from "@/db/schema";
 import { prefixedId } from "@/lib/ids";
 
 /** WorkOS redirects here after the user completes the AuthKit flow.
@@ -36,14 +36,38 @@ export const GET = handleAuth({
       return;
     }
 
-    await db.insert(users).values({
-      id: prefixedId("usr"),
-      workosId: workosUser.id,
-      email: workosUser.email,
-      name: displayName,
-      avatarUrl,
-      createdAt: now,
-      lastSeenAt: now,
+    // First-login provisioning. Insert the user row and auto-grant `admin`
+    // on every seeded workspace — Phase 1 pilot shortcut so Cory can
+    // onboard teammates via the WorkOS dashboard without an invite UI.
+    // Wrapped in a transaction so a partial provision (user without
+    // memberships) can't leak.
+    const newUserId = prefixedId("usr");
+    await db.transaction(async (tx) => {
+      await tx.insert(users).values({
+        id: newUserId,
+        workosId: workosUser.id,
+        email: workosUser.email,
+        name: displayName,
+        avatarUrl,
+        createdAt: now,
+        lastSeenAt: now,
+      });
+
+      const allWorkspaces = await tx
+        .select({ id: workspaces.id })
+        .from(workspaces);
+
+      if (allWorkspaces.length > 0) {
+        await tx.insert(userWorkspaces).values(
+          allWorkspaces.map((w) => ({
+            id: prefixedId("uwk"),
+            userId: newUserId,
+            workspaceId: w.id,
+            role: "admin" as const,
+            createdAt: now,
+          })),
+        );
+      }
     });
   },
 });

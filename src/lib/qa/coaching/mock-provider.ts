@@ -12,6 +12,7 @@
 import { and, asc, eq } from "drizzle-orm";
 import { db, schema } from "@/db/client";
 import { prefixedId } from "@/lib/ids";
+import { DEMO_WORKSPACE_ID } from "@/lib/workspace-id";
 import { isCoachingReaction, type CoachingReaction } from "./reactions";
 import type {
   AddReactionInput,
@@ -51,8 +52,12 @@ export class MockCommentProvider implements CommentProvider {
 
     const now = new Date();
     const id = prefixedId("qac");
+    // Phase 1: hardcoded workspace pending the requireWorkspace() rollout in
+    // Phase 2 — the evaluation row already carries workspace_id, so the swap
+    // is a lookup via input.evaluationId once query callers move over.
     const row = {
       id,
+      workspaceId: DEMO_WORKSPACE_ID,
       evaluationId: input.evaluationId,
       messageId: input.messageId ?? null,
       activityId: input.activityId ?? null,
@@ -145,6 +150,7 @@ export class MockCommentProvider implements CommentProvider {
     const id = prefixedId("qrx");
     const row = {
       id,
+      workspaceId: DEMO_WORKSPACE_ID,
       targetType: input.targetType,
       targetId: input.targetId,
       evaluationId: input.evaluationId,

@@ -19,6 +19,7 @@ export default async function TeamMembersPage(
       rows={rows}
       total={total}
       groupBy={groupBy?.propertyId}
+      allowedGroupIds={TEAM_MEMBER_GROUP_IDS}
     />
   );
 }

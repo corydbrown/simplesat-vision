@@ -38,7 +38,7 @@ const CORE_PROPERTIES: Property<CustomerListRow>[] = [
     sortable: true,
     sortValue: (c) => c.name,
     filter: CUSTOMER_FILTER_SPECS.name,
-    cell: (c) => <CustomerPill id={c.id} name={c.name} />,
+    cell: (c) => <CustomerPill id={c.id} name={c.name} avatarUrl={c.avatarUrl} />,
   },
   {
     id: "email",

@@ -306,3 +306,18 @@ HTTP write endpoints n8n POSTs normalized helpdesk data to (`POST /api/{tickets,
 ### Out of scope (SVP-167 → later phases)
 
 API-key management UI (`/settings/api-keys`, Phase 4); helpdesk-native↔Simplesat-native CSAT dedupe/`superseded_by`; topic AI-attachment on ingested responses (server-side, post-write); rate limiting / request signing on the ingest endpoints; real Intercom/Zendesk wiring (n8n, Cory's side).
+
+## Avatar resolution cascade (SVP-191)
+
+Auto-resolve avatars instead of asking users to upload them. Precedence: **manual > helpdesk > Gravatar > DiceBear > initials**. Schema (`avatarUrl` + `avatarSource` on `customers` + `team_members`, additive nullable migration 0018) + render cascade (`src/lib/avatar.ts` `resolveAvatar`, consumed by the `Avatar` component's `sources[]` walk) + ingest contract (`avatarUrl` on customer/team-member schemas) + the re-sync guard.
+
+- **`avatarSource` stores only `{manual, helpdesk}`, not the brief's four values.** Gravatar and DiceBear are *derived* at render time (Gravatar from the email hash, DiceBear deterministically from the name) and never persisted — writing them as a stored `source` would be dishonest (we don't know at ingest whether a Gravatar exists; that's resolved by the browser hitting `?d=404`). So the column records the provenance of the *stored* `avatarUrl` only. NULL = nothing stored, derive at render.
+- **Re-sync guard: `manual` is never overwritten by a sync.** `upsertCustomer`/`upsertTeamMember` read the existing `avatarSource`; on update, a `manual` row keeps its avatar, and a helpdesk re-POST *without* an avatar leaves the stored one intact (can't blank it). Verified end-to-end against the DB (5/5). The in-app upload path that sets `avatarSource='manual'` is a filed follow-up; ingest only ever writes `helpdesk`.
+- **DiceBear is seeded by NAME, not email/id (reverses the brief's "email/id").** The committed `public/avatars/*.svg` set is name-keyed and served statically; the render seed must match what the generator emits or the URL 404s into bare initials. Seeding by email would have silently broken every existing entity's DiceBear avatar on detail/popover, because the committed files can't be regenerated in-worktree (seed broken repo-wide). Gravatar still uses email. (Cory's call, 2026-05-27.)
+- **Gravatar tier only where a network probe is cheap.** `resolveAvatar` inserts the Gravatar tier only when an `email` is passed — done on single-avatar surfaces (detail header, lazy hover popover). High-volume surfaces (list rows, pills) omit email so a 50-row list doesn't fire 50 Gravatar `?d=404` probes before falling through to DiceBear. Pills still show a *stored* `avatarUrl` (manual/helpdesk); the popover probes Gravatar lazily on hover.
+- **Style switched to `croodles-neutral`** (new dep `@dicebear/croodles-neutral`, Cory-approved). The committed SVGs stay avataaars until a working reseed regenerates them (filed follow-up; the generator code is correct).
+- **MD5 for the Gravatar hash** is a tiny sync, dependency-free impl (`src/lib/avatar.ts`) — Gravatar still fully supports MD5, and `crypto.subtle` (SHA-256) is async and unusable in a sync render. Not a security context. Verified against Gravatar's published test vectors.
+
+### Out of scope (SVP-191 → follow-ups)
+
+In-app manual upload UI + blob storage (sets `avatarSource='manual'`); regenerating the committed `public/avatars` to croodles-neutral (blocked on seed repair). Both filed in the Notion backlog.

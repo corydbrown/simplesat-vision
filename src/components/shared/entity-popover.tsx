@@ -6,7 +6,7 @@ import { ChannelPill } from "@/components/tickets/channel-pill";
 import { StatusPill } from "@/components/tickets/status-pill";
 import { Avatar } from "@/components/shared/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
-import { colorFromName, dicebearUrl, initialsFromName } from "@/lib/color-from-name";
+import { resolveAvatar } from "@/lib/avatar";
 import { formatDate, formatDuration, formatNumber } from "@/lib/format";
 
 type Entity = "customer" | "team-member" | "ticket" | "response" | "survey";
@@ -15,6 +15,7 @@ type CustomerData = {
   id: string;
   name: string;
   email: string;
+  avatarUrl: string | null;
   organization: string | null;
   tier: string;
   totalTickets: number;
@@ -30,6 +31,7 @@ type TeamMemberData = {
   role: string;
   team: string;
   avatarColor: string;
+  avatarUrl: string | null;
   totalTickets: number;
   totalResponses: number;
   avgRating: number | null;
@@ -184,7 +186,14 @@ function CustomerPopover({ data }: { data: CustomerData }) {
   return (
     <div>
       <div className="px-4 py-3 flex items-start gap-3">
-        <Avatar bg={colorFromName(data.name)} initials={initialsFromName(data.name)} imageUrl={dicebearUrl(data.name)} size="lg" />
+        <Avatar
+          {...resolveAvatar({
+            avatarUrl: data.avatarUrl,
+            email: data.email,
+            name: data.name,
+          })}
+          size="lg"
+        />
         <div className="min-w-0 flex-1">
           <div className="font-medium truncate">{data.name}</div>
           <div className="text-xs text-muted-foreground truncate">
@@ -243,7 +252,15 @@ function TeamMemberPopover({ data }: { data: TeamMemberData }) {
   return (
     <div>
       <div className="px-4 py-3 flex items-start gap-3">
-        <Avatar bg={data.avatarColor} initials={initialsFromName(data.name)} imageUrl={dicebearUrl(data.name)} size="lg" />
+        <Avatar
+          {...resolveAvatar({
+            avatarUrl: data.avatarUrl,
+            email: data.email,
+            name: data.name,
+            avatarColor: data.avatarColor,
+          })}
+          size="lg"
+        />
         <div className="min-w-0 flex-1">
           <div className="font-medium truncate">{data.name}</div>
           <div className="text-xs text-muted-foreground truncate">

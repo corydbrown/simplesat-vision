@@ -33,6 +33,7 @@ export type CustomerListRow = {
   organizationDomain: string | null;
   language: string | null;
   tier: CustomerTier;
+  avatarUrl: string | null;
   customProperties: Record<string, unknown>;
   totalTickets: number;
   avgRating: number | null;
@@ -148,6 +149,7 @@ export async function listCustomers({
       organizationDomain: schema.customers.organizationDomain,
       language: schema.customers.language,
       tier: schema.customers.tier,
+      avatarUrl: schema.customers.avatarUrl,
       customProperties: schema.customers.customProperties,
       totalTickets: totalTicketsExpr,
       avgRating: avgRatingExpr,

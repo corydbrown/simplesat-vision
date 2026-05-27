@@ -48,6 +48,7 @@ export type TeamMemberListRow = {
   groupId: string | null;
   groupName: string | null;
   avatarColor: string;
+  avatarUrl: string | null;
   customProperties: Record<string, unknown>;
   totalTickets: number;
   avgRating: number | null;
@@ -134,6 +135,7 @@ export async function listTeamMembers({
       groupId: schema.teamMembers.groupId,
       groupName: schema.teamMemberGroups.name,
       avatarColor: schema.teamMembers.avatarColor,
+      avatarUrl: schema.teamMembers.avatarUrl,
       customProperties: schema.teamMembers.customProperties,
       totalTickets: totalTicketsExpr,
       avgRating: avgRatingExpr,

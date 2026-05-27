@@ -9,6 +9,7 @@ import {
   teamMembers,
   ticketMessages,
   tickets,
+  type AvatarSource,
   type SurveyAnswer,
 } from "@/db/schema";
 import { prefixedId, type IdPrefix } from "@/lib/ids";
@@ -22,6 +23,33 @@ import type {
 } from "@/lib/ingest/schemas";
 
 const DEFAULT_AVATAR_COLOR = "#6366f1";
+
+// --- avatar re-sync guard ---------------------------------------------------
+// Only externally-sourced avatars are stored: an incoming `avatarUrl` is tagged
+// `helpdesk` (gravatar/dicebear are derived at render time, never persisted —
+// see src/lib/avatar.ts). The precedence rule is `manual > helpdesk`, so a sync
+// must NEVER clobber an avatar a user uploaded in-app. `avatarSource: 'manual'`
+// is set by the (future) upload path; this ingest path only ever writes
+// 'helpdesk'.
+
+/** Avatar columns to write when creating a new row. */
+function avatarFieldsForCreate(avatarUrl: string | undefined) {
+  if (!avatarUrl) return {} as const;
+  return { avatarUrl, avatarSource: "helpdesk" } as const;
+}
+
+/** Avatar columns to write when re-syncing an existing row. Returns an empty
+ *  patch (leaving the stored avatar untouched) when the row is `manual` or when
+ *  the sync carries no avatar — so a helpdesk re-POST without an avatar can't
+ *  blank out a previously-synced one, and a manual upload always wins. */
+function avatarFieldsForUpdate(
+  avatarUrl: string | undefined,
+  existingSource: AvatarSource | null,
+) {
+  if (existingSource === "manual") return {} as const;
+  if (!avatarUrl) return {} as const;
+  return { avatarUrl, avatarSource: "helpdesk" } as const;
+}
 
 export type UpsertResult = { id: string; created: boolean };
 
@@ -51,16 +79,16 @@ export class UnknownReferenceError extends Error {
  *  rather than a duplicate row). Wrapping these libsql calls in
  *  `db.transaction` would also deadlock the outer `db` writes against the
  *  transaction's lock on the local file DB. */
-async function findOrWrite(
+async function findOrWrite<TFound extends { id: string }>(
   idPrefix: IdPrefix,
-  find: () => Promise<string | undefined>,
+  find: () => Promise<TFound | undefined>,
   create: (id: string) => Promise<void>,
-  update: (id: string) => Promise<void>,
+  update: (id: string, found: TFound) => Promise<void>,
 ): Promise<UpsertResult> {
   const existing = await find();
   if (existing) {
-    await update(existing);
-    return { id: existing, created: false };
+    await update(existing.id, existing);
+    return { id: existing.id, created: false };
   }
   const id = prefixedId(idPrefix);
   await create(id);
@@ -190,7 +218,7 @@ export function upsertCustomer(
     "cus",
     () =>
       db
-        .select({ id: customers.id })
+        .select({ id: customers.id, avatarSource: customers.avatarSource })
         .from(customers)
         .where(
           and(
@@ -199,17 +227,21 @@ export function upsertCustomer(
           ),
         )
         .limit(1)
-        .then((r) => r[0]?.id),
+        .then((r) => r[0]),
     async (id) => {
       await db.insert(customers).values({
         id,
         workspaceId,
         externalId: input.externalId,
         ...shared,
+        ...avatarFieldsForCreate(input.avatarUrl),
       });
     },
-    async (id) => {
-      await db.update(customers).set(shared).where(eq(customers.id, id));
+    async (id, found) => {
+      await db
+        .update(customers)
+        .set({ ...shared, ...avatarFieldsForUpdate(input.avatarUrl, found.avatarSource) })
+        .where(eq(customers.id, id));
     },
   );
 }
@@ -234,7 +266,7 @@ export function upsertTeamMember(
     "tm",
     () =>
       db
-        .select({ id: teamMembers.id })
+        .select({ id: teamMembers.id, avatarSource: teamMembers.avatarSource })
         .from(teamMembers)
         .where(
           and(
@@ -243,17 +275,21 @@ export function upsertTeamMember(
           ),
         )
         .limit(1)
-        .then((r) => r[0]?.id),
+        .then((r) => r[0]),
     async (id) => {
       await db.insert(teamMembers).values({
         id,
         workspaceId,
         externalId: input.externalId,
         ...shared,
+        ...avatarFieldsForCreate(input.avatarUrl),
       });
     },
-    async (id) => {
-      await db.update(teamMembers).set(shared).where(eq(teamMembers.id, id));
+    async (id, found) => {
+      await db
+        .update(teamMembers)
+        .set({ ...shared, ...avatarFieldsForUpdate(input.avatarUrl, found.avatarSource) })
+        .where(eq(teamMembers.id, id));
     },
   );
 }
@@ -309,7 +345,7 @@ export async function upsertTicket(
           ),
         )
         .limit(1)
-        .then((r) => r[0]?.id),
+        .then((r) => r[0]),
     async (id) => {
       await db
         .insert(tickets)
@@ -354,7 +390,7 @@ export async function upsertMessage(
         .from(ticketMessages)
         .where(eq(ticketMessages.externalId, input.externalId))
         .limit(1)
-        .then((r) => r[0]?.id),
+        .then((r) => r[0]),
     async (id) => {
       await db
         .insert(ticketMessages)
@@ -413,7 +449,7 @@ export async function upsertResponse(
           ),
         )
         .limit(1)
-        .then((r) => r[0]?.id),
+        .then((r) => r[0]),
     async (id) => {
       await db
         .insert(responses)

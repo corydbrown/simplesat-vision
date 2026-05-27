@@ -9,6 +9,11 @@ import {
 } from "drizzle-orm/sqlite-core";
 
 export type CustomerTier = "insider" | "gold" | "elite";
+/** Provenance of a stored avatar URL. Only externally-sourced tiers are
+ *  persisted; the derived gravatar/dicebear tiers of the resolution cascade are
+ *  computed at render time and never stored. `manual` outranks `helpdesk` and
+ *  is never overwritten by an integration sync (see the upsert re-sync guard). */
+export type AvatarSource = "manual" | "helpdesk";
 /** Raw, source-verbatim ticket status. Stored as free text (NOT an enum):
  *  Zendesk has 6 states (new/open/pending/hold/solved/closed), Intercom 3
  *  (open/closed/snoozed), and future sources bring their own vocabularies.
@@ -223,6 +228,18 @@ export const customers = sqliteTable(
      *  key for re-sync. Renamed from `helpdeskExternalId` — sources aren't
      *  only helpdesks. */
     externalId: text("external_id"),
+    /** Resolved avatar image URL, populated ONLY for externally-sourced avatars
+     *  (a manual in-app upload, or a helpdesk/CRM-synced URL at ingest). NULL
+     *  means nothing is stored — the render cascade derives Gravatar (from
+     *  email) then DiceBear (deterministic) at display time. See
+     *  src/lib/avatar.ts `resolveAvatar`. */
+    avatarUrl: text("avatar_url"),
+    /** Provenance of `avatarUrl`. Only externally-sourced tiers are persisted;
+     *  the derived gravatar/dicebear tiers are resolved at render time and never
+     *  stored. `manual` wins over any integration sync — the upsert re-sync
+     *  guard never overwrites a `manual` avatar. */
+    avatarSource: text("avatar_source", { enum: ["manual", "helpdesk"] })
+      .$type<AvatarSource>(),
     /** Custom attributes bag. In Simplesat's public API these surface as a
      *  flat `customAttributes: [{key, value}]` array, with definitions in
      *  src/lib/properties/custom-fields.ts. Sparse by design: any given
@@ -305,6 +322,13 @@ export const teamMembers = sqliteTable(
      *  `helpdeskExternalId`. */
     externalId: text("external_id"),
     avatarColor: text("avatar_color").notNull(),
+    /** Externally-sourced avatar URL (manual upload or helpdesk/CRM sync).
+     *  NULL → render cascade derives Gravatar then DiceBear. `avatarColor`
+     *  above stays the final fallback (initials-on-color). See customers. */
+    avatarUrl: text("avatar_url"),
+    /** Provenance of `avatarUrl`; `manual` is never overwritten by a sync. */
+    avatarSource: text("avatar_source", { enum: ["manual", "helpdesk"] })
+      .$type<AvatarSource>(),
     /** Custom attributes bag — same single-namespace shape as customers. */
     customProperties: text("custom_properties", { mode: "json" })
       .$type<Record<string, unknown>>()

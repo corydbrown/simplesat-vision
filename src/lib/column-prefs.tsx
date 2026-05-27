@@ -15,23 +15,36 @@ import type { ColumnState, Property } from "@/lib/properties/types";
 import { useViews } from "@/lib/views/provider";
 import { ALL_VIEW_ID, type EntityKey } from "@/lib/views/types";
 import { VIEW_ID_PARAM } from "@/lib/views/url";
+import { useWorkspaceId } from "@/lib/workspace-context";
 
 const PREFIX = "simplesat:cols:";
 
-function load(tableId: string): ColumnState | null {
+/** Per-workspace, per-table localStorage key. Namespacing by workspace keeps
+ *  one workspace's column visibility/order from bleeding into another (their
+ *  custom-field columns differ). `_` stands in when no workspace is resolved
+ *  (shouldn't happen inside the workspace layout) so the key stays well-formed
+ *  and is never confused with a legacy un-namespaced key. */
+function storageKey(workspaceId: string | null, tableId: string): string {
+  return `${PREFIX}${workspaceId ?? "_"}:${tableId}`;
+}
+
+function load(workspaceId: string | null, tableId: string): ColumnState | null {
   if (typeof window === "undefined") return null;
   try {
-    const raw = window.localStorage.getItem(PREFIX + tableId);
+    const raw = window.localStorage.getItem(storageKey(workspaceId, tableId));
     return raw ? (JSON.parse(raw) as ColumnState) : null;
   } catch {
     return null;
   }
 }
 
-function save(tableId: string, state: ColumnState) {
+function save(workspaceId: string | null, tableId: string, state: ColumnState) {
   if (typeof window === "undefined") return;
   try {
-    window.localStorage.setItem(PREFIX + tableId, JSON.stringify(state));
+    window.localStorage.setItem(
+      storageKey(workspaceId, tableId),
+      JSON.stringify(state),
+    );
   } catch {
     // ignore
   }
@@ -92,6 +105,7 @@ export function ColumnStateProvider<T>({
   children: React.ReactNode;
 }) {
   const initial = useMemo(() => defaultColumnState(properties), [properties]);
+  const workspaceId = useWorkspaceId();
   const searchParams = useSearchParams();
   const viewId = entityKey
     ? (searchParams?.get(VIEW_ID_PARAM) ?? ALL_VIEW_ID)
@@ -123,13 +137,13 @@ export function ColumnStateProvider<T>({
     // Source 2: a saved view that hasn't been customized yet — keep the
     // per-tableId fallback so the user's default layout still applies.
     // Source 3 (else): All view / no entityKey → per-tableId fallback.
-    const stored = load(tableId);
-    const signature = `table:${tableId}:${stored ? JSON.stringify(stored) : "default"}`;
+    const stored = load(workspaceId, tableId);
+    const signature = `table:${workspaceId ?? "_"}:${tableId}:${stored ? JSON.stringify(stored) : "default"}`;
     if (lastSourceRef.current !== signature) {
       lastSourceRef.current = signature;
       setState(stored ? reconcileWithRegistry(stored, properties, initial) : initial);
     }
-  }, [tableId, properties, initial, viewColumns, activeView?.id]);
+  }, [workspaceId, tableId, properties, initial, viewColumns, activeView?.id]);
 
   // Persist mutations. Two destinations depending on the active source:
   //  - on a saved view → update view.state.columns
@@ -150,13 +164,13 @@ export function ColumnStateProvider<T>({
         columns: state,
       });
     } else {
-      save(tableId, state);
+      save(workspaceId, tableId, state);
     }
     // viewsCtx is stable across renders (memoized inside ViewsProvider via
     // useCallback) so omitting it here avoids re-running this effect on
     // every state change from elsewhere.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [state, tableId, activeView?.id, entityKey]);
+  }, [state, workspaceId, tableId, activeView?.id, entityKey]);
 
   const setVisibility = useCallback(
     (id: string, visible: boolean) =>

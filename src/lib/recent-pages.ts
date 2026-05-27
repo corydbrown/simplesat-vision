@@ -1,9 +1,18 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { getActiveWorkspaceIdClient } from "@/lib/workspace-context";
 
 const KEY = "simplesat:recent-pages";
 const CAP = 10;
+
+/** Workspace-namespaced storage key. Recent pages are per-workspace — Bloom's
+ *  recently-viewed customers are meaningless in another workspace (SVP-192).
+ *  `_` stands in before a workspace resolves (shouldn't happen inside the
+ *  workspace layout, where every record() fires). */
+function storageKey(): string {
+  return `${KEY}:${getActiveWorkspaceIdClient() ?? "_"}`;
+}
 // Custom event for same-tab updates. The browser's "storage" event fires
 // only in OTHER tabs that share the origin, not in the writing tab itself,
 // so we dispatch this in addition to the localStorage write.
@@ -73,7 +82,7 @@ function dedupKey(e: RecentEntry): string {
 function load(): RecentEntry[] {
   if (typeof window === "undefined") return [];
   try {
-    const raw = window.localStorage.getItem(KEY);
+    const raw = window.localStorage.getItem(storageKey());
     if (!raw) return [];
     const parsed: unknown = JSON.parse(raw);
     if (!Array.isArray(parsed)) return [];
@@ -86,7 +95,7 @@ function load(): RecentEntry[] {
 function save(list: RecentEntry[]): void {
   if (typeof window === "undefined") return;
   try {
-    window.localStorage.setItem(KEY, JSON.stringify(list));
+    window.localStorage.setItem(storageKey(), JSON.stringify(list));
     window.dispatchEvent(new CustomEvent(CHANGE_EVENT));
   } catch {
     // ignore
@@ -115,7 +124,7 @@ export function recordPageView(href: string): void {
 export function clearRecentPages(): void {
   if (typeof window === "undefined") return;
   try {
-    window.localStorage.removeItem(KEY);
+    window.localStorage.removeItem(storageKey());
     window.dispatchEvent(new CustomEvent(CHANGE_EVENT));
   } catch {
     // ignore
@@ -129,7 +138,7 @@ export function useRecentPages(): RecentEntry[] {
     setList(load());
     const onChange = () => setList(load());
     const onStorage = (e: StorageEvent) => {
-      if (e.key === KEY) setList(load());
+      if (e.key === storageKey()) setList(load());
     };
     window.addEventListener(CHANGE_EVENT, onChange);
     window.addEventListener("storage", onStorage);

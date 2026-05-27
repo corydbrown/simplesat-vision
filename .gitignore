@@ -52,3 +52,4 @@ BRIEF.md
 # Worker-local metadata (start timestamp, PR body staging)
 .worker-meta
 .pr-body.md
+.claude/scheduled_tasks.lock

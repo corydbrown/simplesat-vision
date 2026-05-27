@@ -13,6 +13,11 @@ export default async function CustomersPage(props: PageProps<"/customers">) {
   const { rows, total } = await listCustomers({ sorts, groupBy, filters });
 
   return (
-    <CustomersListView rows={rows} total={total} groupBy={groupBy?.propertyId} />
+    <CustomersListView
+      rows={rows}
+      total={total}
+      groupBy={groupBy?.propertyId}
+      allowedGroupIds={CUSTOMER_GROUP_IDS}
+    />
   );
 }

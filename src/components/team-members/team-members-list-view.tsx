@@ -7,7 +7,6 @@ import { ListFilterRow } from "@/components/shared/list-filter-row";
 import { ListPageActions } from "@/components/shared/list-page-actions";
 import { ViewBreadcrumb } from "@/components/shared/view-breadcrumb";
 import { ColumnStateProvider } from "@/lib/column-prefs";
-import { TEAM_MEMBER_GROUP_IDS } from "@/lib/group/fields/team-members";
 import { useTeamMemberProperties } from "@/lib/properties/custom-fields-context";
 import type { TeamMemberListRow } from "@/db/queries/team-members";
 
@@ -20,10 +19,14 @@ export function TeamMembersListView({
   rows,
   total,
   groupBy,
+  allowedGroupIds,
 }: {
   rows: TeamMemberListRow[];
   total: number;
   groupBy?: string;
+  /** Group-by field ids, passed from the server page (the `group/fields`
+   *  module is `server-only` and must not be imported by this client view). */
+  allowedGroupIds: string[];
 }) {
   const properties = useTeamMemberProperties();
 
@@ -51,7 +54,7 @@ export function TeamMembersListView({
         viewContext={{
           entityKey: "team-members",
           basePath: "/team-members",
-          allowedGroupIds: TEAM_MEMBER_GROUP_IDS,
+          allowedGroupIds,
         }}
       />
       <ListFilterRow properties={properties} />

@@ -7,7 +7,6 @@ import { ListFilterRow } from "@/components/shared/list-filter-row";
 import { ListPageActions } from "@/components/shared/list-page-actions";
 import { ViewBreadcrumb } from "@/components/shared/view-breadcrumb";
 import { ColumnStateProvider } from "@/lib/column-prefs";
-import { CUSTOMER_GROUP_IDS } from "@/lib/group/fields/customers";
 import { useCustomerProperties } from "@/lib/properties/custom-fields-context";
 import type { CustomerListRow } from "@/db/queries/customers";
 
@@ -22,10 +21,15 @@ export function CustomersListView({
   rows,
   total,
   groupBy,
+  allowedGroupIds,
 }: {
   rows: CustomerListRow[];
   total: number;
   groupBy?: string;
+  /** Group-by field ids, passed from the server page. Sourced from the
+   *  server-only `group/fields` module, which a client component must not
+   *  import directly (it pulls in `server-only` + the DB schema). */
+  allowedGroupIds: string[];
 }) {
   const properties = useCustomerProperties();
 
@@ -53,7 +57,7 @@ export function CustomersListView({
         viewContext={{
           entityKey: "customers",
           basePath: "/customers",
-          allowedGroupIds: CUSTOMER_GROUP_IDS,
+          allowedGroupIds,
         }}
       />
       <ListFilterRow properties={properties} />

@@ -20,7 +20,7 @@ import { TeamGroupPill } from "@/components/shared/team-group-pill";
 import type { TeamMemberListRow } from "@/db/queries/team-members";
 import { TEAM_MEMBER_FILTER_SPECS } from "@/lib/filters/specs/team-members";
 import { formatNumber } from "@/lib/format";
-import { TEAM_MEMBER_CUSTOM_FIELDS } from "./custom-fields";
+import { TEAM_MEMBER_CUSTOM_FIELDS, type CustomFieldDef } from "./custom-fields";
 import { customFieldProperties } from "./custom-field-properties";
 import type { Property } from "./types";
 
@@ -212,10 +212,21 @@ const CORE_PROPERTIES: Property<TeamMemberListRow>[] = [
   },
 ];
 
-export const TEAM_MEMBER_PROPERTIES: Property<TeamMemberListRow>[] = [
-  ...CORE_PROPERTIES,
-  ...customFieldProperties<TeamMemberListRow>(
-    TEAM_MEMBER_CUSTOM_FIELDS,
-    "Team member",
-  ),
-];
+export const TEAM_MEMBER_CORE_PROPERTIES = CORE_PROPERTIES;
+
+/** Build the full team-member property list for a workspace: core properties +
+ *  the workspace's custom-field defs (Bloom's curated set, or data-derived for
+ *  other workspaces). Team members carry no tier, so there's nothing to gate. */
+export function buildTeamMemberProperties(
+  customFields: CustomFieldDef[],
+): Property<TeamMemberListRow>[] {
+  return [
+    ...CORE_PROPERTIES,
+    ...customFieldProperties<TeamMemberListRow>(customFields, "Team member"),
+  ];
+}
+
+/** Static Bloom-shaped property list. Retained as a fallback; live surfaces use
+ *  `useTeamMemberProperties()` so the set follows the active workspace. */
+export const TEAM_MEMBER_PROPERTIES: Property<TeamMemberListRow>[] =
+  buildTeamMemberProperties(TEAM_MEMBER_CUSTOM_FIELDS);

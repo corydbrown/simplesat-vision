@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev --port \"$(grep -hs '^PORT=' .env.local 2>/dev/null | tail -n1 | cut -d= -f2 | tr -d ' \"' | grep -E '^[0-9]+$' || echo 3000)\"",
     "build": "drizzle-kit migrate && next build",
     "start": "next start",
     "lint": "eslint",

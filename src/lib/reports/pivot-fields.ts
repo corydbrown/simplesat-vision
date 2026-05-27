@@ -1,10 +1,6 @@
 import type { Aggregation, BaseEntity, DateBucket } from "./types";
 import type { DrawerEntity } from "@/components/shared/global-drawer";
-import {
-  CUSTOMER_CUSTOM_FIELDS,
-  TEAM_MEMBER_CUSTOM_FIELDS,
-  type CustomFieldDef,
-} from "@/lib/properties/custom-fields";
+import type { CustomFieldDef } from "@/lib/properties/custom-fields";
 
 export type FieldDataType = "string" | "number" | "date" | "enum" | "relation";
 
@@ -200,13 +196,19 @@ function customFieldPivotField(
   }
 }
 
-const CUSTOMER_CUSTOM_PIVOT_FIELDS: PivotField[] = CUSTOMER_CUSTOM_FIELDS
-  .filter((f) => f.importance >= 3)
-  .map((f) => customFieldPivotField("customers", f));
-
-const TEAM_MEMBER_CUSTOM_PIVOT_FIELDS: PivotField[] = TEAM_MEMBER_CUSTOM_FIELDS
-  .filter((f) => f.importance >= 3)
-  .map((f) => customFieldPivotField("team_members", f));
+/** Custom-property pivot fields for one entity, derived from the active
+ *  workspace's `CustomFieldDef[]`. Importance >= 3 surfaces in the rail; the
+ *  rest stay out (still reachable via the table column picker). For Bloom these
+ *  are the hand-curated defs; for other workspaces they're derived from real
+ *  `custom_properties` keys by `custom-fields-provider.ts`. */
+function customPivotFields(
+  table: "customers" | "team_members",
+  defs: CustomFieldDef[],
+): PivotField[] {
+  return defs
+    .filter((f) => f.importance >= 3)
+    .map((f) => customFieldPivotField(table, f));
+}
 
 // ---------------------------------------------------------------------------
 // Metric-typed values.
@@ -312,14 +314,32 @@ function correlatedMetricFields(joinClause: string): PivotField[] {
   });
 }
 
+/** Inputs that make the pivot registry workspace-aware. Custom-field defs come
+ *  from `custom-fields-provider.ts` (Bloom = curated, others = data-derived);
+ *  `showTier` gates the loyalty-tier field, mirroring SVP-184. */
+export type PivotFieldsInput = {
+  customerCustomFields: CustomFieldDef[];
+  teamMemberCustomFields: CustomFieldDef[];
+  /** Loyalty tier is a Bloom-only concept; false hides it from every base. */
+  showTier: boolean;
+};
+
 /**
- * Registry of pivotable fields per base entity. `group` names the source
- * entity (e.g. "Ticket", "Customer", "Assignee") so the rail can render
- * properties grouped by their origin. propertyId matches the visual
- * Property<T>.id in src/lib/properties/<entity>.tsx.
+ * Build the registry of pivotable fields per base entity for one workspace.
+ * `group` names the source entity (e.g. "Ticket", "Customer", "Assignee") so
+ * the rail can render properties grouped by their origin. propertyId matches
+ * the visual Property<T>.id in src/lib/properties/<entity>.tsx.
+ *
+ * Pure + serializable: the returned PivotFields cross the RSC → client boundary
+ * intact (no closures), so the same record drives server-side SQL compilation
+ * and the client pivot rail.
  */
-export const PIVOT_FIELDS: Record<BaseEntity, PivotField[]> = {
-  ticket: [
+export function buildPivotFields(
+  input: PivotFieldsInput,
+): Record<BaseEntity, PivotField[]> {
+  const { customerCustomFields, teamMemberCustomFields, showTier } = input;
+  const fields: Record<BaseEntity, PivotField[]> = {
+    ticket: [
     // Ticket's own properties
     {
       id: "status",
@@ -600,7 +620,7 @@ export const PIVOT_FIELDS: Record<BaseEntity, PivotField[]> = {
     // Metric-typed values per customer.
     ...correlatedMetricFields("responses.customer_id = customers.id"),
     // Synced-from-external-system custom properties (importance >= 3).
-    ...CUSTOMER_CUSTOM_PIVOT_FIELDS,
+    ...customPivotFields("customers", customerCustomFields),
   ],
 
   team_member: [
@@ -703,7 +723,7 @@ export const PIVOT_FIELDS: Record<BaseEntity, PivotField[]> = {
     // Metric-typed values per team member.
     ...correlatedMetricFields("responses.team_member_id = team_members.id"),
     // Synced-from-external-system custom properties.
-    ...TEAM_MEMBER_CUSTOM_PIVOT_FIELDS,
+    ...customPivotFields("team_members", teamMemberCustomFields),
   ],
 
   response: [
@@ -899,7 +919,19 @@ export const PIVOT_FIELDS: Record<BaseEntity, PivotField[]> = {
     // are pre-aggregated formulas, so they can only appear in Values.
     ...directMetricFields(),
   ],
-};
+  };
+
+  // Loyalty tier is Bloom-only. Outside Bloom, drop it from every base — the
+  // bare-id `tier` field is the loyalty field; derived custom fields are
+  // `cf_*`-prefixed, so this never strikes a workspace's own attribute.
+  if (!showTier) {
+    for (const base of Object.keys(fields) as BaseEntity[]) {
+      fields[base] = fields[base].filter((f) => f.id !== "tier");
+    }
+  }
+
+  return fields;
+}
 
 /**
  * Order of entity groups for rendering in the rail. Per-base because the
@@ -920,11 +952,14 @@ export const BASE_TABLE: Record<BaseEntity, string> = {
   response: "responses",
 };
 
+/** Look up a field by id within an already-built per-base field list. Callers
+ *  hold the workspace-scoped list (server: `buildPivotFields(...)[base]`;
+ *  client: `usePivotFields()[base]`), so this stays a pure array lookup. */
 export function findField(
-  base: BaseEntity,
+  fields: PivotField[],
   propertyId: string,
 ): PivotField | undefined {
-  return PIVOT_FIELDS[base].find((f) => f.id === propertyId);
+  return fields.find((f) => f.id === propertyId);
 }
 
 export function bucketSql(column: string, bucket: DateBucket): string {

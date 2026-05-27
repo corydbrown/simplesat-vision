@@ -7,11 +7,8 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import {
-  GROUP_ORDER,
-  PIVOT_FIELDS,
-  type PivotField,
-} from "@/lib/reports/pivot-fields";
+import { GROUP_ORDER, type PivotField } from "@/lib/reports/pivot-fields";
+import { usePivotFields } from "@/lib/reports/use-pivot-fields";
 import type { BaseEntity } from "@/lib/reports/types";
 import { FieldIcon } from "./field-icon";
 
@@ -56,7 +53,7 @@ function AddFieldPopover({
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
 
-  const fields = PIVOT_FIELDS[base].filter((f) => {
+  const fields = usePivotFields()[base].filter((f) => {
     if (!allowValueOnly && f.valueOnly) return false;
     if (excluded.includes(f.id)) return false;
     if (!query) return true;

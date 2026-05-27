@@ -1,9 +1,17 @@
+import "server-only";
+
 import { sql, type SQL } from "drizzle-orm";
 import { relativeRangeMs } from "@/lib/filters/relative-range";
 import { isRelativeValue, type Filter } from "@/lib/filters/types";
 import {
+  getCustomerCustomFields,
+  getTeamMemberCustomFields,
+} from "@/lib/properties/custom-fields-provider";
+import { DEMO_WORKSPACE_ID } from "@/lib/workspace-id";
+import {
   BASE_TABLE,
   bucketSql,
+  buildPivotFields,
   findField,
   type FieldJoin,
   type PivotField,
@@ -198,11 +206,25 @@ function buildFilter(
   }
 }
 
-export function compileReport(
+export async function compileReport(
   config: ReportConfig,
   workspaceId: string,
-): CompiledQuery | null {
+): Promise<CompiledQuery | null> {
   const baseTable = BASE_TABLE[config.base];
+
+  // Workspace-scoped registry: Bloom keeps its curated custom fields + tier;
+  // other workspaces get data-derived fields and no tier. Built per run — for
+  // Bloom this is constant-time; elsewhere it's a cheap json_each over the
+  // workspace's rows. `baseFields` is the only slice this base needs.
+  const [customerCustomFields, teamMemberCustomFields] = await Promise.all([
+    getCustomerCustomFields(workspaceId),
+    getTeamMemberCustomFields(workspaceId),
+  ]);
+  const baseFields = buildPivotFields({
+    customerCustomFields,
+    teamMemberCustomFields,
+    showTier: workspaceId === DEMO_WORKSPACE_ID,
+  })[config.base];
 
   const rowAliases: AxisAlias[] = [];
   const columnAliases: AxisAlias[] = [];
@@ -224,7 +246,7 @@ export function compileReport(
     prefix: string,
     index: number,
   ) => {
-    const field = findField(config.base, axis.propertyId);
+    const field = findField(baseFields, axis.propertyId);
     if (!field) return;
     if (field.valueOnly) return; // compiled-in safety; UI also filters these out
     collectJoins(field);
@@ -258,7 +280,7 @@ export function compileReport(
     valueAliases.push("val_0");
   } else {
     config.values.forEach((v, i) => {
-      const field = v.propertyId === "*" ? undefined : findField(config.base, v.propertyId);
+      const field = v.propertyId === "*" ? undefined : findField(baseFields, v.propertyId);
       if (field) collectJoins(field);
       const alias = `val_${i}`;
       selectParts.push(sql.raw(`${aggExpr(v, field)} AS ${alias}`));
@@ -271,7 +293,7 @@ export function compileReport(
     sql`${sql.raw(`${baseTable}.workspace_id`)} = ${workspaceId}`,
   ];
   for (const f of config.filters) {
-    const field = findField(config.base, f.propertyId);
+    const field = findField(baseFields, f.propertyId);
     if (!field) continue;
     // Drop filters whose op isn't in the field's allowed set. This is the
     // last line of defense against bad URL state or AI-generated configs

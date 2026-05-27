@@ -16,7 +16,17 @@ import {
   type ReportConfig,
   type ValueDef,
 } from "./types";
-import { findField, PIVOT_FIELDS, type PivotField } from "./pivot-fields";
+import {
+  getCustomerCustomFields,
+  getTeamMemberCustomFields,
+} from "@/lib/properties/custom-fields-provider";
+import { requireWorkspace } from "@/lib/workspace";
+import { DEMO_WORKSPACE_ID } from "@/lib/workspace-id";
+import {
+  buildPivotFields,
+  findField,
+  type PivotField,
+} from "./pivot-fields";
 
 export async function runReportAction(
   config: ReportConfig,
@@ -128,8 +138,8 @@ function serializeField(f: PivotField): string {
   return `- ${parts.join(" ")}`;
 }
 
-function buildSystemPrompt(base: BaseEntity): string {
-  const fields = PIVOT_FIELDS[base].map(serializeField).join("\n");
+function buildSystemPrompt(base: BaseEntity, baseFields: PivotField[]): string {
+  const fields = baseFields.map(serializeField).join("\n");
   return `You configure a pivot report for Bloom Beauty's customer-feedback product (built on Simplesat).
 
 Always call the \`build_report\` tool with a valid ReportConfig. Never reply with plain text.
@@ -185,7 +195,7 @@ ${fields}`;
 }
 
 function sanitizeAxis(
-  base: BaseEntity,
+  baseFields: PivotField[],
   axis: unknown,
   max: number,
   allowValueOnly: boolean,
@@ -196,7 +206,7 @@ function sanitizeAxis(
     if (!raw || typeof raw !== "object") continue;
     const candidate = raw as { propertyId?: unknown; bucket?: unknown };
     if (typeof candidate.propertyId !== "string") continue;
-    const field = findField(base, candidate.propertyId);
+    const field = findField(baseFields, candidate.propertyId);
     if (!field) continue;
     if (!allowValueOnly && field.valueOnly) continue;
     const entry: AxisField = { propertyId: candidate.propertyId };
@@ -213,7 +223,10 @@ function sanitizeAxis(
   return out;
 }
 
-function sanitizeValues(base: BaseEntity, values: unknown): ValueDef[] {
+function sanitizeValues(
+  baseFields: PivotField[],
+  values: unknown,
+): ValueDef[] {
   if (!Array.isArray(values)) return [];
   const out: ValueDef[] = [];
   for (const raw of values) {
@@ -237,7 +250,7 @@ function sanitizeValues(base: BaseEntity, values: unknown): ValueDef[] {
           : {}),
       });
     } else {
-      const field = findField(base, candidate.propertyId);
+      const field = findField(baseFields, candidate.propertyId);
       if (!field) continue;
       if (!field.aggregations.includes(candidate.agg as Aggregation)) continue;
       out.push({
@@ -253,7 +266,10 @@ function sanitizeValues(base: BaseEntity, values: unknown): ValueDef[] {
   return out;
 }
 
-function sanitizeFilters(base: BaseEntity, filters: unknown): FilterDef[] {
+function sanitizeFilters(
+  baseFields: PivotField[],
+  filters: unknown,
+): FilterDef[] {
   if (!Array.isArray(filters)) return [];
   const out: FilterDef[] = [];
   for (const raw of filters) {
@@ -266,7 +282,7 @@ function sanitizeFilters(base: BaseEntity, filters: unknown): FilterDef[] {
     if (typeof candidate.propertyId !== "string") continue;
     if (typeof candidate.op !== "string") continue;
     if (!(FILTER_OPS as string[]).includes(candidate.op)) continue;
-    const field = findField(base, candidate.propertyId);
+    const field = findField(baseFields, candidate.propertyId);
     if (!field) continue;
     // The field's filterOps lists which ops make sense for it; an empty list
     // means "this field is not filterable" (e.g. response-base metric values,
@@ -283,7 +299,11 @@ function sanitizeFilters(base: BaseEntity, filters: unknown): FilterDef[] {
   return out;
 }
 
-function sanitize(base: BaseEntity, candidate: unknown): ReportConfig {
+function sanitize(
+  base: BaseEntity,
+  baseFields: PivotField[],
+  candidate: unknown,
+): ReportConfig {
   const obj = (candidate && typeof candidate === "object" ? candidate : {}) as {
     rows?: unknown;
     columns?: unknown;
@@ -292,10 +312,10 @@ function sanitize(base: BaseEntity, candidate: unknown): ReportConfig {
   };
   const config: ReportConfig = {
     base,
-    rows: sanitizeAxis(base, obj.rows, MAX_ROWS, false),
-    columns: sanitizeAxis(base, obj.columns, MAX_COLUMNS, false),
-    values: sanitizeValues(base, obj.values),
-    filters: sanitizeFilters(base, obj.filters),
+    rows: sanitizeAxis(baseFields, obj.rows, MAX_ROWS, false),
+    columns: sanitizeAxis(baseFields, obj.columns, MAX_COLUMNS, false),
+    values: sanitizeValues(baseFields, obj.values),
+    filters: sanitizeFilters(baseFields, obj.filters),
   };
   if (
     config.rows.length === 0 &&
@@ -311,6 +331,20 @@ export async function buildReportFromPrompt(
   prompt: string,
   base: BaseEntity,
 ): Promise<ReportConfig> {
+  // Same workspace-scoped registry the rail + SQL compiler use, so the AI only
+  // ever sees (and can emit) fields that actually exist for this workspace —
+  // Bloom's curated set + tier, or another workspace's data-derived fields.
+  const workspaceId = await requireWorkspace();
+  const [customerCustomFields, teamMemberCustomFields] = await Promise.all([
+    getCustomerCustomFields(workspaceId),
+    getTeamMemberCustomFields(workspaceId),
+  ]);
+  const baseFields = buildPivotFields({
+    customerCustomFields,
+    teamMemberCustomFields,
+    showTier: workspaceId === DEMO_WORKSPACE_ID,
+  })[base];
+
   const client = new Anthropic();
 
   const response = await client.messages.create({
@@ -319,7 +353,7 @@ export async function buildReportFromPrompt(
     system: [
       {
         type: "text",
-        text: buildSystemPrompt(base),
+        text: buildSystemPrompt(base, baseFields),
         cache_control: { type: "ephemeral" },
       },
     ],
@@ -332,5 +366,5 @@ export async function buildReportFromPrompt(
   if (!toolUse || toolUse.type !== "tool_use") {
     return defaultConfig(base);
   }
-  return sanitize(base, toolUse.input);
+  return sanitize(base, baseFields, toolUse.input);
 }

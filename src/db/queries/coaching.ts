@@ -7,6 +7,7 @@ import type {
   ScorecardScaleType,
   TicketEventVerb,
   TicketMessageAuthorRole,
+  TicketMessageAuthorSubtype,
   TicketMessageChannel,
   TicketMessageType,
   TicketStatus,
@@ -20,6 +21,11 @@ import {
 export type CoachingMessageView = {
   id: string;
   authorRole: TicketMessageAuthorRole;
+  /** Human-vs-bot for agent-role turns; null otherwise. Lets the QA surface
+   *  distinguish a bot turn from a human teammate's (SVP-199). Grading/cite
+   *  semantics for bot turns are intentionally untouched here — that's QA
+   *  follow-up scope, not this foundation. */
+  authorSubtype: TicketMessageAuthorSubtype | null;
   authorName: string;
   authorId: string | null;
   authorAvatarColor: string | null;
@@ -308,12 +314,15 @@ export async function getCoachingDetail(
   const messages: CoachingMessageView[] = messageRows.map((m) => ({
     id: m.message.id,
     authorRole: m.message.authorRole,
+    authorSubtype: m.message.authorSubtype,
     authorName:
       m.message.authorRole === "customer" && m.customer?.name
         ? m.customer.name
-        : m.message.authorRole === "agent" && m.teamMember?.name
-          ? m.teamMember.name
-          : "System",
+        : m.message.authorRole === "agent" && m.message.authorSubtype === "bot"
+          ? "AI Agent"
+          : m.message.authorRole === "agent" && m.teamMember?.name
+            ? m.teamMember.name
+            : "System",
     authorId:
       m.message.authorRole === "customer"
         ? (m.customer?.id ?? null)

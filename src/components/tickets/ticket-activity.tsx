@@ -46,7 +46,9 @@ import { TimestampTooltip } from "@/components/shared/timestamp-tooltip";
 
 type Filter = "all" | "messages";
 type Side = "left" | "right";
-type Tone = "customer" | "agent" | "note";
+// `bot` is a company-side tone (renders right, like a human agent) but carries
+// its own chip + tint so a bot turn never reads as a human teammate (SVP-199).
+type Tone = "customer" | "agent" | "bot" | "note";
 type BubblePosition = "solo" | "first" | "middle" | "last";
 
 type DayMarker = { kind: "day"; date: Date };
@@ -71,11 +73,14 @@ const FIVE_MINUTES = 5 * 60 * 1000;
 
 function toneFor(m: TicketMessageView): Tone {
   if (!m.isPublic) return "note";
-  return m.authorRole === "agent" ? "agent" : "customer";
+  if (m.authorRole === "agent") {
+    return m.authorSubtype === "bot" ? "bot" : "agent";
+  }
+  return "customer";
 }
 
 function sideFor(tone: Tone): Side {
-  // Customer LEFT, agent + internal note RIGHT.
+  // Customer LEFT; agent, bot, and internal note RIGHT (all company-side).
   return tone === "customer" ? "left" : "right";
 }
 
@@ -225,6 +230,27 @@ function ChannelTag({
   );
 }
 
+// Role chip on a message group's meta row. Bot turns get a leading Bot glyph
+// so they're unmistakably non-human even at a glance (SVP-199).
+function RoleChip({ tone, label }: { tone: Tone; label: string }) {
+  const roleClass =
+    tone === "agent"
+      ? "bg-primary/10 text-primary"
+      : tone === "bot"
+        ? "bg-teal-lighter text-teal-darker"
+        : tone === "customer"
+          ? "bg-muted text-muted-foreground"
+          : "bg-yellow-lighter text-yellow-darker";
+  return (
+    <span
+      className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-sm font-medium ${roleClass}`}
+    >
+      {tone === "bot" && <Bot className="size-3.5" />}
+      {label}
+    </span>
+  );
+}
+
 function metaForGroup(g: Group): {
   name: string;
   avatarColor: string;
@@ -233,6 +259,11 @@ function metaForGroup(g: Group): {
   if (g.tone === "customer") {
     const name = first.customer?.name ?? "Customer";
     return { name, avatarColor: colorFromName(name) };
+  }
+  // Bot turns have no team member to credit. A generic "AI Agent" label is the
+  // basic marker; the source bot's display name (Fin, etc.) lands with SVP-198.
+  if (g.tone === "bot") {
+    return { name: "AI Agent", avatarColor: colorFromName("AI Agent") };
   }
   const name = first.teamMember?.name ?? "Agent";
   return {
@@ -283,7 +314,9 @@ function Bubble({
       ? "border-border bg-card text-foreground"
       : tone === "agent"
         ? "border-primary/20 bg-primary/10 text-foreground"
-        : "border-dashed border-yellow-light bg-yellow-lighter text-foreground";
+        : tone === "bot"
+          ? "border-teal-light bg-teal-lighter text-foreground"
+          : "border-dashed border-yellow-light bg-yellow-lighter text-foreground";
   // QA highlight ring — toggled by the supporting-message chip in the QA
   // section below. Transition is fade-in fast, fade-out slow so the user
   // catches the pulse even if they're already looking at the right message.
@@ -341,13 +374,13 @@ function MessageGroup({
   const first = items[0];
 
   const roleLabel =
-    tone === "agent" ? "Agent" : tone === "customer" ? "Customer" : null;
-  const roleClass =
     tone === "agent"
-      ? "bg-primary/10 text-primary"
-      : tone === "customer"
-        ? "bg-muted text-muted-foreground"
-        : "bg-yellow-lighter text-yellow-darker";
+      ? "Agent"
+      : tone === "bot"
+        ? "Bot"
+        : tone === "customer"
+          ? "Customer"
+          : null;
 
   return (
     <div className="grid grid-cols-[40px_1fr_40px] gap-x-3">
@@ -391,11 +424,7 @@ function MessageGroup({
                 </span>
               ) : null}
               {roleLabel && tone !== "note" && (
-                <span
-                  className={`rounded px-1.5 py-0.5 text-sm font-medium ${roleClass}`}
-                >
-                  {roleLabel}
-                </span>
+                <RoleChip tone={tone} label={roleLabel} />
               )}
               <span className="text-sm font-semibold text-foreground">
                 {name}
@@ -407,13 +436,7 @@ function MessageGroup({
               <span className="text-sm font-semibold text-foreground">
                 {name}
               </span>
-              {roleLabel && (
-                <span
-                  className={`rounded px-1.5 py-0.5 text-sm font-medium ${roleClass}`}
-                >
-                  {roleLabel}
-                </span>
-              )}
+              {roleLabel && <RoleChip tone={tone} label={roleLabel} />}
               <ChannelTag channel={first.channel} />
               <span className="text-muted-foreground/60">·</span>
               <TimestampTooltip date={first.createdAt}>

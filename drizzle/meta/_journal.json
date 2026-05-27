@@ -134,6 +134,13 @@
       "when": 1779888207635,
       "tag": "0018_cuddly_shadowcat",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "6",
+      "when": 1779893873693,
+      "tag": "0019_svp199_ai_bot_identity",
+      "breakpoints": true
     }
   ]
 }

@@ -320,6 +320,10 @@ export async function upsertTicket(
     sourceAgents,
     teamMemberId,
     sourceMetrics: input.sourceMetrics ?? {},
+    aiAgentParticipated: input.aiAgentParticipated ?? false,
+    startedWithBot: input.startedWithBot ?? false,
+    handedOffToHuman: input.handedOffToHuman ?? false,
+    aiResolutionState: input.aiResolutionState ?? null,
     sourceTags: input.sourceTags ?? [],
     createdAt: input.createdAt,
     firstResponseAt: input.firstResponseAt ?? null,
@@ -373,6 +377,10 @@ export async function upsertMessage(
   const shared = {
     ticketId,
     authorRole: input.authorRole,
+    // Only meaningful for agent-role turns; null elsewhere keeps the column's
+    // "NULL = not applicable" semantics (see schema `authorSubtype`).
+    authorSubtype:
+      input.authorRole === "agent" ? input.authorSubtype ?? "human" : null,
     customerId,
     teamMemberId,
     channel,

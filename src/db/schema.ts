@@ -59,6 +59,21 @@ export type SurveyNotSentReason =
   | "automation_close";
 export type TopicSentiment = "positive" | "neutral" | "negative";
 
+/** Source-verbatim AI-agent resolution outcome (Intercom `ai_agent.
+ *  resolution_state`: `assumed_resolution` / `confirmed_resolution` /
+ *  `routed_to_team` / `abandoned` / …). Free text, not an enum — sources differ
+ *  and Intercom adds states over time. NULL when no AI agent participated. */
+export type AiResolutionState = string;
+
+/** Derived conversation-level AI-handling segment. Not stored — computed from
+ *  the independent ticket facts (`aiAgentParticipated`, `handedOffToHuman`) by
+ *  `classifyAiHandling` so Reports/QA segment from one source of truth and
+ *  can't drift into contradictory stored booleans:
+ *  - `human_only` — no AI agent participated
+ *  - `bot_only`   — AI participated, no human took over (deflected)
+ *  - `hybrid`     — AI participated and a human took over (escalation) */
+export type AiHandling = "bot_only" | "human_only" | "hybrid";
+
 /** QA evaluation lifecycle states. `ai_scored` is the entry state when the
  *  scoring provider returns. `edited` means a human overrode at least one
  *  category score. `contested` is the agent-flag state. `invalidated` is a
@@ -99,6 +114,16 @@ export type TicketEventVerb =
 
 export type TicketMessageType = "comment" | "voice_comment" | "chat_message";
 export type TicketMessageAuthorRole = "customer" | "agent" | "system";
+/** Qualifies an `agent`-role message: was the company-side turn written by a
+ *  human teammate or an AI bot? Read ONLY when `authorRole === "agent"`; NULL
+ *  on customer/system rows and on legacy agent rows (treated as `human`). Kept
+ *  as a nullable subtype rather than a 4th `authorRole` value so every existing
+ *  `authorRole === "agent"` check keeps placing the turn on the company side
+ *  with no change — a bot turn lands correctly without touching the dozens of
+ *  call sites that switch on role. Set at ingest from the source bot author
+ *  type (Intercom `author.type === "bot"`). Extensible later (e.g. `copilot`)
+ *  without an enum migration on the hot `authorRole` column. */
+export type TicketMessageAuthorSubtype = "human" | "bot";
 export type TicketMessageChannel =
   | "email"
   | "chat"
@@ -555,6 +580,30 @@ export const tickets = sqliteTable(
       .$type<Record<string, unknown>>()
       .notNull()
       .default(sql`'{}'`),
+    // --- conversation-level AI-handling signals (SVP-199) -------------------
+    // Three independent lifecycle facts + the resolution outcome. The richer
+    // source `ai_agent` object (rating, content sources, etc.) rides verbatim
+    // in `sourceMetrics.ai_agent` — these promote only the scalars Reports/QA
+    // segment + aggregate on. The bot-only / human-only / hybrid segment is
+    // DERIVED (see `AiHandling` / `classifyAiHandling`), never stored.
+    /** Intercom `ai_agent_participated` — the master "an AI agent touched this
+     *  conversation" flag. Indexed; the primary segment cut for Reports/QA. */
+    aiAgentParticipated: integer("ai_agent_participated", { mode: "boolean" })
+      .notNull()
+      .default(false),
+    /** The first company-side turn was a bot (vs a human picking it up cold). */
+    startedWithBot: integer("started_with_bot", { mode: "boolean" })
+      .notNull()
+      .default(false),
+    /** A human teammate took over after the bot (deflection failed / escalated).
+     *  `aiAgentParticipated && handedOffToHuman` ⇒ hybrid; `&& !handedOff` ⇒
+     *  bot-only (deflected). */
+    handedOffToHuman: integer("handed_off_to_human", { mode: "boolean" })
+      .notNull()
+      .default(false),
+    /** Source-verbatim AI resolution outcome (see `AiResolutionState`). NULL
+     *  when no AI agent participated. */
+    aiResolutionState: text("ai_resolution_state").$type<AiResolutionState>(),
     /** Simplesat-native tags — admin-managed (e.g. a "to-do" tag). NEVER
      *  touched by sync. */
     tags: text("tags", { mode: "json" }).$type<string[]>().notNull().default(sql`'[]'`),
@@ -602,6 +651,10 @@ export const tickets = sqliteTable(
     index("tickets_survey_sent_at_idx").on(t.surveySentAt),
     index("tickets_source_idx").on(t.source),
     index("tickets_priority_idx").on(t.priority),
+    // No standalone index on `ai_agent_participated`: a 2-value boolean is too
+    // low-selectivity for the planner to choose. When Reports lands its
+    // workspace-scoped AI segment counts, add the composite
+    // (workspace_id, ai_agent_participated) shaped to that actual query.
     // Idempotent ingest upsert key (see customers).
     uniqueIndex("tickets_workspace_external_id_unq")
       .on(t.workspaceId, t.externalId)
@@ -626,6 +679,12 @@ export const ticketMessages = sqliteTable(
     })
       .notNull()
       .$type<TicketMessageAuthorRole>(),
+    /** Human-vs-bot qualifier for `agent`-role turns (see
+     *  `TicketMessageAuthorSubtype`). Nullable: NULL on customer/system rows
+     *  and legacy agent rows (rendered + scored as human). A bot turn carries
+     *  `authorRole: "agent"` + `authorSubtype: "bot"` and no `teamMemberId`. */
+    authorSubtype: text("author_subtype", { enum: ["human", "bot"] })
+      .$type<TicketMessageAuthorSubtype>(),
     customerId: text("customer_id").references(() => customers.id),
     teamMemberId: text("team_member_id").references(() => teamMembers.id),
     /** Delivery channel this message arrived on. Tracks per-message because a

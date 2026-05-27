@@ -71,8 +71,26 @@ export const ticketIngestSchema = z.object({
   /** Lossless agent-role → raw external id map. The credited teamMemberId is
    *  resolved from this via `resolveTeamMember` (never set directly). */
   sourceAgents: z.record(z.string(), z.string()).optional(),
-  /** Raw metrics bag (Intercom `statistics` / Zendesk metrics) — stored verbatim. */
+  /** Raw metrics bag (Intercom `statistics` / Zendesk metrics) — stored verbatim.
+   *  The full Intercom `ai_agent` object (resolution_state, rating, content
+   *  sources, …) rides here verbatim under `ai_agent`; only the segmentation
+   *  scalars below are promoted to dedicated ticket columns. */
   sourceMetrics: jsonRecord.optional(),
+  // --- conversation-level AI-handling signals (SVP-199) --------------------
+  // n8n's Transform owns the mapping from Intercom's conversation shape to
+  // these flags (its job, not this repo): `ai_agent_participated` →
+  // `aiAgentParticipated`; first part author type `bot` → `startedWithBot`;
+  // a later human admin part after a bot part → `handedOffToHuman`;
+  // `ai_agent.resolution_state` → `aiResolutionState`. The bot-only / hybrid
+  // segment is DERIVED downstream, never sent.
+  /** Intercom `ai_agent_participated` — master "AI touched this" flag. */
+  aiAgentParticipated: z.boolean().optional(),
+  /** First company-side turn was a bot. */
+  startedWithBot: z.boolean().optional(),
+  /** A human took over after the bot (escalation / deflection failure). */
+  handedOffToHuman: z.boolean().optional(),
+  /** Source-verbatim `ai_agent.resolution_state` (free text — sources differ). */
+  aiResolutionState: z.string().optional(),
   /** Helpdesk tags → `sourceTags` (read-only). Native `tags` is never ingested. */
   sourceTags: z.array(z.string()).optional(),
   createdAt: timestamp,
@@ -98,9 +116,14 @@ export const messageIngestSchema = z.object({
   /** Parent ticket; resolved to an internal ticketId (422 if unknown). */
   ticketExternalId: externalId,
   authorRole: z.enum(["customer", "agent", "system"]),
+  /** Qualifies an `agent`-role turn as human or bot. A bot turn (Intercom
+   *  `author.type === "bot"`) sends `authorRole: "agent"` + `authorSubtype:
+   *  "bot"` and NO `teamMemberExternalId`. Omit (or "human") for human agents. */
+  authorSubtype: z.enum(["human", "bot"]).optional(),
   /** Set when authorRole is "customer"; resolved to an internal customerId. */
   customerExternalId: z.string().optional(),
-  /** Set when authorRole is "agent"; resolved to an internal teamMemberId. */
+  /** Set when authorRole is "agent" AND human; resolved to an internal
+   *  teamMemberId. Omitted for bot turns (no human team member to credit). */
   teamMemberExternalId: z.string().optional(),
   channel: z.enum(["email", "chat", "phone", "social", "internal"]).optional(),
   isPublic: z.boolean().optional(),

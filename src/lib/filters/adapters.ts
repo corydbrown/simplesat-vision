@@ -1,5 +1,4 @@
-import { PIVOT_FIELDS } from "@/lib/reports/pivot-fields";
-import type { BaseEntity } from "@/lib/reports/types";
+import type { PivotField } from "@/lib/reports/pivot-fields";
 import type { Property } from "@/lib/properties/types";
 import type { FieldDescriptor, RelationEntity } from "./descriptor";
 import type { FilterDataType, FilterOp } from "./types";
@@ -11,9 +10,12 @@ const RELATION_ENTITY_MAP: Record<string, RelationEntity> = {
   ticket: "ticket",
 };
 
-/** Convert PivotField[] (reports) → FieldDescriptor[] (FilterRow input). */
-export function pivotFieldsToDescriptors(base: BaseEntity): FieldDescriptor[] {
-  return PIVOT_FIELDS[base]
+/** Convert PivotField[] (reports) → FieldDescriptor[] (FilterRow input). The
+ *  caller passes the active workspace's per-base field list. */
+export function pivotFieldsToDescriptors(
+  fields: PivotField[],
+): FieldDescriptor[] {
+  return fields
     .filter((f) => f.filterOps.length > 0)
     .map((f) => ({
       id: f.id,

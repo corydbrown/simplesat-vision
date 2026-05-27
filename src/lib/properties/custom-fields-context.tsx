@@ -39,7 +39,7 @@ export function CustomFieldsProvider({
   );
 }
 
-function useCustomFields(): CustomFieldsContextValue {
+export function useCustomFields(): CustomFieldsContextValue {
   const ctx = useContext(CustomFieldsContext);
   if (!ctx) {
     throw new Error(

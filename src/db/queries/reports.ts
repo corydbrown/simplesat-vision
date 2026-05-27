@@ -32,7 +32,7 @@ export async function runReport(
   config: ReportConfig,
 ): Promise<ReportResult | null> {
   const workspaceId = await requireWorkspace();
-  const compiled = compileReport(config, workspaceId);
+  const compiled = await compileReport(config, workspaceId);
   if (!compiled) return null;
 
   const rows = await db.all<Record<string, unknown>>(compiled.query);

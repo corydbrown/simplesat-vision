@@ -29,6 +29,7 @@ import { pivotFieldsToDescriptors } from "@/lib/filters/adapters";
 import type { Filter } from "@/lib/filters/types";
 import { runReportAction } from "@/lib/reports/actions";
 import { findField, type PivotField } from "@/lib/reports/pivot-fields";
+import { usePivotFields } from "@/lib/reports/use-pivot-fields";
 import {
   MAX_COLUMNS,
   MAX_ROWS,
@@ -79,6 +80,12 @@ export function ReportBuilder({ initialConfig }: Props) {
   const [pendingBase, setPendingBase] = useState<BaseEntity | null>(null);
   const [aiPromptOpen, setAiPromptOpen] = useState(false);
   const railRef = useRef<HTMLDivElement>(null);
+
+  // Workspace-scoped pivot registry (Bloom = curated + tier; others =
+  // data-derived custom fields, no tier). `baseFields` is the current base's
+  // list, reused for findField + descriptor conversion below.
+  const pivotFields = usePivotFields();
+  const baseFields = pivotFields[config.base];
 
   // Load persisted rail width
   useEffect(() => {
@@ -262,7 +269,7 @@ export function ReportBuilder({ initialConfig }: Props) {
   const onDragStart = (event: DragStartEvent) => {
     const fieldId = event.active.data.current?.fieldId as string | undefined;
     if (!fieldId) return;
-    const field = findField(config.base, fieldId);
+    const field = findField(baseFields, fieldId);
     if (field) setActiveDragField(field);
   };
 
@@ -271,7 +278,7 @@ export function ReportBuilder({ initialConfig }: Props) {
     const overAxis = event.over?.data.current?.axis as AxisName | undefined;
     const fieldId = event.active.data.current?.fieldId as string | undefined;
     if (!overAxis || !fieldId) return;
-    const field = findField(config.base, fieldId);
+    const field = findField(baseFields, fieldId);
     if (!field) return;
     if (overAxis === "filters") {
       addFilter({ propertyId: field.id, op: "notnull" });
@@ -400,7 +407,7 @@ export function ReportBuilder({ initialConfig }: Props) {
               }
             >
               {config.rows.map((row, i) => {
-                const field = findField(config.base, row.propertyId);
+                const field = findField(baseFields, row.propertyId);
                 if (!field) return null;
                 return (
                   <AxisChip
@@ -433,7 +440,7 @@ export function ReportBuilder({ initialConfig }: Props) {
               }
             >
               {config.columns.map((col, i) => {
-                const field = findField(config.base, col.propertyId);
+                const field = findField(baseFields, col.propertyId);
                 if (!field) return null;
                 return (
                   <AxisChip
@@ -489,7 +496,7 @@ export function ReportBuilder({ initialConfig }: Props) {
                   />
                 ) : (
                   (() => {
-                    const field = findField(config.base, v.propertyId);
+                    const field = findField(baseFields, v.propertyId);
                     if (!field) return null;
                     return (
                       <AxisChip
@@ -528,7 +535,7 @@ export function ReportBuilder({ initialConfig }: Props) {
           {/* Dedicated filter band — own visual weight, below the pivot strip */}
           <div className="flex items-stretch border-b border-border bg-muted/10 px-3 py-1.5">
             <FilterRow
-              fields={pivotFieldsToDescriptors(config.base)}
+              fields={pivotFieldsToDescriptors(baseFields)}
               filters={config.filters}
               onChange={setFilters}
               droppableId="filters"

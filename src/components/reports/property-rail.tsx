@@ -2,11 +2,8 @@
 
 import { useDraggable } from "@dnd-kit/core";
 import { Plus } from "lucide-react";
-import {
-  GROUP_ORDER,
-  PIVOT_FIELDS,
-  type PivotField,
-} from "@/lib/reports/pivot-fields";
+import { GROUP_ORDER, type PivotField } from "@/lib/reports/pivot-fields";
+import { usePivotFields } from "@/lib/reports/use-pivot-fields";
 import type { BaseEntity } from "@/lib/reports/types";
 import { cn } from "@/lib/utils";
 import { FieldIcon } from "./field-icon";
@@ -27,7 +24,7 @@ export function PropertyRail({
   base: BaseEntity;
   onAddField: (field: PivotField, axis: AxisName) => void;
 }) {
-  const fields = PIVOT_FIELDS[base];
+  const fields = usePivotFields()[base];
   const groups = groupBy(fields, (f) => f.group);
   const order = GROUP_ORDER[base];
   const ordered = [

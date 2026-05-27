@@ -14,7 +14,7 @@ import { resolveTicketTags } from "./tickets.resolvers";
 export const TICKET_STATUS = ["open", "pending", "solved", "closed"];
 export const TICKET_PRIORITY = ["low", "normal", "high", "urgent"];
 export const TICKET_CHANNEL = ["email", "chat", "phone", "social"];
-export const TICKET_HELPDESK = ["zendesk", "gladly", "gorgias", "intercom"];
+export const TICKET_SOURCE = ["zendesk", "gladly", "gorgias", "intercom"];
 export const QA_EVALUATION_STATUS = [
   "ai_scored",
   "edited",
@@ -31,7 +31,7 @@ export const TICKET_FILTER_SPECS = {
   status: { dataType: "enum", ops: ENUM_OPS, enumValues: TICKET_STATUS },
   priority: { dataType: "enum", ops: ENUM_OPS, enumValues: TICKET_PRIORITY },
   channel: { dataType: "enum", ops: ENUM_OPS, enumValues: TICKET_CHANNEL },
-  helpdesk: { dataType: "enum", ops: ENUM_OPS, enumValues: TICKET_HELPDESK },
+  source: { dataType: "enum", ops: ENUM_OPS, enumValues: TICKET_SOURCE },
   subject: { dataType: "string", ops: STRING_OPS },
   external_id: { dataType: "string", ops: STRING_OPS },
   message_count: { dataType: "number", ops: NUMERIC_OPS },

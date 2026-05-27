@@ -29,7 +29,7 @@ export async function GET(
       ? {
           id: response.customer.id,
           name: response.customer.name,
-          company: response.customer.company,
+          organization: response.customer.organization,
         }
       : null,
     teamMember: response.teamMember

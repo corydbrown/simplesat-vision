@@ -62,16 +62,16 @@ export const TICKET_PROPERTIES: Property<TicketsRow>[] = [
     alwaysVisible: true,
     kind: "text",
     sortable: true,
-    sortValue: (t) => t.helpdeskExternalId,
+    sortValue: (t) => t.externalId,
     filter: TICKET_FILTER_SPECS.external_id,
     cell: (t) => (
       <span className="font-mono text-xs text-muted-foreground">
-        {t.helpdeskExternalId ?? "-"}
+        {t.externalId ?? "-"}
       </span>
     ),
     detail: (t) => (
       <span className="text-muted-foreground">
-        {t.helpdeskExternalId ?? "-"}
+        {t.externalId ?? "-"}
       </span>
     ),
   },
@@ -138,21 +138,21 @@ export const TICKET_PROPERTIES: Property<TicketsRow>[] = [
       ),
   },
   {
-    id: "company",
-    label: "Company",
+    id: "organization",
+    label: "Organization",
     width: 180,
     icon: Building2,
     sourceEntity: "Customer",
     defaultVisible: true,
     kind: "text",
     sortable: true,
-    sortValue: (t) => t.customer?.company ?? null,
+    sortValue: (t) => t.customer?.organization ?? null,
     groupable: true,
-    groupValue: (t) => t.customer?.company ?? null,
-    nullGroupLabel: "No company",
+    groupValue: (t) => t.customer?.organization ?? null,
+    nullGroupLabel: "No organization",
     cell: (t) =>
-      t.customer?.company ? (
-        <CompanyPill name={t.customer.company} />
+      t.customer?.organization ? (
+        <CompanyPill name={t.customer.organization} />
       ) : (
         <span className="text-muted-foreground/40">—</span>
       ),
@@ -491,21 +491,21 @@ export const TICKET_PROPERTIES: Property<TicketsRow>[] = [
     detail: (t) => <span className="text-muted-foreground">{t.id}</span>,
   },
   {
-    id: "helpdesk",
-    label: "Helpdesk",
+    id: "source",
+    label: "Source",
     width: 110,
     icon: Headphones,
     sourceEntity: "Ticket",
     defaultVisible: false,
     kind: "text",
     sortable: true,
-    sortValue: (t) => t.helpdesk,
-    filter: TICKET_FILTER_SPECS.helpdesk,
+    sortValue: (t) => t.source,
+    filter: TICKET_FILTER_SPECS.source,
     groupable: true,
-    groupValue: (t) => t.helpdesk,
+    groupValue: (t) => t.source,
     groupLabel: (v) => <span className="capitalize">{v}</span>,
     cell: (t) => (
-      <span className="capitalize text-muted-foreground">{t.helpdesk}</span>
+      <span className="capitalize text-muted-foreground">{t.source}</span>
     ),
   },
   {

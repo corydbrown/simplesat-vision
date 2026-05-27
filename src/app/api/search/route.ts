@@ -34,14 +34,14 @@ export async function GET(request: Request) {
           id: schema.customers.id,
           name: schema.customers.name,
           email: schema.customers.email,
-          company: schema.customers.company,
+          organization: schema.customers.organization,
         })
         .from(schema.customers)
         .where(
           or(
             like(schema.customers.name, pattern),
             like(schema.customers.email, pattern),
-            like(schema.customers.company, pattern),
+            like(schema.customers.organization, pattern),
           ),
         )
         .limit(PER_CATEGORY_LIMIT),
@@ -118,7 +118,7 @@ export async function GET(request: Request) {
     customers: customers.map((c) => ({
       id: c.id,
       label: c.name,
-      secondary: c.company ? `${c.email} · ${c.company}` : c.email,
+      secondary: c.organization ? `${c.email} · ${c.organization}` : c.email,
       href: `/customers/${c.id}`,
     })),
     tickets: tickets.map((t) => ({

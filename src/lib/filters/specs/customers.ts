@@ -16,9 +16,9 @@ export const CUSTOMER_FILTER_SPECS = {
   email: { dataType: "string", ops: STRING_OPS },
   tier: { dataType: "enum", ops: ENUM_OPS, enumValues: CUSTOMER_TIERS },
   language: { dataType: "string", ops: STRING_OPS },
-  company: { dataType: "string", ops: STRING_OPS },
-  company_external_id: { dataType: "string", ops: STRING_OPS },
-  company_domain: { dataType: "string", ops: STRING_OPS },
+  organization: { dataType: "string", ops: STRING_OPS },
+  organization_external_id: { dataType: "string", ops: STRING_OPS },
+  organization_domain: { dataType: "string", ops: STRING_OPS },
   total_tickets: { dataType: "number", ops: NUMERIC_OPS },
   avg_rating: { dataType: "number", ops: NUMERIC_OPS },
 } as const satisfies Record<string, PropertyFilter>;

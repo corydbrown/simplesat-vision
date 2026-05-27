@@ -9,10 +9,36 @@ import {
 } from "drizzle-orm/sqlite-core";
 
 export type CustomerTier = "insider" | "gold" | "elite";
-export type TicketStatus = "open" | "pending" | "solved" | "closed";
+/** Raw, source-verbatim ticket status. Stored as free text (NOT an enum):
+ *  Zendesk has 6 states (new/open/pending/hold/solved/closed), Intercom 3
+ *  (open/closed/snoozed), and future sources bring their own vocabularies.
+ *  The seed still uses the original four values; `is_resolved` (a generated
+ *  column) is the normalized "done?" signal queries should prefer over
+ *  matching raw strings. See the ingest mapping doc (decision #1). */
+export type TicketStatus = string;
 export type TicketPriority = "low" | "normal" | "high" | "urgent";
 export type Channel = "email" | "chat" | "phone" | "social";
-export type Helpdesk = "zendesk" | "gladly" | "gorgias" | "intercom";
+/** Originating system of a ticket. Free text, not an enum — records can come
+ *  from helpdesks (zendesk/intercom/gladly/gorgias), CRMs/PSAs, CSV, or the
+ *  ingest API. The seed keeps the original four source values. */
+export type TicketSource = string;
+/** Map of every agent role the source system exposes for a ticket, keyed by
+ *  role, each holding that role's raw external id (verbatim, lossless). E.g.
+ *  `{ assignee: "z_4471", submitter: "z_4471", last_closed_by: "z_8852" }`.
+ *  Different sources fill different keys. The single credited team member is
+ *  resolved from this bag by `resolveTeamMember` (see src/lib/ingest). */
+export type SourceAgents = Record<string, string>;
+/** The resolution rule that picks which `sourceAgents` role to credit as the
+ *  ticket's `teamMemberId`. Default `assignee`; widens to solver /
+ *  most-time-logged / opened-by once a workspace setting owns the choice. */
+export type TeamMemberResolutionRule =
+  | "assignee"
+  | "submitter"
+  | "last_closed_by";
+/** Provenance of a CSAT/QA response. `simplesat` is a native survey response;
+ *  the others are source-imported CSAT. Free text so new sources don't gate
+ *  on a schema change. */
+export type ResponseSource = string;
 export type SurveyType = "csat" | "nps" | "ces" | "five_star" | "custom";
 export type SurveyChannel =
   | "intercom"
@@ -168,7 +194,7 @@ export const customers = sqliteTable(
       .references(() => workspaces.id),
     /** Core: customer's display name. */
     name: text("name").notNull(),
-    /** Core: primary email (login + helpdesk identity). */
+    /** Core: primary email (login + source identity). */
     email: text("email").notNull(),
     /** Core: loyalty tier. Bloom Beauty's three-tier program. */
     tier: text("tier", { enum: ["insider", "gold", "elite"] })
@@ -176,22 +202,27 @@ export const customers = sqliteTable(
       .$type<CustomerTier>(),
     /** Core: optional ISO language code (en, es, fr, de, ja, …). Per Cory:
      *  language is a reserved core field in Simplesat's public API, alongside
-     *  name/email/company — not a custom attribute. */
+     *  name/email/organization — not a custom attribute. */
     language: text("language"),
     /** Core: organization the customer belongs to, when applicable. Nullable
      *  by design — Bloom Beauty is mid-market B2C, so ~95% of customers are
-     *  individuals with no company. The remainder are wholesale buyers,
+     *  individuals with no organization. The remainder are wholesale buyers,
      *  corporate gifting accounts, and influencer partnerships. There is no
-     *  Companies entity — `company*` columns are rolled up from the help-desk
-     *  organization when present (Zendesk Organizations API). */
-    company: text("company"),
-    /** Core rollup: the help-desk organization's external ID (e.g. Zendesk
-     *  org id). Present when `company` is. */
-    companyExternalId: text("company_external_id"),
+     *  Organizations entity — `organization*` columns are rolled up from the
+     *  source system's org/organization record when present (Zendesk Organizations
+     *  / Intercom Companies). "Organization" (not "organization") is source-neutral:
+     *  it also covers nonprofits, government, etc. */
+    organization: text("organization"),
+    /** Core rollup: the source org's external ID (e.g. Zendesk org id /
+     *  Intercom company_id). Present when `organization` is. */
+    organizationExternalId: text("organization_external_id"),
     /** Core rollup: organization domain (e.g. atlashospitality.com). Used for
      *  domain-based segmentation. */
-    companyDomain: text("company_domain"),
-    helpdeskExternalId: text("helpdesk_external_id"),
+    organizationDomain: text("organization_domain"),
+    /** The record's id in its source system (helpdesk / CRM / PSA). The join
+     *  key for re-sync. Renamed from `helpdeskExternalId` — sources aren't
+     *  only helpdesks. */
+    externalId: text("external_id"),
     /** Custom attributes bag. In Simplesat's public API these surface as a
      *  flat `customAttributes: [{key, value}]` array, with definitions in
      *  src/lib/properties/custom-fields.ts. Sparse by design: any given
@@ -211,7 +242,7 @@ export const customers = sqliteTable(
   },
   (t) => [
     index("customers_workspace_id_idx").on(t.workspaceId),
-    index("customers_company_idx").on(t.company),
+    index("customers_organization_idx").on(t.organization),
     index("customers_tier_idx").on(t.tier),
     index("customers_language_idx").on(t.language),
   ],
@@ -251,7 +282,7 @@ export const teamMembers = sqliteTable(
       .references(() => workspaces.id),
     /** Core: display name. */
     name: text("name").notNull(),
-    /** Core: work email (also helpdesk login). */
+    /** Core: work email (also source login). */
     email: text("email").notNull(),
     /** Core: job title (free-text — "Beauty Advisor", "Returns Specialist"). */
     role: text("role").notNull(),
@@ -265,7 +296,9 @@ export const teamMembers = sqliteTable(
     /** Core: canonical group assignment (FK to team_member_groups). Mirrors
      *  Zendesk Groups; the team member can belong to one primary group. */
     groupId: text("group_id").references(() => teamMemberGroups.id),
-    helpdeskExternalId: text("helpdesk_external_id"),
+    /** The member's id in its source system (helpdesk / CRM). Renamed from
+     *  `helpdeskExternalId`. */
+    externalId: text("external_id"),
     avatarColor: text("avatar_color").notNull(),
     /** Custom attributes bag — same single-namespace shape as customers. */
     customProperties: text("custom_properties", { mode: "json" })
@@ -288,7 +321,7 @@ export const teamMembers = sqliteTable(
 );
 
 /** Authenticated humans. A `user` is a person who logs into the prototype
- *  via WorkOS AuthKit. Distinct from `team_members` (helpdesk agents): a
+ *  via WorkOS AuthKit. Distinct from `team_members` (source agents): a
  *  user may or may not also be a team_member, and a team_member may or may
  *  not have a user account. The email-match seam between them lands in a
  *  later epic. */
@@ -382,21 +415,30 @@ export const tickets = sqliteTable(
       .notNull()
       .references(() => workspaces.id),
     subject: text("subject").notNull(),
-    status: text("status", {
-      enum: ["open", "pending", "solved", "closed"],
-    })
+    /** Raw, source-verbatim status (free text — see `TicketStatus`). Stored
+     *  exactly as the source reports it; never normalized on write. Queries
+     *  that need a "done?" signal should read `isResolved`, not match on raw
+     *  strings, so new source vocabularies don't break them. */
+    status: text("status").notNull().$type<TicketStatus>(),
+    /** Generated: true when the raw `status` means the ticket is resolved.
+     *  Covers the current seed vocab (`solved` / `closed`); extend the IN-list
+     *  as new source statuses arrive. VIRTUAL (computed on read) so it can be
+     *  added via ALTER TABLE — SQLite forbids adding STORED generated columns
+     *  to an existing table. */
+    isResolved: integer("is_resolved", { mode: "boolean" })
       .notNull()
-      .$type<TicketStatus>(),
+      .generatedAlwaysAs(
+        sql`(status IN ('solved', 'closed'))`,
+        { mode: "virtual" },
+      ),
     channel: text("channel", {
       enum: ["email", "chat", "phone", "social"],
     })
       .notNull()
       .$type<Channel>(),
-    helpdesk: text("helpdesk", {
-      enum: ["zendesk", "gladly", "gorgias", "intercom"],
-    })
-      .notNull()
-      .$type<Helpdesk>(),
+    /** Originating system (free text — see `TicketSource`). Renamed from the
+     *  `helpdesk` enum; seed keeps zendesk/gladly/gorgias/intercom. */
+    source: text("source").notNull().$type<TicketSource>(),
     /** Priority. Mirrors Zendesk Tickets `priority` (low/normal/high/urgent). */
     priority: text("priority", {
       enum: ["low", "normal", "high", "urgent"],
@@ -404,20 +446,54 @@ export const tickets = sqliteTable(
       .notNull()
       .$type<TicketPriority>()
       .default("normal"),
-    helpdeskExternalId: text("helpdesk_external_id"),
+    /** The ticket's id in its source system. Renamed from
+     *  `helpdeskExternalId`. */
+    externalId: text("external_id"),
     customerId: text("customer_id")
       .notNull()
       .references(() => customers.id),
-    assignedTeamMemberId: text("assigned_team_member_id").references(
-      () => teamMembers.id,
-    ),
+    /** Lossless map of every source-provided agent role → raw external id.
+     *  See `SourceAgents`. Synced/read-only; overwritten on re-sync. The
+     *  credited member (`teamMemberId`) is resolved from this by
+     *  `resolveTeamMember` so changing the resolution rule re-resolves
+     *  already-imported tickets against the stored map. */
+    sourceAgents: text("source_agents", { mode: "json" })
+      .$type<SourceAgents>()
+      .notNull()
+      .default(sql`'{}'`),
+    /** The single resolved/credited team member the whole app uses (responses,
+     *  QA, reporting). Computed from `sourceAgents` via `resolveTeamMember`
+     *  (default rule = assignee). Renamed from `assignedTeamMemberId`.
+     *  Nullable = unresolved/unassigned.
+     *
+     *  Forward-compat: multiple credited members per ticket is coming (each
+     *  gets QA evals) via a future `ticket_team_members` join table; this
+     *  column becomes that table's `is_primary` row. Do NOT hardcode a
+     *  "one member per ticket" assumption downstream — QA evals key on
+     *  (ticket, team_member). See DECISIONS.md. */
+    teamMemberId: text("team_member_id").references(() => teamMembers.id),
     createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
     firstResponseAt: integer("first_response_at", { mode: "timestamp_ms" }),
     solvedAt: integer("solved_at", { mode: "timestamp_ms" }),
     closedAt: integer("closed_at", { mode: "timestamp_ms" }),
     messageCount: integer("message_count").notNull().default(0),
     agentMessageCount: integer("agent_message_count").notNull().default(0),
+    /** Raw source metrics bag (lossless): Intercom `statistics`, Zendesk
+     *  Ticket Metrics, etc. Stored verbatim now; the Reports phase later
+     *  promotes high-value entries into a normalized common shape. */
+    sourceMetrics: text("source_metrics", { mode: "json" })
+      .$type<Record<string, unknown>>()
+      .notNull()
+      .default(sql`'{}'`),
+    /** Simplesat-native tags — admin-managed (e.g. a "to-do" tag). NEVER
+     *  touched by sync. */
     tags: text("tags", { mode: "json" }).$type<string[]>().notNull().default(sql`'[]'`),
+    /** Source-synced tags — read-only, OVERWRITTEN on every re-sync. Kept
+     *  separate from `tags` so admin-managed tags survive a sync. */
+    sourceTags: text("source_tags", { mode: "json" })
+      .$type<string[]>()
+      .notNull()
+      .default(sql`'[]'`),
     surveyEligible: integer("survey_eligible", { mode: "boolean" })
       .notNull()
       .default(true),
@@ -448,13 +524,13 @@ export const tickets = sqliteTable(
     // appear after closed ones).
     index("tickets_workspace_closed_at_idx").on(t.workspaceId, t.closedAt),
     index("tickets_customer_id_idx").on(t.customerId),
-    index("tickets_assigned_team_member_id_idx").on(t.assignedTeamMemberId),
+    index("tickets_team_member_id_idx").on(t.teamMemberId),
     index("tickets_status_idx").on(t.status),
     index("tickets_created_at_idx").on(t.createdAt),
     index("tickets_solved_at_idx").on(t.solvedAt),
     index("tickets_closed_at_idx").on(t.closedAt),
     index("tickets_survey_sent_at_idx").on(t.surveySentAt),
-    index("tickets_helpdesk_idx").on(t.helpdesk),
+    index("tickets_source_idx").on(t.source),
     index("tickets_priority_idx").on(t.priority),
   ],
 );
@@ -621,6 +697,10 @@ export const responses = sqliteTable(
     rating: integer("rating").notNull(),
     scale: integer("scale").notNull(),
     comment: text("comment"),
+    /** Provenance: `simplesat` for native survey responses, or the source
+     *  system (`zendesk` / `intercom` / …) for imported source CSAT. Free
+     *  text — see `ResponseSource`. Existing seed is all `simplesat`. */
+    source: text("source").notNull().$type<ResponseSource>().default("simplesat"),
     respondedAt: integer("responded_at", { mode: "timestamp_ms" }).notNull(),
     answers: text("answers", { mode: "json" })
       .$type<SurveyAnswer[]>()
@@ -648,6 +728,7 @@ export const responses = sqliteTable(
     index("responses_team_member_id_idx").on(t.teamMemberId),
     index("responses_survey_id_idx").on(t.surveyId),
     index("responses_survey_type_idx").on(t.surveyType),
+    index("responses_source_idx").on(t.source),
     index("responses_rating_idx").on(t.rating),
     index("responses_responded_at_idx").on(t.respondedAt),
   ],

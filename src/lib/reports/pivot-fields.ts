@@ -352,14 +352,14 @@ export const PIVOT_FIELDS: Record<BaseEntity, PivotField[]> = {
       groupExpr: "tickets.channel",
     },
     {
-      id: "helpdesk",
-      label: "Helpdesk",
+      id: "source",
+      label: "Source",
       group: "Ticket",
       dataType: "enum",
       aggregations: COUNT_ONLY,
       filterOps: ENUM_OPS,
       enumValues: HELPDESK,
-      groupExpr: "tickets.helpdesk",
+      groupExpr: "tickets.source",
     },
     {
       id: "survey_eligible",
@@ -475,13 +475,13 @@ export const PIVOT_FIELDS: Record<BaseEntity, PivotField[]> = {
       entity: "customer",
     },
     {
-      id: "company",
-      label: "Company",
+      id: "organization",
+      label: "Organization",
       group: "Customer",
       dataType: "string",
       aggregations: COUNT_ONLY,
       filterOps: STRING_OPS,
-      groupExpr: "c.company",
+      groupExpr: "c.organization",
       joins: [JOIN_CUSTOMERS("tickets.customer_id")],
     },
     {
@@ -503,9 +503,9 @@ export const PIVOT_FIELDS: Record<BaseEntity, PivotField[]> = {
       dataType: "relation",
       aggregations: COUNT_ONLY,
       filterOps: RELATION_OPS,
-      groupExpr: "tickets.assigned_team_member_id",
+      groupExpr: "tickets.team_member_id",
       labelExpr: "tm.name",
-      joins: [JOIN_TEAM_MEMBERS("tickets.assigned_team_member_id")],
+      joins: [JOIN_TEAM_MEMBERS("tickets.team_member_id")],
       entity: "team-member",
     },
     {
@@ -516,7 +516,7 @@ export const PIVOT_FIELDS: Record<BaseEntity, PivotField[]> = {
       aggregations: COUNT_ONLY,
       filterOps: STRING_OPS,
       groupExpr: "tm.team",
-      joins: [JOIN_TEAM_MEMBERS("tickets.assigned_team_member_id")],
+      joins: [JOIN_TEAM_MEMBERS("tickets.team_member_id")],
     },
     // Response (joined responses) — raw rating + scale for filtering.
     {
@@ -546,13 +546,13 @@ export const PIVOT_FIELDS: Record<BaseEntity, PivotField[]> = {
       groupExpr: "customers.tier",
     },
     {
-      id: "company",
-      label: "Company",
+      id: "organization",
+      label: "Organization",
       group: "Customer",
       dataType: "string",
       aggregations: COUNT_ONLY,
       filterOps: STRING_OPS,
-      groupExpr: "customers.company",
+      groupExpr: "customers.organization",
     },
     {
       id: "created_at",
@@ -675,7 +675,7 @@ export const PIVOT_FIELDS: Record<BaseEntity, PivotField[]> = {
       aggregations: ["sum", "avg", "min", "max"],
       filterOps: NUMERIC_OPS,
       groupExpr:
-        "(SELECT count(*) FROM tickets WHERE tickets.assigned_team_member_id = team_members.id)",
+        "(SELECT count(*) FROM tickets WHERE tickets.team_member_id = team_members.id)",
       valueOnly: true,
     },
     {
@@ -829,13 +829,13 @@ export const PIVOT_FIELDS: Record<BaseEntity, PivotField[]> = {
       entity: "customer",
     },
     {
-      id: "company",
-      label: "Company",
+      id: "organization",
+      label: "Organization",
       group: "Customer",
       dataType: "string",
       aggregations: COUNT_ONLY,
       filterOps: STRING_OPS,
-      groupExpr: "c.company",
+      groupExpr: "c.organization",
       joins: [JOIN_CUSTOMERS("responses.customer_id")],
     },
     {

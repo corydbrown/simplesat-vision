@@ -13,7 +13,7 @@ export async function GET(
 
   return NextResponse.json({
     id: ticket.id,
-    externalId: ticket.helpdeskExternalId,
+    externalId: ticket.externalId,
     subject: ticket.subject,
     status: ticket.status,
     channel: ticket.channel,
@@ -21,7 +21,7 @@ export async function GET(
       ? {
           id: ticket.customer.id,
           name: ticket.customer.name,
-          company: ticket.customer.company,
+          organization: ticket.customer.organization,
         }
       : null,
     teamMember: ticket.assignee

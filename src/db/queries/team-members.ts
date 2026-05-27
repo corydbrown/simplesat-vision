@@ -192,7 +192,7 @@ export async function getTeamMemberById(
   // the FK chain (a member id maps to exactly one workspace).
   const [stats] = await db
     .select({
-      totalTickets: sql<number>`(SELECT COUNT(*) FROM tickets WHERE assigned_team_member_id = ${id})`,
+      totalTickets: sql<number>`(SELECT COUNT(*) FROM tickets WHERE team_member_id = ${id})`,
       avgRating: sql<number | null>`(SELECT AVG(CAST(rating as REAL)) FROM responses WHERE team_member_id = ${id})`,
       totalResponses: sql<number>`(SELECT COUNT(*) FROM responses WHERE team_member_id = ${id})`,
     })
@@ -221,7 +221,7 @@ export async function getTeamMemberTickets(
       customer: {
         id: schema.customers.id,
         name: schema.customers.name,
-        company: schema.customers.company,
+        organization: schema.customers.organization,
       },
       assignee: {
         id: schema.teamMembers.id,
@@ -246,7 +246,7 @@ export async function getTeamMemberTickets(
     )
     .leftJoin(
       schema.teamMembers,
-      eq(schema.teamMembers.id, schema.tickets.assignedTeamMemberId),
+      eq(schema.teamMembers.id, schema.tickets.teamMemberId),
     )
     .leftJoin(
       schema.responses,
@@ -254,7 +254,7 @@ export async function getTeamMemberTickets(
     )
     .where(
       and(
-        eq(schema.tickets.assignedTeamMemberId, memberId),
+        eq(schema.tickets.teamMemberId, memberId),
         eq(schema.tickets.workspaceId, workspaceId),
       ),
     )
@@ -293,10 +293,10 @@ export async function getTeamMemberResponses(
       topics: schema.responses.topics,
       ticketId: schema.tickets.id,
       ticketSubject: schema.tickets.subject,
-      ticketExternalId: schema.tickets.helpdeskExternalId,
+      ticketExternalId: schema.tickets.externalId,
       customerId: schema.customers.id,
       customerName: schema.customers.name,
-      customerCompany: schema.customers.company,
+      customerOrganization: schema.customers.organization,
       teamMemberId: schema.teamMembers.id,
       teamMemberName: schema.teamMembers.name,
       teamMemberAvatarColor: schema.teamMembers.avatarColor,

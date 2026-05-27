@@ -89,7 +89,7 @@ export async function searchRelationOptions(
         .select({
           id: schema.tickets.id,
           subject: schema.tickets.subject,
-          externalId: schema.tickets.helpdeskExternalId,
+          externalId: schema.tickets.externalId,
         })
         .from(schema.tickets)
         .where(
@@ -98,7 +98,7 @@ export async function searchRelationOptions(
             q
               ? or(
                   like(schema.tickets.subject, `%${q}%`),
-                  like(schema.tickets.helpdeskExternalId, `%${q}%`),
+                  like(schema.tickets.externalId, `%${q}%`),
                 )
               : undefined,
           ),
@@ -169,7 +169,7 @@ export async function resolveRelationLabels(
         .select({
           id: schema.tickets.id,
           subject: schema.tickets.subject,
-          externalId: schema.tickets.helpdeskExternalId,
+          externalId: schema.tickets.externalId,
         })
         .from(schema.tickets)
         .where(

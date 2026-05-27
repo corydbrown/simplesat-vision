@@ -7,9 +7,9 @@ export const TICKET_GROUP_FIELDS: GroupFieldMap = {
   status: schema.tickets.status,
   priority: schema.tickets.priority,
   channel: schema.tickets.channel,
-  helpdesk: schema.tickets.helpdesk,
+  source: schema.tickets.source,
   assignee: schema.teamMembers.name,
-  company: schema.customers.company,
+  organization: schema.customers.organization,
   // Ordering by the raw score keeps each bucket contiguous: ≥90 sorts above
   // 75–89 sorts above 60–74, etc. Client-side `groupValue` then snaps each
   // row to its bucket label.

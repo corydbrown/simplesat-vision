@@ -14,6 +14,7 @@ import { DEFAULT_SCORECARD } from "../lib/qa/default-scorecard";
 import { MockScoringProvider } from "../lib/qa/scoring";
 import { COACHING_REACTIONS } from "../lib/qa/coaching";
 import { snapshotScorecard } from "../lib/scorecards/snapshot";
+import { resolveTeamMember } from "../lib/ingest/resolve-team-member";
 import { SEED_VIEWS } from "../lib/views/seed";
 import type { EntityKey } from "../lib/views/types";
 import { replaceSavedViews } from "./queries/saved-views";
@@ -86,7 +87,7 @@ function pickFrom<T>(arr: readonly T[]): T {
 // Bloom Beauty narrative constants. Mid-market B2C beauty retailer with a
 // three-tier loyalty program (Insider / Gold / Elite). ~95% of customers are
 // individual consumers; the remaining ~5% are B2B (wholesale, corporate
-// gifting, influencer partnerships) and carry a `company` value plus org-
+// gifting, influencer partnerships) and carry a `organization` value plus org-
 // rollup fields.
 // ---------------------------------------------------------------------------
 
@@ -180,7 +181,7 @@ const TAG_POOL = [
 ];
 
 /** B2B / wholesale / influencer accounts that consistently produce detractor
- *  responses — useful for the "company-level dissatisfaction" demo. */
+ *  responses — useful for the "organization-level dissatisfaction" demo. */
 const NAMED_DETRACTOR_COMPANIES = [
   { name: "Atlas Hospitality", domain: "atlashospitality.com" },
   { name: "Pacific Beauty Distributors", domain: "pacbeautydist.com" },
@@ -1331,7 +1332,7 @@ async function seed() {
   const customers: NewCustomer[] = [];
 
   // Named detractor B2B accounts first — these consistently produce bad
-  // responses, useful for the company-rollup demo.
+  // responses, useful for the organization-rollup demo.
   for (const account of NAMED_DETRACTOR_COMPANIES) {
     customers.push({
       id: prefixedId("cus"),
@@ -1343,10 +1344,10 @@ async function seed() {
         .replace(/@.*$/, `@${account.domain}`),
       tier: "elite",
       language: "en",
-      company: account.name,
-      companyExternalId: faker.string.numeric(11),
-      companyDomain: account.domain,
-      helpdeskExternalId: faker.string.numeric(7),
+      organization: account.name,
+      organizationExternalId: faker.string.numeric(11),
+      organizationDomain: account.domain,
+      externalId: faker.string.numeric(7),
       customProperties: buildCustomProperties(CUSTOMER_CUSTOM_FIELDS, 30, 50),
       createdAt: new Date(NOW - 300 * ONE_DAY),
       updatedAt: new Date(NOW),
@@ -1376,10 +1377,10 @@ async function seed() {
       email,
       tier,
       language,
-      company: b2bAccount?.name ?? null,
-      companyExternalId: b2bAccount ? faker.string.numeric(11) : null,
-      companyDomain: b2bAccount?.domain ?? null,
-      helpdeskExternalId: faker.string.numeric(7),
+      organization: b2bAccount?.name ?? null,
+      organizationExternalId: b2bAccount ? faker.string.numeric(11) : null,
+      organizationDomain: b2bAccount?.domain ?? null,
+      externalId: faker.string.numeric(7),
       customProperties: buildCustomProperties(CUSTOMER_CUSTOM_FIELDS, 25, 50),
       createdAt: new Date(
         NOW - faker.number.int({ min: 1, max: HORIZON_DAYS }) * ONE_DAY,
@@ -1414,7 +1415,7 @@ async function seed() {
       region: pickFrom(REGIONS),
       language: pickFrom(LANGUAGES),
       groupId,
-      helpdeskExternalId: faker.string.numeric(7),
+      externalId: faker.string.numeric(7),
       avatarColor: pickFrom(AVATAR_COLORS),
       customProperties: buildCustomProperties(TEAM_MEMBER_CUSTOM_FIELDS, 8, 16),
       createdAt: new Date(
@@ -1449,11 +1450,21 @@ async function seed() {
   );
   const detractorCustomerIds = new Set(
     customers
-      .filter((c) => c.company && detractorCompanyNames.has(c.company))
+      .filter((c) => c.organization && detractorCompanyNames.has(c.organization))
       .map((c) => c.id!),
   );
   const customerIds = customers.map((c) => c.id!);
   const agentIds = teamMembers.map((t) => t.id!);
+  // External-id ↔ internal-id maps for the team-member resolution path. Real
+  // ingest stores the source's raw agent id in `sourceAgents` and resolves the
+  // credited `teamMemberId` from it; the seed exercises that exact path rather
+  // than assigning `teamMemberId` directly. See src/lib/ingest/resolve-team-member.ts.
+  const teamMemberExternalIdById = new Map<string, string>(
+    teamMembers.map((t) => [t.id!, t.externalId!]),
+  );
+  const teamMemberIdByExternalId = new Map<string, string>(
+    teamMembers.map((t) => [t.externalId!, t.id!]),
+  );
 
   const TARGET_TICKETS = 50_000;
   // Per-agent eval quotas — realistic skewed distribution. Some agents are
@@ -1770,6 +1781,17 @@ async function seed() {
       ? [CONVERSATION_MOCKUP_TAG, ...baseTags]
       : baseTags;
 
+    // Lossless source-agent bag (decision #4): record the assignee's raw
+    // source external id, then resolve the credited team member back out of it
+    // via the same resolver the running app uses — proving the seam works.
+    const sourceAgents = {
+      assignee: teamMemberExternalIdById.get(agentId)!,
+    };
+    const resolvedExternalId = resolveTeamMember(sourceAgents);
+    const teamMemberId = resolvedExternalId
+      ? teamMemberIdByExternalId.get(resolvedExternalId) ?? null
+      : null;
+
     tickets.push({
       id: ticketId,
       workspaceId: DEMO_WORKSPACE_ID,
@@ -1777,10 +1799,17 @@ async function seed() {
       status,
       channel,
       priority,
-      helpdesk: "zendesk",
-      helpdeskExternalId: faker.string.numeric(8),
+      source: "zendesk",
+      externalId: faker.string.numeric(8),
       customerId,
-      assignedTeamMemberId: agentId,
+      sourceAgents,
+      teamMemberId,
+      // Source-synced tags mirror the native tags on import; admin-managed
+      // `tags` stay separate. Seed leaves the synced bag empty.
+      sourceTags: [],
+      // Raw helpdesk metrics bag — empty in seed (no live source); ingest
+      // fills it with the source's statistics object verbatim.
+      sourceMetrics: {},
       createdAt: new Date(createdAt),
       firstResponseAt: firstResponseAt ? new Date(firstResponseAt) : null,
       solvedAt: solvedAt ? new Date(solvedAt) : null,
@@ -1973,7 +2002,7 @@ async function seed() {
       ticketId: ticket.id!,
       scorecardId,
       scorecardVersionId: v1ScorecardVersionId,
-      scoredTeamMemberId: ticket.assignedTeamMemberId!,
+      scoredTeamMemberId: ticket.teamMemberId!,
       overallScore: output.overallScore,
       status: editedStatus,
       aiModel: output.aiModel,

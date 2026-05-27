@@ -39,7 +39,7 @@ export type EvaluationsRow = Evaluation & {
   ticket: {
     id: string;
     subject: string;
-    helpdeskExternalId: string | null;
+    externalId: string | null;
   } | null;
   autoFailed: boolean;
 };
@@ -109,7 +109,7 @@ export async function listEvaluations({
       ticket: {
         id: schema.tickets.id,
         subject: schema.tickets.subject,
-        helpdeskExternalId: schema.tickets.helpdeskExternalId,
+        externalId: schema.tickets.externalId,
       },
       autoFailed: evaluationAutoFailedExpr,
     })
@@ -162,7 +162,7 @@ export type EvaluationSummary = {
   ticket: {
     id: string;
     subject: string;
-    helpdeskExternalId: string | null;
+    externalId: string | null;
   } | null;
   autoFailed: boolean;
 };
@@ -233,7 +233,7 @@ export async function getEvaluationById(
       ticket: {
         id: schema.tickets.id,
         subject: schema.tickets.subject,
-        helpdeskExternalId: schema.tickets.helpdeskExternalId,
+        externalId: schema.tickets.externalId,
       },
       autoFailed: evaluationAutoFailedExpr,
     })

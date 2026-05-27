@@ -91,61 +91,61 @@ const CORE_PROPERTIES: Property<CustomerListRow>[] = [
       ),
   },
   {
-    id: "company",
-    label: "Company",
+    id: "organization",
+    label: "Organization",
     width: 200,
     icon: Building2,
     sourceEntity: "Customer",
     defaultVisible: true,
     kind: "text",
     sortable: true,
-    sortValue: (c) => c.company,
-    filter: CUSTOMER_FILTER_SPECS.company,
+    sortValue: (c) => c.organization,
+    filter: CUSTOMER_FILTER_SPECS.organization,
     groupable: true,
-    groupValue: (c) => c.company,
-    nullGroupLabel: "No company",
-    cell: (c) => <CompanyPill name={c.company} />,
+    groupValue: (c) => c.organization,
+    nullGroupLabel: "No organization",
+    cell: (c) => <CompanyPill name={c.organization} />,
   },
   {
-    id: "company_external_id",
-    label: "Company external ID",
+    id: "organization_external_id",
+    label: "Organization external ID",
     width: 170,
     icon: Hash,
     sourceEntity: "Customer",
     defaultVisible: false,
     sortable: true,
     kind: "text",
-    sortValue: (c) => c.companyExternalId,
-    filter: CUSTOMER_FILTER_SPECS.company_external_id,
+    sortValue: (c) => c.organizationExternalId,
+    filter: CUSTOMER_FILTER_SPECS.organization_external_id,
     cell: (c) =>
-      c.companyExternalId ? (
+      c.organizationExternalId ? (
         <span className="font-mono text-xs text-muted-foreground">
-          {c.companyExternalId}
+          {c.organizationExternalId}
         </span>
       ) : (
         <span className="text-muted-foreground/40">—</span>
       ),
     detail: (c) =>
-      c.companyExternalId ? (
-        <span className="text-muted-foreground">{c.companyExternalId}</span>
+      c.organizationExternalId ? (
+        <span className="text-muted-foreground">{c.organizationExternalId}</span>
       ) : (
         <span className="text-muted-foreground/40">—</span>
       ),
   },
   {
-    id: "company_domain",
-    label: "Company domain",
+    id: "organization_domain",
+    label: "Organization domain",
     width: 200,
     icon: LinkIcon,
     sourceEntity: "Customer",
     defaultVisible: false,
     sortable: true,
     kind: "text",
-    sortValue: (c) => c.companyDomain,
-    filter: CUSTOMER_FILTER_SPECS.company_domain,
+    sortValue: (c) => c.organizationDomain,
+    filter: CUSTOMER_FILTER_SPECS.organization_domain,
     cell: (c) =>
-      c.companyDomain ? (
-        <span className="text-muted-foreground">{c.companyDomain}</span>
+      c.organizationDomain ? (
+        <span className="text-muted-foreground">{c.organizationDomain}</span>
       ) : (
         <span className="text-muted-foreground/40">—</span>
       ),

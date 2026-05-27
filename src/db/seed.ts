@@ -17,7 +17,7 @@ import { snapshotScorecard } from "../lib/scorecards/snapshot";
 import { resolveTeamMember } from "../lib/ingest/resolve-team-member";
 import { SEED_VIEWS } from "../lib/views/seed";
 import type { EntityKey } from "../lib/views/types";
-import { replaceSavedViews } from "./queries/saved-views";
+import { replaceSavedViews } from "./queries/saved-views.core";
 import { DEMO_WORKSPACE_ID } from "../lib/workspace-id";
 import type {
   ScoringInput,
@@ -2364,7 +2364,7 @@ async function seed() {
     EntityKey,
     (typeof SEED_VIEWS)[EntityKey],
   ][]) {
-    await replaceSavedViews(entity, views);
+    await replaceSavedViews(DEMO_WORKSPACE_ID, entity, views);
   }
 
   console.log("Done. Final counts:");

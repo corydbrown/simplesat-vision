@@ -15,7 +15,7 @@ type CustomerData = {
   id: string;
   name: string;
   email: string;
-  company: string | null;
+  organization: string | null;
   tier: string;
   totalTickets: number;
   avgRating: number | null;
@@ -41,7 +41,7 @@ type TicketData = {
   subject: string;
   status: string;
   channel: string;
-  customer: { id: string; name: string; company: string | null } | null;
+  customer: { id: string; name: string; organization: string | null } | null;
   teamMember: { id: string; name: string; avatarColor: string } | null;
   rating: number | null;
   scale: number | null;
@@ -68,7 +68,7 @@ type ResponseData = {
   comment: string | null;
   respondedAt: string;
   ticket: { id: string; subject: string; externalId: string | null } | null;
-  customer: { id: string; name: string; company: string | null } | null;
+  customer: { id: string; name: string; organization: string | null } | null;
   teamMember: { id: string; name: string; avatarColor: string } | null;
 };
 
@@ -191,9 +191,9 @@ function CustomerPopover({ data }: { data: CustomerData }) {
             {data.email}
           </div>
           <div className="mt-1 flex items-center gap-1.5 text-xs">
-            {data.company ? (
+            {data.organization ? (
               <span className="text-muted-foreground truncate">
-                {data.company}
+                {data.organization}
               </span>
             ) : null}
             <span className="ml-1 rounded-full bg-muted px-1.5 py-0.5 text-xs">
@@ -318,11 +318,11 @@ function ResponsePopover({ data }: { data: ResponseData }) {
           <div className="flex items-center gap-2">
             <span className="text-muted-foreground w-20">Customer</span>
             <span className="font-medium">{data.customer.name}</span>
-            {data.customer.company ? (
+            {data.customer.organization ? (
               <>
                 <span className="text-muted-foreground">·</span>
                 <span className="text-muted-foreground truncate">
-                  {data.customer.company}
+                  {data.customer.organization}
                 </span>
               </>
             ) : null}
@@ -402,11 +402,11 @@ function TicketPopover({ data }: { data: TicketData }) {
           <div className="flex items-center gap-2">
             <span className="text-muted-foreground w-20">Customer</span>
             <span className="font-medium">{data.customer.name}</span>
-            {data.customer.company ? (
+            {data.customer.organization ? (
               <>
                 <span className="text-muted-foreground">·</span>
                 <span className="text-muted-foreground truncate">
-                  {data.customer.company}
+                  {data.customer.organization}
                 </span>
               </>
             ) : null}

@@ -39,21 +39,21 @@ export function TicketDetailBody({
     recordEntityView({
       entity: "ticket",
       id: ticket.id,
-      label: ticket.subject ?? `Ticket ${ticket.helpdeskExternalId ?? ticket.id}`,
-      secondary: ticket.helpdeskExternalId
-        ? `#${ticket.helpdeskExternalId}`
+      label: ticket.subject ?? `Ticket ${ticket.externalId ?? ticket.id}`,
+      secondary: ticket.externalId
+        ? `#${ticket.externalId}`
         : undefined,
     });
-  }, [inDrawer, ticket.id, ticket.subject, ticket.helpdeskExternalId]);
+  }, [inDrawer, ticket.id, ticket.subject, ticket.externalId]);
 
   const header = (
     <div>
       <h1 className="text-3xl font-semibold tracking-tight">
         {ticket.subject}
       </h1>
-      {ticket.helpdeskExternalId && (
+      {ticket.externalId && (
         <div className="mt-0.5 text-base text-muted-foreground">
-          External ID: {ticket.helpdeskExternalId}
+          External ID: {ticket.externalId}
         </div>
       )}
     </div>
@@ -168,7 +168,7 @@ export function TicketDetailPage({ ticket }: { ticket: TicketDetail }) {
       <Topbar
         crumbs={[
           { label: "Tickets", href: "/tickets" },
-          { label: ticket.helpdeskExternalId ?? ticket.id },
+          { label: ticket.externalId ?? ticket.id },
         ]}
         actions={<DetailActions entityHref={`/tickets/${ticket.id}`} />}
       />

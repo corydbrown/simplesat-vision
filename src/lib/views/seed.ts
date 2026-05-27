@@ -44,7 +44,7 @@ export const SEED_VIEWS: Record<EntityKey, SavedView[]> = {
         sorts: [],
         group: null,
         layout: null,
-        filters: [{ propertyId: "company", op: "notnull" }],
+        filters: [{ propertyId: "organization", op: "notnull" }],
       },
     },
     {

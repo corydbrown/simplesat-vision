@@ -2,7 +2,7 @@ import { faker } from "@faker-js/faker";
 
 /** Custom-attribute definitions for customers and team members.
  *
- *  These are NOT core fields — core fields (name, email, company, language,
+ *  These are NOT core fields — core fields (name, email, organization, language,
  *  tier, etc.) live as real columns on the schema and have dedicated cells.
  *  Custom attributes live in the `customProperties` JSON bag and are surfaced
  *  in Simplesat's public API as a flat `customAttributes: [{key, value}]`
@@ -15,7 +15,7 @@ import { faker } from "@faker-js/faker";
  *  the UI — that would be a fiction.
  *
  *  Custom attributes render inside the entity's direct properties section
- *  (alongside email, name, company, etc.) — there is no separate UI grouping
+ *  (alongside email, name, organization, etc.) — there is no separate UI grouping
  *  for custom attributes. They're distinguished from core fields by the
  *  arrows icon, not by a bespoke section header.
  *

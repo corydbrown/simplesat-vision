@@ -6,10 +6,10 @@ Entity quick-reference + seed scale + custom-attribute model + content banks. Pa
 
 | Entity | Internal id | External id | Avg rating threshold | Notes |
 |---|---|---|---|---|
-| Ticket | `tkt_<nanoid>` | `helpdeskExternalId` (numeric string) | n/a | All seeded helpdesk='zendesk'. Carries `priority` enum (low/normal/high/urgent, default normal). 50 tickets carry a full `ticket_messages` + `ticket_events` timeline. |
+| Ticket | `tkt_<nanoid>` | `externalId` (numeric string) | n/a | All seeded `source='zendesk'`. `status` is raw source text + a generated `is_resolved` boolean. Carries `priority` enum (low/normal/high/urgent, default normal). `teamMemberId` is resolved from the lossless `sourceAgents` bag via `resolveTeamMember`. Raw-capture: `sourceTags`, `sourceMetrics`. 50 tickets carry a full `ticket_messages` + `ticket_events` timeline. |
 | Ticket message | `tkm_<nanoid>` | none | n/a | One row per chat / email / phone / social message, plus internal notes. `authorRole` is `customer` or `agent`. |
 | Ticket event | `tke_<nanoid>` | none | n/a | One row per audit-style event (status change, assignment, priority bump, survey sent, etc.). |
-| Customer | `cus_<nanoid>` | none yet | <3 red, <4 amber | Bloom Beauty B2C retail. ~95% individuals with `company = null`; ~5% B2B (with `company`, `companyExternalId`, `companyDomain`). First 3 are detractor B2B accounts (Atlas Hospitality, Pacific Beauty Distributors, Crown Department Stores). Core columns: tier (insider/gold/elite), language. Carries sparse `customProperties` JSON for beauty-personalization + loyalty + engagement attributes. |
+| Customer | `cus_<nanoid>` | `externalId` | <3 red, <4 amber | Bloom Beauty B2C retail. ~95% individuals with `organization = null`; ~5% B2B (with `organization`, `organizationExternalId`, `organizationDomain`). First 3 are detractor B2B accounts (Atlas Hospitality, Pacific Beauty Distributors, Crown Department Stores). Core columns: tier (insider/gold/elite), language. Carries sparse `customProperties` JSON for beauty-personalization + loyalty + engagement attributes. |
 | Team member | `tm_<nanoid>` | none yet | <3.5 red, <4 amber | 4 seeded as low performers. First-class `region`, `language`, `groupId` (FK to `team_member_groups`); additional sparse `customProperties` JSON. |
 | Team member group | `tmg_<nanoid>` | none | n/a | Six seeded groups (Customer Care / Returns & Exchanges / Online Orders / Stores & BOPIS / Loyalty & VIP / Escalations). Mirrors Zendesk Groups. Used for filtering and `TeamGroupPill`. |
 | Response | `rsp_<nanoid>` | none yet | follows customer thresholds | `answers` JSON has rating/multi-choice/multi-select/comment; each may carry per-answer `topics`. Rolled-up dedup'd `topics` JSON at the row level. `surveyId` FK + denormalized `surveyType`. |
@@ -34,7 +34,7 @@ Faker is seeded deterministically (`faker.seed(42)`) so re-running `db:reset` pr
 
 Every entity in Simplesat is modelled as a fixed set of **core fields** plus a flat **`customAttributes` array** in the public API. The schema mirrors this:
 
-- **Core fields** = real DB columns (name, email, company, language, tier, …). Rendered via dedicated components (`CompanyPill`, `TierPill`, `TeamGroupPill`, etc.) and have stable types.
+- **Core fields** = real DB columns (name, email, organization, language, tier, …). Rendered via dedicated components (`CompanyPill`, `TierPill`, `TeamGroupPill`, etc.) and have stable types. (`CompanyPill` keeps its component name; it now renders the `organization` string.)
 - **Custom attributes** = sparse JSON bag in `customProperties`. Rendered via the generic `customFieldProperties` adapter. The public API serializes these as a flat `customAttributes: [{key, value}]` array.
 
 **Critical**: Simplesat genuinely cannot attribute a custom-attribute value to a specific integration. The public API, Zendesk push, Intercom webhook, CSV import, and manual edits all write into the same single namespace. **Do not** tag `CustomFieldDef` entries with a `source` attribute and **do not** render "Synced from X" anywhere — that would be a fiction. The `group` field on `CustomFieldDef` is a user-curated semantic category (Profile / Beauty profile / Loyalty / Engagement / Purchase behavior / B2B for customers; Profile / Schedule / Skills / Performance for team members), not provenance.

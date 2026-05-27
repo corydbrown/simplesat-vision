@@ -45,7 +45,7 @@ export type ResponseListRow = {
   ticketExternalId: string | null;
   customerId: string | null;
   customerName: string | null;
-  customerCompany: string | null;
+  customerOrganization: string | null;
   teamMemberId: string | null;
   teamMemberName: string | null;
   teamMemberAvatarColor: string | null;
@@ -84,10 +84,10 @@ export async function listResponses({
       topics: schema.responses.topics,
       ticketId: schema.tickets.id,
       ticketSubject: schema.tickets.subject,
-      ticketExternalId: schema.tickets.helpdeskExternalId,
+      ticketExternalId: schema.tickets.externalId,
       customerId: schema.customers.id,
       customerName: schema.customers.name,
-      customerCompany: schema.customers.company,
+      customerOrganization: schema.customers.organization,
       teamMemberId: schema.teamMembers.id,
       teamMemberName: schema.teamMembers.name,
       teamMemberAvatarColor: schema.teamMembers.avatarColor,
@@ -128,7 +128,7 @@ export type ResponseDetail = Response & {
   customer: {
     id: string;
     name: string;
-    company: string | null;
+    organization: string | null;
   } | null;
   teamMember: {
     id: string;
@@ -147,12 +147,12 @@ export async function getResponseById(
       response: schema.responses,
       ticketId: schema.tickets.id,
       ticketSubject: schema.tickets.subject,
-      ticketExternalId: schema.tickets.helpdeskExternalId,
+      ticketExternalId: schema.tickets.externalId,
       ticketStatus: schema.tickets.status,
       ticketChannel: schema.tickets.channel,
       customerId: schema.customers.id,
       customerName: schema.customers.name,
-      customerCompany: schema.customers.company,
+      customerOrganization: schema.customers.organization,
       teamMemberId: schema.teamMembers.id,
       teamMemberName: schema.teamMembers.name,
       teamMemberAvatarColor: schema.teamMembers.avatarColor,
@@ -196,7 +196,7 @@ export async function getResponseById(
       ? {
           id: row.customerId,
           name: row.customerName!,
-          company: row.customerCompany,
+          organization: row.customerOrganization,
         }
       : null,
     teamMember: row.teamMemberId

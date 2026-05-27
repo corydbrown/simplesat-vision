@@ -6,7 +6,7 @@ import { db, schema } from "../client";
 export type DecliningCustomer = {
   id: string;
   name: string;
-  company: string | null;
+  organization: string | null;
   avgRating: number;
   responseCount: number;
 };
@@ -32,11 +32,11 @@ export async function getDecliningCustomers(
   const rows = await db.all<{
     id: string;
     name: string;
-    company: string | null;
+    organization: string | null;
     avg_rating: number;
     response_count: number;
   }>(sql`
-    SELECT c.id, c.name, c.company,
+    SELECT c.id, c.name, c.organization,
       AVG(CAST(r.rating as REAL)) as avg_rating,
       COUNT(r.id) as response_count
     FROM customers c
@@ -50,7 +50,7 @@ export async function getDecliningCustomers(
   return rows.map((r) => ({
     id: r.id,
     name: r.name,
-    company: r.company,
+    organization: r.organization,
     avgRating: Number(r.avg_rating),
     responseCount: Number(r.response_count),
   }));

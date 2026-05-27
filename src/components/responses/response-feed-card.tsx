@@ -48,10 +48,10 @@ export function ResponseFeedCard({ row }: { row: ResponseListRow }) {
             ) : (
               <span className="text-muted-foreground">Anonymous</span>
             )}
-            {row.customerCompany && (
+            {row.customerOrganization && (
               <>
                 <span className="text-muted-foreground">at</span>
-                <CompanyPill name={row.customerCompany} />
+                <CompanyPill name={row.customerOrganization} />
               </>
             )}
           </div>

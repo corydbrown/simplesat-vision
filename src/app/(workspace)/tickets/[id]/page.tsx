@@ -16,7 +16,7 @@ export default async function TicketDetailPage(
       <Topbar
         crumbs={[
           { label: "Tickets", href: "/tickets" },
-          { label: ticket.helpdeskExternalId ?? ticket.id },
+          { label: ticket.externalId ?? ticket.id },
         ]}
         actions={<DetailActions entityHref={`/tickets/${ticket.id}`} />}
       />

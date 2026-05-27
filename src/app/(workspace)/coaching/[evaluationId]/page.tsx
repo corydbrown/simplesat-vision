@@ -17,7 +17,7 @@ export default async function CoachingDetailPage(
   const versions = await listEvaluationsForTicket(detail.ticket.id);
 
   const crumbLabel =
-    detail.ticket.helpdeskExternalId ?? detail.ticket.id;
+    detail.ticket.externalId ?? detail.ticket.id;
 
   return (
     <>

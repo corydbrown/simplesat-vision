@@ -33,7 +33,7 @@ export function CoachingTicketHeader({
       <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
         <TicketPill
           id={ticket.id}
-          externalId={ticket.helpdeskExternalId}
+          externalId={ticket.externalId}
           size="sm"
         />
         <VersionPicker

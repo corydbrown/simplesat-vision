@@ -28,9 +28,9 @@ export type CustomerListRow = {
   id: string;
   name: string;
   email: string;
-  company: string | null;
-  companyExternalId: string | null;
-  companyDomain: string | null;
+  organization: string | null;
+  organizationExternalId: string | null;
+  organizationDomain: string | null;
   language: string | null;
   tier: CustomerTier;
   customProperties: Record<string, unknown>;
@@ -51,9 +51,9 @@ const CUSTOMER_SORT_MAP: Record<string, AnyColumn | SQL> = {
   email: schema.customers.email,
   tier: schema.customers.tier,
   language: schema.customers.language,
-  company: schema.customers.company,
-  company_external_id: schema.customers.companyExternalId,
-  company_domain: schema.customers.companyDomain,
+  organization: schema.customers.organization,
+  organization_external_id: schema.customers.organizationExternalId,
+  organization_domain: schema.customers.organizationDomain,
   id: schema.customers.id,
   total_tickets: totalTicketsExpr,
   avg_rating: avgRatingExpr,
@@ -143,9 +143,9 @@ export async function listCustomers({
       id: schema.customers.id,
       name: schema.customers.name,
       email: schema.customers.email,
-      company: schema.customers.company,
-      companyExternalId: schema.customers.companyExternalId,
-      companyDomain: schema.customers.companyDomain,
+      organization: schema.customers.organization,
+      organizationExternalId: schema.customers.organizationExternalId,
+      organizationDomain: schema.customers.organizationDomain,
       language: schema.customers.language,
       tier: schema.customers.tier,
       customProperties: schema.customers.customProperties,
@@ -230,7 +230,7 @@ export async function getCustomerTickets(
       customer: {
         id: schema.customers.id,
         name: schema.customers.name,
-        company: schema.customers.company,
+        organization: schema.customers.organization,
       },
       assignee: {
         id: schema.teamMembers.id,
@@ -255,7 +255,7 @@ export async function getCustomerTickets(
     )
     .leftJoin(
       schema.teamMembers,
-      eq(schema.teamMembers.id, schema.tickets.assignedTeamMemberId),
+      eq(schema.teamMembers.id, schema.tickets.teamMemberId),
     )
     .leftJoin(
       schema.responses,
@@ -302,10 +302,10 @@ export async function getCustomerResponses(
       topics: schema.responses.topics,
       ticketId: schema.tickets.id,
       ticketSubject: schema.tickets.subject,
-      ticketExternalId: schema.tickets.helpdeskExternalId,
+      ticketExternalId: schema.tickets.externalId,
       customerId: schema.customers.id,
       customerName: schema.customers.name,
-      customerCompany: schema.customers.company,
+      customerOrganization: schema.customers.organization,
       teamMemberId: schema.teamMembers.id,
       teamMemberName: schema.teamMembers.name,
       teamMemberAvatarColor: schema.teamMembers.avatarColor,

@@ -41,11 +41,11 @@ export type TicketSortKey =
   | "closed_at"
   | "solved_at"
   | "first_response_at"
-  | "helpdesk"
+  | "source"
   | "external_id"
   | "internal_id"
   | "customer"
-  | "company"
+  | "organization"
   | "assignee"
   | "response"
   | "resolution_time"
@@ -53,7 +53,7 @@ export type TicketSortKey =
   | "qa_score";
 
 export type TicketsRow = Ticket & {
-  customer: { id: string; name: string; company: string | null } | null;
+  customer: { id: string; name: string; organization: string | null } | null;
   assignee: {
     id: string;
     name: string;
@@ -134,11 +134,11 @@ const SORT_COLUMN_MAP: Record<TicketSortKey, AnyColumn | SQL> = {
   closed_at: schema.tickets.closedAt,
   solved_at: schema.tickets.solvedAt,
   first_response_at: schema.tickets.firstResponseAt,
-  helpdesk: schema.tickets.helpdesk,
-  external_id: schema.tickets.helpdeskExternalId,
+  source: schema.tickets.source,
+  external_id: schema.tickets.externalId,
   internal_id: schema.tickets.id,
   customer: schema.customers.name,
-  company: schema.customers.company,
+  organization: schema.customers.organization,
   assignee: schema.teamMembers.name,
   response: schema.responses.rating,
   resolution_time: sql<number | null>`(tickets.solved_at - tickets.created_at)`,
@@ -193,7 +193,7 @@ export async function listTickets({
       customer: {
         id: schema.customers.id,
         name: schema.customers.name,
-        company: schema.customers.company,
+        organization: schema.customers.organization,
       },
       assignee: {
         id: schema.teamMembers.id,
@@ -218,7 +218,7 @@ export async function listTickets({
     )
     .leftJoin(
       schema.teamMembers,
-      eq(schema.teamMembers.id, schema.tickets.assignedTeamMemberId),
+      eq(schema.teamMembers.id, schema.tickets.teamMemberId),
     )
     .leftJoin(
       schema.responses,
@@ -343,7 +343,7 @@ export async function getTicketById(id: string): Promise<TicketDetail | null> {
       customer: {
         id: schema.customers.id,
         name: schema.customers.name,
-        company: schema.customers.company,
+        organization: schema.customers.organization,
       },
       assignee: {
         id: schema.teamMembers.id,
@@ -368,7 +368,7 @@ export async function getTicketById(id: string): Promise<TicketDetail | null> {
     )
     .leftJoin(
       schema.teamMembers,
-      eq(schema.teamMembers.id, schema.tickets.assignedTeamMemberId),
+      eq(schema.teamMembers.id, schema.tickets.teamMemberId),
     )
     .leftJoin(
       schema.responses,

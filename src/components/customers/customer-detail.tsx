@@ -62,13 +62,13 @@ export function CustomerDetailBody({
       entity: "customer",
       id: customer.id,
       label: customer.name,
-      secondary: customer.company ?? customer.email ?? undefined,
+      secondary: customer.organization ?? customer.email ?? undefined,
     });
   }, [
     inDrawer,
     customer.id,
     customer.name,
-    customer.company,
+    customer.organization,
     customer.email,
   ]);
 
@@ -85,9 +85,9 @@ export function CustomerDetailBody({
           {customer.name}
         </h1>
         <div className="mt-0.5 text-base text-muted-foreground truncate">
-          {customer.company ? (
+          {customer.organization ? (
             <>
-              {customer.company}
+              {customer.organization}
               <span className="mx-2 text-border">·</span>
             </>
           ) : null}

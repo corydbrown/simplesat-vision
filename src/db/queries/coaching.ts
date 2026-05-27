@@ -9,6 +9,7 @@ import type {
   TicketMessageAuthorRole,
   TicketMessageChannel,
   TicketMessageType,
+  TicketStatus,
 } from "../schema";
 import {
   getCommentProvider,
@@ -79,9 +80,9 @@ export type CoachingEvaluationView = {
 
 export type CoachingTicketView = {
   id: string;
-  helpdeskExternalId: string | null;
+  externalId: string | null;
   subject: string;
-  status: "open" | "pending" | "solved" | "closed";
+  status: TicketStatus;
   priority: "low" | "normal" | "high" | "urgent";
   channel: "email" | "chat" | "phone" | "social";
   customer: { id: string; name: string; tier: string | null } | null;
@@ -126,13 +127,13 @@ export async function getCoachingDetail(
       },
       ticket: {
         id: schema.tickets.id,
-        helpdeskExternalId: schema.tickets.helpdeskExternalId,
+        externalId: schema.tickets.externalId,
         subject: schema.tickets.subject,
         status: schema.tickets.status,
         priority: schema.tickets.priority,
         channel: schema.tickets.channel,
         customerId: schema.tickets.customerId,
-        assignedTeamMemberId: schema.tickets.assignedTeamMemberId,
+        teamMemberId: schema.tickets.teamMemberId,
       },
     })
     .from(schema.evaluations)
@@ -180,7 +181,7 @@ export async function getCoachingDetail(
         .limit(1)
     : Promise.resolve([]);
 
-  const assigneePromise = head.ticket.assignedTeamMemberId
+  const assigneePromise = head.ticket.teamMemberId
     ? db
         .select({
           id: schema.teamMembers.id,
@@ -189,7 +190,7 @@ export async function getCoachingDetail(
           role: schema.teamMembers.role,
         })
         .from(schema.teamMembers)
-        .where(eq(schema.teamMembers.id, head.ticket.assignedTeamMemberId))
+        .where(eq(schema.teamMembers.id, head.ticket.teamMemberId))
         .limit(1)
     : Promise.resolve([]);
 
@@ -433,7 +434,7 @@ export async function getCoachingDetail(
     },
     ticket: {
       id: head.ticket.id,
-      helpdeskExternalId: head.ticket.helpdeskExternalId,
+      externalId: head.ticket.externalId,
       subject: head.ticket.subject,
       status: head.ticket.status,
       priority: head.ticket.priority,

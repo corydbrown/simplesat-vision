@@ -140,7 +140,7 @@ function buildEntryFromDrawerPayload(
       entity: "customer",
       id: c.id,
       label: c.name,
-      secondary: c.company ?? c.email ?? undefined,
+      secondary: c.organization ?? c.email ?? undefined,
     };
   }
   if (payload.entity === "ticket") {
@@ -148,9 +148,9 @@ function buildEntryFromDrawerPayload(
     return {
       entity: "ticket",
       id: t.id,
-      label: t.subject ?? `Ticket ${t.helpdeskExternalId ?? t.id}`,
-      secondary: t.helpdeskExternalId
-        ? `#${t.helpdeskExternalId}`
+      label: t.subject ?? `Ticket ${t.externalId ?? t.id}`,
+      secondary: t.externalId
+        ? `#${t.externalId}`
         : undefined,
     };
   }

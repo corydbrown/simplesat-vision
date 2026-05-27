@@ -53,7 +53,7 @@ export const COACHING_PROPERTIES: Property<EvaluationsRow>[] = [
       e.ticket ? (
         <TicketPill
           id={e.ticket.id}
-          externalId={e.ticket.helpdeskExternalId}
+          externalId={e.ticket.externalId}
           subject={e.ticket.subject}
         />
       ) : (

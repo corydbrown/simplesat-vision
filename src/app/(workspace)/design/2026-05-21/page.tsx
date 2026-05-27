@@ -504,7 +504,7 @@ const SPACING_USED_OUTSIDE: Array<{
 
 const PILL_INTERACTIVE_NOTES: string[] = [
   "Interactive entity pills (Customer, TeamMember, Ticket, Response w/ id, Survey) share a strict shape: rounded -mx-1 px-1 py-0.5, bg-accent/40, hover bg-accent, always-visible ArrowUpRight, popover on hover, drawer on click.",
-  "CompanyPill (right, plain text) intentionally breaks the shape per CLAUDE.md — company is a string, not yet an entity. The visual gap is doing real work: the lack of an arrow says 'don't click me'.",
+  "CompanyPill (right, plain text) intentionally breaks the shape per CLAUDE.md — organization is a string, not yet an entity. The visual gap is doing real work: the lack of an arrow says 'don't click me'.",
   "ResponsePill swaps between the interactive shape (with id) and a plain span (without id) — same component name, two visual modes. Worth flagging because the rendering happens at the property registry level and is easy to miss.",
 ];
 
@@ -1189,14 +1189,14 @@ export default async function DesignAuditPage() {
                 {sampleTicket && (
                   <TicketPill
                     id={sampleTicket.id}
-                    externalId={sampleTicket.helpdeskExternalId}
+                    externalId={sampleTicket.externalId}
                     subject={sampleTicket.subject}
                   />
                 )}
                 {sampleTicket && (
                   <TicketPill
                     id={sampleTicket.id}
-                    externalId={sampleTicket.helpdeskExternalId}
+                    externalId={sampleTicket.externalId}
                   />
                 )}
                 {sampleResponse && (

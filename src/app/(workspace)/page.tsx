@@ -121,7 +121,7 @@ export default async function HomePage() {
                 <div className="flex items-center gap-3 min-w-0">
                   <CustomerPill id={c.id} name={c.name} />
                   <span className="text-muted-foreground/50">·</span>
-                  <CompanyPill name={c.company} />
+                  <CompanyPill name={c.organization} />
                 </div>
                 <div className="flex items-center gap-4 text-xs">
                   <span className="text-muted-foreground tabular-nums">

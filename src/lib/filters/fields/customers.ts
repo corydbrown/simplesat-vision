@@ -23,9 +23,9 @@ export const CUSTOMER_FILTER_FIELDS = buildFilterFields(CUSTOMER_FILTER_SPECS, {
   email: schema.customers.email,
   tier: schema.customers.tier,
   language: schema.customers.language,
-  company: schema.customers.company,
-  company_external_id: schema.customers.companyExternalId,
-  company_domain: schema.customers.companyDomain,
+  organization: schema.customers.organization,
+  organization_external_id: schema.customers.organizationExternalId,
+  organization_domain: schema.customers.organizationDomain,
   total_tickets: customerTotalTicketsExpr,
   avg_rating: customerAvgRatingExpr,
 });

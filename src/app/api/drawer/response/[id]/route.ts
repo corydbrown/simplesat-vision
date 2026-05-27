@@ -26,7 +26,7 @@ export async function GET(
     ticketExternalId: response.ticket?.externalId ?? null,
     customerId: response.customer?.id ?? null,
     customerName: response.customer?.name ?? null,
-    customerCompany: response.customer?.company ?? null,
+    customerOrganization: response.customer?.organization ?? null,
     teamMemberId: response.teamMember?.id ?? null,
     teamMemberName: response.teamMember?.name ?? null,
     teamMemberAvatarColor: response.teamMember?.avatarColor ?? null,

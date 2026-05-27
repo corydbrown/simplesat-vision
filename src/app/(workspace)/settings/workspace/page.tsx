@@ -1,6 +1,5 @@
 import { Topbar } from "@/components/shell/topbar";
 import { SettingsBody } from "@/components/settings/settings-body";
-import { WorkspaceSubNav } from "@/components/settings/workspace-sub-nav";
 import { RenameForm } from "@/components/settings/workspace/rename-form";
 import {
   getActiveWorkspaceDetails,
@@ -42,12 +41,8 @@ export default async function WorkspaceSettingsPage() {
             Workspace
           </h1>
           <p className="mt-2 text-base text-muted-foreground">
-            Settings and members for this workspace.
+            Settings for this workspace.
           </p>
-
-          <div className="mt-6">
-            <WorkspaceSubNav />
-          </div>
 
           <section className="mt-8">
             <h2 className="text-base font-medium text-foreground">Details</h2>

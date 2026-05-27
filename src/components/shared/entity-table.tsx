@@ -255,12 +255,20 @@ export function EntityTable<T>({
       </div>
 
       <div className="flex-1 overflow-auto">
-        <table className="text-base border-separate border-spacing-0">
-          <DndContext
-            sensors={sensors}
-            collisionDetection={closestCenter}
-            onDragEnd={handleDragEnd}
-          >
+        {/*
+          DndContext wraps the whole <table>, NOT the <thead>. dnd-kit renders
+          an inline accessibility <div> as a child of DndContext; nesting that
+          between <table> and its sections is invalid HTML and triggers a
+          hydration mismatch (notably visible on empty views). Lifting it here
+          keeps that div in the scroll container. SortableContext renders no DOM
+          node of its own, so it can still scope just the header row.
+        */}
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={handleDragEnd}
+        >
+          <table className="text-base border-separate border-spacing-0">
             <SortableContext
               items={visibleOrdered.map((p) => p.id)}
               strategy={horizontalListSortingStrategy}
@@ -283,8 +291,7 @@ export function EntityTable<T>({
                 </tr>
               </thead>
             </SortableContext>
-          </DndContext>
-          <tbody>
+            <tbody>
             {displayRows.length === 0 ? (
               <tr>
                 <td
@@ -322,8 +329,9 @@ export function EntityTable<T>({
             ) : (
               displayRows.map((row) => renderDataRow(row))
             )}
-          </tbody>
-        </table>
+            </tbody>
+          </table>
+        </DndContext>
       </div>
 
       <div className="flex items-center justify-between border-t border-border bg-background px-gutter py-2">

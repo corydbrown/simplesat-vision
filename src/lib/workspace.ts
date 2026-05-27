@@ -7,6 +7,7 @@ import { asc, eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { userWorkspaces } from "@/db/schema";
 import { getCurrentUser } from "@/lib/auth";
+import { DEV_AUTH_BYPASS, DEV_DEFAULT_WORKSPACE_ID } from "@/lib/dev-auth";
 
 export { DEMO_WORKSPACE_ID } from "@/lib/workspace-id";
 
@@ -57,6 +58,10 @@ function decode(raw: string | undefined): string | null {
 export async function getActiveWorkspaceId(): Promise<string | null> {
   const fromCookie = decode((await cookies()).get(COOKIE_NAME)?.value);
   if (fromCookie) return fromCookie;
+
+  // Dev bypass: the synthetic user has no membership rows, so fall back to a
+  // default workspace (the switcher's cookie above still takes precedence).
+  if (DEV_AUTH_BYPASS) return DEV_DEFAULT_WORKSPACE_ID;
 
   const user = await getCurrentUser();
   if (!user) return null;

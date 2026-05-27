@@ -490,6 +490,14 @@ export const workspaceApiKeys = sqliteTable(
     keyPrefix: text("key_prefix").notNull(),
     /** Human label set at creation ("n8n production"). */
     label: text("label"),
+    /** Optional HMAC signing secret. When set, ingest requests using this key
+     *  MUST carry a valid `X-Signature` (see `src/lib/ingest/signing.ts`);
+     *  when null, signing is not enforced and unsigned requests are accepted
+     *  (this is what keeps the live n8n caller working until it's coordinated
+     *  onto signing). Stored plaintext because HMAC verification needs the
+     *  secret retrievable — unlike `key_hash`, it can't be one-way hashed.
+     *  Future hardening: encrypt at rest behind a KMS-managed key. */
+    signingSecret: text("signing_secret"),
     createdAt: integer("created_at", { mode: "timestamp_ms" })
       .notNull()
       .default(sql`(unixepoch() * 1000)`),

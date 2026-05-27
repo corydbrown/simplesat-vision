@@ -74,9 +74,34 @@ export async function createWorkspaceApiKey(
   return { id, key, keyPrefix: prefix };
 }
 
+/** Generate and store a fresh HMAC signing secret for an existing key,
+ *  enabling (or rotating) signing on it. Returns the plaintext secret once —
+ *  the caller shares it with the signing client (e.g. n8n). 32 random bytes →
+ *  base64url. Throws if the key id is unknown. Until this is called a key has
+ *  `signing_secret = null` and its requests are accepted unsigned, which is how
+ *  the live caller keeps working until it's coordinated onto signing. */
+export async function rotateApiKeySigningSecret(
+  keyId: string,
+): Promise<{ keyId: string; signingSecret: string }> {
+  const signingSecret = randomBytes(32).toString("base64url");
+  const result = await db
+    .update(workspaceApiKeys)
+    .set({ signingSecret })
+    .where(eq(workspaceApiKeys.id, keyId))
+    .returning({ id: workspaceApiKeys.id });
+
+  if (result.length === 0) {
+    throw new Error(`No API key with id "${keyId}"`);
+  }
+
+  return { keyId, signingSecret };
+}
+
 export type ResolvedApiKey = {
   id: string;
   workspaceId: string;
+  /** HMAC signing secret, or null when signing is not enforced for this key. */
+  signingSecret: string | null;
 };
 
 /** Resolve a plaintext key to its workspace, or null if unknown/revoked.
@@ -92,6 +117,7 @@ export async function resolveApiKey(
     .select({
       id: workspaceApiKeys.id,
       workspaceId: workspaceApiKeys.workspaceId,
+      signingSecret: workspaceApiKeys.signingSecret,
     })
     .from(workspaceApiKeys)
     .where(

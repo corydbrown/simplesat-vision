@@ -1,4 +1,13 @@
 import { authkitProxy } from "@workos-inc/authkit-nextjs";
+import { NextResponse } from "next/server";
+
+/** Local-dev WorkOS bypass — mirrors `DEV_AUTH_BYPASS` in `src/lib/dev-auth.ts`
+ *  (the flag is recomputed here rather than imported so this middleware module
+ *  stays free of the `server-only` import). ON by default in development, OFF
+ *  whenever `NODE_ENV === "production"` (all Vercel builds), so it can never
+ *  open on a deploy. `DEV_AUTH_BYPASS=0` opts back into the real flow locally. */
+const DEV_AUTH_BYPASS =
+  process.env.NODE_ENV !== "production" && process.env.DEV_AUTH_BYPASS !== "0";
 
 /** All app traffic flows through here. AuthKit reads the session cookie,
  *  refreshes the access token when needed, and redirects unauthenticated
@@ -6,29 +15,36 @@ import { authkitProxy } from "@workos-inc/authkit-nextjs";
  *  through WorkOS `state` so the user lands back where they intended
  *  after sign-in.
  *
+ *  In dev-bypass mode the proxy is a pass-through (no redirect); the synthetic
+ *  session is supplied app-side by `getCurrentUser()` / `getActiveWorkspaceId()`.
+ *
  *  Next.js 16 renamed the `middleware` file/convention to `proxy`. See
  *  node_modules/next/dist/docs/01-app/02-guides/upgrading/version-16.md. */
-export default authkitProxy({
-  middlewareAuth: {
-    enabled: true,
-    unauthenticatedPaths: [
-      "/login",
-      "/callback",
-      "/logout",
-      // Ingest API: authenticated by a workspace API key (Bearer), NOT the
-      // WorkOS session cookie. These must bypass the AuthKit redirect or n8n's
-      // POSTs would be 302'd to the sign-in flow. Auth is enforced per-route by
-      // `authenticateApiKey` — the key IS the workspace identity. Listed
-      // explicitly (not a glob) so the cookie-authed internal `/api/*` routes
-      // (search, drawer, qa, …) keep their session protection.
-      "/api/tickets",
-      "/api/customers",
-      "/api/team-members",
-      "/api/messages",
-      "/api/responses",
-    ],
-  },
-});
+export default DEV_AUTH_BYPASS
+  ? function devAuthBypassProxy() {
+      return NextResponse.next();
+    }
+  : authkitProxy({
+      middlewareAuth: {
+        enabled: true,
+        unauthenticatedPaths: [
+          "/login",
+          "/callback",
+          "/logout",
+          // Ingest API: authenticated by a workspace API key (Bearer), NOT the
+          // WorkOS session cookie. These must bypass the AuthKit redirect or n8n's
+          // POSTs would be 302'd to the sign-in flow. Auth is enforced per-route by
+          // `authenticateApiKey` — the key IS the workspace identity. Listed
+          // explicitly (not a glob) so the cookie-authed internal `/api/*` routes
+          // (search, drawer, qa, …) keep their session protection.
+          "/api/tickets",
+          "/api/customers",
+          "/api/team-members",
+          "/api/messages",
+          "/api/responses",
+        ],
+      },
+    });
 
 export const config = {
   /** Match every path except Next internals, image optimization, and

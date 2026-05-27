@@ -5,6 +5,7 @@ import { eq } from "drizzle-orm";
 
 import { db } from "@/db/client";
 import { users, type User } from "@/db/schema";
+import { DEV_AUTH_BYPASS, DEV_USER } from "@/lib/dev-auth";
 
 /** Canonical "who's logged in" accessor for server code. Reads the WorkOS
  *  session from the encrypted cookie, then looks up the matching `users`
@@ -13,6 +14,10 @@ import { users, type User } from "@/db/schema";
  *  if `/callback` failed mid-upsert). All future code — sidebar pill,
  *  audit fields, workspace scoping — should read through this helper. */
 export async function getCurrentUser(): Promise<User | null> {
+  // Dev bypass: hand back a synthetic session without touching WorkOS or the
+  // DB (the local users table may be empty). Never reached in production.
+  if (DEV_AUTH_BYPASS) return DEV_USER;
+
   const { user: workosUser } = await withAuth();
   if (!workosUser) return null;
 

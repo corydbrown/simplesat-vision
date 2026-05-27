@@ -141,6 +141,13 @@
       "when": 1779893873693,
       "tag": "0019_svp199_ai_bot_identity",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "6",
+      "when": 1779895655814,
+      "tag": "0020_big_hedge_knight",
+      "breakpoints": true
     }
   ]
 }

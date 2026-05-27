@@ -303,9 +303,16 @@ HTTP write endpoints n8n POSTs normalized helpdesk data to (`POST /api/{tickets,
 - **Schema audit findings (additive migration `0017`).** Added `external_id` to `responses` + `ticket_messages` (the foundation only added it to customers/tickets/team_members). Relaxed `responses.survey_id` to **nullable** (table-rebuild) for helpdesk-native CSAT — `survey_type` stays NOT NULL, defaulted to `csat` at ingest. The Notion §3 audit line about relaxing `responses.scorecard_id`/`scorecard_version_id` was **moot**: those columns live on `evaluations`, not `responses`. Added a `(workspace_id, source, responded_at)` index for response listing by provenance. Phase 1 stores response `rating` + `scale` as received — the centered 1-5 CSAT mapping is a separate task.
 - **Tooling: Node-25 migrate workaround.** drizzle-kit's CLI errors under Node 25 (this worktree's version); [scripts/migrate.ts](scripts/migrate.ts) applies the same `drizzle/` migrations through the app's libsql client and works on any Node. CI/Vercel (Node 20) keep using `drizzle-kit migrate` via the build script. The seed also breaks under Node 25 (tsx CJS-requiring ESM-only authkit); it was left unchanged and runs on Node 20.
 
+## Ingest rate limiting + request signing (SVP-183)
+
+Production hardening of the 5 ingest POST routes, applied at the single `createIngestRoute` chokepoint in [src/lib/ingest/handle.ts](src/lib/ingest/handle.ts) so all entities inherit it identically.
+
+- **Rate limit behind a `RateLimiter` interface; in-memory token bucket as the cheap impl.** Routes depend only on `RateLimiter.consume(key) → { allowed, retryAfterMs, remaining, limit }` ([src/lib/ingest/rate-limit.ts](src/lib/ingest/rate-limit.ts)), never on a concrete store — swapping the in-memory bucket for a Turso/Redis-backed limiter later is a one-file change with zero route edits (the seam, not the impl, is what production needs). Keyed per **API key id**. Bulk batches cost **1 token regardless of item count**, so a backfill of thousands stays cheap. Generous defaults — 2000-token burst, 50 tokens/sec sustained — env-tunable (`INGEST_RATE_LIMIT_BURST` / `INGEST_RATE_LIMIT_REFILL_PER_SEC`) so the legitimate n8n burst is never throttled. Denials return `429` with `Retry-After` + `RateLimit-*` headers. **Serverless caveat (documented):** each Vercel instance keeps its own bucket, so the limit is per-instance, not global — which errs *permissive*, the safe direction for ingest.
+- **Request signing is opt-in HMAC-SHA256, enforced only when a key has a `signing_secret`.** Additive `signing_secret` column on `workspace_api_keys` (migration `0018`, nullable). When null, requests are accepted **unsigned** — which is exactly what keeps the live n8n caller working untouched; nothing about its requests changes on merge. When set, the request MUST carry `X-Signature: sha256=<hex>` + `X-Signature-Timestamp: <unix-sec>`, where the HMAC covers `<timestamp>.<rawBody>` ([src/lib/ingest/signing.ts](src/lib/ingest/signing.ts)). Binding the timestamp into the MAC makes it tamper-evident; a ±5min freshness window (`INGEST_SIGNATURE_TOLERANCE_SEC`) bounds replay; constant-time compare. The secret is stored plaintext (HMAC needs it retrievable, unlike the one-way-hashed key) — future hardening is encrypt-at-rest. Enable/rotate per key via [scripts/enable-signing.ts](scripts/enable-signing.ts) (prints the secret once). **Turning signing on for the live key is a deliberate, breaking step that must be coordinated with the n8n side** — until then it stays off and ingest is unaffected.
+
 ### Out of scope (SVP-167 → later phases)
 
-API-key management UI (`/settings/api-keys`, Phase 4); helpdesk-native↔Simplesat-native CSAT dedupe/`superseded_by`; topic AI-attachment on ingested responses (server-side, post-write); rate limiting / request signing on the ingest endpoints; real Intercom/Zendesk wiring (n8n, Cory's side).
+API-key management UI (`/settings/api-keys`, Phase 4); helpdesk-native↔Simplesat-native CSAT dedupe/`superseded_by`; topic AI-attachment on ingested responses (server-side, post-write); real Intercom/Zendesk wiring (n8n, Cory's side).
 
 ## Avatar resolution cascade (SVP-191)
 
@@ -321,3 +328,7 @@ Auto-resolve avatars instead of asking users to upload them. Precedence: **manua
 ### Out of scope (SVP-191 → follow-ups)
 
 In-app manual upload UI + blob storage (sets `avatarSource='manual'`); regenerating the committed `public/avatars` to croodles-neutral (blocked on seed repair). Both filed in the Notion backlog.
+
+### Out of scope (SVP-183 → later)
+
+Global (cross-instance) rate limiting via Turso/Redis — the `RateLimiter` seam is in place; only a new impl + `defaultIngestRateLimiter` swap is needed. Nonce-cache replay prevention (current scheme is timestamp-window only, the standard webhook approach). Signing-secret encryption at rest. Signing/rate-limit config surfaced in the Phase 4 `/settings/api-keys` UI.

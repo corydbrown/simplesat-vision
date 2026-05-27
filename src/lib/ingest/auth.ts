@@ -4,7 +4,14 @@ import { NextResponse } from "next/server";
 
 import { resolveApiKey } from "@/lib/ingest/api-keys";
 
-export type AuthOk = { ok: true; workspaceId: string };
+export type AuthOk = {
+  ok: true;
+  workspaceId: string;
+  /** Identity of the resolved API key — the rate-limit bucket key. */
+  keyId: string;
+  /** HMAC signing secret, or null when signing is not enforced for this key. */
+  signingSecret: string | null;
+};
 export type AuthErr = { ok: false; response: NextResponse };
 export type AuthResult = AuthOk | AuthErr;
 
@@ -39,5 +46,10 @@ export async function authenticateApiKey(
     return unauthorized("Invalid or revoked API key");
   }
 
-  return { ok: true, workspaceId: resolved.workspaceId };
+  return {
+    ok: true,
+    workspaceId: resolved.workspaceId,
+    keyId: resolved.id,
+    signingSecret: resolved.signingSecret,
+  };
 }

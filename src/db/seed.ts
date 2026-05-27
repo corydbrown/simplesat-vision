@@ -1328,6 +1328,20 @@ async function seed() {
     for (let w = 0; w < SURVEY_SPECS[i].weight; w++) surveyWeightPool.push(s.id!);
   });
 
+  // External IDs must be unique per table — the partial unique indexes on
+  // (workspace_id, external_id) back idempotent upsert. Bare faker.string.numeric
+  // collides at scale (50k tickets in an 8-digit space => birthday-paradox
+  // dupes), which fails the unique-index build, so dedup at generation time.
+  const usedExternalIds = new Set<string>();
+  const uniqueExternalId = (digits: number): string => {
+    let v: string;
+    do {
+      v = faker.string.numeric(digits);
+    } while (usedExternalIds.has(v));
+    usedExternalIds.add(v);
+    return v;
+  };
+
   console.log("Generating customers...");
   const customers: NewCustomer[] = [];
 
@@ -1347,7 +1361,7 @@ async function seed() {
       organization: account.name,
       organizationExternalId: faker.string.numeric(11),
       organizationDomain: account.domain,
-      externalId: faker.string.numeric(7),
+      externalId: uniqueExternalId(7),
       customProperties: buildCustomProperties(CUSTOMER_CUSTOM_FIELDS, 30, 50),
       createdAt: new Date(NOW - 300 * ONE_DAY),
       updatedAt: new Date(NOW),
@@ -1380,7 +1394,7 @@ async function seed() {
       organization: b2bAccount?.name ?? null,
       organizationExternalId: b2bAccount ? faker.string.numeric(11) : null,
       organizationDomain: b2bAccount?.domain ?? null,
-      externalId: faker.string.numeric(7),
+      externalId: uniqueExternalId(7),
       customProperties: buildCustomProperties(CUSTOMER_CUSTOM_FIELDS, 25, 50),
       createdAt: new Date(
         NOW - faker.number.int({ min: 1, max: HORIZON_DAYS }) * ONE_DAY,
@@ -1415,7 +1429,7 @@ async function seed() {
       region: pickFrom(REGIONS),
       language: pickFrom(LANGUAGES),
       groupId,
-      externalId: faker.string.numeric(7),
+      externalId: uniqueExternalId(7),
       avatarColor: pickFrom(AVATAR_COLORS),
       customProperties: buildCustomProperties(TEAM_MEMBER_CUSTOM_FIELDS, 8, 16),
       createdAt: new Date(
@@ -1800,7 +1814,7 @@ async function seed() {
       channel,
       priority,
       source: "zendesk",
-      externalId: faker.string.numeric(8),
+      externalId: uniqueExternalId(8),
       customerId,
       sourceAgents,
       teamMemberId,

@@ -245,6 +245,11 @@ export const customers = sqliteTable(
     index("customers_organization_idx").on(t.organization),
     index("customers_tier_idx").on(t.tier),
     index("customers_language_idx").on(t.language),
+    // Idempotent ingest upsert key. Partial so existing seed rows with a NULL
+    // external_id don't collide; populated rows are unique per workspace.
+    uniqueIndex("customers_workspace_external_id_unq")
+      .on(t.workspaceId, t.externalId)
+      .where(sql`external_id IS NOT NULL`),
   ],
 );
 
@@ -317,6 +322,10 @@ export const teamMembers = sqliteTable(
     index("team_members_team_idx").on(t.team),
     index("team_members_region_idx").on(t.region),
     index("team_members_group_id_idx").on(t.groupId),
+    // Idempotent ingest upsert key (see customers).
+    uniqueIndex("team_members_workspace_external_id_unq")
+      .on(t.workspaceId, t.externalId)
+      .where(sql`external_id IS NOT NULL`),
   ],
 );
 
@@ -404,6 +413,43 @@ export const userWorkspaces = sqliteTable(
     ),
     index("user_workspaces_user_id_idx").on(t.userId),
     index("user_workspaces_workspace_id_idx").on(t.workspaceId),
+  ],
+);
+
+/** Per-workspace service credentials for the ingest API. The API key IS the
+ *  workspace identity on write endpoints (`POST /api/tickets`, etc.) — no
+ *  cookie/`requireWorkspace()` involved. Distinct from WorkOS user auth:
+ *  WorkOS authenticates a *human* into the app; an API key authenticates a
+ *  *machine* (n8n) into one workspace's write surface.
+ *
+ *  Only `key_hash` is stored — the plaintext key is shown once at creation and
+ *  never recoverable. Keys are 192-bit random tokens, so a fast SHA-256 hash
+ *  (hex) is both safe and indexable for O(1) lookup; bcrypt/argon2 (per-row
+ *  salt) would force a full-table scan per request and buy nothing against a
+ *  high-entropy secret. `key_prefix` (`svk_<wsslug>`) is the only fragment safe
+ *  to display in a future UI. */
+export const workspaceApiKeys = sqliteTable(
+  "workspace_api_keys",
+  {
+    id: text("id").primaryKey(),
+    workspaceId: text("workspace_id")
+      .notNull()
+      .references(() => workspaces.id),
+    /** SHA-256 hex digest of the full plaintext key. */
+    keyHash: text("key_hash").notNull(),
+    /** First display-safe segment (e.g. `svk_bloom`). For UI listing only. */
+    keyPrefix: text("key_prefix").notNull(),
+    /** Human label set at creation ("n8n production"). */
+    label: text("label"),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+    lastUsedAt: integer("last_used_at", { mode: "timestamp_ms" }),
+    revokedAt: integer("revoked_at", { mode: "timestamp_ms" }),
+  },
+  (t) => [
+    uniqueIndex("workspace_api_keys_key_hash_unq").on(t.keyHash),
+    index("workspace_api_keys_workspace_id_idx").on(t.workspaceId),
   ],
 );
 
@@ -532,6 +578,10 @@ export const tickets = sqliteTable(
     index("tickets_survey_sent_at_idx").on(t.surveySentAt),
     index("tickets_source_idx").on(t.source),
     index("tickets_priority_idx").on(t.priority),
+    // Idempotent ingest upsert key (see customers).
+    uniqueIndex("tickets_workspace_external_id_unq")
+      .on(t.workspaceId, t.externalId)
+      .where(sql`external_id IS NOT NULL`),
   ],
 );
 
@@ -575,6 +625,12 @@ export const ticketMessages = sqliteTable(
       .$type<TicketMessageType>()
       .default("comment"),
     body: text("body").notNull(),
+    /** The message's id in its source system (helpdesk comment/part id). The
+     *  upsert key for `POST /api/messages`. Nullable for existing seed rows;
+     *  populated for every ingested message. Source comment ids are globally
+     *  unique within a helpdesk, so uniqueness is on the id alone (messages
+     *  carry no `workspace_id` — they're scoped via the parent ticket). */
+    externalId: text("external_id"),
     createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
   },
   (t) => [
@@ -590,6 +646,11 @@ export const ticketMessages = sqliteTable(
     index("ticket_messages_created_at_idx").on(t.createdAt),
     index("ticket_messages_team_member_id_idx").on(t.teamMemberId),
     index("ticket_messages_customer_id_idx").on(t.customerId),
+    // Idempotent ingest upsert key. Partial so existing seed rows (NULL
+    // external_id) don't collide.
+    uniqueIndex("ticket_messages_external_id_unq")
+      .on(t.externalId)
+      .where(sql`external_id IS NOT NULL`),
   ],
 );
 
@@ -684,11 +745,13 @@ export const responses = sqliteTable(
       .notNull()
       .references(() => customers.id),
     teamMemberId: text("team_member_id").references(() => teamMembers.id),
-    surveyId: text("survey_id")
-      .notNull()
-      .references(() => surveys.id),
+    /** FK to the Simplesat survey this response answered. Nullable: helpdesk-
+     *  native CSAT (`source` = zendesk/intercom) has no Simplesat survey —
+     *  only Simplesat-native responses (`source` = simplesat) carry it. */
+    surveyId: text("survey_id").references(() => surveys.id),
     /** Denormalized from surveys.metric for fast filtering + index-friendly
-     *  metric aggregations. Keep in sync with the survey at write time. */
+     *  metric aggregations. Keep in sync with the survey at write time. For
+     *  helpdesk-native CSAT (no survey) the ingest API sets `csat`. */
     surveyType: text("survey_type", {
       enum: ["csat", "nps", "ces", "five_star", "custom"],
     })
@@ -701,6 +764,10 @@ export const responses = sqliteTable(
      *  system (`zendesk` / `intercom` / …) for imported source CSAT. Free
      *  text — see `ResponseSource`. Existing seed is all `simplesat`. */
     source: text("source").notNull().$type<ResponseSource>().default("simplesat"),
+    /** The response's id in its source system (Zendesk satisfaction-rating id /
+     *  Intercom conversation_rating id). The upsert key for `POST /api/responses`.
+     *  Nullable for existing seed rows; populated for ingested responses. */
+    externalId: text("external_id"),
     respondedAt: integer("responded_at", { mode: "timestamp_ms" }).notNull(),
     answers: text("answers", { mode: "json" })
       .$type<SurveyAnswer[]>()
@@ -729,8 +796,18 @@ export const responses = sqliteTable(
     index("responses_survey_id_idx").on(t.surveyId),
     index("responses_survey_type_idx").on(t.surveyType),
     index("responses_source_idx").on(t.source),
+    // Response listing by provenance over time (helpdesk vs native feeds).
+    index("responses_workspace_source_responded_idx").on(
+      t.workspaceId,
+      t.source,
+      t.respondedAt,
+    ),
     index("responses_rating_idx").on(t.rating),
     index("responses_responded_at_idx").on(t.respondedAt),
+    // Idempotent ingest upsert key (see customers).
+    uniqueIndex("responses_workspace_external_id_unq")
+      .on(t.workspaceId, t.externalId)
+      .where(sql`external_id IS NOT NULL`),
   ],
 );
 
@@ -1245,6 +1322,8 @@ export type Workspace = typeof workspaces.$inferSelect;
 export type NewWorkspace = typeof workspaces.$inferInsert;
 export type UserWorkspace = typeof userWorkspaces.$inferSelect;
 export type NewUserWorkspace = typeof userWorkspaces.$inferInsert;
+export type WorkspaceApiKey = typeof workspaceApiKeys.$inferSelect;
+export type NewWorkspaceApiKey = typeof workspaceApiKeys.$inferInsert;
 
 export type Customer = typeof customers.$inferSelect;
 export type NewCustomer = typeof customers.$inferInsert;

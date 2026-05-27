@@ -50,7 +50,12 @@ export function PropertiesPanel<T>({
         {sections.map(({ key, props }) => (
           <PropertyList.Group key={key} label={key}>
             {props.map((p) => (
-              <PropertyList.Row key={p.id} icon={p.icon} label={p.label}>
+              <PropertyList.Row
+                key={p.id}
+                icon={p.icon}
+                label={p.label}
+                copyable={p.kind !== "component"}
+              >
                 {p.detail ? p.detail(row) : p.cell(row)}
               </PropertyList.Row>
             ))}

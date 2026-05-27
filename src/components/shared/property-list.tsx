@@ -21,6 +21,7 @@
 "use client";
 
 import { createContext, useContext } from "react";
+import { CopyableValue } from "@/components/shared/copyable-value";
 import type { PropertyIcon } from "@/lib/properties/types";
 
 type Layout = "inline" | "stacked";
@@ -68,12 +69,19 @@ function Row({
   icon: Icon,
   label,
   children,
+  copyable = false,
 }: {
   icon: PropertyIcon;
   label: string;
   children: React.ReactNode;
+  /** When true, wrap the value in a hover-to-copy affordance. Reserved for
+   *  plain text/number/id values; interactive pills opt out (they carry their
+   *  own affordances). The `group/proprow` on the row container drives the
+   *  copy button's hover reveal. */
+  copyable?: boolean;
 }) {
   const layout = useContext(LayoutContext);
+  const value = copyable ? <CopyableValue>{children}</CopyableValue> : children;
 
   // Value override: `[&_.text-muted-foreground]:text-foreground` promotes any
   // muted-text descendants (which are normal in tables for secondary metadata
@@ -83,20 +91,20 @@ function Row({
   // they're untouched.
   if (layout === "stacked") {
     return (
-      <div className="-mx-2 rounded px-2 py-1 hover:bg-accent/40">
+      <div className="group/proprow -mx-2 rounded px-2 py-1 hover:bg-accent/40">
         <dt className="flex items-center gap-1.5 text-base text-muted-foreground">
           <Icon size={14} className="shrink-0 text-muted-foreground/70" />
           <span className="truncate">{label}</span>
         </dt>
         <dd className="mt-0.5 text-base text-foreground break-words [&_.text-muted-foreground]:text-foreground">
-          {children}
+          {value}
         </dd>
       </div>
     );
   }
 
   return (
-    <div className="grid grid-cols-[170px_1fr] -mx-2 items-baseline gap-3 rounded px-2 py-1 hover:bg-accent/40">
+    <div className="group/proprow grid grid-cols-[170px_1fr] -mx-2 items-baseline gap-3 rounded px-2 py-1 hover:bg-accent/40">
       <dt className="flex items-center gap-1.5 text-base text-muted-foreground min-w-0">
         <Icon
           size={14}
@@ -105,7 +113,7 @@ function Row({
         <span className="truncate">{label}</span>
       </dt>
       <dd className="min-w-0 text-base text-foreground break-words [&_.text-muted-foreground]:text-foreground">
-        {children}
+        {value}
       </dd>
     </div>
   );

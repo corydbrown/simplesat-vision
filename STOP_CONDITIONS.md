@@ -11,6 +11,16 @@ When a worker hits any of these, the worker should:
 
 Workers re-confirm they're on track every time they ship a milestone — these are the moments that warrant a pause, not "I'll just figure it out."
 
+## Default: proceed autonomously — never wait for a human "continue"
+
+**The brief is your authorization.** Unless one of the stop conditions below fires, do not end a turn waiting for Cory or the supervisor to say "go", "continue", "ship it", or "looks good". Those words are not gates. When the task is done:
+
+1. Run your pre-flight gates (tsc / lint / dev-boot) **inline, in the same working session** — then commit, push, and open the PR via `/wrap`. That is the finish line, and you reach it on your own.
+2. **A slow pre-flight is not a reason to park.** If `tsc --noEmit` is slow, run it and wait on it within the turn (or background it and finish when it returns) — do **not** schedule wakeups to idle until a human checks in. The supervisor's sweep loop will find your PR; you don't need anyone to tell you to ship it.
+3. **Don't ask "should I proceed?"** If you're tempted to stop and confirm but none of the conditions below apply, the answer is yes — proceed. Surface judgment calls *in the PR body* ("Things worth pushing on"), not by halting.
+
+This is the whole point of auto mode: the stop conditions are the *only* reasons to pause. Everything else is yours to carry to a PR.
+
 ## Hard stops — never proceed without an explicit yes
 
 - **Schema changes** outside the briefed scope. Migrations are blast-radius decisions, not implementation details.

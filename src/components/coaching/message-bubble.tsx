@@ -159,7 +159,7 @@ export function MessageBubble({
                 onClickBubble();
               }}
               className={cn(
-                "group relative inline-block max-w-full cursor-pointer rounded-2xl border px-4 py-3 pr-9 text-left text-base transition-all duration-200 ease-out",
+                "group relative inline-block max-w-full cursor-pointer rounded-2xl border px-4 py-3 pr-9 text-left text-base [overflow-wrap:anywhere] transition-all duration-200 ease-out",
                 isAgent &&
                   "rounded-tr-sm border-primary/20 bg-primary/10 text-foreground",
                 isCustomer &&

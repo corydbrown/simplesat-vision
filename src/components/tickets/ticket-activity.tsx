@@ -261,19 +261,21 @@ function Bubble({
   highlighted: boolean;
 }) {
   const showTail = position === "first" || position === "solo";
-  const baseShape = "rounded-2xl px-4 py-2.5";
+  // Match the coaching/QA bubble: always-bordered shell, small asymmetric
+  // tail corner on the group's leading bubble (Intercom convention).
+  const baseShape = "rounded-2xl border px-4 py-3";
   const tailShape =
     showTail && side === "left"
-      ? " rounded-tl-md"
+      ? " rounded-tl-sm"
       : showTail && side === "right"
-        ? " rounded-tr-md"
+        ? " rounded-tr-sm"
         : "";
   const toneClass =
     tone === "customer"
-      ? "bg-muted text-foreground"
+      ? "border-border bg-card text-foreground"
       : tone === "agent"
-        ? "bg-primary/10 border border-primary/20 text-foreground"
-        : "bg-yellow-lighter border border-dashed border-yellow-light text-foreground";
+        ? "border-primary/20 bg-primary/10 text-foreground"
+        : "border-dashed border-yellow-light bg-yellow-lighter text-foreground";
   // QA highlight ring — toggled by the supporting-message chip in the QA
   // section below. Transition is fade-in fast, fade-out slow so the user
   // catches the pulse even if they're already looking at the right message.
@@ -289,7 +291,7 @@ function Bubble({
       <div
         className={`${baseShape}${tailShape} ${toneClass}${highlightClass} transition-shadow duration-300`}
       >
-        <p className="whitespace-pre-wrap text-lg leading-relaxed">
+        <p className="whitespace-pre-wrap [overflow-wrap:anywhere] text-base leading-relaxed">
           {message.body}
         </p>
       </div>

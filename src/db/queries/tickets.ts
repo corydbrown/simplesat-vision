@@ -27,6 +27,7 @@ import type {
   ScorecardScaleType,
   Ticket,
   TicketMessageAuthorRole,
+  TicketMessageAuthorSubtype,
   TicketMessageChannel,
   TicketMessageType,
   TicketEventVerb,
@@ -250,6 +251,9 @@ export async function listTickets({
 export type TicketMessageView = {
   id: string;
   authorRole: TicketMessageAuthorRole;
+  /** Human-vs-bot for agent-role turns; null on customer/system/legacy rows.
+   *  Drives the distinct Bot chip in the activity timeline (SVP-199). */
+  authorSubtype: TicketMessageAuthorSubtype | null;
   channel: TicketMessageChannel;
   isPublic: boolean;
   type: TicketMessageType;
@@ -525,6 +529,7 @@ export async function getTicketById(id: string): Promise<TicketDetail | null> {
   const messages: TicketMessageView[] = messageRows.map((m) => ({
     id: m.message.id,
     authorRole: m.message.authorRole,
+    authorSubtype: m.message.authorSubtype,
     channel: m.message.channel,
     isPublic: m.message.isPublic,
     type: m.message.type,

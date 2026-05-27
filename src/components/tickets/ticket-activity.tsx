@@ -241,6 +241,14 @@ function metaForGroup(g: Group): {
   };
 }
 
+// Imported message bodies (esp. email signatures from Intercom) carry long
+// runs of blank lines that leave big vertical gaps in the bubble. Collapse
+// 3+ consecutive newlines to a single blank line and trim the edges — purely
+// at render. The stored body stays intact in the DB.
+function collapseBlankLines(body: string): string {
+  return body.replace(/\n{3,}/g, "\n\n").trim();
+}
+
 // ---------------------------------------------------------------------------
 // Bubble — presentational. The asymmetric "tail" corner sits at the top
 // near the avatar (Intercom convention), and only on the first bubble of
@@ -292,7 +300,7 @@ function Bubble({
         className={`${baseShape}${tailShape} ${toneClass}${highlightClass} transition-shadow duration-300`}
       >
         <p className="whitespace-pre-wrap [overflow-wrap:anywhere] text-base leading-relaxed">
-          {message.body}
+          {collapseBlankLines(message.body)}
         </p>
       </div>
       {/* Follow-up hover timestamp — surfaces per-message time without

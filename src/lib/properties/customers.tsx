@@ -22,7 +22,7 @@ import type { CustomerListRow } from "@/db/queries/customers";
 import { CUSTOMER_FILTER_SPECS } from "@/lib/filters/specs/customers";
 import { formatDate, formatNumber } from "@/lib/format";
 import { TimestampTooltip } from "@/components/shared/timestamp-tooltip";
-import { CUSTOMER_CUSTOM_FIELDS } from "./custom-fields";
+import { CUSTOMER_CUSTOM_FIELDS, type CustomFieldDef } from "./custom-fields";
 import { customFieldProperties } from "./custom-field-properties";
 import type { Property } from "./types";
 
@@ -216,7 +216,34 @@ const CORE_PROPERTIES: Property<CustomerListRow>[] = [
   },
 ];
 
-export const CUSTOMER_PROPERTIES: Property<CustomerListRow>[] = [
-  ...CORE_PROPERTIES,
-  ...customFieldProperties<CustomerListRow>(CUSTOMER_CUSTOM_FIELDS, "Customer"),
-];
+export const CUSTOMER_CORE_PROPERTIES = CORE_PROPERTIES;
+
+/**
+ * Build the full customer property list for a workspace: core properties +
+ * the workspace's custom-field defs (Bloom's curated set, or data-derived for
+ * other workspaces — see `custom-fields-provider.ts`).
+ *
+ * `showTier` gates the loyalty-tier column: tier is a Simplesat-native concept
+ * that only renders for Bloom Beauty (per the Intercom/Zendesk mapping doc
+ * Decision #10). Hidden here, it also drops from the filter row and group menu,
+ * since both derive their options from this same property array.
+ */
+export function buildCustomerProperties(
+  customFields: CustomFieldDef[],
+  opts: { showTier?: boolean } = {},
+): Property<CustomerListRow>[] {
+  const showTier = opts.showTier ?? true;
+  const core = showTier
+    ? CORE_PROPERTIES
+    : CORE_PROPERTIES.filter((p) => p.id !== "tier");
+  return [
+    ...core,
+    ...customFieldProperties<CustomerListRow>(customFields, "Customer"),
+  ];
+}
+
+/** Static Bloom-shaped property list (tier included). Retained as a fallback /
+ *  for non-workspace-scoped consumers; live list + detail surfaces use
+ *  `useCustomerProperties()` so the set follows the active workspace. */
+export const CUSTOMER_PROPERTIES: Property<CustomerListRow>[] =
+  buildCustomerProperties(CUSTOMER_CUSTOM_FIELDS);

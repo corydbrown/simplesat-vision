@@ -38,6 +38,10 @@ export type CustomFieldDataType =
   | "boolean"
   | "enum";
 
+/** Serializable custom-field descriptor. Carries only plain data so it can
+ *  cross the RSC → Client boundary (a server component derives these per
+ *  workspace; client components build `Property` objects from them). Render
+ *  closures and the seed-time `sample` fn live elsewhere. */
 export type CustomFieldDef = {
   id: string;
   label: string;
@@ -45,6 +49,13 @@ export type CustomFieldDef = {
   importance: 1 | 2 | 3 | 4 | 5;
   defaultVisible: boolean;
   enumValues?: readonly string[];
+};
+
+/** A `CustomFieldDef` plus the seed-time value generator. Only the hardcoded
+ *  Bloom arrays below are this shape — `sample` is a function and therefore
+ *  NOT serializable, so it must be stripped before defs reach a client
+ *  component (see `custom-fields-provider.ts`). */
+export type SeedCustomFieldDef = CustomFieldDef & {
   /** Returns a single realistic mock value. Called per customer/team member
    *  during seed; not all customers carry every field (sparseness handled
    *  by the seed loop, not by `sample` itself). */
@@ -215,7 +226,7 @@ const FAVORITE_BRANDS = [
 // Customer custom-attribute definitions (~55 entries, ~25-50 per customer).
 // ---------------------------------------------------------------------------
 
-export const CUSTOMER_CUSTOM_FIELDS: CustomFieldDef[] = [
+export const CUSTOMER_CUSTOM_FIELDS: SeedCustomFieldDef[] = [
   // ---------------------------------------------------------------------- Profile
   {
     id: "gender",
@@ -878,7 +889,7 @@ const CERTIFICATIONS = [
   "Loyalty Program Trainer",
 ];
 
-export const TEAM_MEMBER_CUSTOM_FIELDS: CustomFieldDef[] = [
+export const TEAM_MEMBER_CUSTOM_FIELDS: SeedCustomFieldDef[] = [
   // ---------------------------------------------------------------------- Profile
   {
     id: "pronouns",
@@ -1084,7 +1095,7 @@ export const TEAM_MEMBER_CUSTOM_FIELDS: CustomFieldDef[] = [
   },
 ];
 
-export const CUSTOMER_CUSTOM_FIELDS_BY_ID: Record<string, CustomFieldDef> =
+export const CUSTOMER_CUSTOM_FIELDS_BY_ID: Record<string, SeedCustomFieldDef> =
   Object.fromEntries(CUSTOMER_CUSTOM_FIELDS.map((f) => [f.id, f]));
-export const TEAM_MEMBER_CUSTOM_FIELDS_BY_ID: Record<string, CustomFieldDef> =
+export const TEAM_MEMBER_CUSTOM_FIELDS_BY_ID: Record<string, SeedCustomFieldDef> =
   Object.fromEntries(TEAM_MEMBER_CUSTOM_FIELDS.map((f) => [f.id, f]));

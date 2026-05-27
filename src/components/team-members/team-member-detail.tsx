@@ -5,7 +5,7 @@ import { useEffect } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Avatar } from "@/components/shared/avatar";
 import { ColumnStateProvider } from "@/lib/column-prefs";
-import { TEAM_MEMBER_PROPERTIES } from "@/lib/properties/team-members";
+import { useTeamMemberProperties } from "@/lib/properties/custom-fields-context";
 import { TICKET_PROPERTIES } from "@/lib/properties/tickets";
 import { RESPONSE_PROPERTIES } from "@/lib/properties/responses";
 import { PropertiesPanel } from "@/components/shared/properties-panel";
@@ -97,6 +97,7 @@ export function TeamMemberDetailBody({
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const TEAM_MEMBER_PROPERTIES = useTeamMemberProperties();
   const paramName = inDrawer ? "dt" : "tab";
   const rawTab = searchParams.get(paramName);
   const tab: "tickets" | "responses" =

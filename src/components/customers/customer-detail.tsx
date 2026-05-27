@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { ColumnStateProvider } from "@/lib/column-prefs";
-import { CUSTOMER_PROPERTIES } from "@/lib/properties/customers";
+import { useCustomerProperties } from "@/lib/properties/custom-fields-context";
 import { TICKET_PROPERTIES } from "@/lib/properties/tickets";
 import { RESPONSE_PROPERTIES } from "@/lib/properties/responses";
 import { decodeGroup } from "@/lib/group/url-state";
@@ -43,6 +43,7 @@ export function CustomerDetailBody({
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const CUSTOMER_PROPERTIES = useCustomerProperties();
   const paramName = inDrawer ? "dt" : "tab";
   const rawTab = searchParams.get(paramName);
   const tab: "tickets" | "responses" =

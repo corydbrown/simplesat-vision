@@ -31,6 +31,23 @@ import {
 
 type ViewsByEntity = Record<EntityKey, SavedView[]>;
 
+/** Tier-based customer views (Insider / Gold / Elite) only make sense for
+ *  Bloom Beauty. For every other workspace, drop any seeded view that filters
+ *  on `tier` so the sidebar doesn't offer (or persist) views the workspace
+ *  can't populate. Tier-independent seeds (B2B accounts, At risk) stay. */
+function customerSeedViews(showTier: boolean): SavedView[] {
+  if (showTier) return SEED_VIEWS.customers;
+  return SEED_VIEWS.customers.filter(
+    (v) => !(v.state.filters ?? []).some((f) => f.propertyId === "tier"),
+  );
+}
+
+function seedViews(entity: EntityKey, showTier: boolean): SavedView[] {
+  return entity === "customers"
+    ? customerSeedViews(showTier)
+    : SEED_VIEWS[entity];
+}
+
 type ViewsContextValue = {
   /** Snapshot of editable (i.e. non-"All") views per entity. */
   views: ViewsByEntity;
@@ -50,18 +67,28 @@ type ViewsContextValue = {
 
 const ViewsContext = createContext<ViewsContextValue | null>(null);
 
-function emptyByEntity(): ViewsByEntity {
+function emptyByEntity(showTier: boolean): ViewsByEntity {
   return {
     tickets: SEED_VIEWS.tickets,
-    customers: SEED_VIEWS.customers,
+    customers: customerSeedViews(showTier),
     responses: SEED_VIEWS.responses,
     "team-members": SEED_VIEWS["team-members"],
     coaching: SEED_VIEWS.coaching,
   };
 }
 
-export function ViewsProvider({ children }: { children: React.ReactNode }) {
-  const [views, setViews] = useState<ViewsByEntity>(() => emptyByEntity());
+export function ViewsProvider({
+  children,
+  showTier,
+}: {
+  children: React.ReactNode;
+  /** Mirrors the active workspace's tier visibility (Bloom only). Gates the
+   *  Insider / Gold / Elite seeded customer views. */
+  showTier: boolean;
+}) {
+  const [views, setViews] = useState<ViewsByEntity>(() =>
+    emptyByEntity(showTier),
+  );
   const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
@@ -87,9 +114,11 @@ export function ViewsProvider({ children }: { children: React.ReactNode }) {
       if (legacy !== null) clearLegacyLocalStorage(entity);
 
       // Fresh prototype: seed Insider / Detractors / Unassigned / etc. so a
-      // `db:reset` still leaves a populated sidebar.
-      await saveSavedViews(entity, SEED_VIEWS[entity]);
-      return SEED_VIEWS[entity];
+      // `db:reset` still leaves a populated sidebar. Tier views are dropped
+      // here for non-Bloom workspaces so they're never persisted.
+      const seed = seedViews(entity, showTier);
+      await saveSavedViews(entity, seed);
+      return seed;
     }
 
     (async () => {
@@ -102,7 +131,7 @@ export function ViewsProvider({ children }: { children: React.ReactNode }) {
           err,
         );
         if (cancelled) return;
-        setViews(emptyByEntity());
+        setViews(emptyByEntity(showTier));
         setHydrated(true);
         return;
       }
@@ -116,12 +145,12 @@ export function ViewsProvider({ children }: { children: React.ReactNode }) {
               `[ViewsProvider] failed to reconcile "${entity}", falling back to in-memory seed`,
               err,
             );
-            return [entity, SEED_VIEWS[entity]] as const;
+            return [entity, seedViews(entity, showTier)] as const;
           }
         }),
       );
       if (cancelled) return;
-      const next = emptyByEntity();
+      const next = emptyByEntity(showTier);
       for (const [entity, views] of results) next[entity] = views;
       setViews(next);
       setHydrated(true);
@@ -129,7 +158,7 @@ export function ViewsProvider({ children }: { children: React.ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [showTier]);
 
   const getView = useCallback(
     (entity: EntityKey, id: string): SavedView | null =>

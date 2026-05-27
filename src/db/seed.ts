@@ -7,7 +7,7 @@ import { prefixedId, setIdRandomSource } from "../lib/ids";
 import {
   CUSTOMER_CUSTOM_FIELDS,
   TEAM_MEMBER_CUSTOM_FIELDS,
-  type CustomFieldDef,
+  type SeedCustomFieldDef,
 } from "../lib/properties/custom-fields";
 import { rollupTopics } from "../lib/topics";
 import { DEFAULT_SCORECARD } from "../lib/qa/default-scorecard";
@@ -466,7 +466,7 @@ const SURVEY_SPECS: SurveySpec[] = [
 // ---------------------------------------------------------------------------
 
 function buildCustomProperties(
-  defs: CustomFieldDef[],
+  defs: SeedCustomFieldDef[],
   minFields: number,
   maxFields: number,
 ): Record<string, unknown> {
@@ -474,7 +474,7 @@ function buildCustomProperties(
   const target = faker.number.int({ min: minFields, max: maxFields });
   // Weighted pool: each def appears in the pool `importance` times so higher
   // importance items are likelier to be chosen
-  const pool: CustomFieldDef[] = [];
+  const pool: SeedCustomFieldDef[] = [];
   for (const def of defs) {
     for (let i = 0; i < def.importance; i++) pool.push(def);
   }

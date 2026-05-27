@@ -37,7 +37,12 @@ const CORE_PROPERTIES: Property<TeamMemberListRow>[] = [
     sortValue: (m) => m.name,
     filter: TEAM_MEMBER_FILTER_SPECS.name,
     cell: (m) => (
-      <TeamMemberPill id={m.id} name={m.name} avatarColor={m.avatarColor} />
+      <TeamMemberPill
+        id={m.id}
+        name={m.name}
+        avatarColor={m.avatarColor}
+        avatarUrl={m.avatarUrl}
+      />
     ),
   },
   {

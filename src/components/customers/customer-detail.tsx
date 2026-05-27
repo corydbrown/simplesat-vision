@@ -18,7 +18,7 @@ import { RelationTabs } from "@/components/shared/relation-tabs";
 import { OpenInTable } from "@/components/shared/open-in-table";
 import { SortControl } from "@/components/shared/sort-control";
 import { Avatar } from "@/components/shared/avatar";
-import { colorFromName, dicebearUrl, initialsFromName } from "@/lib/color-from-name";
+import { resolveAvatar } from "@/lib/avatar";
 import { recordEntityView } from "@/lib/recent-pages";
 import type {
   CustomerDetail,
@@ -76,9 +76,11 @@ export function CustomerDetailBody({
   const header = (
     <div className="flex items-center gap-3">
       <Avatar
-        bg={colorFromName(customer.name)}
-        initials={initialsFromName(customer.name)}
-        imageUrl={dicebearUrl(customer.name)}
+        {...resolveAvatar({
+          avatarUrl: customer.avatarUrl,
+          email: customer.email,
+          name: customer.name,
+        })}
         size="xl"
       />
       <div className="min-w-0">

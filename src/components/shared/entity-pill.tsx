@@ -12,7 +12,7 @@ import {
 import { Avatar } from "@/components/shared/avatar";
 import { EntityPopoverBody } from "./entity-popover";
 import { type DrawerEntity, fullPagePath } from "./global-drawer";
-import { colorFromName, dicebearUrl, initialsFromName } from "@/lib/color-from-name";
+import { resolveAvatar } from "@/lib/avatar";
 
 type CommonProps = {
   size?: "sm" | "md";
@@ -83,9 +83,13 @@ const DrawerLink = forwardRef<HTMLAnchorElement, DrawerLinkProps>(
 export function CustomerPill({
   id,
   name,
+  avatarUrl,
   size = "sm",
   className,
-}: CommonProps & { id: string; name: string }) {
+}: CommonProps & { id: string; name: string; avatarUrl?: string | null }) {
+  // No `email` passed → the cascade is [storedUrl?, dicebear(name)]; Gravatar is
+  // deliberately skipped on pills (a list of them would fire a 404 probe per
+  // row). The hover popover fetches the email lazily and does probe Gravatar.
   return (
     <HoverCard openDelay={200} closeDelay={80}>
       <HoverCardTrigger asChild>
@@ -95,9 +99,7 @@ export function CustomerPill({
           className={basePillClass(size, className)}
         >
           <Avatar
-            bg={colorFromName(name)}
-            initials={initialsFromName(name)}
-            imageUrl={dicebearUrl(name)}
+            {...resolveAvatar({ avatarUrl, name })}
             size={size === "md" ? "md" : "sm"}
           />
           <span className="truncate">{name}</span>
@@ -132,9 +134,16 @@ export function TeamMemberPill({
   id,
   name,
   avatarColor,
+  avatarUrl,
   size = "sm",
   className,
-}: CommonProps & { id: string; name: string; avatarColor?: string }) {
+}: CommonProps & {
+  id: string;
+  name: string;
+  avatarColor?: string;
+  avatarUrl?: string | null;
+}) {
+  // See CustomerPill: Gravatar is skipped on pills, resolved lazily in popover.
   return (
     <HoverCard openDelay={200} closeDelay={80}>
       <HoverCardTrigger asChild>
@@ -144,9 +153,7 @@ export function TeamMemberPill({
           className={basePillClass(size, className)}
         >
           <Avatar
-            bg={avatarColor ?? colorFromName(name)}
-            initials={initialsFromName(name)}
-            imageUrl={dicebearUrl(name)}
+            {...resolveAvatar({ avatarUrl, name, avatarColor })}
             size={size === "md" ? "md" : "sm"}
           />
           <span className="truncate">{name}</span>

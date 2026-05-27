@@ -15,6 +15,7 @@ export async function GET(
     id: customer.id,
     name: customer.name,
     email: customer.email,
+    avatarUrl: customer.avatarUrl,
     organization: customer.organization,
     tier: customer.tier,
     totalTickets: customer.stats.totalTickets,

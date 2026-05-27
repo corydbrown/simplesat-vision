@@ -20,7 +20,7 @@ import { RelationTabs } from "@/components/shared/relation-tabs";
 import { OpenInTable } from "@/components/shared/open-in-table";
 import { SortControl } from "@/components/shared/sort-control";
 import { decodeGroup } from "@/lib/group/url-state";
-import { dicebearUrl, initialsFromName } from "@/lib/color-from-name";
+import { resolveAvatar } from "@/lib/avatar";
 import { recordEntityView } from "@/lib/recent-pages";
 import { formatNumber } from "@/lib/format";
 import type {
@@ -136,9 +136,12 @@ export function TeamMemberDetailBody({
   const header = (
     <div className="flex items-center gap-3">
       <Avatar
-        bg={member.avatarColor}
-        initials={initialsFromName(member.name)}
-        imageUrl={dicebearUrl(member.name)}
+        {...resolveAvatar({
+          avatarUrl: member.avatarUrl,
+          email: member.email,
+          name: member.name,
+          avatarColor: member.avatarColor,
+        })}
         size="xl"
       />
       <div className="min-w-0">

@@ -62,6 +62,7 @@ export async function GET(
     groupId: member.groupId,
     groupName: group?.name ?? null,
     avatarColor: member.avatarColor,
+    avatarUrl: member.avatarUrl,
     customProperties: member.customProperties,
     totalTickets: member.stats.totalTickets,
     avgRating: member.stats.avgRating,

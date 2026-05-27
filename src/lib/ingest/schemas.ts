@@ -29,6 +29,10 @@ export const customerIngestSchema = z.object({
   organization: z.string().optional(),
   organizationExternalId: z.string().optional(),
   organizationDomain: z.string().optional(),
+  /** Helpdesk/CRM avatar URL (e.g. Intercom Contact `avatar.image_url`). When
+   *  present, stored with `avatarSource: 'helpdesk'`. The upsert never lets a
+   *  sync overwrite a `manual` avatar — see `upsertCustomer`. */
+  avatarUrl: z.url().optional(),
   /** Customer-level custom attributes — merged into `customProperties` as-is. */
   customProperties: jsonRecord.optional(),
   /** The resolved org's custom fields — flattened into `customProperties` with
@@ -47,6 +51,9 @@ export const teamMemberIngestSchema = z.object({
   region: z.string().optional(),
   language: z.string().optional(),
   avatarColor: z.string().optional(),
+  /** Helpdesk/CRM avatar URL (e.g. Intercom Admin `avatar`). Stored with
+   *  `avatarSource: 'helpdesk'`; a `manual` avatar is never overwritten. */
+  avatarUrl: z.url().optional(),
   customProperties: jsonRecord.optional(),
 });
 

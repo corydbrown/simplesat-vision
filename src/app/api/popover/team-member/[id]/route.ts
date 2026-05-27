@@ -18,6 +18,7 @@ export async function GET(
     role: member.role,
     team: member.team,
     avatarColor: member.avatarColor,
+    avatarUrl: member.avatarUrl,
     totalTickets: member.stats.totalTickets,
     totalResponses: member.stats.totalResponses,
     avgRating: member.stats.avgRating,

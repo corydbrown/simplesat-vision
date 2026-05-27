@@ -31,6 +31,7 @@ export default async function CustomerDetailPage(
     organizationDomain: customer.organizationDomain,
     language: customer.language,
     tier: customer.tier,
+    avatarUrl: customer.avatarUrl,
     customProperties: customer.customProperties,
     totalTickets: customer.stats.totalTickets,
     avgRating: customer.stats.avgRating,

@@ -183,6 +183,13 @@
       "when": 1779964446744,
       "tag": "0025_svp227_workos_org_id",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "6",
+      "when": 1779972965947,
+      "tag": "0026_svp228_scorecard_foundation",
+      "breakpoints": true
     }
   ]
 }

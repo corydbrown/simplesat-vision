@@ -110,13 +110,16 @@ function buildSystemPrompt(input: ScoringInput): string {
   const categoryBlock = scorecard.categories
     .map((cat) => {
       const criteria = cat.criteria
-        .map((c, idx) => `    ${idx + 1}. ${c.text}`)
+        .map((c, idx) => {
+          const weightSuffix =
+            c.weightPercent > 0 ? ` [weight: ${c.weightPercent}%]` : "";
+          return `    ${idx + 1}. ${c.text}${weightSuffix}`;
+        })
         .join("\n");
       return [
         `- ${cat.name} (id: ${cat.id})`,
         `  Description: ${cat.description}`,
         `  Scale: ${describeScale(cat.scaleType)}`,
-        `  Weight: ${cat.weightPercent}%`,
         cat.isAutofail
           ? "  Auto-fail: failing this category floors the overall score."
           : null,
@@ -128,10 +131,36 @@ function buildSystemPrompt(input: ScoringInput): string {
     })
     .join("\n\n");
 
+  // SVP-228: scorecard-level LLM context. These fields are how the manager
+  // tunes the AI's scoring posture for this rubric — read in this exact order
+  // so the most general framing (philosophy, bands) lands before the
+  // domain-specific overrides (industry, tone).
+  const contextSections: string[] = [];
+  if (scorecard.scoringPhilosophy) {
+    contextSections.push(
+      `Scoring philosophy:\n${scorecard.scoringPhilosophy}`,
+    );
+  }
+  if (scorecard.bandDescriptors && scorecard.bandDescriptors.length === 5) {
+    const bands = scorecard.bandDescriptors
+      .map((d, i) => `  ${i + 1}: ${d}`)
+      .join("\n");
+    contextSections.push(`Likert-band descriptors:\n${bands}`);
+  }
+  if (scorecard.domainContext) {
+    contextSections.push(`Domain context:\n${scorecard.domainContext}`);
+  }
+  if (scorecard.toneExpectations) {
+    contextSections.push(`Tone expectations:\n${scorecard.toneExpectations}`);
+  }
+  const contextBlock = contextSections.length
+    ? `\n${contextSections.join("\n\n")}\n`
+    : "";
+
   return [
     "You are a QA reviewer evaluating a customer-support conversation against a rubric.",
     "You must call the record_evaluation tool exactly once with your evaluation.",
-    "",
+    contextBlock,
     `Scorecard: ${scorecard.name} (v${scorecard.version})`,
     "Categories:",
     "",
@@ -318,6 +347,10 @@ function computeOverall(params: {
   autoFailTriggered: boolean;
 }): number {
   if (params.autoFailTriggered) return params.scorecard.autoFailFloor;
+  // SVP-228: weight summation is criterion-level. AI scores arrive per
+  // category; every criterion inside a category inherits its projected score
+  // and contributes its own weight. Mirrors `mock-provider.computeOverallScore`
+  // — see that function for the rationale.
   let weighted = 0;
   let weightSum = 0;
   for (const category of params.scorecard.categories) {
@@ -332,8 +365,10 @@ function computeOverall(params: {
         : category.scaleType === "three_state"
           ? (result.aiScore / 2) * 100
           : result.aiScore * 100;
-    weighted += projected * category.weightPercent;
-    weightSum += category.weightPercent;
+    for (const criterion of category.criteria) {
+      weighted += projected * criterion.weightPercent;
+      weightSum += criterion.weightPercent;
+    }
   }
   if (weightSum === 0) return 0;
   return Math.round(weighted / weightSum);

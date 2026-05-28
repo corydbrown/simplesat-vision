@@ -167,6 +167,13 @@ function computeOverallScore(params: {
   autoFailTriggered: boolean;
 }): number {
   if (params.autoFailTriggered) return params.scorecard.autoFailFloor;
+  // SVP-228: weight summation is criterion-level. AI scores still arrive
+  // per-category (likert), so every criterion inside a category inherits the
+  // same projected score and contributes its own weight. For the legacy IQS
+  // rubric (1 weighted criterion per non-autofail category, criterion weight
+  // = category weight after backfill) this is byte-equivalent to the old
+  // category-level formula. Once Aprikot lands (SVP-230) with multiple
+  // weighted criteria per category, this expression naturally generalises.
   let weighted = 0;
   let weightSum = 0;
   for (const category of params.scorecard.categories) {
@@ -177,8 +184,10 @@ function computeOverallScore(params: {
     if (!result) continue;
     // For likert_5: project 1-5 onto 0-100 (1 → 0, 5 → 100).
     const projected = ((result.aiScore - 1) / 4) * 100;
-    weighted += projected * category.weightPercent;
-    weightSum += category.weightPercent;
+    for (const criterion of category.criteria) {
+      weighted += projected * criterion.weightPercent;
+      weightSum += criterion.weightPercent;
+    }
   }
   if (weightSum === 0) return 0;
   return Math.round(weighted / weightSum);

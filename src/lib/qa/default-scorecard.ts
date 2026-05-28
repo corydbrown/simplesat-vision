@@ -1,15 +1,23 @@
 /**
- * The default QA scorecard, defined in code per CLAUDE.md → Don't do
- * ("Don't add a `property_definitions` DB table for custom attributes" — same
- * principle: keep tunable demo content in code). Hand-tunable for narrative,
- * hydrated into the `scorecards` + `scorecard_categories` + `scorecard_criteria`
- * tables at seed time.
+ * IQS (Internal Quality Score) — the foundation scorecard, defined in code per
+ * CLAUDE.md → Don't do ("Don't add a `property_definitions` DB table for custom
+ * attributes" — same principle: keep tunable demo content in code).
+ * Hand-tunable for narrative, hydrated into the `scorecards` +
+ * `scorecard_categories` + `scorecard_criteria` tables at seed time.
  *
- * Five categories per PRD Part 7. Weights for the four scored categories
- * sum to 100; Compliance & Safety carries weight 0 and forces overall to a
- * floor when any auto-fail criterion fails. Per PRD D-9, the framework is in
- * place but the auto-fail items are disabled by default in production — for
- * the demo we surface them so the seam is visible end-to-end.
+ * Five categories per PRD Part 7. Authoritative weight lives at the criterion
+ * level (SVP-228); non-autofail criterion weights sum to 100. Compliance &
+ * Safety criteria are binary autofails at weight 0 and force overall to the
+ * floor when any of them fail. Categories are pure grouping going forward —
+ * their `weightPercent` is still copied here for one release so existing read
+ * sites (overall-score recompute, coaching queries, ticket pivot rollups)
+ * don't break mid-flight; the column is dropped in a follow-up after SVP-229
+ * swaps everything onto the derived `SUM(criterion.weightPercent)`.
+ *
+ * The four LLM-context fields (`scoringPhilosophy`, `bandDescriptors`,
+ * `domainContext`, `toneExpectations`) describe how the rubric should be
+ * applied. The mock provider never reads them; the live LLM provider weaves
+ * them into its scoring prompt so evaluations match the team's calibration.
  *
  * Anchor text is lifted directly from PRD Part 7 — keep edits here in sync
  * with the source doc when the PRD updates.
@@ -22,11 +30,17 @@ export type DefaultScorecardCriterion = {
   anchor5: string;
   anchor3: string;
   anchor1: string;
+  /** Criterion-level weight (0-100). Sum of non-autofail criterion weights
+   *  across the whole scorecard must equal 100. Autofail criteria are
+   *  weight 0 — they contribute via the floor mechanism, not the average. */
+  weightPercent: number;
 };
 
 export type DefaultScorecardCategory = {
   name: string;
   description: string;
+  /** Transitional / derived: equals `SUM(criteria.weightPercent)`. Kept until
+   *  SVP-229 swaps category-weight reads onto the derived expression. */
   weightPercent: number;
   scaleType: ScorecardScaleType;
   isAutofail: boolean;
@@ -35,21 +49,44 @@ export type DefaultScorecardCategory = {
 
 export type DefaultScorecard = {
   name: string;
-  isDefault: true;
   enabled: true;
   version: number;
   /** Auto-fail floor: when any binary auto-fail criterion fails, the
    *  evaluation's overall score is clamped to this value. PRD default: 30. */
   autoFailFloor: number;
+  /** Manager's framing of how the rubric should be applied. Markdown.
+   *  LLM-only: consumed when the live provider assembles its scoring prompt. */
+  scoringPhilosophy: string;
+  /** Per-likert-level descriptors in ascending order (index 0 = score 1,
+   *  index 4 = score 5). LLM-only. */
+  bandDescriptors: [string, string, string, string, string];
+  /** Industry / company / product context the LLM should hold while scoring.
+   *  Markdown. LLM-only. */
+  domainContext: string;
+  /** Voice / tone expectations the LLM should weigh when judging
+   *  communication. Markdown. LLM-only. */
+  toneExpectations: string;
   categories: DefaultScorecardCategory[];
 };
 
 export const DEFAULT_SCORECARD: DefaultScorecard = {
-  name: "Default scorecard",
-  isDefault: true,
+  name: "IQS (Internal Quality Score)",
   enabled: true,
   version: 1,
   autoFailFloor: 30,
+  scoringPhilosophy:
+    "Score the conversation as a coach reviewing a teammate's work, not as a checklist. Reward agents who solve the customer's actual problem with care, even when the script wasn't followed perfectly. Penalise tickets where the customer had to do the work — repeating themselves, chasing for a follow-up, or interpreting a templated reply. Default to the band that best describes the overall handling rather than averaging across moments; one strong recovery can lift a rough opening, and one cold close can sink an otherwise solid thread.",
+  bandDescriptors: [
+    "Critical failure — would escalate or produce a customer complaint.",
+    "Significant problems — clear gaps in expected practice that a manager would coach on directly.",
+    "Adequate but mixed — meets the minimum bar, missed opportunities to make the customer feel taken care of.",
+    "Solid — meets the standard we expect from every team member on every ticket.",
+    "Exceptional — best-in-class handling, the kind of conversation we'd use for calibration.",
+  ],
+  domainContext:
+    "Customer-support tickets from a mid-market B2C retailer. Most issues are orders, returns, loyalty-program questions, and product fit. The customer base is mostly individuals (with a small wholesale tail), so empathy and personalisation land harder than process correctness. Agents have access to order history, prior tickets, and the loyalty record; assume they should reference that context when relevant.",
+  toneExpectations:
+    "Friendly and human, professional but never stiff. Match the customer's energy: warm and chatty when they're casual, calm and reassuring when they're frustrated, crisp and efficient when they want a quick answer. Avoid corporate hedging (\"unfortunately at this time\"), templated apologies, and unsolicited upsell. First-person plural (\"we\") is fine for policy, but use the agent's own name and \"I\" when taking ownership of an action.",
   categories: [
     {
       name: "Customer Connection",
@@ -67,6 +104,7 @@ export const DEFAULT_SCORECARD: DefaultScorecard = {
             "Agent addressed the issue politely but did not explicitly acknowledge customer's situation or emotional state. Felt transactional but not cold.",
           anchor1:
             "Agent ignored or dismissed the customer's emotional state, used generic templated language, or made the customer feel like a number.",
+          weightPercent: 35,
         },
       ],
     },
@@ -86,6 +124,7 @@ export const DEFAULT_SCORECARD: DefaultScorecard = {
             "Issue addressed but some loose ends. Customer may or may not need to come back.",
           anchor1:
             "Wrong answer, partial answer, or customer would clearly need to follow up.",
+          weightPercent: 30,
         },
       ],
     },
@@ -104,6 +143,7 @@ export const DEFAULT_SCORECARD: DefaultScorecard = {
             "Understandable but rough edges — minor errors, awkward phrasing, or inconsistent voice.",
           anchor1:
             "Hard to understand, significant errors, off-brand, or confusing structure.",
+          weightPercent: 15,
         },
       ],
     },
@@ -123,6 +163,7 @@ export const DEFAULT_SCORECARD: DefaultScorecard = {
             "Ticket resolved but with some process friction — unnecessary transfer, missing tag, or incomplete handoff.",
           anchor1:
             "Ticket bounced between agents, ownership unclear, process violations, or messy closing.",
+          weightPercent: 20,
         },
       ],
     },
@@ -139,32 +180,52 @@ export const DEFAULT_SCORECARD: DefaultScorecard = {
           anchor5: "",
           anchor3: "",
           anchor1: "",
+          weightPercent: 0,
         },
         {
           text: "Did not abandon the customer without resolution and no follow-up scheduled.",
           anchor5: "",
           anchor3: "",
           anchor1: "",
+          weightPercent: 0,
         },
         {
           text: "Did not disclose information that should not be disclosed (account access without verification, etc.).",
           anchor5: "",
           anchor3: "",
           anchor1: "",
+          weightPercent: 0,
         },
         {
           text: "Used language acceptable in a customer-facing context.",
           anchor5: "",
           anchor3: "",
           anchor1: "",
+          weightPercent: 0,
         },
         {
           text: "Did not promise something the company cannot deliver.",
           anchor5: "",
           anchor3: "",
           anchor1: "",
+          weightPercent: 0,
         },
       ],
     },
   ],
 };
+
+// Dev-time invariant: criterion weights for non-autofail criteria sum to 100.
+// Throws at module load if the rubric drifts out of shape — catches typos
+// before they reach seed / runtime.
+(() => {
+  const sum = DEFAULT_SCORECARD.categories
+    .filter((c) => !c.isAutofail)
+    .flatMap((c) => c.criteria)
+    .reduce((acc, cr) => acc + cr.weightPercent, 0);
+  if (sum !== 100) {
+    throw new Error(
+      `DEFAULT_SCORECARD criterion weights for non-autofail criteria must sum to 100 (got ${sum}).`,
+    );
+  }
+})();

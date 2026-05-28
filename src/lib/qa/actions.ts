@@ -126,10 +126,16 @@ export async function editCategoryScore(
 
     // Read back all categories for this evaluation so the overall recomputes
     // against the freshly-written effective_score (the row we just updated
-    // plus every other category's existing effective_score).
+    // plus every other category's existing effective_score). Per SVP-228 the
+    // weight summation reads criterion-level weights — sum them per category
+    // here in SQL so the recompute formula matches the providers.
     const rows = await tx
       .select({
-        weightPercent: schema.scorecardCategories.weightPercent,
+        weightPercent: sql<number>`COALESCE((
+          SELECT SUM("scorecard_criteria"."weight_percent")
+          FROM "scorecard_criteria"
+          WHERE "scorecard_criteria"."category_id" = "scorecard_categories"."id"
+        ), 0)`,
         scaleType: schema.scorecardCategories.scaleType,
         isAutofail: schema.scorecardCategories.isAutofail,
         effectiveScore: schema.evaluationCategoryScores.effectiveScore,
@@ -296,7 +302,12 @@ function isScoreValidForScale(scale: string, score: number): boolean {
 /** Mirrors `mock-provider.computeOverallScore` but reads effective scores
  *  (post-human-edit) instead of AI scores. Kept inline to avoid pulling the
  *  provider into the action's import graph — the formula is small enough to
- *  copy and the two paths intentionally evolve independently. */
+ *  copy and the two paths intentionally evolve independently.
+ *
+ *  SVP-228: `weightPercent` is the *sum of criterion weights* in this
+ *  category (computed in the calling SELECT), not the legacy category column.
+ *  Mathematically equivalent for the seeded IQS rubric and correct for
+ *  future scorecards with multiple weighted criteria per category. */
 function recomputeOverall(
   categories: {
     weightPercent: number;

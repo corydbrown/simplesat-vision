@@ -964,14 +964,34 @@ export const responses = sqliteTable(
   ],
 );
 
-/** A configurable QA scorecard. Phase 1 ships a single default scorecard
- *  hydrated from src/lib/qa/default-scorecard.ts at seed; Phase 2 will allow
- *  multiple scorecards per workspace. No `account_id` yet — the seam is left
- *  clean for multi-tenant later (see CLAUDE.md → Trajectory). `version`
- *  bumps when a manager edits the rubric; each bump writes an immutable
- *  `scorecard_versions` snapshot, and evaluations FK into that snapshot via
- *  `evaluations.scorecard_version_id`. The integer on this row mirrors the
- *  *current* (latest) version for convenience. */
+/** A configurable QA scorecard. Phase 1 ships a single seeded scorecard
+ *  (IQS — Internal Quality Score) hydrated from src/lib/qa/default-scorecard.ts
+ *  at seed time; Phase 2 (SVP-229) introduces multi-scorecard management.
+ *
+ *  There is no "default" / "fallback" flag here. Which scorecard auto-applies
+ *  to a new ticket is decided by a workspace-level auto-scoring rules engine
+ *  landing in a future task (SVP-232) — not a column on this row. The seeded
+ *  IQS scorecard is just *a* scorecard; future workspaces will provision
+ *  a corresponding "score all tickets with IQS, 100%, cap 500/day" rule.
+ *
+ *  `version` bumps when a manager edits the rubric; each bump writes an
+ *  immutable `scorecard_versions` snapshot, and evaluations FK into that
+ *  snapshot via `evaluations.scorecard_version_id`. The integer on this row
+ *  mirrors the *current* (latest) version for convenience.
+ *
+ *  `archivedAt` hides a scorecard from picker UIs once it's no longer in use,
+ *  while keeping its versions readable so historical evaluations still render.
+ *  Hard delete is forbidden once any evaluation FKs in.
+ *
+ *  The four LLM-context columns (`scoringPhilosophy`, `bandDescriptors`,
+ *  `domainContext`, `toneExpectations`) are consumed only by the live-LLM
+ *  scoring provider — never by the mock provider, never directly by UI scoring
+ *  logic. They describe the manager's framing of what each rubric level means
+ *  so the LLM produces evaluations that match the team's calibration. Stored
+ *  on the scorecard row (not a child table) because they're scorecard-level
+ *  framing, not per-category, and there are only four of them.
+ *  `bandDescriptors` is a JSON array of exactly 5 strings, one per likert
+ *  level 1–5, in ascending order. */
 export const scorecards = sqliteTable(
   "scorecards",
   {
@@ -980,11 +1000,29 @@ export const scorecards = sqliteTable(
       .notNull()
       .references(() => workspaces.id),
     name: text("name").notNull(),
-    isDefault: integer("is_default", { mode: "boolean" })
-      .notNull()
-      .default(false),
     enabled: integer("enabled", { mode: "boolean" }).notNull().default(true),
     version: integer("version").notNull().default(1),
+    /** Soft-delete timestamp. NULL = live, non-NULL = archived (hidden from
+     *  picker UIs; evaluations remain renderable). Hard delete is forbidden
+     *  once any evaluation FKs in. */
+    archivedAt: integer("archived_at", { mode: "timestamp_ms" }),
+    /** Manager's framing of how this rubric should be applied — what counts as
+     *  excellence, what tradeoffs to favor. LLM-only: consumed when the live
+     *  provider assembles its scoring prompt. Markdown text. */
+    scoringPhilosophy: text("scoring_philosophy"),
+    /** Per-likert-level descriptors (1 → 5, in ascending order). JSON array
+     *  of exactly 5 strings. LLM-only: tells the model what each band means
+     *  for this team. */
+    bandDescriptors: text("band_descriptors", { mode: "json" }).$type<
+      string[] | null
+    >(),
+    /** Industry / company / product context the LLM should hold while scoring
+     *  (e.g. "managed IT services firm; tickets often technical"). Markdown.
+     *  LLM-only. */
+    domainContext: text("domain_context"),
+    /** Voice / tone expectations the LLM should weigh when judging
+     *  communication (formality, warmth, brand voice). Markdown. LLM-only. */
+    toneExpectations: text("tone_expectations"),
     createdAt: integer("created_at", { mode: "timestamp_ms" })
       .notNull()
       .default(sql`(unixepoch() * 1000)`),
@@ -994,17 +1032,23 @@ export const scorecards = sqliteTable(
   },
   (t) => [
     index("scorecards_workspace_id_idx").on(t.workspaceId),
-    index("scorecards_is_default_idx").on(t.isDefault),
     index("scorecards_enabled_idx").on(t.enabled),
+    index("scorecards_archived_at_idx").on(t.archivedAt),
   ],
 );
 
 /** A category within a scorecard. Maps 1:1 to a PRD Part 7 rubric category
  *  (Customer Connection, Resolution Quality, Communication, Process &
- *  Ownership, Compliance & Safety). `weight_percent` is the contribution to
- *  the overall score when `is_autofail` is false. Auto-fail categories carry
- *  weight 0 and instead force the overall score to a floor when any of their
- *  criteria fail. */
+ *  Ownership, Compliance & Safety). Auto-fail categories carry weight 0 and
+ *  instead force the overall score to a floor when any of their criteria fail.
+ *
+ *  `weight_percent` on this row is transitional / derived: as of SVP-228 the
+ *  authoritative weight lives on each `scorecard_criteria` row, and category
+ *  weight is `SUM(criterion.weight_percent) WHERE category_id = …`. This
+ *  column is kept in the schema for one release so existing read sites
+ *  (overall-score recompute, coaching queries, ticket pivot rollups) don't
+ *  break mid-flight; SVP-229 will swap them onto the derived expression and a
+ *  follow-up task drops the column. */
 export const scorecardCategories = sqliteTable(
   "scorecard_categories",
   {
@@ -1035,7 +1079,14 @@ export const scorecardCategories = sqliteTable(
 /** A criterion within a category — the lowest-grain rubric item. For likert
  *  scales `anchor_5` / `anchor_3` / `anchor_1` describe what a 5 / 3 / 1
  *  looks like; for binary auto-fail items `text` holds the rule and anchors
- *  are empty. */
+ *  are empty.
+ *
+ *  `weight_percent` is the authoritative per-criterion contribution to the
+ *  overall score (SVP-228). Non-autofail criterion weights sum to 100 per
+ *  scorecard; autofail criteria (always on binary `Compliance & Safety` style
+ *  categories) carry weight 0 and contribute via the floor mechanism instead.
+ *  Categories are pure grouping — derive their weight as
+ *  `SUM(criteria.weight_percent)`. */
 export const scorecardCriteria = sqliteTable(
   "scorecard_criteria",
   {
@@ -1047,6 +1098,7 @@ export const scorecardCriteria = sqliteTable(
     anchor5: text("anchor_5").notNull().default(""),
     anchor3: text("anchor_3").notNull().default(""),
     anchor1: text("anchor_1").notNull().default(""),
+    weightPercent: integer("weight_percent").notNull().default(0),
     order: integer("order").notNull().default(0),
   },
   (t) => [
@@ -1076,6 +1128,18 @@ export const scorecardVersions = sqliteTable(
     version: integer("version").notNull(),
     name: text("name").notNull(),
     autoFailFloor: integer("auto_fail_floor").notNull(),
+    /** Snapshot of `scorecards.scoring_philosophy` at version-mint time.
+     *  Nullable; preserved so historical evaluations can reconstruct exactly
+     *  what the LLM was told for that version. */
+    scoringPhilosophy: text("scoring_philosophy"),
+    /** Snapshot of `scorecards.band_descriptors` at version-mint time. */
+    bandDescriptors: text("band_descriptors", { mode: "json" }).$type<
+      string[] | null
+    >(),
+    /** Snapshot of `scorecards.domain_context` at version-mint time. */
+    domainContext: text("domain_context"),
+    /** Snapshot of `scorecards.tone_expectations` at version-mint time. */
+    toneExpectations: text("tone_expectations"),
     createdAt: integer("created_at", { mode: "timestamp_ms" })
       .notNull()
       .default(sql`(unixepoch() * 1000)`),
@@ -1150,6 +1214,7 @@ export const scorecardVersionCriteria = sqliteTable(
     anchor5: text("anchor_5").notNull().default(""),
     anchor3: text("anchor_3").notNull().default(""),
     anchor1: text("anchor_1").notNull().default(""),
+    weightPercent: integer("weight_percent").notNull().default(0),
     order: integer("order").notNull().default(0),
   },
   (t) => [

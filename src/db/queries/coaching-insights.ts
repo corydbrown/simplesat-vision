@@ -276,8 +276,12 @@ export type CoachingHeatmap = {
 export async function getCoachingHeatmap(): Promise<CoachingHeatmap> {
   const workspaceId = await requireWorkspace();
 
-  // Default scorecard's categories. scorecard_categories is a leaf of
-  // scorecards — scope via the parent.
+  // Heatmap categories come from the workspace's live (non-archived)
+  // scorecard. The prototype is single-scorecard per workspace today; once
+  // SVP-229 lands multi-scorecard + SVP-232 lands auto-scoring rules, this
+  // query will need to take the scorecardId as a parameter (or pivot the
+  // heatmap by rubric) — for now "the oldest live one" reliably picks the
+  // seeded IQS scorecard.
   const categories = await db.all<{
     id: string;
     name: string;
@@ -287,8 +291,14 @@ export async function getCoachingHeatmap(): Promise<CoachingHeatmap> {
     SELECT c.id, c.name, c.scorecard_id, c."order"
     FROM scorecard_categories c
     JOIN scorecards s ON s.id = c.scorecard_id
-    WHERE s.is_default = 1
-      AND s.workspace_id = ${workspaceId}
+    WHERE s.workspace_id = ${workspaceId}
+      AND s.archived_at IS NULL
+      AND s.id = (
+        SELECT id FROM scorecards
+        WHERE workspace_id = ${workspaceId} AND archived_at IS NULL
+        ORDER BY created_at ASC
+        LIMIT 1
+      )
     ORDER BY c."order" ASC
   `);
   const scorecardId = categories[0]?.scorecard_id ?? null;

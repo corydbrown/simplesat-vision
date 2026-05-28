@@ -23,16 +23,15 @@ export type InitializedDefaultScorecard = {
 };
 
 /**
- * Hydrate the default scorecard (rows + categories + criteria + v1 snapshot)
- * for one workspace. This is the single insertion path that both `seed.ts`
- * and the runtime auto-init in `scoreAndPersistTicket` go through, so seed
- * and runtime can never drift (per CLAUDE.md: seed runs through the app's
- * code paths).
+ * Hydrate the IQS scorecard (rows + categories + criteria + v1 snapshot) for
+ * one workspace. This is the single insertion path that both `seed.ts` and the
+ * runtime auto-init in `scoreAndPersistTicket` go through, so seed and runtime
+ * can never drift (per CLAUDE.md: seed runs through the app's code paths).
  *
- * Idempotency is the caller's responsibility — the schema has no
- * `UNIQUE(workspace_id, is_default)` constraint, so an internal SELECT-then-
- * INSERT would still race. Runtime callers re-query after init; seed knows
- * it runs once on a fresh DB.
+ * Idempotency is the caller's responsibility — `scorecards` has no
+ * workspace-uniqueness constraint (a workspace may host many scorecards once
+ * SVP-229 lands), so an internal SELECT-then-INSERT would still race. Runtime
+ * callers re-query after init; seed knows it runs once on a fresh DB.
  */
 export async function initDefaultScorecardForWorkspace(
   workspaceId: string,
@@ -44,9 +43,13 @@ export async function initDefaultScorecardForWorkspace(
     id: scorecardId,
     workspaceId,
     name: DEFAULT_SCORECARD.name,
-    isDefault: DEFAULT_SCORECARD.isDefault,
     enabled: DEFAULT_SCORECARD.enabled,
     version: DEFAULT_SCORECARD.version,
+    archivedAt: null,
+    scoringPhilosophy: DEFAULT_SCORECARD.scoringPhilosophy,
+    bandDescriptors: DEFAULT_SCORECARD.bandDescriptors,
+    domainContext: DEFAULT_SCORECARD.domainContext,
+    toneExpectations: DEFAULT_SCORECARD.toneExpectations,
     createdAt,
     updatedAt: createdAt,
   };
@@ -80,6 +83,7 @@ export async function initDefaultScorecardForWorkspace(
         anchor5: criterion.anchor5,
         anchor3: criterion.anchor3,
         anchor1: criterion.anchor1,
+        weightPercent: criterion.weightPercent,
         order: criterionIdx,
       });
     });

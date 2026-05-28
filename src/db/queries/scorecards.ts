@@ -8,16 +8,16 @@ export type ScorecardSummary = {
   id: string;
   name: string;
   version: number;
-  isDefault: boolean;
   enabled: boolean;
+  archivedAt: number | null;
   categoryCount: number;
   criteriaCount: number;
   updatedAt: number;
 };
 
 /** Returns all scorecards with rollup counts. Phase 1 ships exactly one
- *  (the default), but the query shape is multi-row from the start so Phase 2
- *  doesn't need to refactor. */
+ *  (IQS), but the query shape is multi-row from the start so SVP-229's
+ *  multi-scorecard UI doesn't need to refactor. */
 export async function listScorecards(): Promise<ScorecardSummary[]> {
   const workspaceId = await requireWorkspace();
   const rows = await db
@@ -25,8 +25,8 @@ export async function listScorecards(): Promise<ScorecardSummary[]> {
       id: schema.scorecards.id,
       name: schema.scorecards.name,
       version: schema.scorecards.version,
-      isDefault: schema.scorecards.isDefault,
       enabled: schema.scorecards.enabled,
+      archivedAt: schema.scorecards.archivedAt,
       updatedAt: schema.scorecards.updatedAt,
       categoryCount: sql<number>`(
         SELECT COUNT(*) FROM "scorecard_categories"
@@ -45,14 +45,10 @@ export async function listScorecards(): Promise<ScorecardSummary[]> {
 
   return rows.map((r) => ({
     ...r,
+    archivedAt:
+      r.archivedAt instanceof Date ? r.archivedAt.getTime() : r.archivedAt,
     updatedAt: r.updatedAt instanceof Date ? r.updatedAt.getTime() : r.updatedAt,
   }));
-}
-
-/** Returns the default scorecard summary, or null if no default is flagged. */
-export async function getDefaultScorecard(): Promise<ScorecardSummary | null> {
-  const all = await listScorecards();
-  return all.find((s) => s.isDefault) ?? null;
 }
 
 export type ScorecardCategoryView = {
@@ -104,6 +100,8 @@ export type ScorecardCriterionView = {
   anchor5: string;
   anchor3: string;
   anchor1: string;
+  /** Authoritative per-criterion weight (SVP-228). */
+  weightPercent: number;
   order: number;
 };
 
@@ -122,8 +120,14 @@ export type ScorecardEditorView = {
   id: string;
   name: string;
   version: number;
-  isDefault: boolean;
   enabled: boolean;
+  archivedAt: number | null;
+  /** Scorecard-level LLM-context fields (SVP-228). Read by the live LLM
+   *  provider; the SVP-229 editor UI surfaces them for the manager. */
+  scoringPhilosophy: string | null;
+  bandDescriptors: string[] | null;
+  domainContext: string | null;
+  toneExpectations: string | null;
   categories: ScorecardEditorCategory[];
 };
 
@@ -138,8 +142,12 @@ export async function getScorecardEditorView(
       id: schema.scorecards.id,
       name: schema.scorecards.name,
       version: schema.scorecards.version,
-      isDefault: schema.scorecards.isDefault,
       enabled: schema.scorecards.enabled,
+      archivedAt: schema.scorecards.archivedAt,
+      scoringPhilosophy: schema.scorecards.scoringPhilosophy,
+      bandDescriptors: schema.scorecards.bandDescriptors,
+      domainContext: schema.scorecards.domainContext,
+      toneExpectations: schema.scorecards.toneExpectations,
     })
     .from(schema.scorecards)
     .where(and(eq(schema.scorecards.id, scorecardId), eq(schema.scorecards.workspaceId, workspaceId)))
@@ -168,6 +176,7 @@ export async function getScorecardEditorView(
       anchor5: schema.scorecardCriteria.anchor5,
       anchor3: schema.scorecardCriteria.anchor3,
       anchor1: schema.scorecardCriteria.anchor1,
+      weightPercent: schema.scorecardCriteria.weightPercent,
       order: schema.scorecardCriteria.order,
     })
     .from(schema.scorecardCriteria)
@@ -187,6 +196,7 @@ export async function getScorecardEditorView(
       anchor5: c.anchor5,
       anchor3: c.anchor3,
       anchor1: c.anchor1,
+      weightPercent: c.weightPercent,
       order: c.order,
     });
     criteriaByCategoryId.set(c.categoryId, list);
@@ -194,6 +204,10 @@ export async function getScorecardEditorView(
 
   return {
     ...head,
+    archivedAt:
+      head.archivedAt instanceof Date
+        ? head.archivedAt.getTime()
+        : head.archivedAt,
     categories: categoryRows.map((cat) => ({
       ...cat,
       criteria: criteriaByCategoryId.get(cat.id) ?? [],

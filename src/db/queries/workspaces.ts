@@ -10,6 +10,7 @@ export type WorkspaceDetails = {
   name: string;
   slug: string;
   logoUrl: string | null;
+  domain: string | null;
   integrationType: WorkspaceIntegrationType;
   createdAt: number;
   createdByName: string | null;
@@ -29,6 +30,7 @@ export type WorkspaceSummary = {
   id: string;
   name: string;
   slug: string;
+  logoUrl: string | null;
   integrationType: WorkspaceIntegrationType;
 };
 
@@ -43,6 +45,7 @@ export async function getActiveWorkspaceDetails(): Promise<WorkspaceDetails | nu
       name: schema.workspaces.name,
       slug: schema.workspaces.slug,
       logoUrl: schema.workspaces.logoUrl,
+      domain: schema.workspaces.domain,
       integrationType: schema.workspaces.integrationType,
       createdAt: schema.workspaces.createdAt,
       createdBy: schema.workspaces.createdBy,
@@ -71,6 +74,7 @@ export async function getActiveWorkspaceDetails(): Promise<WorkspaceDetails | nu
     name: row.name,
     slug: row.slug,
     logoUrl: row.logoUrl,
+    domain: row.domain,
     integrationType: row.integrationType,
     createdAt: row.createdAt instanceof Date ? row.createdAt.getTime() : row.createdAt,
     createdByName,
@@ -139,6 +143,7 @@ export async function listWorkspacesForUser(
       id: schema.workspaces.id,
       name: schema.workspaces.name,
       slug: schema.workspaces.slug,
+      logoUrl: schema.workspaces.logoUrl,
       integrationType: schema.workspaces.integrationType,
     })
     .from(schema.userWorkspaces)

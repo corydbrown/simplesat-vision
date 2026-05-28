@@ -391,7 +391,7 @@ function MessageGroup({
           <Avatar
             bg={avatarColor}
             initials={initialsFromName(name)}
-            imageUrl={dicebearUrl(name)}
+            imageUrl={dicebearUrl(name, tone === "bot" ? "bottts" : "fun-emoji")}
             size="lg"
           />
         ) : null}
@@ -478,7 +478,7 @@ function MessageGroup({
           <Avatar
             bg={avatarColor}
             initials={initialsFromName(name)}
-            imageUrl={dicebearUrl(name)}
+            imageUrl={dicebearUrl(name, tone === "bot" ? "bottts" : "fun-emoji")}
             size="lg"
           />
         ) : null}

@@ -70,6 +70,7 @@ export function MessageBubble({
 
   const avatarBg =
     message.authorAvatarColor ?? colorFromName(message.authorName);
+  const isBot = isAgent && message.authorSubtype === "bot";
   const outlineStyles = outlineHue ? HUE_TOKENS[outlineHue] : null;
   const hasReactions = reactions.length > 0;
   // Reaction picker opens INTO the column — agent bubbles open LEFT, customer
@@ -98,7 +99,7 @@ export function MessageBubble({
       <Avatar
         bg={avatarBg}
         initials={initialsFromName(message.authorName)}
-        imageUrl={dicebearUrl(message.authorName)}
+        imageUrl={dicebearUrl(message.authorName, isBot ? "bottts" : "fun-emoji")}
         size="lg"
       />
 

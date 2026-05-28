@@ -1,0 +1,2 @@
+ALTER TABLE `workspaces` ADD `workos_organization_id` text;--> statement-breakpoint
+CREATE UNIQUE INDEX `workspaces_workos_org_unq` ON `workspaces` (`workos_organization_id`) WHERE workos_organization_id IS NOT NULL;

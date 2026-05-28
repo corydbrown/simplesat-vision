@@ -434,6 +434,14 @@ export const workspaces = sqliteTable(
      *  Brandfetch CDN). Free-text, validated as a hostname at the form. Not
      *  used for tenant isolation — `slug` + `requireWorkspace()` handle that. */
     domain: text("domain"),
+    /** The WorkOS Organization id this workspace is bound to. When a user
+     *  signs in via WorkOS with this org as their session org, they get
+     *  membership in THIS workspace (and only this one) — see /callback.
+     *  Nullable for now: unlinked workspaces fall back to the legacy
+     *  "auto-grant all on first login" behavior so dev / unmapped seeds
+     *  don't lock Cory out. Set via the workspace settings (or
+     *  `turso db shell`) once the mapping is known. */
+    workosOrganizationId: text("workos_organization_id"),
     integrationType: text("integration_type", {
       enum: ["intercom", "zendesk", "mock"],
     })
@@ -455,7 +463,15 @@ export const workspaces = sqliteTable(
       .default(sql`(unixepoch() * 1000)`),
     createdBy: text("created_by").references(() => users.id),
   },
-  (t) => [uniqueIndex("workspaces_slug_unq").on(t.slug)],
+  (t) => [
+    uniqueIndex("workspaces_slug_unq").on(t.slug),
+    // Partial unique: each WorkOS org is bound to at most one workspace
+    // (1:1). NULL is allowed for unlinked workspaces — the partial WHERE
+    // exempts them from the uniqueness constraint.
+    uniqueIndex("workspaces_workos_org_unq")
+      .on(t.workosOrganizationId)
+      .where(sql`workos_organization_id IS NOT NULL`),
+  ],
 );
 
 /** Membership join: which users belong to which workspaces, and in what role.

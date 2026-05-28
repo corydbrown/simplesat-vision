@@ -227,10 +227,7 @@ export async function searchScorableTickets(
 ): Promise<ScorableTicketRow[]> {
   const workspaceId = await requireWorkspace();
   const q = rawQuery.trim();
-  const pattern =
-    q.length === 0
-      ? null
-      : `%${q.replaceAll("%", "\\%").replaceAll("_", "\\_")}%`;
+  const pattern = q.length === 0 ? null : `%${q}%`;
 
   const where = and(
     eq(schema.tickets.workspaceId, workspaceId),

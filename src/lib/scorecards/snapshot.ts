@@ -34,7 +34,14 @@ export async function snapshotScorecard(
   const { scorecardId, version } = params;
 
   const [card] = await tx
-    .select({ id: schema.scorecards.id, name: schema.scorecards.name })
+    .select({
+      id: schema.scorecards.id,
+      name: schema.scorecards.name,
+      scoringPhilosophy: schema.scorecards.scoringPhilosophy,
+      bandDescriptors: schema.scorecards.bandDescriptors,
+      domainContext: schema.scorecards.domainContext,
+      toneExpectations: schema.scorecards.toneExpectations,
+    })
     .from(schema.scorecards)
     .where(eq(schema.scorecards.id, scorecardId))
     .limit(1);
@@ -56,12 +63,19 @@ export async function snapshotScorecard(
         .orderBy(asc(schema.scorecardCriteria.order));
 
   const versionId = prefixedId("scv");
+  // SVP-228: snapshot the four LLM-context fields onto the version row so
+  // historical evaluations can reconstruct exactly what the LLM was told for
+  // this version, even after the live scorecard is edited.
   await tx.insert(schema.scorecardVersions).values({
     id: versionId,
     scorecardId,
     version,
     name: params.name ?? card.name,
     autoFailFloor: params.autoFailFloor ?? DEFAULT_SCORECARD.autoFailFloor,
+    scoringPhilosophy: card.scoringPhilosophy,
+    bandDescriptors: card.bandDescriptors,
+    domainContext: card.domainContext,
+    toneExpectations: card.toneExpectations,
     createdAt: params.createdAt ?? new Date(),
   });
 
@@ -93,6 +107,7 @@ export async function snapshotScorecard(
         anchor5: cr.anchor5,
         anchor3: cr.anchor3,
         anchor1: cr.anchor1,
+        weightPercent: cr.weightPercent,
         order: cr.order,
       }));
       await tx

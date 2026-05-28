@@ -24,6 +24,11 @@ const CriterionInput = z.object({
   anchor5: z.string().max(2000),
   anchor3: z.string().max(2000),
   anchor1: z.string().max(2000),
+  /** Per SVP-228 the authoritative weight lives on each criterion. The editor
+   *  UI lands in SVP-229; until then the client may omit this field on save,
+   *  in which case we fall back to splitting the parent category's weight
+   *  evenly across its criteria (transitional — see `normalizeCriterionWeights`). */
+  weightPercent: z.number().int().min(0).max(100).optional(),
 });
 
 const CategoryInput = z.object({
@@ -131,7 +136,9 @@ export async function saveScorecard(
           order: cat.order,
         })
         .where(eq(schema.scorecardCategories.id, cat.id));
-      for (const crit of cat.criteria) {
+      const criterionWeights = normalizeCriterionWeights(cat);
+      for (let i = 0; i < cat.criteria.length; i++) {
+        const crit = cat.criteria[i];
         await tx
           .update(schema.scorecardCriteria)
           .set({
@@ -139,6 +146,7 @@ export async function saveScorecard(
             anchor5: crit.anchor5,
             anchor3: crit.anchor3,
             anchor1: crit.anchor1,
+            weightPercent: criterionWeights[i],
           })
           .where(eq(schema.scorecardCriteria.id, crit.id));
       }
@@ -164,6 +172,28 @@ export async function saveScorecard(
   revalidatePath(`/settings/scorecards/${parsed.scorecardId}`);
 
   return { ok: true, scorecardId: parsed.scorecardId, version: nextVersion };
+}
+
+/** Resolve per-criterion weights from the save payload (SVP-228 transitional).
+ *  When the editor sends explicit per-criterion weights we use them directly;
+ *  when it omits them (pre-SVP-229 client) we split the category's weight
+ *  evenly across its non-autofail criteria so the sum-to-100 invariant holds.
+ *  Autofail criteria always resolve to 0. */
+function normalizeCriterionWeights(
+  cat: SaveScorecardInput["categories"][number],
+): number[] {
+  if (cat.isAutofail) return cat.criteria.map(() => 0);
+  const explicit = cat.criteria.map((c) =>
+    typeof c.weightPercent === "number" ? c.weightPercent : null,
+  );
+  const allExplicit = explicit.every((w) => w !== null);
+  if (allExplicit) return explicit as number[];
+  const count = cat.criteria.length;
+  const base = Math.floor(cat.weightPercent / count);
+  const remainder = cat.weightPercent - base * count;
+  // Distribute the remainder onto the first `remainder` criteria so the sum
+  // matches the category weight exactly.
+  return cat.criteria.map((_, i) => base + (i < remainder ? 1 : 0));
 }
 
 function validateWeights(input: SaveScorecardInput): void {
@@ -278,21 +308,52 @@ export async function previewScoreWithDraft(
 
   // Map the draft into the provider's scorecard shape. The provider doesn't
   // care about description / anchors / order — it scores against categories
-  // and (for binary) the per-criterion fail roll.
+  // and (for binary) the per-criterion fail roll. SVP-228: pass criterion-
+  // level weights through (resolved via the same shared normaliser the save
+  // path uses) so the preview's overall-score formula matches a real save.
+  // LLM-context fields aren't part of the editor payload yet (SVP-229) — pull
+  // them from the live scorecard row instead so the live LLM preview sees the
+  // same framing the runtime sees.
+  const [liveScorecardContext] = await db
+    .select({
+      scoringPhilosophy: schema.scorecards.scoringPhilosophy,
+      bandDescriptors: schema.scorecards.bandDescriptors,
+      domainContext: schema.scorecards.domainContext,
+      toneExpectations: schema.scorecards.toneExpectations,
+    })
+    .from(schema.scorecards)
+    .where(
+      and(
+        eq(schema.scorecards.id, parsed.scorecard.id),
+        eq(schema.scorecards.workspaceId, workspaceId),
+      ),
+    )
+    .limit(1);
   const scoringScorecard: ScoringScorecard = {
     id: parsed.scorecard.id,
     name: parsed.scorecard.name,
     version: parsed.scorecard.version,
     autoFailFloor: DEFAULT_SCORECARD.autoFailFloor,
-    categories: parsed.scorecard.categories.map((cat) => ({
-      id: cat.id,
-      name: cat.name,
-      description: cat.description,
-      weightPercent: cat.weightPercent,
-      scaleType: cat.scaleType,
-      isAutofail: cat.isAutofail,
-      criteria: cat.criteria.map((c) => ({ id: c.id, text: c.text })),
-    })),
+    scoringPhilosophy: liveScorecardContext?.scoringPhilosophy ?? null,
+    bandDescriptors: liveScorecardContext?.bandDescriptors ?? null,
+    domainContext: liveScorecardContext?.domainContext ?? null,
+    toneExpectations: liveScorecardContext?.toneExpectations ?? null,
+    categories: parsed.scorecard.categories.map((cat) => {
+      const criterionWeights = normalizeCriterionWeights(cat);
+      return {
+        id: cat.id,
+        name: cat.name,
+        description: cat.description,
+        weightPercent: cat.weightPercent,
+        scaleType: cat.scaleType,
+        isAutofail: cat.isAutofail,
+        criteria: cat.criteria.map((c, i) => ({
+          id: c.id,
+          text: c.text,
+          weightPercent: criterionWeights[i],
+        })),
+      };
+    }),
   };
 
   const [responseRow] = await db

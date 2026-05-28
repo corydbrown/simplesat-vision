@@ -55,6 +55,18 @@ export type ScoringScorecard = {
   name: string;
   version: number;
   autoFailFloor: number;
+  /** Manager's framing of how the rubric should be applied. Markdown.
+   *  Live LLM provider consumes this when assembling its scoring prompt;
+   *  the mock provider ignores it. */
+  scoringPhilosophy: string | null;
+  /** Per-likert-level descriptors in ascending order (index 0 → level 1).
+   *  Live LLM provider weaves these into the prompt so scores match the
+   *  team's calibration; the mock provider ignores them. */
+  bandDescriptors: string[] | null;
+  /** Industry / company / product context. Markdown. LLM-only. */
+  domainContext: string | null;
+  /** Voice / tone expectations. Markdown. LLM-only. */
+  toneExpectations: string | null;
   categories: ScoringCategory[];
 };
 
@@ -62,6 +74,9 @@ export type ScoringCategory = {
   id: string;
   name: string;
   description: string;
+  /** Transitional / derived from `SUM(criteria.weightPercent)`. Kept on the
+   *  scoring shape for one release while existing computeOverall paths
+   *  migrate to read criterion-level weights directly (SVP-228). */
   weightPercent: number;
   scaleType: ScorecardScaleType;
   isAutofail: boolean;
@@ -71,6 +86,9 @@ export type ScoringCategory = {
 export type ScoringCriterion = {
   id: string;
   text: string;
+  /** Authoritative per-criterion weight (SVP-228). Non-autofail criterion
+   *  weights sum to 100 across the scorecard; autofail criteria carry 0. */
+  weightPercent: number;
 };
 
 /** Output shape — what the provider returns. Plain JSON; no DB types. The

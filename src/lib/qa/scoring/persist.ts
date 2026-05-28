@@ -1,5 +1,5 @@
 import "server-only";
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, isNull } from "drizzle-orm";
 import { db, schema } from "@/db/client";
 import { liveResponsesFilter } from "@/db/queries/live-responses";
 import { prefixedId } from "@/lib/ids";
@@ -138,28 +138,34 @@ export async function scoreAndPersistTicket(params: {
     ? Math.round((responseRow.rating * 5) / responseRow.scale)
     : null;
 
-  const selectDefaultScorecard = () =>
+  // Pick any live (non-archived) scorecard for this workspace. The prototype
+  // is single-scorecard per workspace; SVP-229 introduces multi-scorecard
+  // management and SVP-232 adds the auto-scoring rules engine that picks
+  // *which* scorecard a new ticket runs against. Until then, "the one we have"
+  // is the right answer — auto-init mints one if the workspace has none yet.
+  const selectAnyScorecard = () =>
     db
       .select()
       .from(schema.scorecards)
       .where(
         and(
           eq(schema.scorecards.workspaceId, workspaceId),
-          eq(schema.scorecards.isDefault, true),
+          isNull(schema.scorecards.archivedAt),
         ),
       )
+      .orderBy(asc(schema.scorecards.createdAt))
       .limit(1);
-  let [scorecard] = await selectDefaultScorecard();
+  let [scorecard] = await selectAnyScorecard();
   if (!scorecard) {
     // Auto-init: workspaces created outside the seed code path (WorkOS signup,
-    // future provisioning flows) never get the default scorecard hydrated.
-    // Mint it inline so the first Evaluate click works without a manual fix.
+    // future provisioning flows) never get the IQS scorecard hydrated. Mint it
+    // inline so the first Evaluate click works without a manual fix.
     await initDefaultScorecardForWorkspace(workspaceId);
     // Re-query in case a concurrent caller raced ahead — defensive but cheap.
-    [scorecard] = await selectDefaultScorecard();
+    [scorecard] = await selectAnyScorecard();
     if (!scorecard) {
       throw new ScoringPreconditionError(
-        "Failed to initialize default scorecard for this workspace.",
+        "Failed to initialize a scorecard for this workspace.",
       );
     }
   }
@@ -185,6 +191,10 @@ export async function scoreAndPersistTicket(params: {
     name: scorecard.name,
     version: scorecard.version,
     autoFailFloor: DEFAULT_AUTO_FAIL_FLOOR,
+    scoringPhilosophy: scorecard.scoringPhilosophy,
+    bandDescriptors: scorecard.bandDescriptors,
+    domainContext: scorecard.domainContext,
+    toneExpectations: scorecard.toneExpectations,
     categories: categoryRows.map((cat) => ({
       id: cat.id,
       name: cat.name,
@@ -195,6 +205,7 @@ export async function scoreAndPersistTicket(params: {
       criteria: (criteriaByCategoryId.get(cat.id) ?? []).map((c) => ({
         id: c.id,
         text: c.text,
+        weightPercent: c.weightPercent,
       })),
     })),
   };

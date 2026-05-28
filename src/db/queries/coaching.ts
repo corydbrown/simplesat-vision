@@ -504,10 +504,16 @@ export async function getCoachingDetail(
 }
 
 /** Round-one current-user stub — mirrors the resolver in qa/coaching/actions.ts
- *  and qa/actions.ts. Picks the first Customer Care Lead deterministically
- *  within the active workspace. */
+ *  and qa/actions.ts. Prefers the first Customer Care Lead (the role that owns
+ *  QA review in the Bloom seed narrative) and falls back to any team member in
+ *  the workspace when that role isn't present — live workspaces (Simplesat,
+ *  Pronto) sync team members from helpdesks that don't use that role string.
+ *  Throws only if the workspace has zero team members at all.
+ *
+ *  Will be replaced by the signed-in user once auth → team_member linking
+ *  lands (filed SVP-210). */
 async function resolveCurrentUserId(workspaceId: string): Promise<string> {
-  const [manager] = await db
+  const [lead] = await db
     .select({ id: schema.teamMembers.id })
     .from(schema.teamMembers)
     .where(
@@ -518,8 +524,16 @@ async function resolveCurrentUserId(workspaceId: string): Promise<string> {
     )
     .orderBy(asc(schema.teamMembers.name))
     .limit(1);
-  if (!manager) throw new Error("No current user available");
-  return manager.id;
+  if (lead) return lead.id;
+
+  const [any] = await db
+    .select({ id: schema.teamMembers.id })
+    .from(schema.teamMembers)
+    .where(eq(schema.teamMembers.workspaceId, workspaceId))
+    .orderBy(asc(schema.teamMembers.name))
+    .limit(1);
+  if (!any) throw new Error("No current user available");
+  return any.id;
 }
 
 // Re-exported here so a category-highlight server action can read the same

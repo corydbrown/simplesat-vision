@@ -1,8 +1,6 @@
 "use client";
 
-import { useState } from "react";
 import { Check, ChevronDown, Settings } from "lucide-react";
-import Image from "next/image";
 import Link from "next/link";
 import {
   DropdownMenu,
@@ -43,7 +41,7 @@ export function WorkspaceSwitcher({
         className="-mx-1 flex min-w-0 items-center gap-2 rounded px-1 py-0.5"
         aria-label={`Workspace: ${active.name}`}
       >
-        <WorkspaceAvatar name={active.name} logoUrl={active.logoUrl} />
+        <WorkspaceAvatar name={active.name} />
         <span className="truncate font-medium text-foreground">
           {active.name}
         </span>
@@ -58,7 +56,7 @@ export function WorkspaceSwitcher({
           type="button"
           className="-mx-1 flex min-w-0 cursor-pointer items-center gap-2 rounded px-1 py-0.5 transition-colors hover:bg-accent/60 data-[state=open]:bg-accent/60"
         >
-          <WorkspaceAvatar name={active.name} logoUrl={active.logoUrl} />
+          <WorkspaceAvatar name={active.name} />
           <span className="truncate font-medium text-foreground">
             {active.name}
           </span>
@@ -86,7 +84,7 @@ export function WorkspaceSwitcher({
                   type="submit"
                   className="flex w-full cursor-pointer items-center gap-2"
                 >
-                  <WorkspaceAvatar name={w.name} logoUrl={w.logoUrl} />
+                  <WorkspaceAvatar name={w.name} />
                   <span className="min-w-0 flex-1 truncate text-left">
                     {w.name}
                   </span>
@@ -112,33 +110,7 @@ export function WorkspaceSwitcher({
   );
 }
 
-function WorkspaceAvatar({
-  name,
-  logoUrl,
-}: {
-  name: string;
-  logoUrl: string | null;
-}) {
-  // Track image-load failures so a broken Brandfetch URL (CDN took down the
-  // brand, network glitch on first paint) silently falls back to the initial
-  // glyph instead of rendering a broken-image icon in the sidebar.
-  const [errored, setErrored] = useState(false);
-
-  if (logoUrl && !errored) {
-    return (
-      <Image
-        src={logoUrl}
-        alt=""
-        width={24}
-        height={24}
-        unoptimized
-        aria-hidden
-        className="h-6 w-6 shrink-0 rounded bg-background object-contain ring-1 ring-foreground/10"
-        onError={() => setErrored(true)}
-      />
-    );
-  }
-
+function WorkspaceAvatar({ name }: { name: string }) {
   // `!text-background` defends against the dropdown item's
   // `focus:**:text-accent-foreground` cascade, which would otherwise drop the
   // letter to the same color as the avatar background on hover and erase the

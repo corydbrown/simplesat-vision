@@ -419,10 +419,6 @@ export const workspaces = sqliteTable(
     name: text("name").notNull(),
     slug: text("slug").notNull(),
     logoUrl: text("logo_url"),
-    /** Public-web domain used to resolve a logo via [[LogoProvider]] (today:
-     *  Brandfetch CDN). Free-text, validated as a hostname at the form. Not
-     *  used for tenant isolation — `slug` + `requireWorkspace()` handle that. */
-    domain: text("domain"),
     integrationType: text("integration_type", {
       enum: ["intercom", "zendesk", "mock"],
     })

@@ -11,25 +11,18 @@ import { useCustomerProperties } from "@/lib/properties/custom-fields-context";
 import type { CustomerListRow } from "@/db/queries/customers";
 
 /**
- * Client view for the customers list. Properties come from
- * `useCustomerProperties()` so the column set (and the tier column) follow the
- * active workspace — the parent server page just fetches the rows. Splitting
- * the view out is what lets a server-derived, workspace-scoped property list
- * reach the client EntityTable without serializing render closures.
+ * Renders the persistent chrome (Topbar / Toolbar / FilterRow) and a slot
+ * for the data region. The data region is supplied via `children` so the
+ * server page can wrap it in `<Suspense>` while the shell paints
+ * synchronously — that's what makes the page chrome anchor instantly while
+ * the table skeleton fills its own region. See SVP-170.
  */
-export function CustomersListView({
-  rows,
-  total,
-  groupBy,
+export function CustomersListShell({
   allowedGroupIds,
+  children,
 }: {
-  rows: CustomerListRow[];
-  total: number;
-  groupBy?: string;
-  /** Group-by field ids, passed from the server page. Sourced from the
-   *  server-only `group/fields` module, which a client component must not
-   *  import directly (it pulls in `server-only` + the DB schema). */
   allowedGroupIds: string[];
+  children: React.ReactNode;
 }) {
   const properties = useCustomerProperties();
 
@@ -61,18 +54,34 @@ export function CustomersListView({
         }}
       />
       <ListFilterRow properties={properties} />
-      <EntityTable
-        rows={rows}
-        idField="id"
-        properties={properties}
-        page={1}
-        pageSize={total || 1}
-        total={total}
-        groupBy={groupBy}
-        basePath="/customers"
-        drawerEntity="customer"
-        serverSorted
-      />
+      {children}
     </ColumnStateProvider>
+  );
+}
+
+export function CustomersTable({
+  rows,
+  total,
+  groupBy,
+}: {
+  rows: CustomerListRow[];
+  total: number;
+  groupBy?: string;
+}) {
+  const properties = useCustomerProperties();
+
+  return (
+    <EntityTable
+      rows={rows}
+      idField="id"
+      properties={properties}
+      page={1}
+      pageSize={total || 1}
+      total={total}
+      groupBy={groupBy}
+      basePath="/customers"
+      drawerEntity="customer"
+      serverSorted
+    />
   );
 }

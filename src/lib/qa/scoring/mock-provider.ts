@@ -70,6 +70,14 @@ export class MockScoringProvider implements ScoringProvider {
     return {
       overallScore,
       aiModel: this.name,
+      // Provider identity is "mock" — kept distinct from a real vendor so
+      // reports can filter mock-scored evaluations out of cost rollups.
+      aiProvider: "mock",
+      // Mock provider doesn't consume tokens; surface null so cost-by-model
+      // rollups stay honest. Cost is computed downstream only when tokens
+      // are populated.
+      inputTokens: null,
+      outputTokens: null,
       aiConfidence,
       aiReasoningSummary: buildSummaryReasoning(
         faker,

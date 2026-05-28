@@ -3,6 +3,7 @@ import { and, asc, eq, isNull } from "drizzle-orm";
 import { db, schema } from "@/db/client";
 import { liveResponsesFilter } from "@/db/queries/live-responses";
 import { prefixedId } from "@/lib/ids";
+import { estimateCostCents } from "@/lib/llm/pricing";
 import { initDefaultScorecardForWorkspace } from "@/lib/qa/default-scorecard-init";
 import { snapshotScorecard } from "@/lib/scorecards/snapshot";
 import { getScoringProvider } from "./index";
@@ -271,6 +272,21 @@ export async function scoreAndPersistTicket(params: {
 
     const scoredAt = params.scoredAt ?? new Date();
     const evaluationId = prefixedId("evl");
+    // Cost is computed inline rather than denormalized from a separate table:
+    // the snapshot price + token counts are all already on this row, so the
+    // computation is reproducible from row state alone. Null when the provider
+    // doesn't supply token counts (mock) or when the pricing config doesn't
+    // know about (provider, model) yet — don't fabricate.
+    const costUsdCents =
+      output.inputTokens !== null && output.outputTokens !== null
+        ? estimateCostCents(
+            output.aiProvider,
+            output.aiModel,
+            output.inputTokens,
+            output.outputTokens,
+            scoredAt,
+          )
+        : null;
     const evaluation: NewEvaluation = {
       id: evaluationId,
       workspaceId,
@@ -281,6 +297,10 @@ export async function scoreAndPersistTicket(params: {
       overallScore: output.overallScore,
       status: output.autoFailTriggered ? "contested" : "ai_scored",
       aiModel: output.aiModel,
+      aiProvider: output.aiProvider,
+      inputTokens: output.inputTokens,
+      outputTokens: output.outputTokens,
+      costUsdCents,
       // Confidence stored as integer percent so the column is a plain int.
       aiConfidence: Math.round(output.aiConfidence * 100),
       aiReasoningSummary: output.aiReasoningSummary,

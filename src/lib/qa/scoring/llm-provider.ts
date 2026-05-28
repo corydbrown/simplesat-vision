@@ -96,6 +96,9 @@ export class LlmScoringProvider implements ScoringProvider {
       raw: parsed.data,
       input,
       model: this.model,
+      provider: "anthropic",
+      inputTokens: response.usage.input_tokens,
+      outputTokens: response.usage.output_tokens,
       validMessageIds,
     });
   }
@@ -279,9 +282,12 @@ function projectResponse(params: {
   raw: LlmResponse;
   input: ScoringInput;
   model: string;
+  provider: string;
+  inputTokens: number;
+  outputTokens: number;
   validMessageIds: Set<string>;
 }): ScoringOutput {
-  const { raw, input, model, validMessageIds } = params;
+  const { raw, input, model, provider, inputTokens, outputTokens, validMessageIds } = params;
   const filterIds = (ids: string[]) =>
     ids.filter((id) => validMessageIds.has(id));
 
@@ -319,6 +325,9 @@ function projectResponse(params: {
   return {
     overallScore,
     aiModel: model,
+    aiProvider: provider,
+    inputTokens,
+    outputTokens,
     aiConfidence: raw.aiConfidence,
     aiReasoningSummary: raw.aiReasoningSummary,
     autoFailTriggered,

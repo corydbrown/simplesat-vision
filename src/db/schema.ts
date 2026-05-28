@@ -1510,6 +1510,52 @@ export const qaReactions = sqliteTable(
   ],
 );
 
+/** Per-evaluation free-form feedback from real reviewers (Cory, Tim, future
+ *  managers) about what the LLM scoring got wrong. The corpus feeds prompt
+ *  tuning once live LLM scoring is wired in — a separate Claude session reads
+ *  `evaluation_feedback JOIN evaluations JOIN scorecards JOIN tickets` and
+ *  proposes prompt + LLM-context adjustments.
+ *
+ *  Text-only by design: per-criterion structure would slow capture and the
+ *  corpus value comes from volume + honesty, not schema. If volume reveals
+ *  obvious per-criterion patterns we can layer structure on later.
+ *
+ *  `createdBy` references `users` (not `team_members`) because feedback is
+ *  tied to the actual signed-in reviewer, not the team-member persona used
+ *  for QA-comment attribution. One feedback per (evaluation, user) — the
+ *  unique index makes edit-in-place the only semantics. */
+export const evaluationFeedback = sqliteTable(
+  "evaluation_feedback",
+  {
+    id: text("id").primaryKey(),
+    workspaceId: text("workspace_id")
+      .notNull()
+      .references(() => workspaces.id),
+    evaluationId: text("evaluation_id")
+      .notNull()
+      .references(() => evaluations.id, { onDelete: "cascade" }),
+    feedbackText: text("feedback_text").notNull(),
+    createdBy: text("created_by")
+      .notNull()
+      .references(() => users.id),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+    updatedAt: integer("updated_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+  },
+  (t) => [
+    index("evaluation_feedback_workspace_id_idx").on(t.workspaceId),
+    index("evaluation_feedback_evaluation_id_idx").on(t.evaluationId),
+    index("evaluation_feedback_created_by_idx").on(t.createdBy),
+    uniqueIndex("evaluation_feedback_unique_per_user_idx").on(
+      t.evaluationId,
+      t.createdBy,
+    ),
+  ],
+);
+
 /** Server-side storage for saved views. Carries `workspace_id` from day one so
  *  the eventual auth cutover is a value-source change, not a schema migration.
  *  Today the column is always the demo constant (see src/lib/workspace.ts).
@@ -1605,3 +1651,5 @@ export type QaComment = typeof qaComments.$inferSelect;
 export type NewQaComment = typeof qaComments.$inferInsert;
 export type QaReaction = typeof qaReactions.$inferSelect;
 export type NewQaReaction = typeof qaReactions.$inferInsert;
+export type EvaluationFeedback = typeof evaluationFeedback.$inferSelect;
+export type NewEvaluationFeedback = typeof evaluationFeedback.$inferInsert;

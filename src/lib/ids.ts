@@ -28,7 +28,8 @@ export type IdPrefix =
   | "usr"
   | "wks"
   | "uwk"
-  | "wak";
+  | "wak"
+  | "efb";
 
 export function prefixedId(prefix: IdPrefix): string {
   return `${prefix}_${generate()}`;

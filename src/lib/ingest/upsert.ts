@@ -76,12 +76,13 @@ export class UnknownReferenceError extends Error {
  *
  *  No explicit transaction: idempotency for the real workload (n8n re-POSTing
  *  the same `external_id`) is a sequential find→update, which this handles
- *  directly. The only thing a transaction would add is guarding a *concurrent*
- *  double-insert of the same new `external_id` — and the partial unique index
- *  on `external_id` already rejects that (the loser gets a constraint error
- *  rather than a duplicate row). Wrapping these libsql calls in
- *  `db.transaction` would also deadlock the outer `db` writes against the
- *  transaction's lock on the local file DB. */
+ *  directly. Concurrent inserts of the same new `external_id` are caught
+ *  below — Intercom delivers webhook bursts (reply + close + rating events)
+ *  within milliseconds, both serverless instances miss the find, both try to
+ *  insert, one loses on the partial UNIQUE index. The loser re-finds and
+ *  updates instead of bubbling a 500. Wrapping these libsql calls in
+ *  `db.transaction` would deadlock the outer `db` writes against the
+ *  transaction's lock on the local file DB, so we don't. */
 async function findOrWrite<TFound extends { id: string }>(
   idPrefix: IdPrefix,
   find: () => Promise<TFound | undefined>,
@@ -94,8 +95,42 @@ async function findOrWrite<TFound extends { id: string }>(
     return { id: existing.id, created: false };
   }
   const id = prefixedId(idPrefix);
-  await create(id);
-  return { id, created: true };
+  try {
+    await create(id);
+    return { id, created: true };
+  } catch (err) {
+    if (!isUniqueConstraintError(err)) throw err;
+    // Lost the race — concurrent ingest just created this external_id.
+    // Re-find and update to converge; the row must exist now.
+    const winner = await find();
+    if (!winner) throw err;
+    await update(winner.id, winner);
+    return { id: winner.id, created: false };
+  }
+}
+
+/** Detect SQLite `UNIQUE constraint failed` from libsql. The error can land
+ *  on the outer Error or on its `cause` (Drizzle wraps the libsql error). We
+ *  check both `code === "SQLITE_CONSTRAINT"` and the message string to stay
+ *  resilient to libsql version drift. */
+function isUniqueConstraintError(err: unknown): boolean {
+  if (typeof err !== "object" || err === null) return false;
+  const e = err as { code?: unknown; cause?: unknown; message?: unknown };
+  if (e.code === "SQLITE_CONSTRAINT") return true;
+  if (
+    e.cause &&
+    typeof e.cause === "object" &&
+    (e.cause as { code?: unknown }).code === "SQLITE_CONSTRAINT"
+  ) {
+    return true;
+  }
+  if (
+    typeof e.message === "string" &&
+    e.message.includes("UNIQUE constraint failed")
+  ) {
+    return true;
+  }
+  return false;
 }
 
 // --- reference resolution ---------------------------------------------------

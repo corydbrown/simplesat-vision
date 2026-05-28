@@ -10,6 +10,7 @@ import { RESPONSE_GROUP_FIELDS } from "@/lib/group/fields/responses";
 import type { GroupSpec } from "@/lib/group/types";
 import type { SortSpec } from "@/lib/sort/url-state";
 import type { Response, SurveyAnswer, TopicTag } from "../schema";
+import { liveResponsesFilter } from "./live-responses";
 
 const RESPONSE_SORT_MAP: Record<string, AnyColumn | SQL> = {
   rating: schema.responses.rating,
@@ -69,7 +70,12 @@ export async function listResponses({
   const filterWhere = filters
     ? compileListFilters(filters, RESPONSE_FILTER_FIELDS)
     : undefined;
-  const workspaceWhere = eq(schema.responses.workspaceId, workspaceId);
+  // SVP-181: hide superseded helpdesk rows from the list.
+  // `getResponseById` (detail/drawer) intentionally skips this filter.
+  const workspaceWhere = and(
+    eq(schema.responses.workspaceId, workspaceId),
+    liveResponsesFilter(),
+  )!;
   const where = filterWhere ? and(workspaceWhere, filterWhere) : workspaceWhere;
   const groupOrderBy = compileGroupOrderBy(groupBy ?? null, RESPONSE_GROUP_FIELDS);
 

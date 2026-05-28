@@ -16,6 +16,7 @@ export async function resolveResponseTopics(): Promise<MultiEnumValueOption[]> {
     FROM responses, json_each(responses.topics)
     WHERE json_extract(value, '$.topic') IS NOT NULL
       AND responses.workspace_id = ${workspaceId}
+      AND responses.superseded_by IS NULL
     GROUP BY value
     ORDER BY count DESC, value ASC
   `);

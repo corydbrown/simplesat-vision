@@ -15,6 +15,7 @@ import {
   type TeamMemberResolutionRule,
 } from "@/db/schema";
 import { prefixedId, type IdPrefix } from "@/lib/ids";
+import { dedupeTicketResponses } from "@/lib/ingest/dedupe-responses";
 import { resolveTeamMember } from "@/lib/ingest/resolve-team-member";
 import type {
   CustomerIngest,
@@ -462,7 +463,7 @@ export async function upsertResponse(
     answers: (input.answers ?? []) as SurveyAnswer[],
   } as const;
 
-  return findOrWrite(
+  const result = await findOrWrite(
     "rsp",
     () =>
       db
@@ -485,4 +486,12 @@ export async function upsertResponse(
       await db.update(responses).set(shared).where(eq(responses.id, id));
     },
   );
+
+  // SVP-181: after writing the response, re-evaluate the ticket's full set so
+  // helpdesk-native vs Simplesat-native dedupe (`superseded_by`) stays
+  // consistent. Runs BEFORE any topic-attachment hook (SVP-182) — no point
+  // attaching topics to a row that's about to be superseded.
+  await dedupeTicketResponses(workspaceId, ticketId);
+
+  return result;
 }

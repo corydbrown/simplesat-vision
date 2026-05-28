@@ -48,6 +48,7 @@ import { meta as zenMeta } from "./entries/qa-window-zen";
 import { meta as crispMeta } from "./entries/qa-window-crisp";
 import { meta as quietMeta } from "./entries/qa-window-quiet";
 import { meta as cleanMeta } from "./entries/qa-window-clean";
+import { meta as avatarsComparisonMeta } from "./entries/avatars-comparison";
 
 export const MOCKUPS: MockupMeta[] = [
   compactMeta,
@@ -71,4 +72,5 @@ export const MOCKUPS: MockupMeta[] = [
   crispMeta,
   quietMeta,
   cleanMeta,
+  avatarsComparisonMeta,
 ];

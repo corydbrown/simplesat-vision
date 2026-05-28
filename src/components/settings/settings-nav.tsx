@@ -2,7 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ClipboardCheck, Settings2, Users, type LucideIcon } from "lucide-react";
+import {
+  ClipboardCheck,
+  Settings2,
+  Users,
+  Zap,
+  type LucideIcon,
+} from "lucide-react";
 
 type SettingsNavItem = {
   id: string;
@@ -35,6 +41,13 @@ const ITEMS: SettingsNavItem[] = [
     href: "/settings/scorecards",
     icon: ClipboardCheck,
     match: "/settings/scorecards",
+  },
+  {
+    id: "auto-scoring",
+    label: "Auto-scoring",
+    href: "/settings/auto-scoring",
+    icon: Zap,
+    match: "/settings/auto-scoring",
   },
 ];
 

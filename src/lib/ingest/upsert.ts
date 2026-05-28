@@ -24,6 +24,18 @@ import type {
   TeamMemberIngest,
   TicketIngest,
 } from "@/lib/ingest/schemas";
+import { tryAutoScore } from "@/lib/qa/auto-scoring/try-auto-score";
+
+/** SVP-232: which raw helpdesk status values count as "ticket is resolved
+ *  enough to score." Mirrors the `is_resolved` generated column's truth set
+ *  (`status IN ('solved','closed')` — see src/db/schema.ts), but kept in JS
+ *  so we can decide whether to fire the trigger without an extra round-trip
+ *  read of the row we just wrote. Keep in sync with the schema's generated
+ *  column expression. */
+const RESOLVED_TICKET_STATUSES: ReadonlySet<string> = new Set([
+  "solved",
+  "closed",
+]);
 
 const DEFAULT_AVATAR_COLOR = "#6366f1";
 
@@ -400,7 +412,7 @@ export async function upsertTicket(
     input.closedAt ?? null,
   );
 
-  return findOrWrite(
+  const result = await findOrWrite(
     "tkt",
     () =>
       db
@@ -436,6 +448,18 @@ export async function upsertTicket(
         .where(eq(tickets.id, id));
     },
   );
+
+  // SVP-232: auto-scoring trigger. If the ticket landed in a resolved state,
+  // run the rules engine inline. Best-effort — `tryAutoScore` never throws,
+  // logs internally on failure. We re-fire on every resolved upsert (not
+  // just status transitions) because helpdesks burst-resend webhooks; the
+  // engine's idempotency check (already-evaluated-for-(ticket,scorecard) →
+  // skip) handles the duplicate work.
+  if (RESOLVED_TICKET_STATUSES.has(input.status)) {
+    await tryAutoScore(workspaceId, result.id);
+  }
+
+  return result;
 }
 
 /** Bump a ticket's `modified_at` to MAX(existing, ts). Idempotent and

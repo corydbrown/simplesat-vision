@@ -1223,6 +1223,62 @@ export const scorecardVersionCriteria = sqliteTable(
   ],
 );
 
+/** A workspace-scoped rule that auto-scores tickets the moment they resolve.
+ *  Each rule does two jobs: gates which tickets get scored (via
+ *  `filter_predicate`) and routes them to a specific scorecard. Rules are
+ *  evaluated in `priority` ASC order; first match wins. Sampling + daily cap
+ *  let teams ramp gradually without drowning in evaluations. The default rule
+ *  minted on workspace provisioning is deletable — users own their fallback
+ *  behavior, including "no auto-scoring at all."
+ *
+ *  `filter_predicate` is JSON in the same shape as the URL `?f=` filter
+ *  state (Filter[]). Empty array (the default) matches every ticket. The
+ *  type is intentionally loose at the schema layer (per the savedViews
+ *  precedent); query/UI layers cast to the strict `Filter[]` from
+ *  `src/lib/filters/types.ts`. */
+export const autoScoringRules = sqliteTable(
+  "auto_scoring_rules",
+  {
+    id: text("id").primaryKey(),
+    workspaceId: text("workspace_id")
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    enabled: integer("enabled", { mode: "boolean" }).notNull().default(true),
+    /** JSON-encoded `Filter[]`. Empty array (default) matches all tickets.
+     *  Same shape as URL `?f=` filter state — see src/lib/filters/types.ts. */
+    filterPredicate: text("filter_predicate", { mode: "json" })
+      .$type<unknown[]>()
+      .notNull()
+      .default([]),
+    /** RESTRICT: a scorecard can't be deleted while a rule still routes to
+     *  it. The scorecards UI already steers users toward archive (soft
+     *  delete) for that reason; this FK enforces it at the DB. */
+    scorecardId: text("scorecard_id")
+      .notNull()
+      .references(() => scorecards.id, { onDelete: "restrict" }),
+    samplingPercent: integer("sampling_percent").notNull().default(100),
+    /** Max evaluations per UTC day for this rule. NULL = no cap. */
+    dailyCap: integer("daily_cap"),
+    /** Lower priority value wins when multiple rules match a ticket. */
+    priority: integer("priority").notNull().default(100),
+    createdBy: text("created_by").references(() => users.id),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+    updatedAt: integer("updated_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+  },
+  (t) => [
+    index("auto_scoring_rules_workspace_priority_idx").on(
+      t.workspaceId,
+      t.priority,
+    ),
+    index("auto_scoring_rules_scorecard_id_idx").on(t.scorecardId),
+  ],
+);
+
 /** One QA evaluation of one ticket against one scorecard version. The
  *  scoring provider (mock or LLM, selected via env) writes one row here plus
  *  one per-category row in `evaluation_category_scores` and one coaching
@@ -1298,6 +1354,15 @@ export const evaluations = sqliteTable(
     editedBy: text("edited_by").references(() => teamMembers.id),
     editedAt: integer("edited_at", { mode: "timestamp_ms" }),
     invalidatedReason: text("invalidated_reason"),
+    /** FK to the auto-scoring rule that triggered this evaluation. NULL =
+     *  manual ("Score this ticket" button), re-score, seed-time, or the
+     *  triggering rule was deleted later (ON DELETE SET NULL preserves the
+     *  evaluation row, just untags it). Lets reports group evals by rule and
+     *  count daily cap hits. */
+    autoScoringRuleId: text("auto_scoring_rule_id").references(
+      () => autoScoringRules.id,
+      { onDelete: "set null" },
+    ),
   },
   (t) => [
     index("evaluations_workspace_id_idx").on(t.workspaceId),
@@ -1314,6 +1379,13 @@ export const evaluations = sqliteTable(
     index("evaluations_status_idx").on(t.status),
     index("evaluations_scored_at_idx").on(t.scoredAt),
     index("evaluations_overall_score_idx").on(t.overallScore),
+    // Covers daily-cap COUNT(*) WHERE auto_scoring_rule_id = ? AND scored_at
+    // >= start_of_day. Hit on every ingest event for a resolved ticket, so
+    // it must be cheap.
+    index("evaluations_rule_scored_at_idx").on(
+      t.autoScoringRuleId,
+      t.scoredAt,
+    ),
   ],
 );
 
@@ -1653,3 +1725,5 @@ export type QaReaction = typeof qaReactions.$inferSelect;
 export type NewQaReaction = typeof qaReactions.$inferInsert;
 export type EvaluationFeedback = typeof evaluationFeedback.$inferSelect;
 export type NewEvaluationFeedback = typeof evaluationFeedback.$inferInsert;
+export type AutoScoringRule = typeof autoScoringRules.$inferSelect;
+export type NewAutoScoringRule = typeof autoScoringRules.$inferInsert;

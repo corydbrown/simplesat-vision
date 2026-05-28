@@ -70,6 +70,10 @@ export async function scoreAndPersistTicket(params: {
    *  steps, and we don't want to hold a Turso write-tx open across a multi-
    *  second LLM round-trip. */
   tx?: Tx;
+  /** Tag the resulting evaluation row with the rule that triggered it
+   *  (SVP-232). NULL = manual / re-score / seed-time. Lets reports group
+   *  evals by rule and count cap hits. */
+  autoScoringRuleId?: string | null;
 }): Promise<PersistedEvaluation> {
   const provider = params.provider ?? getScoringProvider();
   const { ticketId, workspaceId } = params;
@@ -331,6 +335,7 @@ export async function scoreAndPersistTicket(params: {
       editedBy: null,
       editedAt: null,
       invalidatedReason: null,
+      autoScoringRuleId: params.autoScoringRuleId ?? null,
     };
 
     const categoryScores: NewEvaluationCategoryScore[] =

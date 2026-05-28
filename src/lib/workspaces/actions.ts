@@ -1,6 +1,6 @@
 "use server";
 
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
@@ -8,6 +8,8 @@ import { db, schema } from "@/db/client";
 import { requireWorkspace, setActiveWorkspaceId } from "@/lib/workspace";
 import { getCurrentUser } from "@/lib/auth";
 import { getLogoProvider, normalizeDomain } from "@/lib/logos";
+import { resolveTeamMember } from "@/lib/ingest/resolve-team-member";
+import type { TeamMemberResolutionRule } from "@/db/schema";
 
 /** Verifies the caller is signed in AND is an admin of the active workspace.
  *  Returns the workspaceId on success; an error result otherwise. Used by the
@@ -190,4 +192,120 @@ export async function setActiveWorkspace(workspaceId: string): Promise<never> {
   await setActiveWorkspaceId(id);
   revalidatePath("/", "layout");
   redirect("/tickets");
+}
+
+const SetResolutionRuleSchema = z.object({
+  rule: z.enum(["assignee", "solver", "most_time_logged", "opened_by"]),
+});
+
+export type SetResolutionRuleResult =
+  | { ok: true; rule: TeamMemberResolutionRule; reresolved: number }
+  | { ok: false; error: string };
+
+/** Persists the workspace's team-member resolution rule AND re-runs the
+ *  resolver against every imported ticket's stored `sourceAgents` bag so the
+ *  credited `teamMemberId` reflects the new rule immediately. This is the
+ *  load-bearing UX promise of the setting: flip the rule, the whole app
+ *  re-credits.
+ *
+ *  Synchronous in-request by design (per Cory): fine at prototype scale. If
+ *  this grows past ~10k tickets per workspace, lift into a background job —
+ *  the function itself stays the same. */
+export async function setTeamMemberResolutionRule(
+  _prevState: SetResolutionRuleResult | null,
+  formData: FormData,
+): Promise<SetResolutionRuleResult> {
+  const auth = await requireWorkspaceAdmin();
+  if (!auth.ok) return { ok: false, error: auth.error };
+
+  const parsed = SetResolutionRuleSchema.safeParse({
+    rule: formData.get("rule"),
+  });
+  if (!parsed.success) {
+    return { ok: false, error: "Invalid rule" };
+  }
+  const { rule } = parsed.data;
+
+  await db
+    .update(schema.workspaces)
+    .set({ teamMemberResolutionRule: rule })
+    .where(eq(schema.workspaces.id, auth.workspaceId));
+
+  const reresolved = await reresolveAllTickets(auth.workspaceId, rule);
+
+  revalidatePath("/settings/workspace");
+  revalidatePath("/", "layout");
+
+  return { ok: true, rule, reresolved };
+}
+
+/** Walks every ticket in the workspace and updates `teamMemberId` to whatever
+ *  the new rule resolves against the stored `sourceAgents`. Returns the count
+ *  of tickets actually touched.
+ *
+ *  Strategy: bucket tickets by their next `teamMemberId` and issue one UPDATE
+ *  per bucket — turns 50k row updates into ~N+1 statements (one per distinct
+ *  member + one for null). Chunked to stay well under SQLite's parameter cap.
+ *
+ *  Soft-resolve semantics from ingest: if the new rule references a role that
+ *  isn't synced (or `sourceAgents` doesn't carry that key — common for Intercom
+ *  + `most_time_logged`), `teamMemberId` becomes null. The stored sourceAgents
+ *  bag is lossless, so flipping the rule back restores the prior credit. */
+async function reresolveAllTickets(
+  workspaceId: string,
+  rule: TeamMemberResolutionRule,
+): Promise<number> {
+  const [memberRows, ticketRows] = await Promise.all([
+    db
+      .select({
+        id: schema.teamMembers.id,
+        externalId: schema.teamMembers.externalId,
+      })
+      .from(schema.teamMembers)
+      .where(eq(schema.teamMembers.workspaceId, workspaceId)),
+    db
+      .select({
+        id: schema.tickets.id,
+        sourceAgents: schema.tickets.sourceAgents,
+        teamMemberId: schema.tickets.teamMemberId,
+      })
+      .from(schema.tickets)
+      .where(eq(schema.tickets.workspaceId, workspaceId)),
+  ]);
+
+  const idByExternalId = new Map<string, string>();
+  for (const m of memberRows) {
+    if (m.externalId) idByExternalId.set(m.externalId, m.id);
+  }
+
+  // Bucket ticket-ids by their next teamMemberId (null bucket keyed as "").
+  const buckets = new Map<string, string[]>();
+  for (const t of ticketRows) {
+    const externalId = resolveTeamMember(t.sourceAgents, rule);
+    const next = externalId ? idByExternalId.get(externalId) ?? null : null;
+    if (next === t.teamMemberId) continue;
+    const key = next ?? "";
+    let bucket = buckets.get(key);
+    if (!bucket) {
+      bucket = [];
+      buckets.set(key, bucket);
+    }
+    bucket.push(t.id);
+  }
+
+  // libsql/sqlite caps at ~32k bind variables; 500 per chunk is safely under.
+  const CHUNK = 500;
+  let changed = 0;
+  for (const [key, ids] of buckets) {
+    const nextTeamMemberId = key === "" ? null : key;
+    for (let i = 0; i < ids.length; i += CHUNK) {
+      const chunk = ids.slice(i, i + CHUNK);
+      await db
+        .update(schema.tickets)
+        .set({ teamMemberId: nextTeamMemberId })
+        .where(inArray(schema.tickets.id, chunk));
+      changed += chunk.length;
+    }
+  }
+  return changed;
 }

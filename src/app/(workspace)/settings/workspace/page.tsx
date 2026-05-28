@@ -2,6 +2,7 @@ import { Topbar } from "@/components/shell/topbar";
 import { SettingsBody } from "@/components/settings/settings-body";
 import { LogoForm } from "@/components/settings/workspace/logo-form";
 import { RenameForm } from "@/components/settings/workspace/rename-form";
+import { TeamMemberRuleForm } from "@/components/settings/workspace/team-member-rule-form";
 import {
   getActiveWorkspaceDetails,
   getCurrentUserRole,
@@ -52,6 +53,23 @@ export default async function WorkspaceSettingsPage() {
                 workspaceName={workspace.name}
                 initialDomain={workspace.domain}
                 initialLogoUrl={workspace.logoUrl}
+                isAdmin={isAdmin}
+              />
+            </div>
+          </section>
+
+          <section className="mt-8">
+            <h2 className="text-base font-medium text-foreground">
+              Team-member crediting
+            </h2>
+            <p className="mt-2 text-base text-muted-foreground">
+              Which role on each ticket gets credited as its team member.
+              Changing this re-credits every imported ticket against its
+              stored source data.
+            </p>
+            <div className="mt-4 rounded-xl bg-card px-5 py-5 ring-1 ring-foreground/10">
+              <TeamMemberRuleForm
+                initialRule={workspace.teamMemberResolutionRule}
                 isAdmin={isAdmin}
               />
             </div>

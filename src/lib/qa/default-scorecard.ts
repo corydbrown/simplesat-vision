@@ -23,53 +23,12 @@
  * with the source doc when the PRD updates.
  */
 
-import type { ScorecardScaleType } from "@/db/schema";
+import {
+  assertCodeDefinedScorecardWeights,
+  type CodeDefinedScorecard,
+} from "@/lib/qa/scorecard-spec";
 
-export type DefaultScorecardCriterion = {
-  text: string;
-  anchor5: string;
-  anchor3: string;
-  anchor1: string;
-  /** Criterion-level weight (0-100). Sum of non-autofail criterion weights
-   *  across the whole scorecard must equal 100. Autofail criteria are
-   *  weight 0 — they contribute via the floor mechanism, not the average. */
-  weightPercent: number;
-};
-
-export type DefaultScorecardCategory = {
-  name: string;
-  description: string;
-  /** Transitional / derived: equals `SUM(criteria.weightPercent)`. Kept until
-   *  SVP-229 swaps category-weight reads onto the derived expression. */
-  weightPercent: number;
-  scaleType: ScorecardScaleType;
-  isAutofail: boolean;
-  criteria: DefaultScorecardCriterion[];
-};
-
-export type DefaultScorecard = {
-  name: string;
-  enabled: true;
-  version: number;
-  /** Auto-fail floor: when any binary auto-fail criterion fails, the
-   *  evaluation's overall score is clamped to this value. PRD default: 30. */
-  autoFailFloor: number;
-  /** Manager's framing of how the rubric should be applied. Markdown.
-   *  LLM-only: consumed when the live provider assembles its scoring prompt. */
-  scoringPhilosophy: string;
-  /** Per-likert-level descriptors in ascending order (index 0 = score 1,
-   *  index 4 = score 5). LLM-only. */
-  bandDescriptors: [string, string, string, string, string];
-  /** Industry / company / product context the LLM should hold while scoring.
-   *  Markdown. LLM-only. */
-  domainContext: string;
-  /** Voice / tone expectations the LLM should weigh when judging
-   *  communication. Markdown. LLM-only. */
-  toneExpectations: string;
-  categories: DefaultScorecardCategory[];
-};
-
-export const DEFAULT_SCORECARD: DefaultScorecard = {
+export const DEFAULT_SCORECARD: CodeDefinedScorecard = {
   name: "IQS (Internal Quality Score)",
   enabled: true,
   version: 1,
@@ -215,17 +174,4 @@ export const DEFAULT_SCORECARD: DefaultScorecard = {
   ],
 };
 
-// Dev-time invariant: criterion weights for non-autofail criteria sum to 100.
-// Throws at module load if the rubric drifts out of shape — catches typos
-// before they reach seed / runtime.
-(() => {
-  const sum = DEFAULT_SCORECARD.categories
-    .filter((c) => !c.isAutofail)
-    .flatMap((c) => c.criteria)
-    .reduce((acc, cr) => acc + cr.weightPercent, 0);
-  if (sum !== 100) {
-    throw new Error(
-      `DEFAULT_SCORECARD criterion weights for non-autofail criteria must sum to 100 (got ${sum}).`,
-    );
-  }
-})();
+assertCodeDefinedScorecardWeights(DEFAULT_SCORECARD, "DEFAULT_SCORECARD");

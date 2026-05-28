@@ -13,6 +13,12 @@ export type InitializedDefaultScorecard = InstalledScorecard;
  * because both `seed.ts` and the runtime auto-init in `scoreAndPersistTicket`
  * call this name. Idempotency is the caller's responsibility — seed runs once
  * on a fresh DB, runtime re-queries after init.
+ *
+ * Note: SVP-229 added a sibling helper `mintScorecardFromTemplate` for the
+ * editor's create / duplicate flows. Both helpers do the same insertion shape;
+ * a follow-up task should consolidate them. For now: code-defined rubrics
+ * (IQS, Aprikot) go through installCodeDefinedScorecard; user-driven mints
+ * (createScorecard, duplicateScorecard) go through mintScorecardFromTemplate.
  */
 export function initDefaultScorecardForWorkspace(
   workspaceId: string,

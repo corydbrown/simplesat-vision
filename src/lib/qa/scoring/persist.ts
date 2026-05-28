@@ -59,6 +59,11 @@ export async function scoreAndPersistTicket(params: {
    *  the current default scorecard's version is resolved — minting a snapshot
    *  if one doesn't exist yet. */
   scorecardVersionId?: string;
+  /** Pin which scorecard to score against (SVP-229's manual "Re-score with…"
+   *  picker passes this). When provided, must be live (not archived) and
+   *  workspace-scoped or it throws. When omitted, falls back to "any live
+   *  scorecard, oldest first" — the pre-multi-scorecard behavior. */
+  scorecardId?: string;
   /** Use this executor for the *write* portion. Lets a caller bundle the
    *  inserts into an outer transaction for atomic composition. The reads +
    *  the provider call always run outside any transaction — they're the slow
@@ -139,35 +144,52 @@ export async function scoreAndPersistTicket(params: {
     ? Math.round((responseRow.rating * 5) / responseRow.scale)
     : null;
 
-  // Pick any live (non-archived) scorecard for this workspace. The prototype
-  // is single-scorecard per workspace; SVP-229 introduces multi-scorecard
-  // management and SVP-232 adds the auto-scoring rules engine that picks
-  // *which* scorecard a new ticket runs against. Until then, "the one we have"
-  // is the right answer — auto-init mints one if the workspace has none yet.
-  const selectAnyScorecard = () =>
-    db
+  // Scorecard resolution. SVP-229 added the manual `scorecardId` override
+  // (the "Re-score with…" picker on /coaching). When omitted, fall back to the
+  // pre-multi-scorecard behavior: any live scorecard, oldest first — auto-
+  // initing IQS for fresh workspaces (WorkOS signup) that don't have one yet.
+  // SVP-232 adds the rules engine that selects *which* scorecard a new ticket
+  // runs against automatically.
+  let scorecard;
+  if (params.scorecardId) {
+    [scorecard] = await db
       .select()
       .from(schema.scorecards)
       .where(
         and(
+          eq(schema.scorecards.id, params.scorecardId),
           eq(schema.scorecards.workspaceId, workspaceId),
           isNull(schema.scorecards.archivedAt),
         ),
       )
-      .orderBy(asc(schema.scorecards.createdAt))
       .limit(1);
-  let [scorecard] = await selectAnyScorecard();
-  if (!scorecard) {
-    // Auto-init: workspaces created outside the seed code path (WorkOS signup,
-    // future provisioning flows) never get the IQS scorecard hydrated. Mint it
-    // inline so the first Evaluate click works without a manual fix.
-    await initDefaultScorecardForWorkspace(workspaceId);
-    // Re-query in case a concurrent caller raced ahead — defensive but cheap.
-    [scorecard] = await selectAnyScorecard();
     if (!scorecard) {
       throw new ScoringPreconditionError(
-        "Failed to initialize a scorecard for this workspace.",
+        "Selected scorecard is not available — it may have been archived.",
       );
+    }
+  } else {
+    const selectAnyScorecard = () =>
+      db
+        .select()
+        .from(schema.scorecards)
+        .where(
+          and(
+            eq(schema.scorecards.workspaceId, workspaceId),
+            isNull(schema.scorecards.archivedAt),
+          ),
+        )
+        .orderBy(asc(schema.scorecards.createdAt))
+        .limit(1);
+    [scorecard] = await selectAnyScorecard();
+    if (!scorecard) {
+      await initDefaultScorecardForWorkspace(workspaceId);
+      [scorecard] = await selectAnyScorecard();
+      if (!scorecard) {
+        throw new ScoringPreconditionError(
+          "Failed to initialize a scorecard for this workspace.",
+        );
+      }
     }
   }
 

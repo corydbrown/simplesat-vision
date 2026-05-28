@@ -8,6 +8,7 @@ import type { ScorecardScaleType } from "@/db/schema";
 import type { ScorecardCriterionView } from "@/db/queries/scorecards";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Slider } from "@/components/ui/slider";
 import {
   Select,
   SelectContent,
@@ -25,6 +26,10 @@ const SCALE_LABEL: Record<ScorecardScaleType, string> = {
 
 type Props = {
   category: CategoryDraft;
+  /** Sum of criterion weights for this category — the live derived weight
+   *  (SVP-229). Category weight is no longer directly editable; the manager
+   *  shapes it by tuning criterion weights. */
+  derivedWeight: number;
   draggable: boolean;
   onChangeCategory: (patch: Partial<CategoryDraft>) => void;
   onChangeCriterion: (
@@ -35,6 +40,7 @@ type Props = {
 
 export function CategoryCard({
   category,
+  derivedWeight,
   draggable,
   onChangeCategory,
   onChangeCriterion,
@@ -95,20 +101,15 @@ export function CategoryCard({
             Auto-fail
           </span>
         ) : (
-          <div className="flex shrink-0 items-center gap-1.5">
-            <Input
-              type="number"
-              min={0}
-              max={100}
-              value={category.weightPercent}
-              onChange={(e) =>
-                onChangeCategory({
-                  weightPercent: clampWeight(Number(e.target.value)),
-                })
-              }
-              className="h-8 w-16 text-right tabular-nums"
-              aria-label={`${category.name} weight percent`}
-            />
+          // Derived weight = SUM(criteria.weightPercent). Display only —
+          // tune by editing individual criterion sliders below.
+          <div
+            className="flex shrink-0 items-center gap-1 rounded-md bg-accent/40 px-2 py-1 tabular-nums"
+            aria-label={`${category.name} derived weight ${derivedWeight} percent`}
+          >
+            <span className="text-base font-medium text-foreground">
+              {derivedWeight}
+            </span>
             <span className="text-base text-muted-foreground">%</span>
           </div>
         )}
@@ -179,6 +180,7 @@ export function CategoryCard({
                   index={i}
                   criterion={crit}
                   showAnchors={category.scaleType === "likert_5"}
+                  showWeight={!category.isAutofail}
                   onChange={(patch) => onChangeCriterion(crit.id, patch)}
                 />
               ))}
@@ -194,18 +196,49 @@ function CriterionEditor({
   index,
   criterion,
   showAnchors,
+  showWeight,
   onChange,
 }: {
   index: number;
   criterion: ScorecardCriterionView;
   showAnchors: boolean;
+  showWeight: boolean;
   onChange: (patch: Partial<ScorecardCriterionView>) => void;
 }) {
   return (
     <div className="rounded-lg bg-background/60 p-3 ring-1 ring-foreground/5">
-      <label className="text-sm text-muted-foreground">
-        Criterion {index + 1}
-      </label>
+      <div className="flex items-center gap-3">
+        <label className="text-sm text-muted-foreground">
+          Criterion {index + 1}
+        </label>
+        {showWeight && (
+          <div className="ml-auto flex items-center gap-2">
+            <Slider
+              value={[criterion.weightPercent]}
+              min={0}
+              max={100}
+              step={1}
+              onValueChange={(values) =>
+                onChange({ weightPercent: clampWeight(values[0]) })
+              }
+              aria-label="Criterion weight"
+              className="w-32"
+            />
+            <Input
+              type="number"
+              min={0}
+              max={100}
+              value={criterion.weightPercent}
+              onChange={(e) =>
+                onChange({ weightPercent: clampWeight(Number(e.target.value)) })
+              }
+              className="h-8 w-16 text-right tabular-nums"
+              aria-label={`Criterion ${index + 1} weight percent`}
+            />
+            <span className="text-base text-muted-foreground">%</span>
+          </div>
+        )}
+      </div>
       <Textarea
         value={criterion.text}
         onChange={(e) => onChange({ text: e.target.value })}

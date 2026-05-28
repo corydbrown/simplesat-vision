@@ -210,9 +210,14 @@ export async function editCategoryScore(
  *
  *  Provider is env-selected (`mock` by default; `llm` when configured on the
  *  deploy). Returns the new evaluation id so the client can navigate to
- *  `/coaching/[evaluationId]`. */
+ *  `/coaching/[evaluationId]`.
+ *
+ *  `scorecardId` (SVP-229) pins which scorecard scores the ticket — passed by
+ *  the "Re-score with…" picker on the coaching detail page. When omitted, the
+ *  pre-multi-scorecard fallback resolves "any live scorecard, oldest first". */
 export async function evaluateTicket(
   ticketId: string,
+  options: { scorecardId?: string } = {},
 ): Promise<{ evaluationId: string }> {
   const workspaceId = await requireWorkspace();
   if (typeof ticketId !== "string" || ticketId.length === 0) {
@@ -222,6 +227,7 @@ export async function evaluateTicket(
   const { evaluationId } = await scoreAndPersistTicket({
     ticketId,
     workspaceId,
+    scorecardId: options.scorecardId,
   });
 
   revalidatePath(`/tickets/${ticketId}`);

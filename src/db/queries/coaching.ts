@@ -1,6 +1,7 @@
 import "server-only";
 import { and, asc, eq, inArray } from "drizzle-orm";
 import { db, schema } from "../client";
+import { getCurrentUser } from "@/lib/auth";
 import { requireWorkspace } from "@/lib/workspace";
 import type {
   QaEvaluationStatus,
@@ -69,6 +70,17 @@ export type CoachingMemberView = {
   role: string;
 };
 
+/** Author shape for QA comments + reactions + the evaluation editor — all of
+ *  which FK to `users.id` (SVP-211). Distinct from `CoachingMemberView`
+ *  (which represents helpdesk-agent team_members on tickets / messages /
+ *  activities). Users have an `avatarUrl` (from WorkOS) and no role/color. */
+export type CoachingUserView = {
+  id: string;
+  name: string | null;
+  email: string;
+  avatarUrl: string | null;
+};
+
 export type CoachingEvaluationView = {
   id: string;
   overallScore: number;
@@ -89,7 +101,9 @@ export type CoachingEvaluationView = {
   costUsdCents: number | null;
   scorecard: { id: string; name: string; version: number };
   scoredAgent: CoachingMemberView | null;
-  editor: CoachingMemberView | null;
+  /** Signed-in user who edited the scores (SVP-211: was a team_member; now a
+   *  user). Null when the evaluation has not been edited. */
+  editor: CoachingUserView | null;
   categories: CoachingCategoryView[];
 };
 
@@ -111,11 +125,18 @@ export type CoachingDetail = {
   activities: CoachingActivityView[];
   comments: CommentRow[];
   reactions: ReactionRow[];
-  /** Lookup table of every team member referenced by messages, comments,
-   *  reactions, or the evaluation itself. UI uses this to render author
-   *  names + avatar colors without follow-up queries. */
+  /** Lookup table of team members referenced by ticket messages, activities,
+   *  scored agent, and ticket assignee. Comment / reaction / editor authors
+   *  are NOT here — those are users, indexed via `commentAuthorsById`. */
   membersById: Record<string, CoachingMemberView>;
-  currentUserId: string;
+  /** Lookup table of users referenced by comments, reactions, and the
+   *  evaluation editor. UI uses this to render author names + avatars on the
+   *  coaching surface (SVP-211). */
+  commentAuthorsById: Record<string, CoachingUserView>;
+  /** Signed-in user's id, or null when the request is unauthenticated (e.g.
+   *  RSC preview before login). UI compares against `comment.authorId` /
+   *  `reaction.authorId` for "your" affordances; null-safe via strict !==. */
+  currentUserId: string | null;
 };
 
 /** Single read for the coaching detail page. Joins evaluation + scorecard +
@@ -212,13 +233,13 @@ export async function getCoachingDetail(
   const editorPromise = evaluation.editedBy
     ? db
         .select({
-          id: schema.teamMembers.id,
-          name: schema.teamMembers.name,
-          avatarColor: schema.teamMembers.avatarColor,
-          role: schema.teamMembers.role,
+          id: schema.users.id,
+          name: schema.users.name,
+          email: schema.users.email,
+          avatarUrl: schema.users.avatarUrl,
         })
-        .from(schema.teamMembers)
-        .where(eq(schema.teamMembers.id, evaluation.editedBy))
+        .from(schema.users)
+        .where(eq(schema.users.id, evaluation.editedBy))
         .limit(1)
     : Promise.resolve([]);
 
@@ -313,7 +334,7 @@ export async function getCoachingDetail(
       .orderBy(asc(schema.scorecardVersionCategories.order)),
     provider.listComments(evaluation.id, workspaceId),
     provider.listReactions(evaluation.id, workspaceId),
-    resolveCurrentUserId(workspaceId),
+    getCurrentUser().then((u) => u?.id ?? null),
   ]);
 
   const customer = customerRows[0] ?? null;
@@ -395,44 +416,48 @@ export async function getCoachingDetail(
   const scoredAgentView: CoachingMemberView | null = head.scoredAgent?.id
     ? head.scoredAgent
     : null;
-  const editorView: CoachingMemberView | null = editor ?? null;
+  const editorView: CoachingUserView | null = editor ?? null;
 
-  // Build the member lookup. Includes everyone referenced anywhere on this
-  // surface: scored agent, editor, ticket assignee, message agents, comment
-  // authors, reaction authors. One query for any missing comment/reaction
-  // authors that don't already appear elsewhere.
+  // Build the team-member lookup. Holds everyone referenced as a *ticket*
+  // actor: scored agent, ticket assignee, message agents, activity actors.
+  // Comment/reaction authors are users, not team_members — see
+  // `commentAuthorsById` below.
   const membersById = new Map<string, CoachingMemberView>();
-  function add(member: CoachingMemberView | null | undefined) {
+  function addMember(member: CoachingMemberView | null | undefined) {
     if (member?.id) membersById.set(member.id, member);
   }
-  add(scoredAgentView);
-  add(editorView);
-  add(assignee);
+  addMember(scoredAgentView);
+  addMember(assignee);
   for (const m of messageRows) {
-    if (m.teamMember?.id) add(m.teamMember);
+    if (m.teamMember?.id) addMember(m.teamMember);
   }
   for (const e of eventRows) {
-    if (e.actorMember?.id) add(e.actorMember);
+    if (e.actorMember?.id) addMember(e.actorMember);
   }
-  const missingAuthorIds = new Set<string>();
-  for (const c of comments) {
-    if (!membersById.has(c.authorId)) missingAuthorIds.add(c.authorId);
-  }
-  for (const r of reactions) {
-    if (!membersById.has(r.authorId)) missingAuthorIds.add(r.authorId);
-  }
-  if (!membersById.has(currentUserId)) missingAuthorIds.add(currentUserId);
-  if (missingAuthorIds.size > 0) {
-    const extra = await db
+
+  // Build the user lookup for comment authors, reaction authors, and the
+  // editor. Single query against `users` for every distinct id referenced
+  // by this surface. The editor view (already loaded by id) seeds the map
+  // first so we don't double-fetch it.
+  const commentAuthorsById = new Map<string, CoachingUserView>();
+  if (editorView) commentAuthorsById.set(editorView.id, editorView);
+  const userIds = new Set<string>();
+  for (const c of comments) userIds.add(c.authorId);
+  for (const r of reactions) userIds.add(r.authorId);
+  if (currentUserId) userIds.add(currentUserId);
+  // Drop ids we already have (editor) to keep the query tight.
+  for (const have of commentAuthorsById.keys()) userIds.delete(have);
+  if (userIds.size > 0) {
+    const extraUsers = await db
       .select({
-        id: schema.teamMembers.id,
-        name: schema.teamMembers.name,
-        avatarColor: schema.teamMembers.avatarColor,
-        role: schema.teamMembers.role,
+        id: schema.users.id,
+        name: schema.users.name,
+        email: schema.users.email,
+        avatarUrl: schema.users.avatarUrl,
       })
-      .from(schema.teamMembers)
-      .where(inArray(schema.teamMembers.id, [...missingAuthorIds]));
-    for (const m of extra) add(m);
+      .from(schema.users)
+      .where(inArray(schema.users.id, [...userIds]));
+    for (const u of extraUsers) commentAuthorsById.set(u.id, u);
   }
 
   return {
@@ -472,6 +497,7 @@ export async function getCoachingDetail(
     comments,
     reactions,
     membersById: Object.fromEntries(membersById),
+    commentAuthorsById: Object.fromEntries(commentAuthorsById),
     currentUserId,
   };
 
@@ -517,39 +543,3 @@ export async function getCoachingDetail(
   }
 }
 
-/** Round-one current-user stub — mirrors the resolver in qa/coaching/actions.ts
- *  and qa/actions.ts. Prefers the first Customer Care Lead (the role that owns
- *  QA review in the Bloom seed narrative) and falls back to any team member in
- *  the workspace when that role isn't present — live workspaces (Simplesat,
- *  Pronto) sync team members from helpdesks that don't use that role string.
- *  Throws only if the workspace has zero team members at all.
- *
- *  Will be replaced by the signed-in user once auth → team_member linking
- *  lands (filed SVP-210). */
-async function resolveCurrentUserId(workspaceId: string): Promise<string> {
-  const [lead] = await db
-    .select({ id: schema.teamMembers.id })
-    .from(schema.teamMembers)
-    .where(
-      and(
-        eq(schema.teamMembers.role, "Customer Care Lead"),
-        eq(schema.teamMembers.workspaceId, workspaceId),
-      ),
-    )
-    .orderBy(asc(schema.teamMembers.name))
-    .limit(1);
-  if (lead) return lead.id;
-
-  const [any] = await db
-    .select({ id: schema.teamMembers.id })
-    .from(schema.teamMembers)
-    .where(eq(schema.teamMembers.workspaceId, workspaceId))
-    .orderBy(asc(schema.teamMembers.name))
-    .limit(1);
-  if (!any) throw new Error("No current user available");
-  return any.id;
-}
-
-// Re-exported here so a category-highlight server action can read the same
-// utility without pulling the whole query helper. Keeps the seam clean.
-export { resolveCurrentUserId as resolveCoachingCurrentUserId };

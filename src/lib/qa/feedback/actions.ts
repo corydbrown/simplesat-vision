@@ -16,11 +16,9 @@ import { and, asc, desc, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db, schema } from "@/db/client";
-import { getCurrentUser } from "@/lib/auth";
-import { DEV_AUTH_BYPASS, DEV_USER } from "@/lib/dev-auth";
+import { requireUserPersisted } from "@/lib/auth/require-user-persisted";
 import { prefixedId } from "@/lib/ids";
 import { requireWorkspace } from "@/lib/workspace";
-import type { User } from "@/db/schema";
 
 const MAX_FEEDBACK_CHARS = 10_000;
 
@@ -198,33 +196,6 @@ export async function listEvaluationFeedback(
     createdAt: r.createdAt.getTime(),
     updatedAt: r.updatedAt.getTime(),
   }));
-}
-
-/** Returns the current user and ensures a matching `users` row exists. The
- *  dev-bypass user (`usr_dev_bypass`) is deliberately not persisted by the
- *  seed (`src/lib/dev-auth.ts` documents the constraint), but the FK on
- *  `evaluation_feedback.created_by` needs a real row. Insert-or-ignore on
- *  every call keeps the seam clean — production uses real WorkOS users
- *  that already exist via `/callback`, so this is a no-op there. */
-async function requireUserPersisted(): Promise<User> {
-  const user = await getCurrentUser();
-  if (!user) throw new Error("Not authenticated");
-
-  if (DEV_AUTH_BYPASS && user.id === DEV_USER.id) {
-    await db
-      .insert(schema.users)
-      .values({
-        id: DEV_USER.id,
-        workosId: DEV_USER.workosId,
-        email: DEV_USER.email,
-        name: DEV_USER.name,
-        avatarUrl: DEV_USER.avatarUrl,
-        createdAt: DEV_USER.createdAt,
-      })
-      .onConflictDoNothing({ target: schema.users.id });
-  }
-
-  return user;
 }
 
 function parse<S extends z.ZodTypeAny>(s: S, input: unknown): z.infer<S> {

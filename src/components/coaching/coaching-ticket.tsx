@@ -48,7 +48,12 @@ import type { ReactionAggregate } from "./reaction-row";
 type FocusSurface = "convo" | "overview" | "inspect";
 
 export function CoachingTicket({ detail }: { detail: CoachingDetail }) {
-  const { evaluation, messages, activities, currentUserId } = detail;
+  const { evaluation, messages, activities } = detail;
+  // `detail.currentUserId` is `string | null` (null = unauthenticated RSC
+  // preview, which the proxy redirects before reaching this surface). Use a
+  // sentinel empty string so equality checks against real ids stay safe and
+  // optimistic-state writes type-check.
+  const currentUserId = detail.currentUserId ?? "";
 
   // ----- optimistic local state -----
   const [comments, setComments] = useState<CommentRowData[]>(detail.comments);
@@ -896,7 +901,7 @@ export function CoachingTicket({ detail }: { detail: CoachingDetail }) {
                 citations={citationsByMessage.get(inspectMessage.id) ?? []}
                 comments={commentsByMessage.get(inspectMessage.id) ?? []}
                 reactionsByCommentId={commentReactionAggregates}
-                membersById={detail.membersById}
+                commentAuthorsById={detail.commentAuthorsById}
                 currentUserId={currentUserId}
                 focus={inspectFocus}
                 isActiveSurface={focusedSurface === "inspect"}
@@ -1049,12 +1054,11 @@ function buildAggregates(
     for (const [emoji, rows] of byEmoji) {
       aggs.push({
         emoji,
-        reactors: rows.map(
-          (r) =>
-            (r.authorId === currentUserId
-              ? "You"
-              : detail.membersById[r.authorId]?.name) ?? "Someone",
-        ),
+        reactors: rows.map((r) => {
+          if (r.authorId === currentUserId) return "You";
+          const author = detail.commentAuthorsById[r.authorId];
+          return author?.name ?? author?.email?.split("@")[0] ?? "Someone";
+        }),
         reactedByMe: rows.some((r) => r.authorId === currentUserId),
       });
     }

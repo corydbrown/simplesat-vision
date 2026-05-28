@@ -2,19 +2,20 @@
 
 /**
  * Server actions for QA comments + reactions. Thin wrappers around the
- * CommentProvider that (a) resolve the "current user" (a deterministic stub
- * until auth lands — same pattern as `editCategoryScore` in
- * src/lib/qa/actions.ts), (b) revalidate the ticket detail path so a hard
- * refresh shows the same state the client just optimistically rendered.
+ * CommentProvider that (a) resolve the signed-in user (SVP-211: writes FK to
+ * `users.id`, was a team_member stub before), (b) revalidate the ticket
+ * detail path so a hard refresh shows the same state the client just
+ * optimistically rendered.
  *
  * Own-comments-only edit/delete is enforced inside the provider; these
  * actions just surface the provider's errors to the client.
  */
 
-import { and, asc, eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db, schema } from "@/db/client";
+import { requireUserPersisted } from "@/lib/auth/require-user-persisted";
 import { requireWorkspace } from "@/lib/workspace";
 import { getCommentProvider } from "./index";
 import { COACHING_REACTIONS } from "./reactions";
@@ -56,7 +57,7 @@ const RemoveReactionSchema = z.object({
 export async function createComment(input: unknown): Promise<CommentRow> {
   const parsed = parse(CreateCommentSchema, input);
   const workspaceId = await requireWorkspace();
-  const currentUserId = await resolveCurrentUserId(workspaceId);
+  const currentUserId = (await requireUserPersisted()).id;
   const provider = getCommentProvider();
   const created = await provider.createComment({
     workspaceId,
@@ -74,7 +75,7 @@ export async function createComment(input: unknown): Promise<CommentRow> {
 export async function editComment(input: unknown): Promise<CommentRow> {
   const parsed = parse(EditCommentSchema, input);
   const workspaceId = await requireWorkspace();
-  const currentUserId = await resolveCurrentUserId(workspaceId);
+  const currentUserId = (await requireUserPersisted()).id;
   const provider = getCommentProvider();
   const updated = await provider.editComment(
     parsed.commentId,
@@ -89,7 +90,7 @@ export async function editComment(input: unknown): Promise<CommentRow> {
 export async function deleteComment(input: unknown): Promise<{ ok: true }> {
   const parsed = parse(DeleteCommentSchema, input);
   const workspaceId = await requireWorkspace();
-  const currentUserId = await resolveCurrentUserId(workspaceId);
+  const currentUserId = (await requireUserPersisted()).id;
   const provider = getCommentProvider();
 
   // Read evaluationId before deleting so we know what to revalidate. The
@@ -115,7 +116,7 @@ export async function deleteComment(input: unknown): Promise<{ ok: true }> {
 export async function addReaction(input: unknown): Promise<ReactionRow> {
   const parsed = parse(ReactionSchema, input);
   const workspaceId = await requireWorkspace();
-  const currentUserId = await resolveCurrentUserId(workspaceId);
+  const currentUserId = (await requireUserPersisted()).id;
   const provider = getCommentProvider();
   const reaction = await provider.addReaction({
     workspaceId,
@@ -132,7 +133,7 @@ export async function addReaction(input: unknown): Promise<ReactionRow> {
 export async function removeReaction(input: unknown): Promise<{ ok: true }> {
   const parsed = parse(RemoveReactionSchema, input);
   const workspaceId = await requireWorkspace();
-  const currentUserId = await resolveCurrentUserId(workspaceId);
+  const currentUserId = (await requireUserPersisted()).id;
   const provider = getCommentProvider();
 
   // Look up evaluationId via the reaction itself so callers don't have to
@@ -245,26 +246,6 @@ function sameArray(a: string[], b: string[]): boolean {
   if (a.length !== b.length) return false;
   for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return false;
   return true;
-}
-
-/** Round-one current-user stub. Picks the first Customer Care Lead in
- *  THIS workspace deterministically — the role that owns QA review in the
- *  seed narrative. Same pattern as `editCategoryScore` in
- *  src/lib/qa/actions.ts. Auth cutover replaces this with the session user. */
-async function resolveCurrentUserId(workspaceId: string): Promise<string> {
-  const [manager] = await db
-    .select({ id: schema.teamMembers.id })
-    .from(schema.teamMembers)
-    .where(
-      and(
-        eq(schema.teamMembers.role, "Customer Care Lead"),
-        eq(schema.teamMembers.workspaceId, workspaceId),
-      ),
-    )
-    .orderBy(asc(schema.teamMembers.name))
-    .limit(1);
-  if (!manager) throw new Error("No current user available");
-  return manager.id;
 }
 
 async function revalidateForEvaluation(

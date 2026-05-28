@@ -74,28 +74,47 @@ export function TicketDetailBody({
     </>
   );
 
+  // Why manual evaluation is blocked, if it is. Scoring needs a conversation
+  // to read and an agent to attribute the score to (scored_team_member_id is
+  // NOT NULL). Surfaced as a disabled-button tooltip rather than hiding the
+  // affordance, so the user understands what to fix.
+  const evaluateBlockedReason =
+    ticket.messages.length === 0
+      ? "This ticket has no messages to evaluate."
+      : !ticket.assignee
+        ? "Assign an agent before evaluating this ticket."
+        : null;
+
   // QA section split:
-  //  - In the drawer: compact `QaBreakdownSection` from SVP-55, with a "View
-  //    full QA" link that anchors at `/tickets/[id]#qa` on the standalone
-  //    page (where the full SVP-54 surface lives).
-  //  - On the standalone detail page: the full `TicketQaSection` wrapped in
-  //    `<div id="qa">` so the drawer's link lands on it.
-  // Both surfaces handle a null evaluation internally — gated here so the
-  // section drops out entirely when a ticket has never been scored (the
-  // "Score now" UX surfaces with SVP-58).
-  const qaSection = ticket.evaluation ? (
-    inDrawer ? (
+  //  - In the drawer with a score: compact `QaBreakdownSection` from SVP-55,
+  //    with a "View full QA" link that anchors at `/tickets/[id]#qa` on the
+  //    standalone page (where the full SVP-54 surface lives).
+  //  - Everywhere else: `TicketQaSection`, which renders the score breakdown
+  //    when present and the manual "Evaluate this conversation" affordance
+  //    (SVP-204) when not. Standalone wraps it in `<div id="qa">` so the
+  //    drawer's "View full QA" link lands on it.
+  const qaSection =
+    inDrawer && ticket.evaluation ? (
       <QaBreakdownSection
         ticketId={ticket.id}
         evaluation={ticket.evaluation}
         inDrawer
       />
+    ) : inDrawer ? (
+      <TicketQaSection
+        ticketId={ticket.id}
+        evaluation={null}
+        evaluateBlockedReason={evaluateBlockedReason}
+      />
     ) : (
       <div id="qa">
-        <TicketQaSection evaluation={ticket.evaluation} />
+        <TicketQaSection
+          ticketId={ticket.id}
+          evaluation={ticket.evaluation}
+          evaluateBlockedReason={evaluateBlockedReason}
+        />
       </div>
-    )
-  ) : null;
+    );
 
   const content = (
     <>

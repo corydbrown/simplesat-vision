@@ -34,12 +34,23 @@ export type TicketSource = string;
  *  resolved from this bag by `resolveTeamMember` (see src/lib/ingest). */
 export type SourceAgents = Record<string, string>;
 /** The resolution rule that picks which `sourceAgents` role to credit as the
- *  ticket's `teamMemberId`. Default `assignee`; widens to solver /
- *  most-time-logged / opened-by once a workspace setting owns the choice. */
+ *  ticket's `teamMemberId`. Workspace-scoped (`workspaces.teamMemberResolutionRule`),
+ *  default `assignee`. Rule keys double as `sourceAgents` map keys — n8n is
+ *  responsible for populating the same keys per source (Zendesk fills all four;
+ *  Intercom fills `assignee` + `opened_by`, leaves `solver`/`most_time_logged`
+ *  empty, in which case the resolved member is null). */
 export type TeamMemberResolutionRule =
   | "assignee"
-  | "submitter"
-  | "last_closed_by";
+  | "solver"
+  | "most_time_logged"
+  | "opened_by";
+
+export const TEAM_MEMBER_RESOLUTION_RULES: readonly TeamMemberResolutionRule[] = [
+  "assignee",
+  "solver",
+  "most_time_logged",
+  "opened_by",
+] as const;
 /** Provenance of a CSAT/QA response. `simplesat` is a native survey response;
  *  the others are source-imported CSAT. Free text so new sources don't gate
  *  on a schema change. */
@@ -429,6 +440,16 @@ export const workspaces = sqliteTable(
       .notNull()
       .$type<WorkspaceIntegrationType>()
       .default("mock"),
+    /** Which `sourceAgents` role (assignee / solver / most_time_logged /
+     *  opened_by) gets credited as a ticket's `teamMemberId`. Changing this
+     *  re-resolves every already-imported ticket synchronously against its
+     *  stored `sourceAgents` bag — see `setTeamMemberResolutionRule` action. */
+    teamMemberResolutionRule: text("team_member_resolution_rule", {
+      enum: ["assignee", "solver", "most_time_logged", "opened_by"],
+    })
+      .notNull()
+      .$type<TeamMemberResolutionRule>()
+      .default("assignee"),
     createdAt: integer("created_at", { mode: "timestamp_ms" })
       .notNull()
       .default(sql`(unixepoch() * 1000)`),

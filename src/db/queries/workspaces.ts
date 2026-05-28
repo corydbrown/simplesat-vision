@@ -3,7 +3,10 @@ import { and, asc, eq } from "drizzle-orm";
 import { db, schema } from "../client";
 import { requireWorkspace } from "@/lib/workspace";
 import { getCurrentUser } from "@/lib/auth";
-import type { WorkspaceIntegrationType } from "../schema";
+import type {
+  TeamMemberResolutionRule,
+  WorkspaceIntegrationType,
+} from "../schema";
 
 export type WorkspaceDetails = {
   id: string;
@@ -12,6 +15,7 @@ export type WorkspaceDetails = {
   logoUrl: string | null;
   domain: string | null;
   integrationType: WorkspaceIntegrationType;
+  teamMemberResolutionRule: TeamMemberResolutionRule;
   createdAt: number;
   createdByName: string | null;
   createdByEmail: string | null;
@@ -47,6 +51,7 @@ export async function getActiveWorkspaceDetails(): Promise<WorkspaceDetails | nu
       logoUrl: schema.workspaces.logoUrl,
       domain: schema.workspaces.domain,
       integrationType: schema.workspaces.integrationType,
+      teamMemberResolutionRule: schema.workspaces.teamMemberResolutionRule,
       createdAt: schema.workspaces.createdAt,
       createdBy: schema.workspaces.createdBy,
     })
@@ -76,6 +81,7 @@ export async function getActiveWorkspaceDetails(): Promise<WorkspaceDetails | nu
     logoUrl: row.logoUrl,
     domain: row.domain,
     integrationType: row.integrationType,
+    teamMemberResolutionRule: row.teamMemberResolutionRule,
     createdAt: row.createdAt instanceof Date ? row.createdAt.getTime() : row.createdAt,
     createdByName,
     createdByEmail,

@@ -9,8 +9,10 @@ import {
   teamMembers,
   ticketMessages,
   tickets,
+  workspaces,
   type AvatarSource,
   type SurveyAnswer,
+  type TeamMemberResolutionRule,
 } from "@/db/schema";
 import { prefixedId, type IdPrefix } from "@/lib/ids";
 import { resolveTeamMember } from "@/lib/ingest/resolve-team-member";
@@ -174,6 +176,21 @@ async function resolveTeamMemberIdOrNull(
   return row?.id ?? null;
 }
 
+/** Looks up the workspace's configured team-member resolution rule. Falls back
+ *  to the schema default (`assignee`) if the workspace row is missing — that
+ *  shouldn't happen in practice since the FK enforces existence, but the fallback
+ *  keeps ingest from crashing on a stale workspaceId. */
+async function getWorkspaceResolutionRule(
+  workspaceId: string,
+): Promise<TeamMemberResolutionRule> {
+  const [row] = await db
+    .select({ rule: workspaces.teamMemberResolutionRule })
+    .from(workspaces)
+    .where(eq(workspaces.id, workspaceId))
+    .limit(1);
+  return row?.rule ?? "assignee";
+}
+
 // --- custom-properties merge ------------------------------------------------
 
 /** Merge customer-level custom attributes with the resolved org's custom
@@ -303,11 +320,12 @@ export async function upsertTicket(
     input.customerExternalId,
   );
   const sourceAgents = input.sourceAgents ?? {};
-  // Credit a single team member via the resolution rule (default: assignee).
+  // Credit a single team member via the workspace's resolution rule.
   // Soft-resolve: an unsynced agent leaves teamMemberId null, not a 422.
+  const rule = await getWorkspaceResolutionRule(workspaceId);
   const teamMemberId = await resolveTeamMemberIdOrNull(
     workspaceId,
-    resolveTeamMember(sourceAgents),
+    resolveTeamMember(sourceAgents, rule),
   );
 
   const shared = {

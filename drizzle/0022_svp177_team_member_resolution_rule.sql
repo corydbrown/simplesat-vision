@@ -1,0 +1,1 @@
+ALTER TABLE `workspaces` ADD `team_member_resolution_rule` text DEFAULT 'assignee' NOT NULL;

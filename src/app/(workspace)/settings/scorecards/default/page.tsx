@@ -6,18 +6,22 @@ import {
   getDefaultScorecard,
   getScorecardEditorView,
 } from "@/db/queries/scorecards";
+import { getActiveWorkspaceDetails } from "@/db/queries/workspaces";
 
 export default async function DefaultScorecardEditorPage() {
   const summary = await getDefaultScorecard();
   if (!summary) notFound();
-  const scorecard = await getScorecardEditorView(summary.id);
+  const [scorecard, workspace] = await Promise.all([
+    getScorecardEditorView(summary.id),
+    getActiveWorkspaceDetails(),
+  ]);
   if (!scorecard) notFound();
 
   return (
     <>
       <Topbar
         crumbs={[
-          { label: "Bloom Beauty" },
+          { label: workspace?.name ?? "Workspace" },
           { label: "Settings", href: "/settings" },
           { label: "Scorecards", href: "/settings/scorecards" },
           { label: scorecard.name },

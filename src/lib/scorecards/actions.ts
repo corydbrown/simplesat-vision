@@ -338,25 +338,34 @@ export type TicketPickerRow = {
 /** Returns recent scored tickets matching the query, for the picker in
  *  the "Test on a conversation" panel. Only tickets that have an evaluation
  *  qualify — those are the only ones with messages in the prototype seed,
- *  and they're the meaningful surface to preview a scorecard against. */
+ *  and they're the meaningful surface to preview a scorecard against.
+ *
+ *  Workspace-scoped: predicates BOTH tickets.workspaceId AND
+ *  evaluations.workspaceId (defense in depth — a mis-keyed FK shouldn't
+ *  leak across workspaces). */
 export async function searchScoredTickets(
   rawQuery: string,
 ): Promise<TicketPickerRow[]> {
+  const workspaceId = await requireWorkspace();
   const q = rawQuery.trim();
   const pattern = q.length === 0
     ? null
     : `%${q.replaceAll("%", "\\%").replaceAll("_", "\\_")}%`;
 
-  const where = pattern
-    ? or(
-        like(schema.tickets.subject, pattern),
-        like(schema.customers.name, pattern),
-      )
-    : undefined;
+  const where = and(
+    eq(schema.tickets.workspaceId, workspaceId),
+    eq(schema.evaluations.workspaceId, workspaceId),
+    pattern
+      ? or(
+          like(schema.tickets.subject, pattern),
+          like(schema.customers.name, pattern),
+        )
+      : undefined,
+  );
 
   // Pull scored tickets (have at least one evaluation) ordered by most
   // recently scored first. Caps at 20 — enough to scan, not overwhelming.
-  const base = db
+  const rows = await db
     .select({
       id: schema.tickets.id,
       subject: schema.tickets.subject,
@@ -371,9 +380,8 @@ export async function searchScoredTickets(
     .leftJoin(
       schema.customers,
       eq(schema.customers.id, schema.tickets.customerId),
-    );
-
-  const rows = await (where ? base.where(where) : base)
+    )
+    .where(where)
     .orderBy(desc(schema.evaluations.scoredAt))
     .limit(20);
 

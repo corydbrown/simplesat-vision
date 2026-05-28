@@ -53,3 +53,7 @@ BRIEF.md
 .worker-meta
 .pr-body.md
 .claude/scheduled_tasks.lock
+
+# Supervisor-local state and per-task briefs (never committed)
+.claude/STATUS.md
+.claude/BRIEF-*.md

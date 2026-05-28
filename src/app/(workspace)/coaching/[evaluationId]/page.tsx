@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { Topbar } from "@/components/shell/topbar";
 import { DetailActions } from "@/components/shared/detail-actions";
+import { CoachingEvalFooter } from "@/components/coaching/coaching-eval-footer";
 import { CoachingTicket } from "@/components/coaching/coaching-ticket";
 import { CoachingTicketHeader } from "@/components/coaching/coaching-ticket-header";
 import { ConfigureScorecardItem } from "@/components/coaching/configure-scorecard-item";
@@ -36,6 +37,7 @@ export default async function CoachingDetailPage(
       <main className="px-14 py-10">
         <CoachingTicketHeader detail={detail} versions={versions} />
         <CoachingTicket detail={detail} />
+        <CoachingEvalFooter evaluation={detail.evaluation} />
       </main>
     </>
   );

@@ -1270,6 +1270,23 @@ export const evaluations = sqliteTable(
     /** Provider identity: `mock-deterministic-v1`, `claude-haiku-4-5-…`, etc.
      *  Lets us track score drift when the underlying model changes. */
     aiModel: text("ai_model").notNull(),
+    /** Vendor / API surface that produced the score (`anthropic`, `openai`,
+     *  `google`, `mock`). Kept separate from `ai_model` so reports can pivot
+     *  per-provider regardless of model variants — and so swapping providers
+     *  is a one-column rollup, not a string-prefix grep. Nullable for
+     *  evaluations written before SVP-233. */
+    aiProvider: text("ai_provider"),
+    /** Provider-reported input tokens for this evaluation's scoring call.
+     *  Null for the mock provider and for pre-SVP-233 rows. */
+    inputTokens: integer("input_tokens"),
+    /** Provider-reported output tokens. Null when tokens aren't available. */
+    outputTokens: integer("output_tokens"),
+    /** Estimated cost of this evaluation in USD cents, snapshotted at
+     *  evaluation time so historical totals survive future vendor price
+     *  changes. Integer cents (never floats in the DB — display divides by
+     *  100). Null when token counts are unavailable or pricing isn't on file
+     *  for the (provider, model) pair. */
+    costUsdCents: integer("cost_usd_cents"),
     /** 0-1 self-reported confidence from the provider. */
     aiConfidence: integer("ai_confidence").notNull(),
     aiReasoningSummary: text("ai_reasoning_summary").notNull().default(""),

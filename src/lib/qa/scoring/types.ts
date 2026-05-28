@@ -99,6 +99,14 @@ export type ScoringOutput = {
   overallScore: number;
   /** Provider identity — written to evaluations.ai_model. */
   aiModel: string;
+  /** Vendor / API surface that produced the score (`anthropic`, `openai`,
+   *  `google`, `mock`). Distinct from `aiModel` so reports can pivot per
+   *  provider regardless of model variants. */
+  aiProvider: string;
+  /** Provider-reported input tokens for this scoring call. Null when the
+   *  provider doesn't surface a token count (the mock provider, for now). */
+  inputTokens: number | null;
+  outputTokens: number | null;
   /** 0-1 self-reported confidence. Stored as integer percent (0-100) in the
    *  DB; the provider returns the float and the caller projects. */
   aiConfidence: number;

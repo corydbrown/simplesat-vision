@@ -32,6 +32,30 @@ export function formatNumber(value: number): string {
   return numberFormatter.format(value);
 }
 
+const currencyFormatter = new Intl.NumberFormat("en-US", {
+  style: "currency",
+  currency: "USD",
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+});
+
+const currencyFineFormatter = new Intl.NumberFormat("en-US", {
+  style: "currency",
+  currency: "USD",
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 4,
+});
+
+/** Format integer USD cents as a display currency string. Values below $0.01
+ *  show up to 4 decimal places so per-evaluation token costs (often a fraction
+ *  of a cent) don't all collapse to "$0.00". */
+export function formatCurrencyCents(cents: number | null | undefined): string {
+  if (cents == null || !Number.isFinite(cents)) return "-";
+  const dollars = cents / 100;
+  if (Math.abs(dollars) < 0.01) return currencyFineFormatter.format(dollars);
+  return currencyFormatter.format(dollars);
+}
+
 const relativeFormatter = new Intl.RelativeTimeFormat("en-US", {
   numeric: "auto",
 });

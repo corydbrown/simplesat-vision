@@ -78,6 +78,15 @@ export type CoachingEvaluationView = {
   scoredAt: number;
   editedAt: number | null;
   autoFailed: boolean;
+  /** Snapshot of which model produced the score, and what it cost (SVP-233).
+   *  Tokens + cents are null for evaluations produced before the columns
+   *  existed and for the mock provider. The footer line on the coaching page
+   *  reads these — see the page component for the rendering rules. */
+  aiModel: string;
+  aiProvider: string | null;
+  inputTokens: number | null;
+  outputTokens: number | null;
+  costUsdCents: number | null;
   scorecard: { id: string; name: string; version: number };
   scoredAgent: CoachingMemberView | null;
   editor: CoachingMemberView | null;
@@ -436,6 +445,11 @@ export async function getCoachingDetail(
       scoredAt: evaluation.scoredAt.getTime(),
       editedAt: evaluation.editedAt ? evaluation.editedAt.getTime() : null,
       autoFailed,
+      aiModel: evaluation.aiModel,
+      aiProvider: evaluation.aiProvider,
+      inputTokens: evaluation.inputTokens,
+      outputTokens: evaluation.outputTokens,
+      costUsdCents: evaluation.costUsdCents,
       scorecard: head.scorecard,
       scoredAgent: scoredAgentView,
       editor: editorView,

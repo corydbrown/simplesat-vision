@@ -12,6 +12,10 @@ import {
 import { rollupTopics } from "../lib/topics";
 import { DEFAULT_SCORECARD } from "../lib/qa/default-scorecard";
 import { MockScoringProvider } from "../lib/qa/scoring";
+import {
+  scoreAndPersistTicket,
+  type PersistedEvaluation,
+} from "../lib/qa/scoring/persist";
 import { COACHING_REACTIONS } from "../lib/qa/coaching";
 import { snapshotScorecard } from "../lib/scorecards/snapshot";
 import { resolveTeamMember } from "../lib/ingest/resolve-team-member";
@@ -19,11 +23,7 @@ import { SEED_VIEWS } from "../lib/views/seed";
 import type { EntityKey } from "../lib/views/types";
 import { replaceSavedViews } from "./queries/saved-views.core";
 import { DEMO_WORKSPACE_ID } from "../lib/workspace-id";
-import type {
-  ScoringInput,
-  ScoringMessage,
-  ScoringScorecard,
-} from "../lib/qa/scoring";
+import type { ScoringMessage } from "../lib/qa/scoring";
 import type {
   Channel,
   CustomerTier,
@@ -1947,128 +1947,43 @@ async function seed() {
     messagesByTicketId.set(m.ticketId, list);
   }
 
-  // Resolve the scorecard into the shape the provider expects (with DB ids
-  // baked in). Same shape the app code will pass at runtime.
-  const scoringScorecard: ScoringScorecard = {
-    id: scorecardId,
-    name: DEFAULT_SCORECARD.name,
-    version: DEFAULT_SCORECARD.version,
-    autoFailFloor: DEFAULT_SCORECARD.autoFailFloor,
-    categories: DEFAULT_SCORECARD.categories.map((category) => {
-      const criterionIds = criterionIdsByCategoryName.get(category.name) ?? [];
-      return {
-        id: categoryIdByName.get(category.name)!,
-        name: category.name,
-        description: category.description,
-        weightPercent: category.weightPercent,
-        scaleType: category.scaleType,
-        isAutofail: category.isAutofail,
-        criteria: category.criteria.map((c, ci) => ({
-          id: criterionIds[ci]!,
-          text: c.text,
-        })),
-      };
-    }),
-  };
-
-  const provider = new MockScoringProvider();
-  const evaluationRows: NewEvaluation[] = [];
-  const categoryScoreRows: NewEvaluationCategoryScore[] = [];
-  const coachingNoteRows: NewCoachingNote[] = [];
-
-  const responseByTicketId = new Map<string, NewResponse>();
-  for (const r of responses) responseByTicketId.set(r.ticketId, r);
-
+  // Score + persist each conversation-mockup ticket through the SAME shared
+  // function the runtime "Evaluate" action calls (scoreAndPersistTicket).
+  // Seed pins the provider (deterministic mock), backdates each eval onto the
+  // original timeline, and passes the pre-minted v1 version so it doesn't
+  // re-resolve/mint. The function loads the ticket / messages / response /
+  // scorecard from the rows inserted above and writes the evaluation +
+  // category scores + coaching note — no row-mapping logic duplicated here.
+  const mockProvider = new MockScoringProvider();
+  const persisted: PersistedEvaluation[] = [];
   for (const ticket of tickets) {
     if (!mockupTicketIds.has(ticket.id!)) continue;
-    const messages = messagesByTicketId.get(ticket.id!) ?? [];
-    const ticketResponse = responseByTicketId.get(ticket.id!);
-    const responseRating = ticketResponse
-      ? Math.round((ticketResponse.rating * 5) / ticketResponse.scale)
-      : null;
-    const input: ScoringInput = {
-      ticket: {
-        id: ticket.id!,
-        subject: ticket.subject,
-        channel: ticket.channel,
-        status: ticket.status,
-        priority: ticket.priority ?? "normal",
-        createdAt: ticket.createdAt as Date,
-        solvedAt: (ticket.solvedAt as Date | null) ?? null,
-        tags: ticket.tags ?? [],
-        responseRating,
-      },
-      messages,
-      scorecard: scoringScorecard,
-    };
-
-    const output = await provider.scoreConversation(input);
-
-    const evaluationId = prefixedId("evl");
     const scoredAt = ticket.solvedAt
       ? new Date(((ticket.solvedAt as Date).getTime()) + 60 * 60 * 1000)
       : new Date(NOW);
-    const editedStatus = output.autoFailTriggered ? "contested" : "ai_scored";
-
-    evaluationRows.push({
-      id: evaluationId,
-      workspaceId: DEMO_WORKSPACE_ID,
-      ticketId: ticket.id!,
-      scorecardId,
-      scorecardVersionId: v1ScorecardVersionId,
-      scoredTeamMemberId: ticket.teamMemberId!,
-      overallScore: output.overallScore,
-      status: editedStatus,
-      aiModel: output.aiModel,
-      // Confidence stored as integer percent so the column is a plain int.
-      aiConfidence: Math.round(output.aiConfidence * 100),
-      aiReasoningSummary: output.aiReasoningSummary,
-      scoredBy: provider.name,
-      scoredAt,
-      editedBy: null,
-      editedAt: null,
-      invalidatedReason: null,
-    });
-
-    for (const result of output.categoryScores) {
-      categoryScoreRows.push({
-        id: prefixedId("ecs"),
-        evaluationId,
-        categoryId: result.categoryId,
-        aiScore: result.aiScore,
-        humanScore: null,
-        effectiveScore: result.aiScore,
-        aiReasoning: result.aiReasoning,
-        highlightedMessageIds: result.highlightedMessageIds,
-      });
-    }
-
-    coachingNoteRows.push({
-      id: prefixedId("cnt"),
-      workspaceId: DEMO_WORKSPACE_ID,
-      evaluationId,
-      strengthPoints: output.coachingNote.strengthPoints,
-      growthPoints: output.coachingNote.growthPoints,
-      exampleMessageIds: output.coachingNote.exampleMessageIds,
-      generatedBy: provider.name,
-      generatedAt: scoredAt,
-    });
+    persisted.push(
+      await scoreAndPersistTicket({
+        ticketId: ticket.id!,
+        workspaceId: DEMO_WORKSPACE_ID,
+        provider: mockProvider,
+        scoredAt,
+        scorecardVersionId: v1ScorecardVersionId,
+      }),
+    );
   }
 
-  console.log(
-    `Inserting ${evaluationRows.length} evaluations + ${categoryScoreRows.length} category scores + ${coachingNoteRows.length} coaching notes...`,
+  // Derive the row arrays the downstream coaching-comment + re-score blocks
+  // read from — these now mirror exactly what scoreAndPersistTicket wrote.
+  const evaluationRows: NewEvaluation[] = persisted.map((p) => p.evaluation);
+  const categoryScoreRows: NewEvaluationCategoryScore[] = persisted.flatMap(
+    (p) => p.categoryScores,
   );
-  await db.transaction(async (tx) => {
-    if (evaluationRows.length > 0) {
-      await tx.insert(schema.evaluations).values(evaluationRows);
-    }
-    if (categoryScoreRows.length > 0) {
-      await tx.insert(schema.evaluationCategoryScores).values(categoryScoreRows);
-    }
-    if (coachingNoteRows.length > 0) {
-      await tx.insert(schema.coachingNotes).values(coachingNoteRows);
-    }
-  });
+  const coachingNoteRows: NewCoachingNote[] = persisted.map(
+    (p) => p.coachingNote,
+  );
+  console.log(
+    `Scored + persisted ${evaluationRows.length} evaluations + ${categoryScoreRows.length} category scores + ${coachingNoteRows.length} coaching notes.`,
+  );
 
   // -------------------------------------------------------------------------
   // QA coaching comments + reactions (Phase 5 Batch 1). 2-3 comments per

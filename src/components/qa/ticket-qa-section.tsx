@@ -1,23 +1,45 @@
 import { ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { DetailSection } from "@/components/shared/detail-section";
 import { formatRelative } from "@/lib/format";
 import { TimestampTooltip } from "@/components/shared/timestamp-tooltip";
 import { QaScoreBadge } from "@/components/shared/qa-score-badge";
 import { QaStatusPill } from "@/components/qa/qa-status-pill";
+import { EvaluateTicketButton } from "@/components/qa/evaluate-ticket-button";
 import type { QaEvaluationView } from "@/db/queries/tickets";
 
 type Props = {
+  ticketId: string;
   evaluation: QaEvaluationView | null;
+  /** Why evaluation is blocked (no assigned agent / no messages), or null if
+   *  the ticket is evaluable. Surfaced as a disabled-button tooltip. */
+  evaluateBlockedReason?: string | null;
 };
 
-export function TicketQaSection({ evaluation }: Props) {
+export function TicketQaSection({
+  ticketId,
+  evaluation,
+  evaluateBlockedReason,
+}: Props) {
   return (
-    <DetailSection title="QA evaluation">
+    <DetailSection
+      title="QA evaluation"
+      trailing={
+        evaluation == null ? null : (
+          <EvaluateTicketButton
+            ticketId={ticketId}
+            reEvaluate
+            disabledReason={evaluateBlockedReason ?? undefined}
+          />
+        )
+      }
+    >
       {evaluation == null ? (
-        <NotScoredState />
+        <NotScoredState
+          ticketId={ticketId}
+          blockedReason={evaluateBlockedReason ?? undefined}
+        />
       ) : (
         <ScoredCard evaluation={evaluation} />
       )}
@@ -25,23 +47,21 @@ export function TicketQaSection({ evaluation }: Props) {
   );
 }
 
-function NotScoredState() {
+function NotScoredState({
+  ticketId,
+  blockedReason,
+}: {
+  ticketId: string;
+  blockedReason?: string;
+}) {
   return (
     <Card>
       <CardContent className="flex flex-col items-start gap-3 py-2">
         <div className="text-base text-muted-foreground">
-          This conversation hasn&rsquo;t been evaluated yet.
+          This conversation hasn&rsquo;t been evaluated yet. Run the scorecard
+          to see a breakdown and coaching notes.
         </div>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          disabled
-          className="cursor-not-allowed"
-          title="Scoring is triggered automatically — manual scoring lands in a later release"
-        >
-          Score this ticket
-        </Button>
+        <EvaluateTicketButton ticketId={ticketId} disabledReason={blockedReason} />
       </CardContent>
     </Card>
   );

@@ -1,10 +1,11 @@
 "use server";
 
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, desc, eq, gt, isNotNull, like, or, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db, schema } from "@/db/client";
 import { DEFAULT_SCORECARD } from "@/lib/qa/default-scorecard";
+import { scoreAndPersistTicket } from "@/lib/qa/scoring/persist";
 import { requireWorkspace } from "@/lib/workspace";
 
 /** Result returned to the client after a successful inline edit. Carries the
@@ -177,6 +178,99 @@ export async function editCategoryScore(
       editor: manager,
     },
   };
+}
+
+/** Run a real (provider-driven) QA evaluation for a ticket and persist it.
+ *  Manual / on-demand — the user picks the ticket and triggers this from the
+ *  ticket detail page (or the Coaching picker). A fresh evaluation row is
+ *  always created; re-scoring a ticket stacks a new evaluation (history is a
+ *  feature) and the latest becomes the head shown on the ticket.
+ *
+ *  Provider is env-selected (`mock` by default; `llm` when configured on the
+ *  deploy). Returns the new evaluation id so the client can navigate to
+ *  `/coaching/[evaluationId]`. */
+export async function evaluateTicket(
+  ticketId: string,
+): Promise<{ evaluationId: string }> {
+  const workspaceId = await requireWorkspace();
+  if (typeof ticketId !== "string" || ticketId.length === 0) {
+    throw new Error("Invalid ticket id");
+  }
+
+  const { evaluationId } = await scoreAndPersistTicket({
+    ticketId,
+    workspaceId,
+  });
+
+  revalidatePath(`/tickets/${ticketId}`);
+  revalidatePath("/coaching");
+
+  return { evaluationId };
+}
+
+export type ScorableTicketRow = {
+  id: string;
+  subject: string;
+  customerName: string | null;
+  /** Already has ≥1 evaluation — re-scoring stacks a fresh one. The picker
+   *  surfaces this so the user isn't surprised. */
+  alreadyScored: boolean;
+};
+
+/** Tickets that can be manually evaluated: they have messages (a conversation
+ *  to read) and an assigned agent (scoring attributes to them). Powers the
+ *  "New evaluation" picker on /coaching. Distinct from
+ *  `searchScoredTickets` (scorecard editor preview), which only returns
+ *  tickets that already have an evaluation. */
+export async function searchScorableTickets(
+  rawQuery: string,
+): Promise<ScorableTicketRow[]> {
+  const workspaceId = await requireWorkspace();
+  const q = rawQuery.trim();
+  const pattern =
+    q.length === 0
+      ? null
+      : `%${q.replaceAll("%", "\\%").replaceAll("_", "\\_")}%`;
+
+  const where = and(
+    eq(schema.tickets.workspaceId, workspaceId),
+    gt(schema.tickets.messageCount, 0),
+    isNotNull(schema.tickets.teamMemberId),
+    pattern
+      ? or(
+          like(schema.tickets.subject, pattern),
+          like(schema.customers.name, pattern),
+        )
+      : undefined,
+  );
+
+  const rows = await db
+    .select({
+      id: schema.tickets.id,
+      subject: schema.tickets.subject,
+      customerName: schema.customers.name,
+      // Literal column refs inside the correlated subquery — Drizzle's
+      // `${schema...}` interpolation would emit a bound param, not a column.
+      evaluationCount: sql<number>`(
+        SELECT COUNT(*) FROM "evaluations"
+        WHERE "evaluations"."ticket_id" = "tickets"."id"
+      )`,
+    })
+    .from(schema.tickets)
+    .leftJoin(
+      schema.customers,
+      eq(schema.customers.id, schema.tickets.customerId),
+    )
+    .where(where)
+    .orderBy(desc(schema.tickets.createdAt))
+    .limit(20);
+
+  return rows.map((r) => ({
+    id: r.id,
+    subject: r.subject,
+    customerName: r.customerName,
+    alreadyScored: Number(r.evaluationCount) > 0,
+  }));
 }
 
 function isScoreValidForScale(scale: string, score: number): boolean {

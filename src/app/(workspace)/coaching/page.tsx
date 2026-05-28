@@ -3,6 +3,7 @@ import { EntityTable } from "@/components/shared/entity-table";
 import { EntityToolbar } from "@/components/shared/entity-toolbar";
 import { ListFilterRow } from "@/components/shared/list-filter-row";
 import { ListPageActions } from "@/components/shared/list-page-actions";
+import { NewEvaluationDialog } from "@/components/qa/new-evaluation-dialog";
 import { ViewBreadcrumb } from "@/components/shared/view-breadcrumb";
 import { ColumnStateProvider } from "@/lib/column-prefs";
 import { filtersFromSearchParam } from "@/lib/filters/url-state";
@@ -52,7 +53,10 @@ export default async function CoachingPage(props: PageProps<"/coaching">) {
           },
         ]}
         actions={
-          <ListPageActions entityKey="coaching" basePath="/coaching" />
+          <div className="flex items-center gap-1.5">
+            <NewEvaluationDialog />
+            <ListPageActions entityKey="coaching" basePath="/coaching" />
+          </div>
         }
       />
       <EntityToolbar

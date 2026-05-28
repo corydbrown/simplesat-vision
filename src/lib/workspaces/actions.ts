@@ -211,6 +211,73 @@ export type SetResolutionRuleResult =
  *  Synchronous in-request by design (per Cory): fine at prototype scale. If
  *  this grows past ~10k tickets per workspace, lift into a background job —
  *  the function itself stays the same. */
+const SetWorkOSOrgIdSchema = z.object({
+  // WorkOS org ids look like `org_<26 alphanumerics>`. Be permissive on
+  // the suffix length (WorkOS changes formats), strict on the prefix.
+  // Empty string is allowed — passing it clears the binding.
+  workosOrganizationId: z
+    .string()
+    .trim()
+    .max(64, "WorkOS organization id too long")
+    .refine(
+      (s) => s === "" || /^org_[A-Z0-9]+$/i.test(s),
+      'Expected an empty string or a WorkOS organization id (e.g. "org_…")',
+    ),
+});
+
+export type SetWorkOSOrgIdResult =
+  | { ok: true; workosOrganizationId: string | null }
+  | { ok: false; error: string };
+
+/** Bind (or unbind) the active workspace to a WorkOS Organization. When set,
+ *  new users signing in via WorkOS with that org as their session org get
+ *  membership in this workspace (and only this one). Unbound workspaces fall
+ *  back to the legacy "auto-grant on first login" behavior — see /callback.
+ *
+ *  Pass an empty string to clear. Admin-only. */
+export async function setWorkspaceWorkOSOrgId(
+  _prevState: SetWorkOSOrgIdResult | null,
+  formData: FormData,
+): Promise<SetWorkOSOrgIdResult> {
+  const auth = await requireWorkspaceAdmin();
+  if (!auth.ok) return { ok: false, error: auth.error };
+
+  const parsed = SetWorkOSOrgIdSchema.safeParse({
+    workosOrganizationId: formData.get("workosOrganizationId"),
+  });
+  if (!parsed.success) {
+    return {
+      ok: false,
+      error: parsed.error.issues[0]?.message ?? "Invalid WorkOS organization id",
+    };
+  }
+
+  const next = parsed.data.workosOrganizationId === ""
+    ? null
+    : parsed.data.workosOrganizationId;
+
+  try {
+    await db
+      .update(schema.workspaces)
+      .set({ workosOrganizationId: next })
+      .where(eq(schema.workspaces.id, auth.workspaceId));
+  } catch (err) {
+    // The partial unique index rejects binding two workspaces to the same
+    // WorkOS org. Surface a readable error instead of a SQLITE_CONSTRAINT.
+    const message = err instanceof Error ? err.message : String(err);
+    if (message.includes("UNIQUE constraint failed")) {
+      return {
+        ok: false,
+        error: "Another workspace is already bound to that WorkOS organization",
+      };
+    }
+    throw err;
+  }
+
+  revalidatePath("/settings/workspace");
+  return { ok: true, workosOrganizationId: next };
+}
+
 export async function setTeamMemberResolutionRule(
   _prevState: SetResolutionRuleResult | null,
   formData: FormData,

@@ -14,6 +14,7 @@ export type WorkspaceDetails = {
   slug: string;
   logoUrl: string | null;
   domain: string | null;
+  workosOrganizationId: string | null;
   integrationType: WorkspaceIntegrationType;
   teamMemberResolutionRule: TeamMemberResolutionRule;
   createdAt: number;
@@ -50,6 +51,7 @@ export async function getActiveWorkspaceDetails(): Promise<WorkspaceDetails | nu
       slug: schema.workspaces.slug,
       logoUrl: schema.workspaces.logoUrl,
       domain: schema.workspaces.domain,
+      workosOrganizationId: schema.workspaces.workosOrganizationId,
       integrationType: schema.workspaces.integrationType,
       teamMemberResolutionRule: schema.workspaces.teamMemberResolutionRule,
       createdAt: schema.workspaces.createdAt,
@@ -80,6 +82,7 @@ export async function getActiveWorkspaceDetails(): Promise<WorkspaceDetails | nu
     slug: row.slug,
     logoUrl: row.logoUrl,
     domain: row.domain,
+    workosOrganizationId: row.workosOrganizationId,
     integrationType: row.integrationType,
     teamMemberResolutionRule: row.teamMemberResolutionRule,
     createdAt: row.createdAt instanceof Date ? row.createdAt.getTime() : row.createdAt,

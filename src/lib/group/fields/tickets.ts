@@ -1,6 +1,9 @@
 import "server-only";
 import { schema } from "@/db/client";
-import { ticketQaScoreExpr } from "@/lib/filters/fields/tickets";
+import {
+  ticketAiHandlingExpr,
+  ticketQaScoreExpr,
+} from "@/lib/filters/fields/tickets";
 import type { GroupFieldMap } from "../compile";
 
 export const TICKET_GROUP_FIELDS: GroupFieldMap = {
@@ -14,6 +17,10 @@ export const TICKET_GROUP_FIELDS: GroupFieldMap = {
   // 75–89 sorts above 60–74, etc. Client-side `groupValue` then snaps each
   // row to its bucket label.
   qa_score: ticketQaScoreExpr,
+  // Derived bot_only/hybrid/human_only segment. SQL CASE mirrors
+  // classifyAiHandling so the server-side group ordering matches the
+  // client-side groupValue snap exactly.
+  ai_handling: ticketAiHandlingExpr,
 };
 
 export const TICKET_GROUP_IDS = Object.keys(TICKET_GROUP_FIELDS);

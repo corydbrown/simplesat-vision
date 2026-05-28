@@ -22,6 +22,19 @@ export const QA_EVALUATION_STATUS = [
   "invalidated",
   "finalized",
 ];
+// Derived conversation-level AI-handling segment. Matches `AiHandling` in
+// schema.ts — keep in sync.
+export const TICKET_AI_HANDLING = ["bot_only", "hybrid", "human_only"];
+// Source-verbatim Intercom resolution outcomes (see `AiResolutionState`). Free
+// text in the schema (sources differ; Intercom adds states), but the known
+// values are bounded enough to enumerate for the filter chooser. Extend the
+// list when ingest surfaces a new state.
+export const TICKET_AI_RESOLUTION_STATE = [
+  "assumed_resolution",
+  "confirmed_resolution",
+  "routed_to_team",
+  "abandoned",
+];
 
 /** Per-property filter metadata for tickets. Single source of truth — the
  *  server-only field map in `../fields/tickets.ts` adds Drizzle column refs,
@@ -78,6 +91,24 @@ export const TICKET_FILTER_SPECS = {
   ai_handoff: { dataType: "boolean", ops: BOOLEAN_OPS },
   customer_reply_count: { dataType: "number", ops: NUMERIC_OPS },
   longest_idle_hours: { dataType: "number", ops: NUMERIC_OPS },
+  // Conversation-level AI-handling signals (SVP-199 / SVP-212). The 3 booleans
+  // are stored verbatim on the ticket. `ai_handling` is the derived segment
+  // (bot_only / hybrid / human_only) compiled from the booleans server-side
+  // (see ../fields/tickets.ts). `ai_resolution_state` is source-verbatim text;
+  // enum-filtered against the bounded known set above.
+  ai_agent_participated: { dataType: "boolean", ops: BOOLEAN_OPS },
+  started_with_bot: { dataType: "boolean", ops: BOOLEAN_OPS },
+  handed_off_to_human: { dataType: "boolean", ops: BOOLEAN_OPS },
+  ai_handling: {
+    dataType: "enum",
+    ops: ENUM_OPS,
+    enumValues: TICKET_AI_HANDLING,
+  },
+  ai_resolution_state: {
+    dataType: "enum",
+    ops: ENUM_OPS,
+    enumValues: TICKET_AI_RESOLUTION_STATE,
+  },
 } as const satisfies Record<string, PropertyFilter>;
 
 export type TicketFilterSpecId = keyof typeof TICKET_FILTER_SPECS;

@@ -1,5 +1,6 @@
 import { Topbar } from "@/components/shell/topbar";
 import { SettingsBody } from "@/components/settings/settings-body";
+import { LogoForm } from "@/components/settings/workspace/logo-form";
 import { RenameForm } from "@/components/settings/workspace/rename-form";
 import {
   getActiveWorkspaceDetails,
@@ -43,6 +44,18 @@ export default async function WorkspaceSettingsPage() {
           <p className="mt-2 text-base text-muted-foreground">
             Settings for this workspace.
           </p>
+
+          <section className="mt-8">
+            <h2 className="text-base font-medium text-foreground">Logo</h2>
+            <div className="mt-4 rounded-xl bg-card px-5 py-5 ring-1 ring-foreground/10">
+              <LogoForm
+                workspaceName={workspace.name}
+                initialDomain={workspace.domain}
+                initialLogoUrl={workspace.logoUrl}
+                isAdmin={isAdmin}
+              />
+            </div>
+          </section>
 
           <section className="mt-8">
             <h2 className="text-base font-medium text-foreground">Details</h2>

@@ -584,6 +584,24 @@ export const TICKET_PROPERTIES: Property<TicketsRow>[] = [
     ),
   },
   {
+    id: "modified_at",
+    label: "Last activity",
+    width: 130,
+    icon: Calendar,
+    sourceEntity: "Ticket",
+    defaultVisible: false,
+    kind: "text",
+    sortable: true,
+    sortValue: (t) => t.modifiedAt,
+    cell: (t) => (
+      <TimestampTooltip date={t.modifiedAt}>
+        <span className="tabular-nums text-muted-foreground">
+          {formatDate(t.modifiedAt)}
+        </span>
+      </TimestampTooltip>
+    ),
+  },
+  {
     id: "internal_id",
     label: "ID",
     width: 156,

@@ -42,6 +42,7 @@ export type TicketSortKey =
   | "created_at"
   | "closed_at"
   | "solved_at"
+  | "modified_at"
   | "first_response_at"
   | "source"
   | "external_id"
@@ -134,6 +135,7 @@ const SORT_COLUMN_MAP: Record<TicketSortKey, AnyColumn | SQL> = {
   channel: schema.tickets.channel,
   created_at: schema.tickets.createdAt,
   closed_at: schema.tickets.closedAt,
+  modified_at: schema.tickets.modifiedAt,
   solved_at: schema.tickets.solvedAt,
   first_response_at: schema.tickets.firstResponseAt,
   source: schema.tickets.source,

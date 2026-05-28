@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
-import { and, or, like, sql, desc } from "drizzle-orm";
+import { and, eq, or, like, sql, desc } from "drizzle-orm";
 import { db, schema } from "@/db/client";
 import { liveResponsesFilter } from "@/db/queries/live-responses";
 import type { SearchResponse } from "@/lib/search-types";
+import { requireWorkspace } from "@/lib/workspace";
 
 export const dynamic = "force-dynamic";
 
@@ -26,6 +27,10 @@ export async function GET(request: Request) {
     return NextResponse.json(emptyResponse());
   }
 
+  // ⌘K palette must NEVER surface results from another workspace. Every
+  // query below predicates on the active workspace id; responses join
+  // also re-predicates `responses.workspace_id` for defense in depth.
+  const workspaceId = await requireWorkspace();
   const pattern = `%${q.replaceAll("%", "\\%").replaceAll("_", "\\_")}%`;
 
   const [customers, tickets, surveys, teamMembers, responses] =
@@ -39,10 +44,13 @@ export async function GET(request: Request) {
         })
         .from(schema.customers)
         .where(
-          or(
-            like(schema.customers.name, pattern),
-            like(schema.customers.email, pattern),
-            like(schema.customers.organization, pattern),
+          and(
+            eq(schema.customers.workspaceId, workspaceId),
+            or(
+              like(schema.customers.name, pattern),
+              like(schema.customers.email, pattern),
+              like(schema.customers.organization, pattern),
+            ),
           ),
         )
         .limit(PER_CATEGORY_LIMIT),
@@ -55,9 +63,12 @@ export async function GET(request: Request) {
         })
         .from(schema.tickets)
         .where(
-          or(
-            like(schema.tickets.subject, pattern),
-            like(schema.tickets.id, pattern),
+          and(
+            eq(schema.tickets.workspaceId, workspaceId),
+            or(
+              like(schema.tickets.subject, pattern),
+              like(schema.tickets.id, pattern),
+            ),
           ),
         )
         .orderBy(desc(schema.tickets.createdAt))
@@ -71,7 +82,12 @@ export async function GET(request: Request) {
           status: schema.surveys.status,
         })
         .from(schema.surveys)
-        .where(like(schema.surveys.name, pattern))
+        .where(
+          and(
+            eq(schema.surveys.workspaceId, workspaceId),
+            like(schema.surveys.name, pattern),
+          ),
+        )
         .limit(PER_CATEGORY_LIMIT),
 
       db
@@ -84,10 +100,13 @@ export async function GET(request: Request) {
         })
         .from(schema.teamMembers)
         .where(
-          or(
-            like(schema.teamMembers.name, pattern),
-            like(schema.teamMembers.email, pattern),
-            like(schema.teamMembers.role, pattern),
+          and(
+            eq(schema.teamMembers.workspaceId, workspaceId),
+            or(
+              like(schema.teamMembers.name, pattern),
+              like(schema.teamMembers.email, pattern),
+              like(schema.teamMembers.role, pattern),
+            ),
           ),
         )
         .limit(PER_CATEGORY_LIMIT),
@@ -107,6 +126,8 @@ export async function GET(request: Request) {
         )
         .where(
           and(
+            eq(schema.responses.workspaceId, workspaceId),
+            eq(schema.customers.workspaceId, workspaceId),
             or(
               like(schema.responses.comment, pattern),
               like(schema.customers.name, pattern),

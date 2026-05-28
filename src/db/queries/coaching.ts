@@ -302,8 +302,8 @@ export async function getCoachingDetail(
         ),
       )
       .orderBy(asc(schema.scorecardVersionCategories.order)),
-    provider.listComments(evaluation.id),
-    provider.listReactions(evaluation.id),
+    provider.listComments(evaluation.id, workspaceId),
+    provider.listReactions(evaluation.id, workspaceId),
     resolveCurrentUserId(workspaceId),
   ]);
 

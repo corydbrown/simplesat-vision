@@ -7,12 +7,16 @@
  * directly. When notifications, mention resolution, or moderation grow into
  * the comment surface, those concerns slot in behind this same interface
  * without touching call sites.
+ *
+ * Every read AND write predicates on workspaceId — the caller passes it in
+ * (resolved via `requireWorkspace()` at the action layer), and a row whose
+ * workspaceId doesn't match is invisible to this provider. Authors of
+ * call sites: do NOT call provider methods without a workspaceId.
  */
 
 import { and, asc, eq } from "drizzle-orm";
 import { db, schema } from "@/db/client";
 import { prefixedId } from "@/lib/ids";
-import { DEMO_WORKSPACE_ID } from "@/lib/workspace-id";
 import { isCoachingReaction, type CoachingReaction } from "./reactions";
 import type {
   AddReactionInput,
@@ -27,11 +31,19 @@ import type {
 export class MockCommentProvider implements CommentProvider {
   readonly name = "mock-comments-v1";
 
-  async listComments(evaluationId: string): Promise<CommentRow[]> {
+  async listComments(
+    evaluationId: string,
+    workspaceId: string,
+  ): Promise<CommentRow[]> {
     const rows = await db
       .select()
       .from(schema.qaComments)
-      .where(eq(schema.qaComments.evaluationId, evaluationId))
+      .where(
+        and(
+          eq(schema.qaComments.evaluationId, evaluationId),
+          eq(schema.qaComments.workspaceId, workspaceId),
+        ),
+      )
       .orderBy(asc(schema.qaComments.createdAt));
     return rows.map(toCommentRow);
   }
@@ -50,11 +62,26 @@ export class MockCommentProvider implements CommentProvider {
       );
     }
 
+    // Verify the evaluation lives in this workspace before anchoring a
+    // comment to it. Defense in depth: even if a caller mis-routes, the
+    // comment can't leak into another workspace's evaluation.
+    const [evalRow] = await db
+      .select({ id: schema.evaluations.id })
+      .from(schema.evaluations)
+      .where(
+        and(
+          eq(schema.evaluations.id, input.evaluationId),
+          eq(schema.evaluations.workspaceId, input.workspaceId),
+        ),
+      )
+      .limit(1);
+    if (!evalRow) throw new Error("Evaluation not found");
+
     const now = new Date();
     const id = prefixedId("qac");
     const row = {
       id,
-      workspaceId: DEMO_WORKSPACE_ID,
+      workspaceId: input.workspaceId,
       evaluationId: input.evaluationId,
       messageId: input.messageId ?? null,
       activityId: input.activityId ?? null,
@@ -79,6 +106,7 @@ export class MockCommentProvider implements CommentProvider {
     id: string,
     body: string,
     currentUserId: string,
+    workspaceId: string,
   ): Promise<CommentRow> {
     const trimmed = body.trim();
     if (trimmed.length === 0) {
@@ -91,7 +119,12 @@ export class MockCommentProvider implements CommentProvider {
     const [existing] = await db
       .select()
       .from(schema.qaComments)
-      .where(eq(schema.qaComments.id, id))
+      .where(
+        and(
+          eq(schema.qaComments.id, id),
+          eq(schema.qaComments.workspaceId, workspaceId),
+        ),
+      )
       .limit(1);
     if (!existing) throw new Error("Comment not found");
     if (existing.authorId !== currentUserId) {
@@ -101,7 +134,12 @@ export class MockCommentProvider implements CommentProvider {
     await db
       .update(schema.qaComments)
       .set({ body: trimmed, updatedAt: new Date() })
-      .where(eq(schema.qaComments.id, id));
+      .where(
+        and(
+          eq(schema.qaComments.id, id),
+          eq(schema.qaComments.workspaceId, workspaceId),
+        ),
+      );
 
     const [updated] = await db
       .select()
@@ -112,17 +150,33 @@ export class MockCommentProvider implements CommentProvider {
     return toCommentRow(updated);
   }
 
-  async deleteComment(id: string, currentUserId: string): Promise<void> {
+  async deleteComment(
+    id: string,
+    currentUserId: string,
+    workspaceId: string,
+  ): Promise<void> {
     const [existing] = await db
       .select({ authorId: schema.qaComments.authorId })
       .from(schema.qaComments)
-      .where(eq(schema.qaComments.id, id))
+      .where(
+        and(
+          eq(schema.qaComments.id, id),
+          eq(schema.qaComments.workspaceId, workspaceId),
+        ),
+      )
       .limit(1);
     if (!existing) throw new Error("Comment not found");
     if (existing.authorId !== currentUserId) {
       throw new Error("Only the comment author can delete it");
     }
-    await db.delete(schema.qaComments).where(eq(schema.qaComments.id, id));
+    await db
+      .delete(schema.qaComments)
+      .where(
+        and(
+          eq(schema.qaComments.id, id),
+          eq(schema.qaComments.workspaceId, workspaceId),
+        ),
+      );
   }
 
   async addReaction(input: AddReactionInput): Promise<ReactionRow> {
@@ -130,11 +184,25 @@ export class MockCommentProvider implements CommentProvider {
       throw new Error(`Emoji "${input.emoji}" is not in the coaching set`);
     }
 
+    // Same defense-in-depth check as createComment.
+    const [evalRow] = await db
+      .select({ id: schema.evaluations.id })
+      .from(schema.evaluations)
+      .where(
+        and(
+          eq(schema.evaluations.id, input.evaluationId),
+          eq(schema.evaluations.workspaceId, input.workspaceId),
+        ),
+      )
+      .limit(1);
+    if (!evalRow) throw new Error("Evaluation not found");
+
     const [existing] = await db
       .select()
       .from(schema.qaReactions)
       .where(
         and(
+          eq(schema.qaReactions.workspaceId, input.workspaceId),
           eq(schema.qaReactions.targetType, input.targetType),
           eq(schema.qaReactions.targetId, input.targetId),
           eq(schema.qaReactions.authorId, input.authorId),
@@ -147,7 +215,7 @@ export class MockCommentProvider implements CommentProvider {
     const id = prefixedId("qrx");
     const row = {
       id,
-      workspaceId: DEMO_WORKSPACE_ID,
+      workspaceId: input.workspaceId,
       targetType: input.targetType,
       targetId: input.targetId,
       evaluationId: input.evaluationId,
@@ -171,6 +239,7 @@ export class MockCommentProvider implements CommentProvider {
       .delete(schema.qaReactions)
       .where(
         and(
+          eq(schema.qaReactions.workspaceId, input.workspaceId),
           eq(schema.qaReactions.targetType, input.targetType),
           eq(schema.qaReactions.targetId, input.targetId),
           eq(schema.qaReactions.authorId, input.authorId),
@@ -179,11 +248,19 @@ export class MockCommentProvider implements CommentProvider {
       );
   }
 
-  async listReactions(evaluationId: string): Promise<ReactionRow[]> {
+  async listReactions(
+    evaluationId: string,
+    workspaceId: string,
+  ): Promise<ReactionRow[]> {
     const rows = await db
       .select()
       .from(schema.qaReactions)
-      .where(eq(schema.qaReactions.evaluationId, evaluationId))
+      .where(
+        and(
+          eq(schema.qaReactions.evaluationId, evaluationId),
+          eq(schema.qaReactions.workspaceId, workspaceId),
+        ),
+      )
       .orderBy(asc(schema.qaReactions.createdAt));
     return rows.map(toReactionRow);
   }

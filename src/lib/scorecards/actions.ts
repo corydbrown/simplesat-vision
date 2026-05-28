@@ -215,6 +215,11 @@ export async function previewScoreWithDraft(
   input: unknown,
 ): Promise<PreviewScorecardResult> {
   const parsed = PreviewInputSchema.parse(input);
+  // Workspace-scope the lookup: a user must not be able to preview-score a
+  // ticket from another workspace by passing its id. The ticket SELECT is the
+  // load-bearing predicate — once `ticket` is workspace-validated, all the
+  // downstream lookups key off its FK ids.
+  const workspaceId = await requireWorkspace();
 
   const [ticket] = await db
     .select({
@@ -229,7 +234,12 @@ export async function previewScoreWithDraft(
       customerId: schema.tickets.customerId,
     })
     .from(schema.tickets)
-    .where(eq(schema.tickets.id, parsed.ticketId))
+    .where(
+      and(
+        eq(schema.tickets.id, parsed.ticketId),
+        eq(schema.tickets.workspaceId, workspaceId),
+      ),
+    )
     .limit(1);
   if (!ticket) throw new Error("Ticket not found");
 
@@ -248,7 +258,12 @@ export async function previewScoreWithDraft(
     ? await db
         .select({ name: schema.customers.name })
         .from(schema.customers)
-        .where(eq(schema.customers.id, ticket.customerId))
+        .where(
+          and(
+            eq(schema.customers.id, ticket.customerId),
+            eq(schema.customers.workspaceId, workspaceId),
+          ),
+        )
         .limit(1)
     : [];
 
@@ -286,6 +301,7 @@ export async function previewScoreWithDraft(
     .where(
       and(
         eq(schema.responses.ticketId, ticket.id),
+        eq(schema.responses.workspaceId, workspaceId),
         liveResponsesFilter(),
       ),
     )

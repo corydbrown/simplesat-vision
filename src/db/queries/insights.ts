@@ -40,7 +40,8 @@ export async function getDecliningCustomers(
       AVG(CAST(r.rating as REAL)) as avg_rating,
       COUNT(r.id) as response_count
     FROM customers c
-    JOIN responses r ON r.customer_id = c.id
+    JOIN responses r
+      ON r.customer_id = c.id AND r.workspace_id = ${workspaceId}
     WHERE c.workspace_id = ${workspaceId}
     GROUP BY c.id
     HAVING COUNT(r.id) >= 5
@@ -72,7 +73,8 @@ export async function getLowPerformingAgents(
       AVG(CAST(r.rating as REAL)) as avg_rating,
       COUNT(r.id) as response_count
     FROM team_members tm
-    JOIN responses r ON r.team_member_id = tm.id
+    JOIN responses r
+      ON r.team_member_id = tm.id AND r.workspace_id = ${workspaceId}
     WHERE tm.workspace_id = ${workspaceId}
     GROUP BY tm.id
     HAVING COUNT(r.id) >= 20

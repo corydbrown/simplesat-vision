@@ -80,17 +80,34 @@ The PR must be **MERGED**. If not, abort and tell Cory.
    - `Repo link` → the PR URL.
    - Append a Claude Code note: `- YYYY-MM-DD: PR #N squash-merged as \`<sha>\`. <one-line of what shipped>. Worktree cleaned up.`
 
-6. **Scan the merge diff for DECISIONS.md deferrals**:
-   - `gh pr view <PR> --json files --jq '.files[] | select(.filename == "DECISIONS.md")'`.
-   - If `DECISIONS.md` changed, `git diff <merge-commit>~1 <merge-commit> -- DECISIONS.md` and grep for new "Phase N deferred (v2)" / "future work" / "out of scope" entries.
+6. **Scan the merge diff** — pull the changed-file list once and check for two things:
+   ```bash
+   gh pr view <PR> --json files --jq '.files[].filename' > /tmp/pr-<PR>-files.txt
+   ```
+
+   **6a. DECISIONS.md deferrals.**
+   - If `DECISIONS.md` is in the file list, `git diff <merge-commit>~1 <merge-commit> -- DECISIONS.md` and grep for new "Phase N deferred (v2)" / "future work" / "out of scope" entries.
    - For each new deferral that does NOT already exist as a Notion Backlog task, **file it now** via `mcp__claude_ai_Notion__notion-create-pages` — Status: Backlog, defaults per NOTION.md.
    - Per [[feedback-nits-inline]], don't file PR review nits as follow-ups (those should have been fixed inline before merge). But DECISIONS.md deferrals ARE architectural choices that warrant tracking.
+
+   **6b. Schema-touching merges.**
+   - Grep the file list for `^drizzle/.*\.sql$` or `^src/db/schema\.ts$`.
+   - If either matches, set a flag for the end-of-turn output. The migrate step is **human-driven** (SVP-180 split it out of the Vercel build for safety) — don't run it; just remind Cory loudly in step 7.
 
 7. **End-of-turn output**:
    - Confirm cleanup with the merge commit SHA + worktree path removed + branch deleted.
    - Note the metrics captured (worker duration + tokens, or "no /cost paste — Tokens used null").
    - Note any DECISIONS.md deferrals filed.
    - Updated worktree count + open PR count.
+   - **If step 6b flagged a schema-touching merge**, end the reply with a separate, impossible-to-miss callout — bold, emoji, its own paragraph below the status block. Use this shape (adjust phrasing to fit the moment, keep the command verbatim):
+
+     > ⚠️ **Schema changed.** This merge touched `drizzle/*.sql` or `src/db/schema.ts`. Run before relying on the new columns:
+     >
+     > ```bash
+     > set -a && source .env.local && set +a && npx drizzle-kit migrate
+     > ```
+     >
+     > (Or `npm run db:migrate:prod` once SVP-159 ships.)
 
 ## When NOT to use /post-merge
 

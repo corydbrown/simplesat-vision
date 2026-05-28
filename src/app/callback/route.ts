@@ -3,6 +3,7 @@ import { and, eq } from "drizzle-orm";
 
 import { db } from "@/db/client";
 import { userWorkspaces, users, workspaces } from "@/db/schema";
+import { linkTeamMemberByEmail } from "@/lib/auth/link-team-member";
 import { prefixedId } from "@/lib/ids";
 
 /** WorkOS redirects here after the user completes the AuthKit flow.
@@ -42,6 +43,12 @@ export const GET = handleAuth({
       // when they already do. Returning users whose WorkOS membership
       // grows are picked up incrementally without an explicit invite UI.
       await ensureMembershipForOrg(existing.id, workosOrgId, now);
+
+      // Opportunistic team_member auto-link on every sign-in (SVP-211).
+      // Idempotent: skips rows that are already linked, populates rows
+      // that are still null whenever an email match exists in the
+      // workspace. Wrapped so a link failure can't break the callback.
+      await safeLinkAllMemberships(existing.id, workosUser.email);
       return;
     }
 
@@ -79,6 +86,21 @@ export const GET = handleAuth({
             createdAt: now,
           })),
         );
+
+        // Auto-link the new user's agent identity in every granted
+        // workspace where a team_member email matches (SVP-211). Within
+        // the same tx so the link lands atomically with the membership.
+        for (const w of grants) {
+          try {
+            await linkTeamMemberByEmail(tx, newUserId, w.id, workosUser.email);
+          } catch (err) {
+            console.error("[callback] linkTeamMemberByEmail failed", {
+              userId: newUserId,
+              workspaceId: w.id,
+              err,
+            });
+          }
+        }
       }
     });
   },
@@ -141,4 +163,41 @@ async function ensureMembershipForOrg(
     role: "admin",
     createdAt: now,
   });
+}
+
+/** Run the team_member auto-link across every workspace the user has access
+ *  to. Idempotent: `linkTeamMemberByEmail` only writes when the slot is null,
+ *  so re-running on every sign-in is a no-op for already-linked memberships
+ *  and a backfill for newly-synced team_members. Wrapped per-workspace so a
+ *  single failure doesn't skip the rest, and never throws — the callback
+ *  must never fail because of an opportunistic side-effect. */
+async function safeLinkAllMemberships(
+  userId: string,
+  email: string,
+): Promise<void> {
+  let memberships: { workspaceId: string }[];
+  try {
+    memberships = await db
+      .select({ workspaceId: userWorkspaces.workspaceId })
+      .from(userWorkspaces)
+      .where(eq(userWorkspaces.userId, userId));
+  } catch (err) {
+    console.error("[callback] safeLinkAllMemberships read failed", {
+      userId,
+      err,
+    });
+    return;
+  }
+
+  for (const m of memberships) {
+    try {
+      await linkTeamMemberByEmail(db, userId, m.workspaceId, email);
+    } catch (err) {
+      console.error("[callback] linkTeamMemberByEmail failed", {
+        userId,
+        workspaceId: m.workspaceId,
+        err,
+      });
+    }
+  }
 }

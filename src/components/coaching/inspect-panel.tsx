@@ -5,8 +5,8 @@ import { ArrowLeft, Plus, Sparkles, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type {
   CoachingCategoryView,
-  CoachingMemberView,
   CoachingMessageView,
+  CoachingUserView,
 } from "@/db/queries/coaching";
 import type {
   CommentRow as CommentRowData,
@@ -52,7 +52,7 @@ export function InspectPanel({
   citations,
   comments,
   reactionsByCommentId,
-  membersById,
+  commentAuthorsById,
   currentUserId,
   focus,
   isActiveSurface,
@@ -82,7 +82,7 @@ export function InspectPanel({
   citations: CitationRowInput[];
   comments: CommentRowData[];
   reactionsByCommentId: Map<string, ReactionAggregate[]>;
-  membersById: Record<string, CoachingMemberView>;
+  commentAuthorsById: Record<string, CoachingUserView>;
   currentUserId: string;
   focus: InspectFocus;
   /** Whether Inspect is the active surface (left/right-arrow navigation). When
@@ -272,7 +272,7 @@ export function InspectPanel({
                   <CommentRow
                     key={c.id}
                     comment={c}
-                    author={membersById[c.authorId] ?? null}
+                    author={commentAuthorsById[c.authorId] ?? null}
                     isOwn={c.authorId === currentUserId}
                     reactions={reactionsByCommentId.get(c.id) ?? []}
                     onToggleReaction={(emoji) =>

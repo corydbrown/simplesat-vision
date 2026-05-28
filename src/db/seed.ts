@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { faker } from "@faker-js/faker";
-import { eq } from "drizzle-orm";
+import { eq, like } from "drizzle-orm";
 import { db, schema } from "./client";
 import { prefixedId, setIdRandomSource } from "../lib/ids";
 import {
@@ -1225,6 +1225,12 @@ async function seed() {
   await db.delete(schema.surveys);
   await db.delete(schema.savedViews);
   await db.delete(schema.userWorkspaces);
+  // Wipe synthetic seed users created by previous runs (SVP-211 pairs every
+  // team_member with a `seed_*` user). Real WorkOS users (Cory's row,
+  // production sign-ins) keep their `workos_id` — they survive the reset.
+  await db
+    .delete(schema.users)
+    .where(like(schema.users.workosId, "seed_%"));
   await db.delete(schema.workspaces);
 
   console.log("Seeding workspaces...");
@@ -1454,6 +1460,74 @@ async function seed() {
     }
     await tx.insert(schema.teamMembers).values(teamMembers);
   });
+
+  // SVP-211: pair every team_member with a synthetic `users` row so QA
+  // comments + reactions + score edits (which now FK to `users.id`) have a
+  // valid author in seeded data. Each seed user is an admin on the
+  // team_member's workspace, with `user_workspaces.team_member_id` populated
+  // — this exercises the auto-link end-to-end against the seed fixture.
+  //
+  // Synthetic workosId prefix `seed_` makes these rows trivially
+  // distinguishable from real WorkOS users (e.g. Cory's row, which is
+  // already in the table when this runs and is left untouched).
+  console.log("Pairing team members with users...");
+  const tmRows = teamMembers.map((tm) => ({
+    id: tm.id!,
+    email: tm.email!,
+    name: tm.name!,
+    workspaceId: tm.workspaceId!,
+  }));
+  await db
+    .insert(schema.users)
+    .values(
+      tmRows.map((tm) => ({
+        id: prefixedId("usr"),
+        workosId: `seed_${tm.id}`,
+        email: tm.email,
+        name: tm.name,
+        avatarUrl: null,
+        createdAt: new Date(NOW),
+      })),
+    )
+    // Email is unique-indexed; if a real WorkOS user already exists with
+    // this email (vanishingly unlikely faker collision), keep the real row.
+    .onConflictDoNothing({ target: schema.users.email });
+
+  // Resolve every team_member's email back to the user.id that ended up
+  // representing it (synthetic seed row OR a pre-existing real row).
+  const userRowsByEmail = await db
+    .select({ id: schema.users.id, email: schema.users.email })
+    .from(schema.users);
+  const userIdByEmail = new Map(userRowsByEmail.map((u) => [u.email, u.id]));
+  const userIdByTeamMemberId = new Map<string, string>();
+  for (const tm of tmRows) {
+    const uid = userIdByEmail.get(tm.email);
+    if (uid) userIdByTeamMemberId.set(tm.id, uid);
+  }
+
+  // Grant each seed user admin on their team_member's workspace, with the
+  // link populated. `onConflictDoNothing` on (user_id, workspace_id) keeps
+  // this idempotent against the earlier real-user grants.
+  const seedMembershipRows = tmRows
+    .map((tm) => {
+      const userId = userIdByTeamMemberId.get(tm.id);
+      if (!userId) return null;
+      return {
+        id: prefixedId("uwk"),
+        userId,
+        workspaceId: tm.workspaceId,
+        role: "admin" as const,
+        teamMemberId: tm.id,
+        createdAt: new Date(NOW),
+      };
+    })
+    .filter((r): r is NonNullable<typeof r> => r !== null);
+  if (seedMembershipRows.length > 0) {
+    await db
+      .insert(schema.userWorkspaces)
+      .values(seedMembershipRows)
+      .onConflictDoNothing();
+  }
 
   console.log("Generating 50,000 tickets + responses...");
   const detractorCompanyNames = new Set(
@@ -1948,17 +2022,30 @@ async function seed() {
   const commentRows: NewQaComment[] = [];
   const reactionRows: NewQaReaction[] = [];
 
-  const managerIds = teamMembers
+  // SVP-211: qa_comments.author_id and qa_reactions.author_id FK to
+  // `users.id`. Map each team_member acting as a reviewer / scored agent to
+  // their paired user via `userIdByTeamMemberId` (built above).
+  const managerUserIds = teamMembers
     .filter((t) => t.role === "Customer Care Lead")
-    .map((t) => t.id!);
-  // Fallback: if no leads in the seed, fall back to any team member.
+    .map((t) => userIdByTeamMemberId.get(t.id!))
+    .filter((id): id is string => Boolean(id));
+  const allTeamMemberUserIds = teamMembers
+    .map((t) => userIdByTeamMemberId.get(t.id!))
+    .filter((id): id is string => Boolean(id));
+  // Fallback: if no leads, fall back to any team-member-paired user.
   const reviewerIds =
-    managerIds.length > 0 ? managerIds : teamMembers.map((t) => t.id!);
+    managerUserIds.length > 0 ? managerUserIds : allTeamMemberUserIds;
 
   for (const evaluation of evaluationRows) {
     const evaluationId = evaluation.id!;
     const ticketId = evaluation.ticketId;
-    const scoredAgentId = evaluation.scoredTeamMemberId;
+    // Map the scored agent (still a team_member id on `evaluations`) to
+    // their paired user so the agent can author self-reflection comments
+    // under the new user-keyed FK.
+    const scoredAgentUserId = userIdByTeamMemberId.get(
+      evaluation.scoredTeamMemberId,
+    );
+    if (!scoredAgentUserId) continue;
     const messagesForEval = messagesByTicketId.get(ticketId) ?? [];
     const baseAt = (evaluation.scoredAt as Date).getTime();
 
@@ -1974,7 +2061,7 @@ async function seed() {
           ? reviewerIds
           : faker.datatype.boolean()
             ? reviewerIds
-            : [scoredAgentId];
+            : [scoredAgentUserId];
       const authorId = pickFrom(authorPool);
 
       let messageId: string | null = null;

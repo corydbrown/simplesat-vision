@@ -17,7 +17,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { formatRelative } from "@/lib/format";
 import { TimestampTooltip } from "@/components/shared/timestamp-tooltip";
 import { colorFromName, dicebearUrl, initialsFromName } from "@/lib/color-from-name";
-import type { CoachingMemberView } from "@/db/queries/coaching";
+import type { CoachingUserView } from "@/db/queries/coaching";
 import type { CommentRow as CommentRowData } from "@/lib/qa/coaching";
 import type { CoachingReaction } from "@/lib/qa/coaching";
 import { cn } from "@/lib/utils";
@@ -42,7 +42,7 @@ export function CommentRow({
   onEditExternallyDone,
 }: {
   comment: CommentRowData;
-  author: CoachingMemberView | null;
+  author: CoachingUserView | null;
   isOwn: boolean;
   reactions: ReactionAggregate[];
   onToggleReaction: (emoji: CoachingReaction) => void;
@@ -74,8 +74,13 @@ export function CommentRow({
     onEditExternallyDone?.();
   }
 
-  const displayName = author?.name ?? "Unknown";
-  const avatarColor = author?.avatarColor ?? colorFromName(displayName);
+  // Users have a `name` (display name from WorkOS) and `email` (always set).
+  // Fall back to the local-part of the email when name is null — better than
+  // "Unknown" and matches the SVP-231 feedback-list rendering.
+  const displayName =
+    author?.name ?? author?.email?.split("@")[0] ?? "Unknown";
+  const avatarColor = colorFromName(displayName);
+  const imageUrl = author?.avatarUrl ?? dicebearUrl(displayName);
   const editedSuffix = comment.updatedAt > comment.createdAt ? " · edited" : "";
 
   return (
@@ -83,7 +88,7 @@ export function CommentRow({
       <Avatar
         bg={avatarColor}
         initials={initialsFromName(displayName)}
-        imageUrl={dicebearUrl(displayName)}
+        imageUrl={imageUrl}
         size="md"
       />
       <div className="min-w-0 flex-1 space-y-1">

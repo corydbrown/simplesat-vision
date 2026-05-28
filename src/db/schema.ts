@@ -492,6 +492,17 @@ export const userWorkspaces = sqliteTable(
       .notNull()
       .$type<WorkspaceRole>()
       .default("member"),
+    /** Optional link to the user's agent identity in this workspace. Populated
+     *  automatically on sign-in by an email match against `team_members.email`
+     *  in this workspace — see `src/lib/auth/link-team-member.ts`. Null when
+     *  the user has no matching team_member (admin / owner / unmatched email)
+     *  — that's a normal state. Not load-bearing for any write today (QA
+     *  comments / reactions / score edits all FK to `users.id` directly);
+     *  reserved for future cross-cutting features (per-agent dashboards,
+     *  scoped notifications, "you authored ticket X" attribution). */
+    teamMemberId: text("team_member_id").references(() => teamMembers.id, {
+      onDelete: "set null",
+    }),
     createdAt: integer("created_at", { mode: "timestamp_ms" })
       .notNull()
       .default(sql`(unixepoch() * 1000)`),
@@ -503,6 +514,7 @@ export const userWorkspaces = sqliteTable(
     ),
     index("user_workspaces_user_id_idx").on(t.userId),
     index("user_workspaces_workspace_id_idx").on(t.workspaceId),
+    index("user_workspaces_team_member_id_idx").on(t.teamMemberId),
   ],
 );
 
@@ -1351,7 +1363,11 @@ export const evaluations = sqliteTable(
      *  scorers (calibration tools) can be represented later. */
     scoredBy: text("scored_by").notNull(),
     scoredAt: integer("scored_at", { mode: "timestamp_ms" }).notNull(),
-    editedBy: text("edited_by").references(() => teamMembers.id),
+    /** The signed-in user who edited the evaluation's category scores
+     *  (overriding the AI-produced numbers). FK to `users` because the editor
+     *  is whoever was signed in when the edit happened — not necessarily a
+     *  helpdesk agent. Nullable: untouched evaluations stay null. */
+    editedBy: text("edited_by").references(() => users.id),
     editedAt: integer("edited_at", { mode: "timestamp_ms" }),
     invalidatedReason: text("invalidated_reason"),
     /** FK to the auto-scoring rule that triggered this evaluation. NULL =
@@ -1509,9 +1525,12 @@ export const qaComments = sqliteTable(
       (): import("drizzle-orm/sqlite-core").AnySQLiteColumn => qaComments.id,
       { onDelete: "cascade" },
     ),
+    /** Signed-in user who wrote the comment. Comments are a user surface, not
+     *  an agent surface — any user with workspace access can comment,
+     *  regardless of whether they also have a team_member identity. */
     authorId: text("author_id")
       .notNull()
-      .references(() => teamMembers.id),
+      .references(() => users.id),
     body: text("body").notNull(),
     createdAt: integer("created_at", { mode: "timestamp_ms" })
       .notNull()
@@ -1560,9 +1579,11 @@ export const qaReactions = sqliteTable(
     evaluationId: text("evaluation_id")
       .notNull()
       .references(() => evaluations.id, { onDelete: "cascade" }),
+    /** Signed-in user who added the reaction. Same rationale as
+     *  `qa_comments.author_id`: reactions are a user surface. */
     authorId: text("author_id")
       .notNull()
-      .references(() => teamMembers.id),
+      .references(() => users.id),
     emoji: text("emoji").notNull(),
     createdAt: integer("created_at", { mode: "timestamp_ms" })
       .notNull()

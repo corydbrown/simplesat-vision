@@ -1,9 +1,10 @@
 "use server";
 
-import { and, asc, desc, eq, gt, isNotNull, like, or, sql } from "drizzle-orm";
+import { and, desc, eq, gt, isNotNull, like, or, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db, schema } from "@/db/client";
+import { requireUserPersisted } from "@/lib/auth/require-user-persisted";
 import { DEFAULT_SCORECARD } from "@/lib/qa/default-scorecard";
 import { scoreAndPersistTicket } from "@/lib/qa/scoring/persist";
 import { requireWorkspace } from "@/lib/workspace";
@@ -23,7 +24,7 @@ export type EditCategoryScoreResult = {
     status: "edited";
     overallScore: number;
     editedAt: number;
-    editor: { id: string; name: string; avatarColor: string };
+    editor: { id: string; name: string | null; avatarUrl: string | null };
   };
 };
 
@@ -88,25 +89,11 @@ export async function editCategoryScore(
     throw new Error("Score out of range for this category's scale");
   }
 
-  // Round one: hardcoded "manager" identity. Picks the first Customer Care
-  // Lead in THIS workspace — the role that owns QA review in the seed
-  // narrative. Will be replaced by the signed-in user when auth lands.
-  const [manager] = await db
-    .select({
-      id: schema.teamMembers.id,
-      name: schema.teamMembers.name,
-      avatarColor: schema.teamMembers.avatarColor,
-    })
-    .from(schema.teamMembers)
-    .where(
-      and(
-        eq(schema.teamMembers.role, "Customer Care Lead"),
-        eq(schema.teamMembers.workspaceId, workspaceId),
-      ),
-    )
-    .orderBy(asc(schema.teamMembers.name))
-    .limit(1);
-  if (!manager) throw new Error("No reviewer available");
+  // SVP-211: editor is the signed-in user. `editedBy` FKs to `users.id`
+  // (was team_members.id before SVP-211; see migration 0029). Any signed-in
+  // user with workspace access can edit scores — they don't have to be an
+  // agent in the helpdesk.
+  const editor = await requireUserPersisted();
 
   const editedAt = new Date();
   const ticketId = await db.transaction(async (tx) => {
@@ -158,7 +145,7 @@ export async function editCategoryScore(
       .update(schema.evaluations)
       .set({
         status: "edited",
-        editedBy: manager.id,
+        editedBy: editor.id,
         editedAt,
         overallScore,
       })
@@ -197,7 +184,11 @@ export async function editCategoryScore(
       status: "edited",
       overallScore: fresh?.overallScore ?? 0,
       editedAt: editedAt.getTime(),
-      editor: manager,
+      editor: {
+        id: editor.id,
+        name: editor.name,
+        avatarUrl: editor.avatarUrl,
+      },
     },
   };
 }

@@ -34,6 +34,11 @@ export type CommentRow = {
 };
 
 export type CreateCommentInput = {
+  /** The active workspace id, plumbed from the caller's `requireWorkspace()`.
+   *  Persisted onto the row + verified against the evaluation's workspace
+   *  inside the provider so a forged evaluationId from another workspace
+   *  can't anchor a comment here. */
+  workspaceId: string;
   evaluationId: string;
   /** Pass at most one anchor — both null = top-level evaluation comment. */
   messageId?: string | null;
@@ -56,6 +61,7 @@ export type ReactionRow = {
 };
 
 export type AddReactionInput = {
+  workspaceId: string;
   targetType: ReactionTargetType;
   targetId: string;
   evaluationId: string;
@@ -64,6 +70,7 @@ export type AddReactionInput = {
 };
 
 export type RemoveReactionInput = {
+  workspaceId: string;
   targetType: ReactionTargetType;
   targetId: string;
   authorId: string;
@@ -72,21 +79,33 @@ export type RemoveReactionInput = {
 
 export interface CommentProvider {
   readonly name: string;
-  listComments(evaluationId: string): Promise<CommentRow[]>;
+  listComments(
+    evaluationId: string,
+    workspaceId: string,
+  ): Promise<CommentRow[]>;
   createComment(input: CreateCommentInput): Promise<CommentRow>;
   /** Updates `body`. Throws if `currentUserId !== authorId` — own-comments
-   *  only per V1 policy. */
+   *  only per V1 policy. Workspace-scoped: a comment id from another
+   *  workspace is treated as not-found. */
   editComment(
     id: string,
     body: string,
     currentUserId: string,
+    workspaceId: string,
   ): Promise<CommentRow>;
   /** Hard delete. Cascades to thread replies via FK. Throws if
-   *  `currentUserId !== authorId`. */
-  deleteComment(id: string, currentUserId: string): Promise<void>;
+   *  `currentUserId !== authorId`. Workspace-scoped. */
+  deleteComment(
+    id: string,
+    currentUserId: string,
+    workspaceId: string,
+  ): Promise<void>;
   /** Idempotent — re-adding an existing (target, author, emoji) is a no-op
    *  thanks to the unique index. Returns the existing row in that case. */
   addReaction(input: AddReactionInput): Promise<ReactionRow>;
   removeReaction(input: RemoveReactionInput): Promise<void>;
-  listReactions(evaluationId: string): Promise<ReactionRow[]>;
+  listReactions(
+    evaluationId: string,
+    workspaceId: string,
+  ): Promise<ReactionRow[]>;
 }

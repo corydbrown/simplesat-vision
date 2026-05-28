@@ -55,9 +55,11 @@ const RemoveReactionSchema = z.object({
 
 export async function createComment(input: unknown): Promise<CommentRow> {
   const parsed = parse(CreateCommentSchema, input);
-  const currentUserId = await resolveCurrentUserId();
+  const workspaceId = await requireWorkspace();
+  const currentUserId = await resolveCurrentUserId(workspaceId);
   const provider = getCommentProvider();
   const created = await provider.createComment({
+    workspaceId,
     evaluationId: parsed.evaluationId,
     messageId: parsed.messageId ?? null,
     activityId: parsed.activityId ?? null,
@@ -65,76 +67,96 @@ export async function createComment(input: unknown): Promise<CommentRow> {
     authorId: currentUserId,
     body: parsed.body,
   });
-  await revalidateForEvaluation(parsed.evaluationId);
+  await revalidateForEvaluation(parsed.evaluationId, workspaceId);
   return created;
 }
 
 export async function editComment(input: unknown): Promise<CommentRow> {
   const parsed = parse(EditCommentSchema, input);
-  const currentUserId = await resolveCurrentUserId();
+  const workspaceId = await requireWorkspace();
+  const currentUserId = await resolveCurrentUserId(workspaceId);
   const provider = getCommentProvider();
   const updated = await provider.editComment(
     parsed.commentId,
     parsed.body,
     currentUserId,
+    workspaceId,
   );
-  await revalidateForEvaluation(updated.evaluationId);
+  await revalidateForEvaluation(updated.evaluationId, workspaceId);
   return updated;
 }
 
 export async function deleteComment(input: unknown): Promise<{ ok: true }> {
   const parsed = parse(DeleteCommentSchema, input);
-  const currentUserId = await resolveCurrentUserId();
+  const workspaceId = await requireWorkspace();
+  const currentUserId = await resolveCurrentUserId(workspaceId);
   const provider = getCommentProvider();
 
-  // Read evaluationId before deleting so we know what to revalidate.
+  // Read evaluationId before deleting so we know what to revalidate. The
+  // workspaceId predicate makes a cross-tenant id miss — the provider's
+  // delete will also re-check, but we want to fail fast here.
   const [row] = await db
     .select({ evaluationId: schema.qaComments.evaluationId })
     .from(schema.qaComments)
-    .where(eq(schema.qaComments.id, parsed.commentId))
+    .where(
+      and(
+        eq(schema.qaComments.id, parsed.commentId),
+        eq(schema.qaComments.workspaceId, workspaceId),
+      ),
+    )
     .limit(1);
   if (!row) throw new Error("Comment not found");
 
-  await provider.deleteComment(parsed.commentId, currentUserId);
-  await revalidateForEvaluation(row.evaluationId);
+  await provider.deleteComment(parsed.commentId, currentUserId, workspaceId);
+  await revalidateForEvaluation(row.evaluationId, workspaceId);
   return { ok: true };
 }
 
 export async function addReaction(input: unknown): Promise<ReactionRow> {
   const parsed = parse(ReactionSchema, input);
-  const currentUserId = await resolveCurrentUserId();
+  const workspaceId = await requireWorkspace();
+  const currentUserId = await resolveCurrentUserId(workspaceId);
   const provider = getCommentProvider();
   const reaction = await provider.addReaction({
+    workspaceId,
     targetType: parsed.targetType,
     targetId: parsed.targetId,
     evaluationId: parsed.evaluationId,
     authorId: currentUserId,
     emoji: parsed.emoji,
   });
-  await revalidateForEvaluation(parsed.evaluationId);
+  await revalidateForEvaluation(parsed.evaluationId, workspaceId);
   return reaction;
 }
 
 export async function removeReaction(input: unknown): Promise<{ ok: true }> {
   const parsed = parse(RemoveReactionSchema, input);
-  const currentUserId = await resolveCurrentUserId();
+  const workspaceId = await requireWorkspace();
+  const currentUserId = await resolveCurrentUserId(workspaceId);
   const provider = getCommentProvider();
 
   // Look up evaluationId via the reaction itself so callers don't have to
-  // re-send it — they already know the target.
+  // re-send it — they already know the target. Workspace-scoped: a forged
+  // targetId from another workspace returns no row.
   const [row] = await db
     .select({ evaluationId: schema.qaReactions.evaluationId })
     .from(schema.qaReactions)
-    .where(eq(schema.qaReactions.targetId, parsed.targetId))
+    .where(
+      and(
+        eq(schema.qaReactions.targetId, parsed.targetId),
+        eq(schema.qaReactions.workspaceId, workspaceId),
+      ),
+    )
     .limit(1);
 
   await provider.removeReaction({
+    workspaceId,
     targetType: parsed.targetType,
     targetId: parsed.targetId,
     authorId: currentUserId,
     emoji: parsed.emoji,
   });
-  if (row) await revalidateForEvaluation(row.evaluationId);
+  if (row) await revalidateForEvaluation(row.evaluationId, workspaceId);
   return { ok: true };
 }
 
@@ -215,7 +237,7 @@ async function mutateHighlights(
       ),
     );
 
-  await revalidateForEvaluation(parsed.evaluationId);
+  await revalidateForEvaluation(parsed.evaluationId, workspaceId);
   return { ok: true, highlightedMessageIds: next };
 }
 
@@ -225,26 +247,39 @@ function sameArray(a: string[], b: string[]): boolean {
   return true;
 }
 
-/** Round-one current-user stub. Picks the first Customer Care Lead
- *  deterministically — the role that owns QA review in the seed narrative.
- *  Same pattern as `editCategoryScore` in src/lib/qa/actions.ts. Auth
- *  cutover replaces this with the session user. */
-async function resolveCurrentUserId(): Promise<string> {
+/** Round-one current-user stub. Picks the first Customer Care Lead in
+ *  THIS workspace deterministically — the role that owns QA review in the
+ *  seed narrative. Same pattern as `editCategoryScore` in
+ *  src/lib/qa/actions.ts. Auth cutover replaces this with the session user. */
+async function resolveCurrentUserId(workspaceId: string): Promise<string> {
   const [manager] = await db
     .select({ id: schema.teamMembers.id })
     .from(schema.teamMembers)
-    .where(eq(schema.teamMembers.role, "Customer Care Lead"))
+    .where(
+      and(
+        eq(schema.teamMembers.role, "Customer Care Lead"),
+        eq(schema.teamMembers.workspaceId, workspaceId),
+      ),
+    )
     .orderBy(asc(schema.teamMembers.name))
     .limit(1);
   if (!manager) throw new Error("No current user available");
   return manager.id;
 }
 
-async function revalidateForEvaluation(evaluationId: string): Promise<void> {
+async function revalidateForEvaluation(
+  evaluationId: string,
+  workspaceId: string,
+): Promise<void> {
   const [row] = await db
     .select({ ticketId: schema.evaluations.ticketId })
     .from(schema.evaluations)
-    .where(eq(schema.evaluations.id, evaluationId))
+    .where(
+      and(
+        eq(schema.evaluations.id, evaluationId),
+        eq(schema.evaluations.workspaceId, workspaceId),
+      ),
+    )
     .limit(1);
   revalidatePath(`/coaching/${evaluationId}`);
   if (row) revalidatePath(`/tickets/${row.ticketId}`);

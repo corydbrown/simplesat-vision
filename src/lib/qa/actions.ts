@@ -64,13 +64,24 @@ export async function editCategoryScore(
   // Validate scale-shape before persisting: binary categories accept 0|1,
   // likert_5 accepts 1-5, three_state accepts 0|1|2. Catches mismatched
   // payloads from a client that's out of sync with the scorecard schema.
+  // Scoped via inner-join to scorecards so a forged categoryId from another
+  // workspace's scorecard can't pass this gate.
   const [targetCategory] = await db
     .select({
       scaleType: schema.scorecardCategories.scaleType,
       isAutofail: schema.scorecardCategories.isAutofail,
     })
     .from(schema.scorecardCategories)
-    .where(eq(schema.scorecardCategories.id, parsed.categoryId))
+    .innerJoin(
+      schema.scorecards,
+      eq(schema.scorecards.id, schema.scorecardCategories.scorecardId),
+    )
+    .where(
+      and(
+        eq(schema.scorecardCategories.id, parsed.categoryId),
+        eq(schema.scorecards.workspaceId, workspaceId),
+      ),
+    )
     .limit(1);
   if (!targetCategory) throw new Error("Category not found");
   if (!isScoreValidForScale(targetCategory.scaleType, parsed.humanScore)) {
@@ -78,7 +89,7 @@ export async function editCategoryScore(
   }
 
   // Round one: hardcoded "manager" identity. Picks the first Customer Care
-  // Lead deterministically — the role that owns QA review in the seed
+  // Lead in THIS workspace — the role that owns QA review in the seed
   // narrative. Will be replaced by the signed-in user when auth lands.
   const [manager] = await db
     .select({
@@ -87,7 +98,12 @@ export async function editCategoryScore(
       avatarColor: schema.teamMembers.avatarColor,
     })
     .from(schema.teamMembers)
-    .where(eq(schema.teamMembers.role, "Customer Care Lead"))
+    .where(
+      and(
+        eq(schema.teamMembers.role, "Customer Care Lead"),
+        eq(schema.teamMembers.workspaceId, workspaceId),
+      ),
+    )
     .orderBy(asc(schema.teamMembers.name))
     .limit(1);
   if (!manager) throw new Error("No reviewer available");

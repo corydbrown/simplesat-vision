@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { db, schema } from "@/db/client";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
+import { requireWorkspace } from "@/lib/workspace";
 import {
   getRatingHistogram,
   getTeamMemberById,
@@ -20,6 +21,11 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params;
+  // getTeamMemberById is workspace-scoped — once it returns a member, we
+  // know it's in this workspace; but the group lookup below also needs
+  // workspace defense in depth (a forged groupId is otherwise an id-only
+  // SELECT into a workspace-scoped table).
+  const workspaceId = await requireWorkspace();
   const member = await getTeamMemberById(id);
   if (!member) {
     return NextResponse.json({ error: "not found" }, { status: 404 });
@@ -45,7 +51,12 @@ export async function GET(
       ? db
           .select({ name: schema.teamMemberGroups.name })
           .from(schema.teamMemberGroups)
-          .where(eq(schema.teamMemberGroups.id, member.groupId))
+          .where(
+            and(
+              eq(schema.teamMemberGroups.id, member.groupId),
+              eq(schema.teamMemberGroups.workspaceId, workspaceId),
+            ),
+          )
           .limit(1)
           .then((rows) => rows[0] ?? null)
       : Promise.resolve(null),

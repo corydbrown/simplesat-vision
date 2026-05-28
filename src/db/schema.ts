@@ -895,6 +895,16 @@ export const responses = sqliteTable(
       .$type<TopicTag[]>()
       .notNull()
       .default(sql`'[]'`),
+    /** When set, points at another response on the same ticket that supersedes
+     *  this one. Populated by `dedupeTicketResponses` at ingest time when a
+     *  ticket has both a helpdesk-native CSAT and a Simplesat-native one — the
+     *  Simplesat row wins, helpdesk rows are marked superseded. Self-FK is not
+     *  enforced at the DB level (sqlite self-refs are noisy and the helper
+     *  guarantees the invariant). All read-side aggregations filter on
+     *  `superseded_by IS NULL`; detail surfaces (drawer, /responses/[id]) still
+     *  render superseded rows so direct URLs don't 404. */
+    supersededBy: text("superseded_by"),
+    supersededAt: integer("superseded_at", { mode: "timestamp_ms" }),
   },
   (t) => [
     index("responses_workspace_id_idx").on(t.workspaceId),

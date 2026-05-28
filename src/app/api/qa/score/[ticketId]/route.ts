@@ -14,9 +14,10 @@
  * mockup ticket — only the 50 timeline tickets have messages today).
  */
 
-import { asc, eq } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { db, schema } from "@/db/client";
+import { liveResponsesFilter } from "@/db/queries/live-responses";
 import { getScoringProvider } from "@/lib/qa/scoring";
 import type {
   ScoringInput,
@@ -117,7 +118,12 @@ export async function GET(
   const [responseRow] = await db
     .select({ rating: schema.responses.rating, scale: schema.responses.scale })
     .from(schema.responses)
-    .where(eq(schema.responses.ticketId, ticketId))
+    .where(
+      and(
+        eq(schema.responses.ticketId, ticketId),
+        liveResponsesFilter(),
+      ),
+    )
     .limit(1);
   const responseRating = responseRow
     ? Math.round((responseRow.rating * 5) / responseRow.scale)

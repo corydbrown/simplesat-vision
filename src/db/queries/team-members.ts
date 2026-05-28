@@ -22,6 +22,7 @@ import {
   ticketQaScoreExpr,
   ticketQaStatusExpr,
 } from "@/lib/filters/fields/tickets";
+import { liveResponsesFilter } from "./live-responses";
 import { TICKET_SIGNAL_SELECT, mapSignals } from "./tickets";
 import type { Filter } from "@/lib/filters/types";
 import { compileGroupOrderBy } from "@/lib/group/compile";
@@ -195,8 +196,8 @@ export async function getTeamMemberById(
   const [stats] = await db
     .select({
       totalTickets: sql<number>`(SELECT COUNT(*) FROM tickets WHERE team_member_id = ${id})`,
-      avgRating: sql<number | null>`(SELECT AVG(CAST(rating as REAL)) FROM responses WHERE team_member_id = ${id})`,
-      totalResponses: sql<number>`(SELECT COUNT(*) FROM responses WHERE team_member_id = ${id})`,
+      avgRating: sql<number | null>`(SELECT AVG(CAST(rating as REAL)) FROM responses WHERE team_member_id = ${id} AND superseded_by IS NULL)`,
+      totalResponses: sql<number>`(SELECT COUNT(*) FROM responses WHERE team_member_id = ${id} AND superseded_by IS NULL)`,
     })
     .from(schema.teamMembers)
     .limit(1);
@@ -252,7 +253,10 @@ export async function getTeamMemberTickets(
     )
     .leftJoin(
       schema.responses,
-      eq(schema.responses.ticketId, schema.tickets.id),
+      and(
+        eq(schema.responses.ticketId, schema.tickets.id),
+        liveResponsesFilter(),
+      ),
     )
     .where(
       and(
@@ -320,6 +324,7 @@ export async function getTeamMemberResponses(
       and(
         eq(schema.responses.teamMemberId, memberId),
         eq(schema.responses.workspaceId, workspaceId),
+        liveResponsesFilter(),
       ),
     )
     .orderBy(...groupOrderBy, desc(schema.responses.respondedAt))
@@ -579,6 +584,7 @@ export async function getTeamMemberQaRollup(
         and(
           eq(schema.responses.ticketId, schema.evaluations.ticketId),
           eq(schema.responses.teamMemberId, memberId),
+          liveResponsesFilter(),
         ),
       )
       .where(
@@ -937,6 +943,7 @@ export async function getTeamMemberQaTiles(
     FROM responses
     WHERE workspace_id = ${workspaceId}
       AND team_member_id = ${memberId}
+      AND superseded_by IS NULL
   `);
   const csatRow = csatRows[0];
 
@@ -1039,6 +1046,7 @@ export async function getTeamMemberQaSparklines(
       and(
         eq(schema.responses.workspaceId, workspaceId),
         eq(schema.responses.teamMemberId, memberId),
+        liveResponsesFilter(),
       ),
     );
   for (const row of respRows) {
@@ -1123,6 +1131,7 @@ export async function getRatingHistogram(
       and(
         eq(schema.responses.workspaceId, workspaceId),
         eq(schema.responses.teamMemberId, memberId),
+        liveResponsesFilter(),
       ),
     )
     .groupBy(schema.responses.rating);

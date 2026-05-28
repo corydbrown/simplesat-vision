@@ -110,7 +110,8 @@ const JOIN_TICKETS = (baseFk: string): FieldJoin => ({
 
 const JOIN_RESPONSES_BY_TICKET: FieldJoin = {
   alias: "responses_by_ticket",
-  sql: "LEFT JOIN responses r ON r.ticket_id = tickets.id",
+  // SVP-181: only join the live (non-superseded) response per ticket.
+  sql: "LEFT JOIN responses r ON r.ticket_id = tickets.id AND r.superseded_by IS NULL",
 };
 
 const JOIN_SURVEYS: FieldJoin = {
@@ -551,7 +552,9 @@ export function buildPivotFields(
     },
     // Metric-typed values (CSAT/CES/NPS) computed per ticket via correlated
     // subqueries against responses. valueOnly — these only make sense aggregated.
-    ...correlatedMetricFields("responses.ticket_id = tickets.id"),
+    ...correlatedMetricFields(
+      "responses.ticket_id = tickets.id AND responses.superseded_by IS NULL",
+    ),
   ],
 
   customer: [
@@ -603,7 +606,7 @@ export function buildPivotFields(
       aggregations: ["sum", "avg", "min", "max"],
       filterOps: NUMERIC_OPS,
       groupExpr:
-        "(SELECT count(*) FROM responses WHERE responses.customer_id = customers.id)",
+        "(SELECT count(*) FROM responses WHERE responses.customer_id = customers.id AND responses.superseded_by IS NULL)",
       valueOnly: true,
     },
     {
@@ -614,11 +617,13 @@ export function buildPivotFields(
       aggregations: ["avg", "min", "max"],
       filterOps: NUMERIC_OPS,
       groupExpr:
-        "(SELECT avg(rating) FROM responses WHERE responses.customer_id = customers.id)",
+        "(SELECT avg(rating) FROM responses WHERE responses.customer_id = customers.id AND responses.superseded_by IS NULL)",
       valueOnly: true,
     },
     // Metric-typed values per customer.
-    ...correlatedMetricFields("responses.customer_id = customers.id"),
+    ...correlatedMetricFields(
+      "responses.customer_id = customers.id AND responses.superseded_by IS NULL",
+    ),
     // Synced-from-external-system custom properties (importance >= 3).
     ...customPivotFields("customers", customerCustomFields),
   ],
@@ -706,7 +711,7 @@ export function buildPivotFields(
       aggregations: ["sum", "avg", "min", "max"],
       filterOps: NUMERIC_OPS,
       groupExpr:
-        "(SELECT count(*) FROM responses WHERE responses.team_member_id = team_members.id)",
+        "(SELECT count(*) FROM responses WHERE responses.team_member_id = team_members.id AND responses.superseded_by IS NULL)",
       valueOnly: true,
     },
     {
@@ -717,11 +722,13 @@ export function buildPivotFields(
       aggregations: ["avg", "min", "max"],
       filterOps: NUMERIC_OPS,
       groupExpr:
-        "(SELECT avg(rating) FROM responses WHERE responses.team_member_id = team_members.id)",
+        "(SELECT avg(rating) FROM responses WHERE responses.team_member_id = team_members.id AND responses.superseded_by IS NULL)",
       valueOnly: true,
     },
     // Metric-typed values per team member.
-    ...correlatedMetricFields("responses.team_member_id = team_members.id"),
+    ...correlatedMetricFields(
+      "responses.team_member_id = team_members.id AND responses.superseded_by IS NULL",
+    ),
     // Synced-from-external-system custom properties.
     ...customPivotFields("team_members", teamMemberCustomFields),
   ],

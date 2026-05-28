@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
-import { or, like, sql, desc } from "drizzle-orm";
+import { and, or, like, sql, desc } from "drizzle-orm";
 import { db, schema } from "@/db/client";
+import { liveResponsesFilter } from "@/db/queries/live-responses";
 import type { SearchResponse } from "@/lib/search-types";
 
 export const dynamic = "force-dynamic";
@@ -105,9 +106,12 @@ export async function GET(request: Request) {
           sql`${schema.responses.customerId} = ${schema.customers.id}`,
         )
         .where(
-          or(
-            like(schema.responses.comment, pattern),
-            like(schema.customers.name, pattern),
+          and(
+            or(
+              like(schema.responses.comment, pattern),
+              like(schema.customers.name, pattern),
+            ),
+            liveResponsesFilter(),
           ),
         )
         .orderBy(desc(schema.responses.respondedAt))

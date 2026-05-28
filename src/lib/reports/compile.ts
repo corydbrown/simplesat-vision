@@ -292,6 +292,11 @@ export async function compileReport(
   const whereSqls: SQL[] = [
     sql`${sql.raw(`${baseTable}.workspace_id`)} = ${workspaceId}`,
   ];
+  // SVP-181: when the report base is `responses`, hide superseded helpdesk
+  // rows so counts/averages don't double-count.
+  if (baseTable === "responses") {
+    whereSqls.push(sql`responses.superseded_by IS NULL`);
+  }
   for (const f of config.filters) {
     const field = findField(baseFields, f.propertyId);
     if (!field) continue;

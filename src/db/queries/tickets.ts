@@ -1,6 +1,7 @@
 import "server-only";
 import { and, asc, desc, eq, sql, type AnyColumn, type SQL } from "drizzle-orm";
 import { db, schema } from "../client";
+import { liveResponsesFilter } from "./live-responses";
 import { requireWorkspace } from "@/lib/workspace";
 import { compileListFilters } from "@/lib/filters/compile-list";
 import {
@@ -223,7 +224,10 @@ export async function listTickets({
     )
     .leftJoin(
       schema.responses,
-      eq(schema.responses.ticketId, schema.tickets.id),
+      and(
+        eq(schema.responses.ticketId, schema.tickets.id),
+        liveResponsesFilter(),
+      ),
     );
 
   const [rawRows, total] = await Promise.all([
@@ -376,7 +380,10 @@ export async function getTicketById(id: string): Promise<TicketDetail | null> {
     )
     .leftJoin(
       schema.responses,
-      eq(schema.responses.ticketId, schema.tickets.id),
+      and(
+        eq(schema.responses.ticketId, schema.tickets.id),
+        liveResponsesFilter(),
+      ),
     )
     .where(
       and(

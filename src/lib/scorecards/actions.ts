@@ -4,6 +4,7 @@ import { and, asc, desc, eq, like, or, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db, schema } from "@/db/client";
+import { liveResponsesFilter } from "@/db/queries/live-responses";
 import { DEFAULT_SCORECARD } from "@/lib/qa/default-scorecard";
 import { MockScoringProvider } from "@/lib/qa/scoring";
 import { requireWorkspace } from "@/lib/workspace";
@@ -282,7 +283,12 @@ export async function previewScoreWithDraft(
   const [responseRow] = await db
     .select({ rating: schema.responses.rating, scale: schema.responses.scale })
     .from(schema.responses)
-    .where(eq(schema.responses.ticketId, ticket.id))
+    .where(
+      and(
+        eq(schema.responses.ticketId, ticket.id),
+        liveResponsesFilter(),
+      ),
+    )
     .limit(1);
   const responseRating = responseRow
     ? Math.round((responseRow.rating * 5) / responseRow.scale)

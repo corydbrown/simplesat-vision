@@ -1,6 +1,7 @@
 import "server-only";
 import { and, asc, desc, eq, sql, type AnyColumn, type SQL } from "drizzle-orm";
 import { db, schema } from "../client";
+import { liveResponsesFilter } from "./live-responses";
 import { requireWorkspace } from "@/lib/workspace";
 import { compileListFilters } from "@/lib/filters/compile-list";
 import {
@@ -133,7 +134,12 @@ export async function listCustomers({
       ),
     })
     .from(schema.responses)
-    .where(eq(schema.responses.workspaceId, workspaceId))
+    .where(
+      and(
+        eq(schema.responses.workspaceId, workspaceId),
+        liveResponsesFilter(),
+      ),
+    )
     .groupBy(schema.responses.customerId)
     .as("r_agg");
 
@@ -200,8 +206,8 @@ export async function getCustomerById(
   const [stats] = await db
     .select({
       totalTickets: sql<number>`(SELECT COUNT(*) FROM tickets WHERE customer_id = ${id})`,
-      avgRating: sql<number | null>`(SELECT AVG(CAST(rating as REAL)) FROM responses WHERE customer_id = ${id})`,
-      totalResponses: sql<number>`(SELECT COUNT(*) FROM responses WHERE customer_id = ${id})`,
+      avgRating: sql<number | null>`(SELECT AVG(CAST(rating as REAL)) FROM responses WHERE customer_id = ${id} AND superseded_by IS NULL)`,
+      totalResponses: sql<number>`(SELECT COUNT(*) FROM responses WHERE customer_id = ${id} AND superseded_by IS NULL)`,
       lastSeen: sql<number | null>`(SELECT MAX(created_at) FROM tickets WHERE customer_id = ${id})`,
     })
     .from(schema.customers)
@@ -329,6 +335,7 @@ export async function getCustomerResponses(
       and(
         eq(schema.responses.customerId, customerId),
         eq(schema.responses.workspaceId, workspaceId),
+        liveResponsesFilter(),
       ),
     )
     .orderBy(...groupOrderBy, desc(schema.responses.respondedAt))

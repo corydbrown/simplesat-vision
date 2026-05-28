@@ -1,6 +1,7 @@
 import "server-only";
 import { and, desc, eq, sql } from "drizzle-orm";
 import { db, schema } from "../client";
+import { liveResponsesFilter } from "./live-responses";
 import { requireWorkspace } from "@/lib/workspace";
 import { compileGroupOrderBy } from "@/lib/group/compile";
 import { RESPONSE_GROUP_FIELDS } from "@/lib/group/fields/responses";
@@ -19,8 +20,9 @@ export type SurveyRow = {
   createdAt: Date;
 };
 
-const totalResponsesExpr = sql<number>`(SELECT COUNT(*) FROM responses WHERE responses.survey_id = surveys.id)`;
-const avgRatingExpr = sql<number | null>`(SELECT AVG(CAST(rating as REAL)) FROM responses WHERE responses.survey_id = surveys.id)`;
+// SVP-181: aggregate over live (non-superseded) responses only.
+const totalResponsesExpr = sql<number>`(SELECT COUNT(*) FROM responses WHERE responses.survey_id = surveys.id AND responses.superseded_by IS NULL)`;
+const avgRatingExpr = sql<number | null>`(SELECT AVG(CAST(rating as REAL)) FROM responses WHERE responses.survey_id = surveys.id AND responses.superseded_by IS NULL)`;
 
 export async function listSurveys(): Promise<SurveyRow[]> {
   const workspaceId = await requireWorkspace();
@@ -71,9 +73,9 @@ export async function getSurveyById(id: string): Promise<SurveyDetail | null> {
 
   const [stats] = await db
     .select({
-      totalResponses: sql<number>`(SELECT COUNT(*) FROM responses WHERE survey_id = ${id})`,
-      avgRating: sql<number | null>`(SELECT AVG(CAST(rating as REAL)) FROM responses WHERE survey_id = ${id})`,
-      lastResponseAt: sql<number | null>`(SELECT MAX(responded_at) FROM responses WHERE survey_id = ${id})`,
+      totalResponses: sql<number>`(SELECT COUNT(*) FROM responses WHERE survey_id = ${id} AND superseded_by IS NULL)`,
+      avgRating: sql<number | null>`(SELECT AVG(CAST(rating as REAL)) FROM responses WHERE survey_id = ${id} AND superseded_by IS NULL)`,
+      lastResponseAt: sql<number | null>`(SELECT MAX(responded_at) FROM responses WHERE survey_id = ${id} AND superseded_by IS NULL)`,
     })
     .from(schema.surveys)
     .limit(1);
@@ -131,6 +133,7 @@ export async function getSurveyResponses(
       and(
         eq(schema.responses.surveyId, surveyId),
         eq(schema.responses.workspaceId, workspaceId),
+        liveResponsesFilter(),
       ),
     )
     .orderBy(...groupOrderBy, desc(schema.responses.respondedAt))

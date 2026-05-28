@@ -1,6 +1,7 @@
 import "server-only";
 import { and, asc, eq } from "drizzle-orm";
 import { db, schema } from "@/db/client";
+import { liveResponsesFilter } from "@/db/queries/live-responses";
 import { prefixedId } from "@/lib/ids";
 import { initDefaultScorecardForWorkspace } from "@/lib/qa/default-scorecard-init";
 import { snapshotScorecard } from "@/lib/scorecards/snapshot";
@@ -120,11 +121,18 @@ export async function scoreAndPersistTicket(params: {
     createdAt: m.createdAt,
   }));
 
-  // Customer CSAT rating projected to 1-5 (conditions the mock).
+  // Customer CSAT rating projected to 1-5 (conditions the mock). Filter to
+  // the live (non-superseded) response so QA scoring sees the Simplesat-native
+  // signal when both that and a helpdesk-native row exist on the ticket.
   const [responseRow] = await db
     .select({ rating: schema.responses.rating, scale: schema.responses.scale })
     .from(schema.responses)
-    .where(eq(schema.responses.ticketId, ticketId))
+    .where(
+      and(
+        eq(schema.responses.ticketId, ticketId),
+        liveResponsesFilter(),
+      ),
+    )
     .limit(1);
   const responseRating = responseRow
     ? Math.round((responseRow.rating * 5) / responseRow.scale)

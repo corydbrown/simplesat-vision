@@ -6,8 +6,9 @@ import { buildFilterFields, multiEnumColumn } from "@/lib/filters/build-fields";
 import { TICKET_FILTER_SPECS } from "@/lib/filters/specs/tickets";
 
 // Correlated subquery so the Detractors saved view (and any future rating
-// cutoff) can filter tickets by their attached response rating.
-export const ticketResponseRatingExpr = sql<number | null>`(SELECT rating FROM responses WHERE responses.ticket_id = tickets.id LIMIT 1)`;
+// cutoff) can filter tickets by their attached response rating. SVP-181:
+// filter to the live (non-superseded) response per ticket.
+export const ticketResponseRatingExpr = sql<number | null>`(SELECT rating FROM responses WHERE responses.ticket_id = tickets.id AND responses.superseded_by IS NULL LIMIT 1)`;
 
 // QA evaluation correlated subqueries — same pattern. Most tickets won't have
 // an evaluation row (only the conversation-mockup subset is scored today), so

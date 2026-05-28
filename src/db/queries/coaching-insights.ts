@@ -119,6 +119,7 @@ export async function getCoachingInsightsTiles(): Promise<CoachingInsightsTiles>
         THEN CAST(rating AS REAL) * 5.0 / scale END) AS prior_avg
     FROM responses
     WHERE workspace_id = ${workspaceId}
+      AND superseded_by IS NULL
   `);
   const csatRow = csatRows[0];
 
@@ -408,6 +409,7 @@ async function getOverallAvgCsat(workspaceId: string): Promise<number | null> {
     SELECT AVG(CAST(rating AS REAL) * 5.0 / scale) AS avg
     FROM responses
     WHERE workspace_id = ${workspaceId}
+      AND superseded_by IS NULL
   `);
   const v = rows[0]?.avg;
   return v == null ? null : Number(v);
@@ -426,7 +428,8 @@ async function signalForVerb(
       DISTINCT te.ticket_id,
       (SELECT AVG(CAST(r.rating AS REAL) * 5.0 / r.scale)
         FROM responses r
-        WHERE r.ticket_id = te.ticket_id) AS avg_csat
+        WHERE r.ticket_id = te.ticket_id
+          AND r.superseded_by IS NULL) AS avg_csat
     FROM ticket_events te
     JOIN tickets t ON t.id = te.ticket_id
     WHERE te.verb = ${verb}
@@ -495,7 +498,8 @@ async function signalForReassignedMultiple(
       r.ticket_id,
       (SELECT AVG(CAST(resp.rating AS REAL) * 5.0 / resp.scale)
         FROM responses resp
-        WHERE resp.ticket_id = r.ticket_id) AS avg_csat
+        WHERE resp.ticket_id = r.ticket_id
+          AND resp.superseded_by IS NULL) AS avg_csat
     FROM reassigned r
   `);
   const ticketCount = ticketRows.length;

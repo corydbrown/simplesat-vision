@@ -8,8 +8,9 @@ import { TEAM_MEMBER_FILTER_SPECS } from "@/lib/filters/specs/team-members";
 // sorting. Defined here so the query file can import them without circularity
 // (the query imports the field map; the field map must not import back).
 export const teamMemberTotalTicketsExpr = sql<number>`(SELECT COUNT(*) FROM tickets WHERE tickets.team_member_id = team_members.id)`;
-export const teamMemberAvgRatingExpr = sql<number | null>`(SELECT AVG(CAST(rating as REAL)) FROM responses WHERE responses.team_member_id = team_members.id)`;
-export const teamMemberTotalResponsesExpr = sql<number>`(SELECT COUNT(*) FROM responses WHERE responses.team_member_id = team_members.id)`;
+// SVP-181: aggregate over live (non-superseded) responses only.
+export const teamMemberAvgRatingExpr = sql<number | null>`(SELECT AVG(CAST(rating as REAL)) FROM responses WHERE responses.team_member_id = team_members.id AND responses.superseded_by IS NULL)`;
+export const teamMemberTotalResponsesExpr = sql<number>`(SELECT COUNT(*) FROM responses WHERE responses.team_member_id = team_members.id AND responses.superseded_by IS NULL)`;
 
 export const TEAM_MEMBER_FILTER_FIELDS = buildFilterFields(
   TEAM_MEMBER_FILTER_SPECS,

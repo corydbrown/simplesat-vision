@@ -72,7 +72,12 @@ export {
 
 export { MockTopicProvider } from "./mock-provider";
 export { LlmTopicProvider } from "./llm-provider";
-export { attachTopicsToResponse } from "./attach";
+// `attachTopicsToResponse` lives in `./attach`, which is `import "server-only"`.
+// Server callers (route handler, backfill script) import the symbol via the
+// direct `@/lib/topics/attach` path so the barrel stays free of the
+// server-only side-effect — keeps client trees (e.g. properties/responses,
+// filters/specs/responses.resolvers) able to import the taxonomy from here
+// without dragging the runtime into the client bundle.
 export type {
   TopicAttachmentInput,
   TopicAttachmentOutput,

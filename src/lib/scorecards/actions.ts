@@ -1,6 +1,6 @@
 "use server";
 
-import { and, asc, desc, eq, like, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, isNull, like, or, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db, schema } from "@/db/client";
@@ -9,6 +9,10 @@ import { DEFAULT_SCORECARD } from "@/lib/qa/default-scorecard";
 import { MockScoringProvider } from "@/lib/qa/scoring";
 import { requireWorkspace } from "@/lib/workspace";
 import { snapshotScorecard } from "@/lib/scorecards/snapshot";
+import {
+  mintScorecardFromTemplate,
+  type ScorecardMintTemplate,
+} from "@/lib/scorecards/mint";
 import type {
   ScoringInput,
   ScoringMessage,
@@ -24,10 +28,9 @@ const CriterionInput = z.object({
   anchor5: z.string().max(2000),
   anchor3: z.string().max(2000),
   anchor1: z.string().max(2000),
-  /** Per SVP-228 the authoritative weight lives on each criterion. The editor
-   *  UI lands in SVP-229; until then the client may omit this field on save,
-   *  in which case we fall back to splitting the parent category's weight
-   *  evenly across its criteria (transitional — see `normalizeCriterionWeights`). */
+  /** Authoritative per-criterion weight (SVP-228). SVP-229's editor sends
+   *  this explicitly; legacy callers may omit it and fall back to
+   *  `normalizeCriterionWeights`'s even-split shim. */
   weightPercent: z.number().int().min(0).max(100).optional(),
 });
 
@@ -45,6 +48,18 @@ const CategoryInput = z.object({
 const SaveScorecardSchema = z.object({
   scorecardId: z.string().min(1),
   categories: z.array(CategoryInput).min(1),
+  /** SVP-228 LLM-context fields. The editor either passes them through
+   *  (SVP-229 onward) or omits the property entirely (legacy callers); a
+   *  property present as `null` clears the field, an absent property leaves
+   *  the persisted value untouched. */
+  scoringPhilosophy: z.string().max(8000).nullable().optional(),
+  bandDescriptors: z
+    .array(z.string().max(1000))
+    .length(5)
+    .nullable()
+    .optional(),
+  domainContext: z.string().max(8000).nullable().optional(),
+  toneExpectations: z.string().max(8000).nullable().optional(),
 });
 
 export type SaveScorecardInput = z.infer<typeof SaveScorecardSchema>;
@@ -151,9 +166,32 @@ export async function saveScorecard(
           .where(eq(schema.scorecardCriteria.id, crit.id));
       }
     }
+    // LLM-context fields are optional on the wire: an absent property leaves
+    // the persisted value alone (so legacy callers don't blow away curated
+    // context); a property present as `null` clears it.
+    const llmContextPatch: Partial<{
+      scoringPhilosophy: string | null;
+      bandDescriptors: string[] | null;
+      domainContext: string | null;
+      toneExpectations: string | null;
+    }> = {};
+    if ("scoringPhilosophy" in parsed) {
+      llmContextPatch.scoringPhilosophy = parsed.scoringPhilosophy ?? null;
+    }
+    if ("bandDescriptors" in parsed) {
+      llmContextPatch.bandDescriptors = parsed.bandDescriptors ?? null;
+    }
+    if ("domainContext" in parsed) {
+      llmContextPatch.domainContext = parsed.domainContext ?? null;
+    }
+    if ("toneExpectations" in parsed) {
+      llmContextPatch.toneExpectations = parsed.toneExpectations ?? null;
+    }
+
     const [updated] = await tx
       .update(schema.scorecards)
       .set({
+        ...llmContextPatch,
         version: sql`${schema.scorecards.version} + 1`,
         updatedAt: new Date(),
       })
@@ -208,6 +246,42 @@ function validateWeights(input: SaveScorecardInput): void {
     if (cat.isAutofail && cat.weightPercent !== 0) {
       throw new Error(
         `Auto-fail category "${cat.name}" must have weight 0 (got ${cat.weightPercent}).`,
+      );
+    }
+    // SVP-229: when the editor sends explicit per-criterion weights, enforce
+    // that they're internally consistent with the category. We require
+    // all-or-nothing on per-criterion weights — partial payloads can't be
+    // reasoned about and indicate a client bug. The all-omitted path stays
+    // handled by `normalizeCriterionWeights`'s even-split shim, so legacy
+    // callers keep working.
+    const hasAny = cat.criteria.some(
+      (c) => typeof c.weightPercent === "number",
+    );
+    const hasAll = cat.criteria.every(
+      (c) => typeof c.weightPercent === "number",
+    );
+    if (hasAny && !hasAll) {
+      throw new Error(
+        `Category "${cat.name}" mixes explicit and omitted criterion weights. Send all or none.`,
+      );
+    }
+    if (!hasAll) continue;
+    if (cat.isAutofail) {
+      const bad = cat.criteria.find((c) => c.weightPercent !== 0);
+      if (bad) {
+        throw new Error(
+          `Auto-fail category "${cat.name}" requires every criterion weight to be 0 (criterion "${bad.text.slice(0, 40)}" was ${bad.weightPercent}).`,
+        );
+      }
+      continue;
+    }
+    const critSum = cat.criteria.reduce(
+      (acc, c) => acc + (c.weightPercent ?? 0),
+      0,
+    );
+    if (critSum !== cat.weightPercent) {
+      throw new Error(
+        `Criterion weights in "${cat.name}" sum to ${critSum} but category weight is ${cat.weightPercent}. They must match.`,
       );
     }
   }
@@ -468,4 +542,204 @@ export async function searchScoredTickets(
     customerName: r.customerName,
     scoredAt: r.scoredAt instanceof Date ? r.scoredAt.getTime() : r.scoredAt,
   }));
+}
+
+// ---------------------------------------------------------------------------
+// SVP-229 — create / duplicate / archive
+// ---------------------------------------------------------------------------
+
+const NewScorecardNameSchema = z
+  .string()
+  .trim()
+  .min(1, "Name required")
+  .max(120, "Name too long");
+
+export type CreatedScorecard = {
+  ok: true;
+  scorecardId: string;
+};
+
+/** Mint a fresh scorecard for the active workspace using the IQS default as
+ *  the template (the editor has no add/remove-category UI yet, so a truly
+ *  empty scorecard would be useless). The user-supplied name overrides the
+ *  template name; everything else copies from `DEFAULT_SCORECARD`. */
+export async function createScorecard(input: {
+  name: string;
+}): Promise<CreatedScorecard> {
+  const workspaceId = await requireWorkspace();
+  const name = NewScorecardNameSchema.parse(input.name);
+
+  const minted = await mintScorecardFromTemplate({
+    workspaceId,
+    template: {
+      name,
+      enabled: DEFAULT_SCORECARD.enabled,
+      version: DEFAULT_SCORECARD.version,
+      scoringPhilosophy: DEFAULT_SCORECARD.scoringPhilosophy,
+      bandDescriptors: DEFAULT_SCORECARD.bandDescriptors,
+      domainContext: DEFAULT_SCORECARD.domainContext,
+      toneExpectations: DEFAULT_SCORECARD.toneExpectations,
+      categories: DEFAULT_SCORECARD.categories.map((c) => ({
+        name: c.name,
+        description: c.description,
+        weightPercent: c.weightPercent,
+        scaleType: c.scaleType,
+        isAutofail: c.isAutofail,
+        criteria: c.criteria.map((cr) => ({
+          text: cr.text,
+          anchor5: cr.anchor5,
+          anchor3: cr.anchor3,
+          anchor1: cr.anchor1,
+          weightPercent: cr.weightPercent,
+        })),
+      })),
+    },
+  });
+
+  revalidatePath("/settings/scorecards");
+  return { ok: true, scorecardId: minted.scorecardId };
+}
+
+/** Clone an existing scorecard into a new row with a user-supplied name. Pulls
+ *  the live (current-version) shape of the source — categories + criteria +
+ *  LLM-context fields — and re-mints as a fresh `scorecards` row at version 1
+ *  with its own v1 snapshot. Evaluations on the source stay pinned to the
+ *  source's version snapshots; the new scorecard starts clean. */
+export async function duplicateScorecard(input: {
+  scorecardId: string;
+  name: string;
+}): Promise<CreatedScorecard> {
+  const workspaceId = await requireWorkspace();
+  const name = NewScorecardNameSchema.parse(input.name);
+  const sourceId = z.string().min(1).parse(input.scorecardId);
+
+  const [source] = await db
+    .select()
+    .from(schema.scorecards)
+    .where(
+      and(
+        eq(schema.scorecards.id, sourceId),
+        eq(schema.scorecards.workspaceId, workspaceId),
+      ),
+    )
+    .limit(1);
+  if (!source) throw new Error("Source scorecard not found");
+
+  const sourceCategories = await db
+    .select()
+    .from(schema.scorecardCategories)
+    .where(eq(schema.scorecardCategories.scorecardId, sourceId))
+    .orderBy(asc(schema.scorecardCategories.order));
+
+  const sourceCriteria = await db
+    .select({
+      id: schema.scorecardCriteria.id,
+      categoryId: schema.scorecardCriteria.categoryId,
+      text: schema.scorecardCriteria.text,
+      anchor5: schema.scorecardCriteria.anchor5,
+      anchor3: schema.scorecardCriteria.anchor3,
+      anchor1: schema.scorecardCriteria.anchor1,
+      weightPercent: schema.scorecardCriteria.weightPercent,
+      order: schema.scorecardCriteria.order,
+    })
+    .from(schema.scorecardCriteria)
+    .innerJoin(
+      schema.scorecardCategories,
+      eq(schema.scorecardCategories.id, schema.scorecardCriteria.categoryId),
+    )
+    .where(eq(schema.scorecardCategories.scorecardId, sourceId))
+    .orderBy(asc(schema.scorecardCriteria.order));
+
+  const criteriaByCategory = new Map<string, typeof sourceCriteria>();
+  for (const c of sourceCriteria) {
+    const bucket = criteriaByCategory.get(c.categoryId) ?? [];
+    bucket.push(c);
+    criteriaByCategory.set(c.categoryId, bucket);
+  }
+
+  const template: ScorecardMintTemplate = {
+    name,
+    enabled: source.enabled,
+    version: 1,
+    scoringPhilosophy: source.scoringPhilosophy,
+    bandDescriptors: source.bandDescriptors,
+    domainContext: source.domainContext,
+    toneExpectations: source.toneExpectations,
+    categories: sourceCategories.map((cat) => ({
+      name: cat.name,
+      description: cat.description,
+      weightPercent: cat.weightPercent,
+      scaleType: cat.scaleType,
+      isAutofail: cat.isAutofail,
+      criteria: (criteriaByCategory.get(cat.id) ?? []).map((cr) => ({
+        text: cr.text,
+        anchor5: cr.anchor5,
+        anchor3: cr.anchor3,
+        anchor1: cr.anchor1,
+        weightPercent: cr.weightPercent,
+      })),
+    })),
+  };
+
+  const minted = await mintScorecardFromTemplate({ workspaceId, template });
+
+  revalidatePath("/settings/scorecards");
+  return { ok: true, scorecardId: minted.scorecardId };
+}
+
+/** Soft-delete (archive) or restore a scorecard. Archived scorecards are
+ *  hidden from picker UIs but existing evaluations remain renderable (their
+ *  `scorecard_versions` snapshot is untouched). Hard delete is intentionally
+ *  not exposed — once any evaluation FKs into a scorecard, the row stays. */
+export async function archiveScorecard(input: {
+  scorecardId: string;
+  archived: boolean;
+}): Promise<{ ok: true }> {
+  const workspaceId = await requireWorkspace();
+  const scorecardId = z.string().min(1).parse(input.scorecardId);
+
+  const [existing] = await db
+    .select({ id: schema.scorecards.id })
+    .from(schema.scorecards)
+    .where(
+      and(
+        eq(schema.scorecards.id, scorecardId),
+        eq(schema.scorecards.workspaceId, workspaceId),
+      ),
+    )
+    .limit(1);
+  if (!existing) throw new Error("Scorecard not found");
+
+  if (input.archived) {
+    // Don't let the workspace archive its last live scorecard — re-score and
+    // future auto-scoring need at least one to land on. The auto-init path in
+    // `scoreAndPersistTicket` *would* mint a fresh IQS, but that surprises the
+    // user; better to refuse explicitly here.
+    const liveCount = await db
+      .select({ id: schema.scorecards.id })
+      .from(schema.scorecards)
+      .where(
+        and(
+          eq(schema.scorecards.workspaceId, workspaceId),
+          isNull(schema.scorecards.archivedAt),
+        ),
+      );
+    if (liveCount.length <= 1) {
+      throw new Error(
+        "Can't archive the workspace's only live scorecard. Create another first.",
+      );
+    }
+  }
+
+  await db
+    .update(schema.scorecards)
+    .set({
+      archivedAt: input.archived ? new Date() : null,
+      updatedAt: new Date(),
+    })
+    .where(eq(schema.scorecards.id, scorecardId));
+
+  revalidatePath("/settings/scorecards");
+  revalidatePath(`/settings/scorecards/${scorecardId}`);
+  return { ok: true };
 }

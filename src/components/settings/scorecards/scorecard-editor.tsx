@@ -35,6 +35,10 @@ import {
   type SaveScorecardInput,
 } from "@/lib/scorecards/actions";
 import { CategoryCard } from "./category-card";
+import {
+  LlmContextEditor,
+  type LlmContextDraft,
+} from "./llm-context-editor";
 import { TicketPreviewPanel } from "./ticket-preview-panel";
 
 export type CategoryDraft = Omit<ScorecardEditorCategory, "criteria"> & {
@@ -45,11 +49,25 @@ type Props = {
   scorecard: ScorecardEditorView;
 };
 
+const EMPTY_BANDS: [string, string, string, string, string] = [
+  "",
+  "",
+  "",
+  "",
+  "",
+];
+
 export function ScorecardEditor({ scorecard }: Props) {
   const [version, setVersion] = useState(scorecard.version);
   const [categories, setCategories] = useState<CategoryDraft[]>(
     () => scorecard.categories.map((c) => ({ ...c, criteria: [...c.criteria] })),
   );
+  const [llmContext, setLlmContext] = useState<LlmContextDraft>(() => ({
+    scoringPhilosophy: scorecard.scoringPhilosophy ?? "",
+    bandDescriptors: normalizeBands(scorecard.bandDescriptors),
+    domainContext: scorecard.domainContext ?? "",
+    toneExpectations: scorecard.toneExpectations ?? "",
+  }));
   const [isSaving, startSaving] = useTransition();
   const toast = useToast();
 
@@ -65,6 +83,17 @@ export function ScorecardEditor({ scorecard }: Props) {
       else sortable.push(cat);
     }
     return { sortable, pinned };
+  }, [categories]);
+
+  // Derived category weight (SVP-229) = SUM(criteria.weightPercent). Computed
+  // once per render and threaded into each CategoryCard for display.
+  const derivedWeightByCategoryId = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const cat of categories) {
+      const sum = cat.criteria.reduce((acc, c) => acc + c.weightPercent, 0);
+      map.set(cat.id, sum);
+    }
+    return map;
   }, [categories]);
 
   const sensors = useSensors(
@@ -134,31 +163,67 @@ export function ScorecardEditor({ scorecard }: Props) {
     [],
   );
 
+  const onUpdateLlmContext = useCallback(
+    (patch: Partial<LlmContextDraft>) => {
+      setLlmContext((prev) => ({ ...prev, ...patch }));
+    },
+    [],
+  );
+
   // Weight totals — autofail categories are excluded from the sum since they
-  // contribute via the floor mechanism, not the weighted average.
-  const weightSum = sortable.reduce((acc, c) => acc + c.weightPercent, 0);
+  // contribute via the floor mechanism, not the weighted average. The total is
+  // computed from the derived category weights (= criterion sums) so the
+  // indicator and the save payload can't disagree.
+  const weightSum = sortable.reduce(
+    (acc, c) => acc + (derivedWeightByCategoryId.get(c.id) ?? 0),
+    0,
+  );
   const weightValid = weightSum === 100;
 
   const onSave = useCallback(() => {
     if (!weightValid || isSaving) return;
     const payload: SaveScorecardInput = {
       scorecardId: scorecard.id,
-      categories: categories.map((c) => ({
-        id: c.id,
-        name: c.name,
-        description: c.description,
-        weightPercent: c.weightPercent,
-        scaleType: c.scaleType,
-        isAutofail: c.isAutofail,
-        order: c.order,
-        criteria: c.criteria.map((cr) => ({
-          id: cr.id,
-          text: cr.text,
-          anchor5: cr.anchor5,
-          anchor3: cr.anchor3,
-          anchor1: cr.anchor1,
-        })),
-      })),
+      // LLM-context fields are sent on every save now that the editor owns
+      // them. Empty strings clear to null on the server so the wire format
+      // stays simple (no "untouched" sentinel needed once the editor is the
+      // canonical caller).
+      scoringPhilosophy: llmContext.scoringPhilosophy.trim()
+        ? llmContext.scoringPhilosophy
+        : null,
+      bandDescriptors: llmContext.bandDescriptors.some((b) => b.trim())
+        ? llmContext.bandDescriptors
+        : null,
+      domainContext: llmContext.domainContext.trim()
+        ? llmContext.domainContext
+        : null,
+      toneExpectations: llmContext.toneExpectations.trim()
+        ? llmContext.toneExpectations
+        : null,
+      categories: categories.map((c) => {
+        const derived = derivedWeightByCategoryId.get(c.id) ?? 0;
+        return {
+          id: c.id,
+          name: c.name,
+          description: c.description,
+          // Persist category weight as the live derived value (= sum of
+          // criterion weights). Existing read sites (coaching, pivots,
+          // rollups) keep working against the column; the editor just
+          // maintains the invariant going forward.
+          weightPercent: c.isAutofail ? 0 : derived,
+          scaleType: c.scaleType,
+          isAutofail: c.isAutofail,
+          order: c.order,
+          criteria: c.criteria.map((cr) => ({
+            id: cr.id,
+            text: cr.text,
+            anchor5: cr.anchor5,
+            anchor3: cr.anchor3,
+            anchor1: cr.anchor1,
+            weightPercent: cr.weightPercent,
+          })),
+        };
+      }),
     };
     startSaving(async () => {
       try {
@@ -170,7 +235,15 @@ export function ScorecardEditor({ scorecard }: Props) {
         toast(message);
       }
     });
-  }, [categories, isSaving, scorecard.id, toast, weightValid]);
+  }, [
+    categories,
+    derivedWeightByCategoryId,
+    isSaving,
+    llmContext,
+    scorecard.id,
+    toast,
+    weightValid,
+  ]);
 
   // Build the live preview-scorecard the test panel reads. Mirrors the save
   // payload so the picker scores against the same in-memory draft.
@@ -179,24 +252,33 @@ export function ScorecardEditor({ scorecard }: Props) {
       id: scorecard.id,
       name: scorecard.name,
       version,
-      categories: categories.map((c) => ({
-        id: c.id,
-        name: c.name,
-        description: c.description,
-        weightPercent: c.weightPercent,
-        scaleType: c.scaleType,
-        isAutofail: c.isAutofail,
-        order: c.order,
-        criteria: c.criteria.map((cr) => ({
-          id: cr.id,
-          text: cr.text,
-          anchor5: cr.anchor5,
-          anchor3: cr.anchor3,
-          anchor1: cr.anchor1,
-        })),
-      })),
+      categories: categories.map((c) => {
+        const derived = derivedWeightByCategoryId.get(c.id) ?? 0;
+        return {
+          id: c.id,
+          name: c.name,
+          description: c.description,
+          weightPercent: c.isAutofail ? 0 : derived,
+          scaleType: c.scaleType,
+          isAutofail: c.isAutofail,
+          order: c.order,
+          criteria: c.criteria.map((cr) => ({
+            id: cr.id,
+            text: cr.text,
+            anchor5: cr.anchor5,
+            anchor3: cr.anchor3,
+            anchor1: cr.anchor1,
+          })),
+        };
+      }),
     }),
-    [categories, scorecard.id, scorecard.name, version],
+    [
+      categories,
+      derivedWeightByCategoryId,
+      scorecard.id,
+      scorecard.name,
+      version,
+    ],
   );
 
   return (
@@ -226,6 +308,13 @@ export function ScorecardEditor({ scorecard }: Props) {
 
       <WeightSumIndicator sum={weightSum} valid={weightValid} />
 
+      <div className="mt-6">
+        <LlmContextEditor
+          value={llmContext}
+          onChange={onUpdateLlmContext}
+        />
+      </div>
+
       <div className="mt-6 flex flex-col gap-3">
         <DndContext
           sensors={sensors}
@@ -240,6 +329,7 @@ export function ScorecardEditor({ scorecard }: Props) {
               <CategoryCard
                 key={cat.id}
                 category={cat}
+                derivedWeight={derivedWeightByCategoryId.get(cat.id) ?? 0}
                 draggable
                 onChangeCategory={(patch) => onUpdateCategory(cat.id, patch)}
                 onChangeCriterion={(criterionId, patch) =>
@@ -253,6 +343,7 @@ export function ScorecardEditor({ scorecard }: Props) {
           <CategoryCard
             key={cat.id}
             category={cat}
+            derivedWeight={derivedWeightByCategoryId.get(cat.id) ?? 0}
             draggable={false}
             onChangeCategory={(patch) => onUpdateCategory(cat.id, patch)}
             onChangeCriterion={(criterionId, patch) =>
@@ -267,6 +358,17 @@ export function ScorecardEditor({ scorecard }: Props) {
       </div>
     </div>
   );
+}
+
+function normalizeBands(
+  bands: string[] | null,
+): [string, string, string, string, string] {
+  if (!bands) return [...EMPTY_BANDS];
+  const padded = [...EMPTY_BANDS];
+  for (let i = 0; i < 5; i++) {
+    padded[i] = bands[i] ?? "";
+  }
+  return padded as [string, string, string, string, string];
 }
 
 function WeightSumIndicator({ sum, valid }: { sum: number; valid: boolean }) {

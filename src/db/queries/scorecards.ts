@@ -1,5 +1,5 @@
 import "server-only";
-import { and, asc, eq, sql } from "drizzle-orm";
+import { and, asc, eq, isNull, sql } from "drizzle-orm";
 import { db, schema } from "../client";
 import { requireWorkspace } from "@/lib/workspace";
 import type { ScorecardScaleType } from "@/db/schema";
@@ -49,6 +49,33 @@ export async function listScorecards(): Promise<ScorecardSummary[]> {
       r.archivedAt instanceof Date ? r.archivedAt.getTime() : r.archivedAt,
     updatedAt: r.updatedAt instanceof Date ? r.updatedAt.getTime() : r.updatedAt,
   }));
+}
+
+export type LiveScorecardPickerRow = {
+  id: string;
+  name: string;
+  version: number;
+};
+
+/** Live (non-archived) scorecards for this workspace, ordered by name. Cheap
+ *  read used by the "Re-score with…" picker on `/coaching/[evaluationId]` and
+ *  the duplicate-source list in the scorecards settings UI. */
+export async function listLiveScorecardsForPicker(): Promise<LiveScorecardPickerRow[]> {
+  const workspaceId = await requireWorkspace();
+  return db
+    .select({
+      id: schema.scorecards.id,
+      name: schema.scorecards.name,
+      version: schema.scorecards.version,
+    })
+    .from(schema.scorecards)
+    .where(
+      and(
+        eq(schema.scorecards.workspaceId, workspaceId),
+        isNull(schema.scorecards.archivedAt),
+      ),
+    )
+    .orderBy(asc(schema.scorecards.name));
 }
 
 export type ScorecardCategoryView = {

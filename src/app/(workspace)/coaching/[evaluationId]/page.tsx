@@ -5,8 +5,10 @@ import { CoachingEvalFooter } from "@/components/coaching/coaching-eval-footer";
 import { CoachingTicket } from "@/components/coaching/coaching-ticket";
 import { CoachingTicketHeader } from "@/components/coaching/coaching-ticket-header";
 import { ConfigureScorecardItem } from "@/components/coaching/configure-scorecard-item";
+import { RescoreWithPicker } from "@/components/coaching/rescore-with-picker";
 import { getCoachingDetail } from "@/db/queries/coaching";
 import { listEvaluationsForTicket } from "@/db/queries/evaluations";
+import { listLiveScorecardsForPicker } from "@/db/queries/scorecards";
 
 export default async function CoachingDetailPage(
   props: PageProps<"/coaching/[evaluationId]">,
@@ -15,7 +17,10 @@ export default async function CoachingDetailPage(
   const detail = await getCoachingDetail(evaluationId);
   if (!detail) notFound();
 
-  const versions = await listEvaluationsForTicket(detail.ticket.id);
+  const [versions, liveScorecards] = await Promise.all([
+    listEvaluationsForTicket(detail.ticket.id),
+    listLiveScorecardsForPicker(),
+  ]);
 
   const crumbLabel =
     detail.ticket.externalId ?? detail.ticket.id;
@@ -28,10 +33,17 @@ export default async function CoachingDetailPage(
           { label: crumbLabel },
         ]}
         actions={
-          <DetailActions
-            entityHref={`/coaching/${detail.evaluation.id}`}
-            extraItems={<ConfigureScorecardItem />}
-          />
+          <div className="flex items-center gap-2">
+            <RescoreWithPicker
+              ticketId={detail.ticket.id}
+              scorecards={liveScorecards}
+              currentScorecardId={detail.evaluation.scorecard.id}
+            />
+            <DetailActions
+              entityHref={`/coaching/${detail.evaluation.id}`}
+              extraItems={<ConfigureScorecardItem />}
+            />
+          </div>
         }
       />
       <main className="px-14 py-10">

@@ -3,12 +3,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { DetailDrawer } from "./detail-drawer";
+import { DrawerBodySkeleton } from "./drawer-skeleton";
 import { CustomerDetailBody } from "@/components/customers/customer-detail";
 import { TicketDetailBody } from "@/components/tickets/ticket-detail";
 import { TeamMemberDetailBody } from "@/components/team-members/team-member-detail";
 import { ResponseDetailBody } from "@/components/responses/response-detail";
 import { SurveyDetailBody } from "@/components/surveys/survey-detail";
-import { Skeleton } from "@/components/ui/skeleton";
 import { SURVEY_METRIC_LABEL } from "@/lib/properties/surveys";
 import {
   recordEntityView,
@@ -355,11 +355,7 @@ export function GlobalDrawer() {
             Failed to load.
           </div>
         ) : renderPayload == null ? (
-          <div className="px-8 py-6 space-y-3">
-            <Skeleton className="h-4 w-40" />
-            <Skeleton className="h-7 w-64" />
-            <Skeleton className="h-32 w-full" />
-          </div>
+          <DrawerBodySkeleton />
         ) : renderPayload.entity === "customer" ? (
           <CustomerDetailBody
             customer={renderPayload.data.customer}

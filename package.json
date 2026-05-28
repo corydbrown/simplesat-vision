@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev --port \"$(grep -hs '^PORT=' .env.local 2>/dev/null | tail -n1 | cut -d= -f2 | tr -d ' \"' | grep -E '^[0-9]+$' || echo 3000)\"",
-    "build": "drizzle-kit migrate && next build",
+    "build": "next build",
     "start": "next start",
     "lint": "eslint",
     "db:generate": "drizzle-kit generate",

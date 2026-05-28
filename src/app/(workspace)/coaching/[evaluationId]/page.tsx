@@ -9,6 +9,9 @@ import { RescoreWithPicker } from "@/components/coaching/rescore-with-picker";
 import { getCoachingDetail } from "@/db/queries/coaching";
 import { listEvaluationsForTicket } from "@/db/queries/evaluations";
 import { listLiveScorecardsForPicker } from "@/db/queries/scorecards";
+import { getCurrentUser } from "@/lib/auth";
+import { listEvaluationFeedback } from "@/lib/qa/feedback/actions";
+import { FeedbackSection } from "./feedback-section";
 
 export default async function CoachingDetailPage(
   props: PageProps<"/coaching/[evaluationId]">,
@@ -17,10 +20,19 @@ export default async function CoachingDetailPage(
   const detail = await getCoachingDetail(evaluationId);
   if (!detail) notFound();
 
-  const [versions, liveScorecards] = await Promise.all([
-    listEvaluationsForTicket(detail.ticket.id),
-    listLiveScorecardsForPicker(),
-  ]);
+  const [versions, liveScorecards, allFeedback, currentUser] =
+    await Promise.all([
+      listEvaluationsForTicket(detail.ticket.id),
+      listLiveScorecardsForPicker(),
+      listEvaluationFeedback({ evaluationId }),
+      getCurrentUser(),
+    ]);
+
+  const myFeedback =
+    currentUser != null
+      ? allFeedback.find((f) => f.createdBy === currentUser.id) ?? null
+      : null;
+  const otherFeedback = allFeedback.filter((f) => f.id !== myFeedback?.id);
 
   const crumbLabel =
     detail.ticket.externalId ?? detail.ticket.id;
@@ -49,6 +61,13 @@ export default async function CoachingDetailPage(
       <main className="px-14 py-10">
         <CoachingTicketHeader detail={detail} versions={versions} />
         <CoachingTicket detail={detail} />
+        {currentUser && (
+          <FeedbackSection
+            evaluationId={evaluationId}
+            myFeedback={myFeedback}
+            otherFeedback={otherFeedback}
+          />
+        )}
         <CoachingEvalFooter evaluation={detail.evaluation} />
       </main>
     </>

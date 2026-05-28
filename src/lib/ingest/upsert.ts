@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 
 import { db } from "@/db/client";
 import {
@@ -390,6 +390,16 @@ export async function upsertTicket(
     surveyNotSentReason: input.surveyNotSentReason ?? null,
   } as const;
 
+  // modifiedAt = newest of: ticket-row timestamps we know about. On insert
+  // this seeds the column; on update we bump it (the modified_at-bumping
+  // SQL below also runs after message/response upserts).
+  const bumpedAt = maxDate(
+    input.createdAt,
+    input.firstResponseAt ?? null,
+    input.solvedAt ?? null,
+    input.closedAt ?? null,
+  );
+
   return findOrWrite(
     "tkt",
     () =>
@@ -405,14 +415,49 @@ export async function upsertTicket(
         .limit(1)
         .then((r) => r[0]),
     async (id) => {
-      await db
-        .insert(tickets)
-        .values({ id, workspaceId, externalId: input.externalId, ...shared });
+      await db.insert(tickets).values({
+        id,
+        workspaceId,
+        externalId: input.externalId,
+        ...shared,
+        modifiedAt: bumpedAt,
+      });
     },
     async (id) => {
-      await db.update(tickets).set(shared).where(eq(tickets.id, id));
+      // Bump modifiedAt to MAX(existing, bumpedAt) so we never regress —
+      // a re-POST of an older ticket shouldn't reorder it below newer
+      // activity that already updated.
+      await db
+        .update(tickets)
+        .set({
+          ...shared,
+          modifiedAt: sql`MAX(${tickets.modifiedAt}, ${bumpedAt.getTime()})`,
+        })
+        .where(eq(tickets.id, id));
     },
   );
+}
+
+/** Bump a ticket's `modified_at` to MAX(existing, ts). Idempotent and
+ *  cheap; called after message + response upserts so the "newest activity"
+ *  sort sees the latest related-row write without each caller having to
+ *  manage it. */
+async function bumpTicketModifiedAt(
+  ticketId: string,
+  ts: Date,
+): Promise<void> {
+  await db
+    .update(tickets)
+    .set({ modifiedAt: sql`MAX(${tickets.modifiedAt}, ${ts.getTime()})` })
+    .where(eq(tickets.id, ticketId));
+}
+
+function maxDate(...candidates: (Date | null | undefined)[]): Date {
+  let max = 0;
+  for (const c of candidates) {
+    if (c instanceof Date && c.getTime() > max) max = c.getTime();
+  }
+  return new Date(max || Date.now());
 }
 
 export async function upsertMessage(
@@ -444,7 +489,7 @@ export async function upsertMessage(
     createdAt: input.createdAt,
   } as const;
 
-  return findOrWrite(
+  const result = await findOrWrite(
     "tkm",
     () =>
       db
@@ -465,6 +510,12 @@ export async function upsertMessage(
         .where(eq(ticketMessages.id, id));
     },
   );
+
+  // Bump the parent ticket's "newest activity" timestamp. Runs on both
+  // insert and re-POST of an existing message — re-posting a stale message
+  // can't regress modifiedAt (the MAX guard inside bumpTicketModifiedAt).
+  await bumpTicketModifiedAt(ticketId, input.createdAt);
+  return result;
 }
 
 export async function upsertResponse(
@@ -521,6 +572,11 @@ export async function upsertResponse(
       await db.update(responses).set(shared).where(eq(responses.id, id));
     },
   );
+
+  // Bump the parent ticket's "newest activity" timestamp (a rating IS new
+  // content on the ticket). Use respondedAt — that's when the customer
+  // actually rated, regardless of when the row was synced into our DB.
+  await bumpTicketModifiedAt(ticketId, shared.respondedAt);
 
   // SVP-181: after writing the response, re-evaluate the ticket's full set so
   // helpdesk-native vs Simplesat-native dedupe (`superseded_by`) stays

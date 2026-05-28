@@ -169,6 +169,13 @@
       "when": 1779950378871,
       "tag": "0023_thankful_black_cat",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "6",
+      "when": 1779963111555,
+      "tag": "0024_svp222_ticket_modified_at",
+      "breakpoints": true
     }
   ]
 }

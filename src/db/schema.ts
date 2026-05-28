@@ -604,6 +604,14 @@ export const tickets = sqliteTable(
     firstResponseAt: integer("first_response_at", { mode: "timestamp_ms" }),
     solvedAt: integer("solved_at", { mode: "timestamp_ms" }),
     closedAt: integer("closed_at", { mode: "timestamp_ms" }),
+    /** Prototype-managed "newest activity" timestamp. Bumped whenever a
+     *  related-row write lands on this ticket: message upsert, response
+     *  upsert, ticket upsert. Distinct from the helpdesk's `updated_at`
+     *  (which fires for noisy events like read-status / tag edits) — this
+     *  is a clean "new content arrived" signal for Tickets-list sort. */
+    modifiedAt: integer("modified_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
     messageCount: integer("message_count").notNull().default(0),
     agentMessageCount: integer("agent_message_count").notNull().default(0),
     /** Raw source metrics bag (lossless): Intercom `statistics`, Zendesk
@@ -675,6 +683,9 @@ export const tickets = sqliteTable(
     // a DESC scan, which matches the existing list behavior (open tickets
     // appear after closed ones).
     index("tickets_workspace_closed_at_idx").on(t.workspaceId, t.closedAt),
+    // Mirrors the closed_at index above, for the "Newest activity" sort
+    // (workspace_id, modified_at DESC) → index-only scan + LIMIT pushdown.
+    index("tickets_workspace_modified_at_idx").on(t.workspaceId, t.modifiedAt),
     index("tickets_customer_id_idx").on(t.customerId),
     index("tickets_team_member_id_idx").on(t.teamMemberId),
     index("tickets_status_idx").on(t.status),

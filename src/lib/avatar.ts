@@ -39,10 +39,10 @@ export type ResolveAvatarInput = {
   /** Display name — drives initials, the color fallback, AND the DiceBear seed.
    *  Always required.
    *
-   *  DiceBear is seeded by name (not email/id) on purpose: the self-hosted
-   *  `public/avatars/<hash>.svg` set is name-keyed and regenerated at seed time,
-   *  so the render seed must match the generator's seed. See
-   *  scripts/generate-avatars.ts. */
+   *  DiceBear is seeded by name (not email/id) on purpose: the only stable,
+   *  human-meaningful key we have at render time. The seed is rendered on
+   *  demand by `src/app/api/avatar/[seed]/route.ts` — no pre-generation,
+   *  no file 404s into bare initials. */
   name: string;
   /** When provided, a Gravatar tier is inserted into the cascade between any
    *  stored URL and the DiceBear fallback.

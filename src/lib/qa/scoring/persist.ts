@@ -2,6 +2,7 @@ import "server-only";
 import { and, asc, eq } from "drizzle-orm";
 import { db, schema } from "@/db/client";
 import { prefixedId } from "@/lib/ids";
+import { initDefaultScorecardForWorkspace } from "@/lib/qa/default-scorecard-init";
 import { snapshotScorecard } from "@/lib/scorecards/snapshot";
 import { getScoringProvider } from "./index";
 import type {
@@ -129,20 +130,30 @@ export async function scoreAndPersistTicket(params: {
     ? Math.round((responseRow.rating * 5) / responseRow.scale)
     : null;
 
-  const [scorecard] = await db
-    .select()
-    .from(schema.scorecards)
-    .where(
-      and(
-        eq(schema.scorecards.workspaceId, workspaceId),
-        eq(schema.scorecards.isDefault, true),
-      ),
-    )
-    .limit(1);
+  const selectDefaultScorecard = () =>
+    db
+      .select()
+      .from(schema.scorecards)
+      .where(
+        and(
+          eq(schema.scorecards.workspaceId, workspaceId),
+          eq(schema.scorecards.isDefault, true),
+        ),
+      )
+      .limit(1);
+  let [scorecard] = await selectDefaultScorecard();
   if (!scorecard) {
-    throw new ScoringPreconditionError(
-      "No default scorecard configured for this workspace.",
-    );
+    // Auto-init: workspaces created outside the seed code path (WorkOS signup,
+    // future provisioning flows) never get the default scorecard hydrated.
+    // Mint it inline so the first Evaluate click works without a manual fix.
+    await initDefaultScorecardForWorkspace(workspaceId);
+    // Re-query in case a concurrent caller raced ahead — defensive but cheap.
+    [scorecard] = await selectDefaultScorecard();
+    if (!scorecard) {
+      throw new ScoringPreconditionError(
+        "Failed to initialize default scorecard for this workspace.",
+      );
+    }
   }
 
   const categoryRows = await db

@@ -10,7 +10,7 @@ import {
   type SeedCustomFieldDef,
 } from "../lib/properties/custom-fields";
 import { rollupTopics } from "../lib/topics";
-import { DEFAULT_SCORECARD } from "../lib/qa/default-scorecard";
+import { initDefaultScorecardForWorkspace } from "../lib/qa/default-scorecard-init";
 import { MockScoringProvider } from "../lib/qa/scoring";
 import {
   scoreAndPersistTicket,
@@ -34,9 +34,6 @@ import type {
   NewQaComment,
   NewQaReaction,
   NewResponse,
-  NewScorecard,
-  NewScorecardCategory,
-  NewScorecardCriterion,
   NewSurvey,
   NewTeamMember,
   NewTeamMemberGroup,
@@ -1871,61 +1868,17 @@ async function seed() {
   // -------------------------------------------------------------------------
 
   console.log("Hydrating default QA scorecard...");
-  const scorecardId = prefixedId("sc");
-  const scorecardRow: NewScorecard = {
-    id: scorecardId,
-    workspaceId: DEMO_WORKSPACE_ID,
-    name: DEFAULT_SCORECARD.name,
-    isDefault: DEFAULT_SCORECARD.isDefault,
-    enabled: DEFAULT_SCORECARD.enabled,
-    version: DEFAULT_SCORECARD.version,
+  // Routed through the same helper the runtime auto-init uses — seed and
+  // runtime can never drift (per CLAUDE.md: seed runs through the app's code
+  // paths). The category/criterion id maps come back so the downstream v2
+  // bump can target rows by name without re-querying.
+  const {
+    scorecardId,
+    scorecardVersionId: v1ScorecardVersionId,
+    categoryIdByName,
+    criterionIdsByCategoryName,
+  } = await initDefaultScorecardForWorkspace(DEMO_WORKSPACE_ID, {
     createdAt: new Date(NOW),
-    updatedAt: new Date(NOW),
-  };
-  const categoryRows: NewScorecardCategory[] = [];
-  const criterionRows: NewScorecardCriterion[] = [];
-  // categoryId by name + per-category criterion ids — used to map provider
-  // input/output back to DB ids without a second query roundtrip.
-  const categoryIdByName = new Map<string, string>();
-  const criterionIdsByCategoryName = new Map<string, string[]>();
-  DEFAULT_SCORECARD.categories.forEach((category, categoryIdx) => {
-    const categoryId = prefixedId("scc");
-    categoryIdByName.set(category.name, categoryId);
-    categoryRows.push({
-      id: categoryId,
-      scorecardId,
-      name: category.name,
-      description: category.description,
-      weightPercent: category.weightPercent,
-      scaleType: category.scaleType,
-      order: categoryIdx,
-      isAutofail: category.isAutofail,
-    });
-    const criterionIds: string[] = [];
-    category.criteria.forEach((criterion, criterionIdx) => {
-      const criterionId = prefixedId("scr");
-      criterionIds.push(criterionId);
-      criterionRows.push({
-        id: criterionId,
-        categoryId,
-        text: criterion.text,
-        anchor5: criterion.anchor5,
-        anchor3: criterion.anchor3,
-        anchor1: criterion.anchor1,
-        order: criterionIdx,
-      });
-    });
-    criterionIdsByCategoryName.set(category.name, criterionIds);
-  });
-  const v1ScorecardVersionId = await db.transaction(async (tx) => {
-    await tx.insert(schema.scorecards).values(scorecardRow);
-    await tx.insert(schema.scorecardCategories).values(categoryRows);
-    await tx.insert(schema.scorecardCriteria).values(criterionRows);
-    return await snapshotScorecard(tx, {
-      scorecardId,
-      version: DEFAULT_SCORECARD.version,
-      createdAt: new Date(NOW),
-    });
   });
 
   console.log(

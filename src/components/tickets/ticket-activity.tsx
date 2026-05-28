@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import { Avatar } from "@/components/shared/avatar";
 import { DetailSection } from "@/components/shared/detail-section";
+import { Switch } from "@/components/ui/switch";
 import type {
   TicketEventView,
   TicketMessageView,
@@ -762,37 +763,25 @@ function DayDivider({ date }: { date: Date }) {
   );
 }
 
-function ActivityFilter({
-  value,
+function ActivityToggle({
+  on,
   onChange,
 }: {
-  value: Filter;
-  onChange: (v: Filter) => void;
+  on: boolean;
+  onChange: () => void;
 }) {
   return (
-    <div className="inline-flex rounded-md border border-border bg-background p-0.5 text-base">
-      <button
-        type="button"
-        onClick={() => onChange("all")}
-        className={`cursor-pointer rounded px-2.5 py-1 transition-colors ${
-          value === "all"
-            ? "bg-accent text-foreground"
-            : "text-muted-foreground hover:text-foreground"
-        }`}
-      >
-        All
-      </button>
-      <button
-        type="button"
-        onClick={() => onChange("messages")}
-        className={`cursor-pointer rounded px-2.5 py-1 transition-colors ${
-          value === "messages"
-            ? "bg-accent text-foreground"
-            : "text-muted-foreground hover:text-foreground"
-        }`}
-      >
-        Messages only
-      </button>
+    <div className="mb-3 flex items-center justify-between rounded-lg border border-dashed border-border bg-card/40 px-3 py-2">
+      <div className="flex items-center gap-2 text-base text-muted-foreground">
+        <Sparkles className="size-4 text-primary" />
+        <span>
+          Toggle activity to see assignments, status changes, and other events.
+        </span>
+      </div>
+      <label className="flex shrink-0 cursor-pointer items-center gap-2 text-base text-muted-foreground">
+        <span>Show activity</span>
+        <Switch checked={on} onCheckedChange={onChange} />
+      </label>
     </div>
   );
 }
@@ -836,16 +825,23 @@ export function TicketActivitySection({
    *  Driven by the QA section's supporting-message chip clicks. */
   highlightedMessageId?: string | null;
 }) {
-  const [filter, setFilter] = useState<Filter>("all");
+  // Defaults to OFF — messages-only is the cleaner first paint. The toggle
+  // reveals the activity events (assignments / status changes / SLA / etc).
+  const [showActivity, setShowActivity] = useState(false);
   if (messages.length === 0 && events.length === 0) return null;
 
-  const items = buildTimeline(messages, events, filter);
+  const items = buildTimeline(
+    messages,
+    events,
+    showActivity ? "all" : "messages",
+  );
 
   return (
-    <DetailSection
-      title="Activity"
-      trailing={<ActivityFilter value={filter} onChange={setFilter} />}
-    >
+    <DetailSection title="Activity">
+      <ActivityToggle
+        on={showActivity}
+        onChange={() => setShowActivity((v) => !v)}
+      />
       <div>
         {items.map((it, i) => {
           const prev = i > 0 ? items[i - 1] : undefined;

@@ -20,7 +20,10 @@ import {
   Hourglass,
   Inbox,
   MessageCircle,
+  PlayCircle,
+  Share2,
   Sparkles,
+  SquareCheckBig,
   Star,
   Tag as TagIcon,
   Timer,
@@ -28,6 +31,10 @@ import {
   User,
   UserCircle2,
 } from "lucide-react";
+import {
+  AiHandlingPill,
+  AiResolutionStatePill,
+} from "@/components/tickets/ai-handling-pill";
 import { ChannelPill } from "@/components/tickets/channel-pill";
 import { PriorityPill } from "@/components/tickets/priority-pill";
 import { SignalsCell } from "@/components/tickets/signals-cell";
@@ -42,6 +49,7 @@ import {
 import { QaScoreBadge } from "@/components/shared/qa-score-badge";
 import { TagList } from "@/components/shared/tag";
 import type { TicketsRow } from "@/db/queries/tickets";
+import { classifyAiHandling } from "@/lib/ai-handling";
 import { TICKET_FILTER_SPECS } from "@/lib/filters/specs/tickets";
 import { formatDate, formatDuration } from "@/lib/format";
 import { TimestampTooltip } from "@/components/shared/timestamp-tooltip";
@@ -50,7 +58,14 @@ import {
   qaScoreBucket,
   type QaScoreBucket,
 } from "@/lib/qa/score-color";
+import type { AiHandling } from "@/db/schema";
 import type { Property } from "./types";
+
+const AI_HANDLING_LABEL: Record<AiHandling, string> = {
+  bot_only: "Bot only",
+  hybrid: "Hybrid",
+  human_only: "Human only",
+};
 
 export const TICKET_PROPERTIES: Property<TicketsRow>[] = [
   {
@@ -436,6 +451,99 @@ export const TICKET_PROPERTIES: Property<TicketsRow>[] = [
           : t.signals.longestIdleHours.toFixed(1)}
       </span>
     ),
+  },
+  // -- Conversation-level AI-handling signals (SVP-199 / SVP-212) ---------
+  // Three independent stored booleans + the source-verbatim resolution outcome
+  // + the derived bot_only/hybrid/human_only segment from classifyAiHandling.
+  // All hidden by default — users opt in via the column picker. The derived
+  // ai_handling column is the one we expect to see toggled on most often
+  // because it's the segment Reports + QA pivot on.
+  {
+    id: "ai_handling",
+    label: "AI handling",
+    width: 130,
+    icon: Bot,
+    sourceEntity: "Ticket",
+    defaultVisible: false,
+    kind: "component",
+    filter: TICKET_FILTER_SPECS.ai_handling,
+    groupable: true,
+    groupValue: (t) =>
+      classifyAiHandling({
+        aiAgentParticipated: t.aiAgentParticipated,
+        handedOffToHuman: t.handedOffToHuman,
+      }),
+    groupLabel: (v) => <AiHandlingPill handling={v as AiHandling} />,
+    nullGroupLabel: AI_HANDLING_LABEL.human_only,
+    cell: (t) => (
+      <AiHandlingPill
+        handling={classifyAiHandling({
+          aiAgentParticipated: t.aiAgentParticipated,
+          handedOffToHuman: t.handedOffToHuman,
+        })}
+      />
+    ),
+  },
+  {
+    id: "ai_agent_participated",
+    label: "AI participated",
+    width: 140,
+    icon: Bot,
+    sourceEntity: "Ticket",
+    defaultVisible: false,
+    kind: "text",
+    filter: TICKET_FILTER_SPECS.ai_agent_participated,
+    cell: (t) => (
+      <span className="text-muted-foreground">
+        {t.aiAgentParticipated ? "Yes" : "No"}
+      </span>
+    ),
+  },
+  {
+    id: "started_with_bot",
+    label: "Started with bot",
+    width: 140,
+    icon: PlayCircle,
+    sourceEntity: "Ticket",
+    defaultVisible: false,
+    kind: "text",
+    filter: TICKET_FILTER_SPECS.started_with_bot,
+    cell: (t) => (
+      <span className="text-muted-foreground">
+        {t.startedWithBot ? "Yes" : "No"}
+      </span>
+    ),
+  },
+  {
+    id: "handed_off_to_human",
+    label: "Handed off to human",
+    width: 160,
+    icon: Share2,
+    sourceEntity: "Ticket",
+    defaultVisible: false,
+    kind: "text",
+    filter: TICKET_FILTER_SPECS.handed_off_to_human,
+    cell: (t) => (
+      <span className="text-muted-foreground">
+        {t.handedOffToHuman ? "Yes" : "No"}
+      </span>
+    ),
+  },
+  {
+    id: "ai_resolution_state",
+    label: "AI resolution",
+    width: 170,
+    icon: SquareCheckBig,
+    sourceEntity: "Ticket",
+    defaultVisible: false,
+    kind: "component",
+    filter: TICKET_FILTER_SPECS.ai_resolution_state,
+    cell: (t) =>
+      t.aiResolutionState ? (
+        <AiResolutionStatePill state={t.aiResolutionState} />
+      ) : (
+        <span className="text-muted-foreground/40">—</span>
+      ),
   },
   {
     id: "created_at",

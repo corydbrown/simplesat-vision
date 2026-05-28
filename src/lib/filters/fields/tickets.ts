@@ -1,7 +1,7 @@
 import "server-only";
 import { sql } from "drizzle-orm";
 import { schema } from "@/db/client";
-import type { QaEvaluationStatus } from "@/db/schema";
+import type { AiHandling, QaEvaluationStatus } from "@/db/schema";
 import { buildFilterFields, multiEnumColumn } from "@/lib/filters/build-fields";
 import { TICKET_FILTER_SPECS } from "@/lib/filters/specs/tickets";
 
@@ -44,6 +44,13 @@ export const ticketCustomerReplyCountExpr = sql<number>`(SELECT COUNT(*) FROM ti
 // measured against the prior row regardless of which table it came from.
 export const ticketLongestIdleHoursExpr = sql<number | null>`(SELECT MAX(gap_ms) / 3600000.0 FROM (SELECT created_at - LAG(created_at) OVER (ORDER BY created_at) AS gap_ms FROM (SELECT created_at FROM ticket_messages WHERE ticket_messages.ticket_id = tickets.id UNION ALL SELECT created_at FROM ticket_events WHERE ticket_events.ticket_id = tickets.id)))`;
 
+// Derived conversation-level AI-handling segment (SVP-199 / SVP-212). Mirrors
+// `classifyAiHandling` in src/lib/ai-handling.ts — keep in sync so Reports +
+// QA + the list filter all read the same truth. Literal SQL column refs
+// (not `${schema...}`) so this composes inside any list/group/filter query
+// — see CLAUDE.md → Conventions.
+export const ticketAiHandlingExpr = sql<AiHandling>`(CASE WHEN tickets.ai_agent_participated = 0 THEN 'human_only' WHEN tickets.handed_off_to_human = 1 THEN 'hybrid' ELSE 'bot_only' END)`;
+
 export const TICKET_FILTER_FIELDS = buildFilterFields(TICKET_FILTER_SPECS, {
   status: schema.tickets.status,
   priority: schema.tickets.priority,
@@ -71,4 +78,9 @@ export const TICKET_FILTER_FIELDS = buildFilterFields(TICKET_FILTER_SPECS, {
   ai_handoff: ticketAiHandoffExpr,
   customer_reply_count: ticketCustomerReplyCountExpr,
   longest_idle_hours: ticketLongestIdleHoursExpr,
+  ai_agent_participated: schema.tickets.aiAgentParticipated,
+  started_with_bot: schema.tickets.startedWithBot,
+  handed_off_to_human: schema.tickets.handedOffToHuman,
+  ai_handling: ticketAiHandlingExpr,
+  ai_resolution_state: schema.tickets.aiResolutionState,
 });

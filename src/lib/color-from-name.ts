@@ -32,9 +32,15 @@ export function initialsFromName(name: string): string {
   return parts.map((p) => p[0]?.toUpperCase() ?? "").join("");
 }
 
-// Resolves to the runtime DiceBear route, which generates a croodles-neutral
-// SVG on demand and serves it with `Cache-Control: immutable`. See
-// src/app/api/avatar/[seed]/route.ts.
-export function dicebearUrl(seed: string): string {
-  return `/api/avatar/${encodeURIComponent(seed)}`;
+/** DiceBear avatar URL — fun-emoji for humans, bottts for bots. Hits the
+ *  DiceBear 9.x HTTP API directly; their CDN handles caching. `size=128`
+ *  is the 2x retina target for the largest size the app actually uses (64px
+ *  `Avatar size="lg"`). SVG is vector, so `size` only sets the SVG viewBox
+ *  — quality is identical at any render size; the param is for parity with
+ *  the SVP-234 mockup convention. */
+export type DicebearStyle = "fun-emoji" | "bottts";
+
+export function dicebearUrl(seed: string, style: DicebearStyle = "fun-emoji"): string {
+  const params = new URLSearchParams({ seed, size: "128" });
+  return `https://api.dicebear.com/9.x/${style}/svg?${params.toString()}`;
 }

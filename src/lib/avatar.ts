@@ -40,9 +40,8 @@ export type ResolveAvatarInput = {
    *  Always required.
    *
    *  DiceBear is seeded by name (not email/id) on purpose: the only stable,
-   *  human-meaningful key we have at render time. The seed is rendered on
-   *  demand by `src/app/api/avatar/[seed]/route.ts` — no pre-generation,
-   *  no file 404s into bare initials. */
+   *  human-meaningful key we have at render time. Same name → same avatar
+   *  every render. The URL points to DiceBear's HTTP API; their CDN caches.*/
   name: string;
   /** When provided, a Gravatar tier is inserted into the cascade between any
    *  stored URL and the DiceBear fallback.
@@ -55,6 +54,10 @@ export type ResolveAvatarInput = {
   /** Pre-computed background color (e.g. `team_members.avatarColor`). Falls
    *  back to a deterministic color derived from the name. */
   avatarColor?: string | null;
+  /** True for AI-bot entities → bottts DiceBear style. Default false →
+   *  fun-emoji. Bot identity today lives at `ticket_messages.authorSubtype`,
+   *  not on `team_members`, so most call sites omit this. */
+  isBot?: boolean;
 };
 
 export type ResolvedAvatar = {
@@ -70,7 +73,7 @@ export function resolveAvatar(input: ResolveAvatarInput): ResolvedAvatar {
   const sources: string[] = [];
   if (input.avatarUrl) sources.push(input.avatarUrl);
   if (input.email) sources.push(gravatarUrl(input.email));
-  sources.push(dicebearUrl(seed));
+  sources.push(dicebearUrl(seed, input.isBot ? "bottts" : "fun-emoji"));
   return {
     sources,
     bg: input.avatarColor ?? colorFromName(input.name),

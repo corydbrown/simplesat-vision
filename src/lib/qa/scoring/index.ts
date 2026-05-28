@@ -8,7 +8,8 @@
  *
  * Env:
  *   LLM_SCORING_PROVIDER = mock | llm   (default: mock)
- *   LLM_API_KEY          = required when provider = llm
+ *   LLM_API_KEY          = required when provider = llm; falls back to
+ *                          ANTHROPIC_API_KEY (the SDK's standard env name)
  *   LLM_MODEL            = model identifier (default: claude-opus-4-7)
  */
 
@@ -26,11 +27,14 @@ export function getScoringProvider(
   const name = override ?? resolveProviderName();
   switch (name) {
     case "llm": {
-      const apiKey = process.env.LLM_API_KEY;
+      // Prefer LLM_API_KEY (explicit override) but fall back to the SDK's
+      // canonical ANTHROPIC_API_KEY so deploys don't have to maintain a
+      // second copy of the same secret.
+      const apiKey = process.env.LLM_API_KEY ?? process.env.ANTHROPIC_API_KEY;
       const model = process.env.LLM_MODEL ?? DEFAULT_LLM_MODEL;
       if (!apiKey) {
         throw new Error(
-          "LLM_API_KEY is required when LLM_SCORING_PROVIDER=llm. " +
+          "Set LLM_API_KEY or ANTHROPIC_API_KEY when LLM_SCORING_PROVIDER=llm. " +
             "Set LLM_SCORING_PROVIDER=mock to use the deterministic mock provider.",
         );
       }

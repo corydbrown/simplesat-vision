@@ -56,29 +56,21 @@ export async function scoreAndPersistTicket(params: {
    *  the current default scorecard's version is resolved — minting a snapshot
    *  if one doesn't exist yet. */
   scorecardVersionId?: string;
-  /** Run inside an existing transaction for atomic composition. When omitted,
-   *  the function opens its own. */
+  /** Use this executor for the *write* portion. Lets a caller bundle the
+   *  inserts into an outer transaction for atomic composition. The reads +
+   *  the provider call always run outside any transaction — they're the slow
+   *  steps, and we don't want to hold a Turso write-tx open across a multi-
+   *  second LLM round-trip. */
   tx?: Tx;
 }): Promise<PersistedEvaluation> {
   const provider = params.provider ?? getScoringProvider();
-  const run = (exec: Executor) => persist(exec, { ...params, provider });
-  return params.tx ? run(params.tx) : db.transaction(run);
-}
+  const { ticketId, workspaceId } = params;
 
-async function persist(
-  exec: Executor,
-  params: {
-    ticketId: string;
-    workspaceId: string;
-    provider: ScoringProvider;
-    scoredAt?: Date;
-    scorecardVersionId?: string;
-  },
-): Promise<PersistedEvaluation> {
-  const { ticketId, workspaceId, provider } = params;
+  // ============================================================
+  // READS — run on the connection pool, no transaction held open.
+  // ============================================================
 
-  // --- Load the ticket (workspace-scoped) ---
-  const [ticket] = await exec
+  const [ticket] = await db
     .select({
       id: schema.tickets.id,
       subject: schema.tickets.subject,
@@ -104,9 +96,11 @@ async function persist(
       "This ticket has no assigned agent — assign it before evaluating.",
     );
   }
+  // Pin the narrowed non-null id; the writer closure below loses the
+  // type narrow across its callback boundary.
+  const scoredTeamMemberId: string = ticket.teamMemberId;
 
-  // --- Load messages (chronological) ---
-  const messageRows = await exec
+  const messageRows = await db
     .select()
     .from(schema.ticketMessages)
     .where(eq(schema.ticketMessages.ticketId, ticketId))
@@ -125,8 +119,8 @@ async function persist(
     createdAt: m.createdAt,
   }));
 
-  // --- Customer CSAT rating projected to 1-5 (conditions the mock) ---
-  const [responseRow] = await exec
+  // Customer CSAT rating projected to 1-5 (conditions the mock).
+  const [responseRow] = await db
     .select({ rating: schema.responses.rating, scale: schema.responses.scale })
     .from(schema.responses)
     .where(eq(schema.responses.ticketId, ticketId))
@@ -135,8 +129,7 @@ async function persist(
     ? Math.round((responseRow.rating * 5) / responseRow.scale)
     : null;
 
-  // --- Load the default scorecard + its rubric ---
-  const [scorecard] = await exec
+  const [scorecard] = await db
     .select()
     .from(schema.scorecards)
     .where(
@@ -152,12 +145,12 @@ async function persist(
     );
   }
 
-  const categoryRows = await exec
+  const categoryRows = await db
     .select()
     .from(schema.scorecardCategories)
     .where(eq(schema.scorecardCategories.scorecardId, scorecard.id))
     .orderBy(asc(schema.scorecardCategories.order));
-  const criterionRows = await exec
+  const criterionRows = await db
     .select()
     .from(schema.scorecardCriteria)
     .orderBy(asc(schema.scorecardCriteria.order));
@@ -187,15 +180,32 @@ async function persist(
     })),
   };
 
-  // --- Resolve the scorecard version to FK into (mint if absent) ---
-  const scorecardVersionId =
-    params.scorecardVersionId ??
-    (await resolveCurrentScorecardVersionId(exec, {
-      scorecardId: scorecard.id,
-      version: scorecard.version,
-    }));
+  // Pre-resolve the scorecard version snapshot with a plain SELECT. The mint
+  // safety-net (rare path) happens inside the write transaction so it stays
+  // atomic with the eval insert. Splitting it this way keeps the LLM call
+  // out of the write tx without sacrificing rollback semantics.
+  let preResolvedVersionId = params.scorecardVersionId;
+  if (!preResolvedVersionId) {
+    const [existing] = await db
+      .select({ id: schema.scorecardVersions.id })
+      .from(schema.scorecardVersions)
+      .where(
+        and(
+          eq(schema.scorecardVersions.scorecardId, scorecard.id),
+          eq(schema.scorecardVersions.version, scorecard.version),
+        ),
+      )
+      .limit(1);
+    preResolvedVersionId = existing?.id;
+  }
 
-  // --- Score ---
+  // ============================================================
+  // SCORE — outside any transaction. Real-LLM round-trip takes
+  // multiple seconds; holding a Turso write-tx open across that
+  // invites lock contention + interactive-transaction timeouts.
+  // If this throws nothing has been written yet → clean rollback.
+  // ============================================================
+
   const input: ScoringInput = {
     ticket: {
       id: ticket.id,
@@ -213,61 +223,77 @@ async function persist(
   };
   const output = await provider.scoreConversation(input);
 
-  // --- Map output → rows (the single source of truth for this mapping) ---
-  const scoredAt = params.scoredAt ?? new Date();
-  const evaluationId = prefixedId("evl");
-  const evaluation: NewEvaluation = {
-    id: evaluationId,
-    workspaceId,
-    ticketId: ticket.id,
-    scorecardId: scorecard.id,
-    scorecardVersionId,
-    scoredTeamMemberId: ticket.teamMemberId,
-    overallScore: output.overallScore,
-    status: output.autoFailTriggered ? "contested" : "ai_scored",
-    aiModel: output.aiModel,
-    // Confidence stored as integer percent so the column is a plain int.
-    aiConfidence: Math.round(output.aiConfidence * 100),
-    aiReasoningSummary: output.aiReasoningSummary,
-    scoredBy: provider.name,
-    scoredAt,
-    editedBy: null,
-    editedAt: null,
-    invalidatedReason: null,
-  };
+  // ============================================================
+  // WRITES — short transaction: optional snapshot mint + 3 inserts.
+  // Row ids are minted inside so they're part of the same global-
+  // rng sequence as the output→row mapping in `seed.ts` used to be;
+  // determinism preserved (mock provider uses its own private faker
+  // seeded from the ticket id, so its rng calls don't interleave).
+  // ============================================================
 
-  const categoryScores: NewEvaluationCategoryScore[] = output.categoryScores.map(
-    (result) => ({
-      id: prefixedId("ecs"),
+  const writer = async (exec: Executor): Promise<PersistedEvaluation> => {
+    const scorecardVersionId =
+      preResolvedVersionId ??
+      (await snapshotScorecard(exec, {
+        scorecardId: scorecard.id,
+        version: scorecard.version,
+      }));
+
+    const scoredAt = params.scoredAt ?? new Date();
+    const evaluationId = prefixedId("evl");
+    const evaluation: NewEvaluation = {
+      id: evaluationId,
+      workspaceId,
+      ticketId: ticket.id,
+      scorecardId: scorecard.id,
+      scorecardVersionId,
+      scoredTeamMemberId,
+      overallScore: output.overallScore,
+      status: output.autoFailTriggered ? "contested" : "ai_scored",
+      aiModel: output.aiModel,
+      // Confidence stored as integer percent so the column is a plain int.
+      aiConfidence: Math.round(output.aiConfidence * 100),
+      aiReasoningSummary: output.aiReasoningSummary,
+      scoredBy: provider.name,
+      scoredAt,
+      editedBy: null,
+      editedAt: null,
+      invalidatedReason: null,
+    };
+
+    const categoryScores: NewEvaluationCategoryScore[] =
+      output.categoryScores.map((result) => ({
+        id: prefixedId("ecs"),
+        evaluationId,
+        categoryId: result.categoryId,
+        aiScore: result.aiScore,
+        humanScore: null,
+        effectiveScore: result.aiScore,
+        aiReasoning: result.aiReasoning,
+        highlightedMessageIds: result.highlightedMessageIds,
+      }));
+
+    const coachingNote: NewCoachingNote = {
+      id: prefixedId("cnt"),
+      workspaceId,
       evaluationId,
-      categoryId: result.categoryId,
-      aiScore: result.aiScore,
-      humanScore: null,
-      effectiveScore: result.aiScore,
-      aiReasoning: result.aiReasoning,
-      highlightedMessageIds: result.highlightedMessageIds,
-    }),
-  );
+      strengthPoints: output.coachingNote.strengthPoints,
+      growthPoints: output.coachingNote.growthPoints,
+      exampleMessageIds: output.coachingNote.exampleMessageIds,
+      generatedBy: provider.name,
+      generatedAt: scoredAt,
+    };
 
-  const coachingNote: NewCoachingNote = {
-    id: prefixedId("cnt"),
-    workspaceId,
-    evaluationId,
-    strengthPoints: output.coachingNote.strengthPoints,
-    growthPoints: output.coachingNote.growthPoints,
-    exampleMessageIds: output.coachingNote.exampleMessageIds,
-    generatedBy: provider.name,
-    generatedAt: scoredAt,
+    await exec.insert(schema.evaluations).values(evaluation);
+    if (categoryScores.length > 0) {
+      await exec.insert(schema.evaluationCategoryScores).values(categoryScores);
+    }
+    await exec.insert(schema.coachingNotes).values(coachingNote);
+
+    return { evaluationId, evaluation, categoryScores, coachingNote };
   };
 
-  // --- Persist ---
-  await exec.insert(schema.evaluations).values(evaluation);
-  if (categoryScores.length > 0) {
-    await exec.insert(schema.evaluationCategoryScores).values(categoryScores);
-  }
-  await exec.insert(schema.coachingNotes).values(coachingNote);
-
-  return { evaluationId, evaluation, categoryScores, coachingNote };
+  return params.tx ? writer(params.tx) : db.transaction(writer);
 }
 
 /** Default auto-fail floor — global in Phase 1, mirroring the smoke-test

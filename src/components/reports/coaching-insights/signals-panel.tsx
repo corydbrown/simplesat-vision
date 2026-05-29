@@ -13,9 +13,9 @@ const VERB_ICON: Record<EventSignalVerb, React.ComponentType<{ size?: number; cl
 };
 
 const VERB_ICON_TONE: Record<EventSignalVerb, string> = {
-  escalated: "text-red-default",
+  escalated: "text-red",
   sla_breached: "text-yellow-dark",
-  ai_handoff: "text-blue-default",
+  ai_handoff: "text-blue",
   reassigned_multiple: "text-yellow-dark",
 };
 

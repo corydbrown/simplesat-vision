@@ -14,9 +14,9 @@ import { DashboardCard } from "@/components/shared/dashboard-card";
 import type { CorrelationBucket } from "@/db/queries/coaching-insights";
 
 const BUCKET_COLORS: Record<CorrelationBucket["bucket"], string> = {
-  "0-50": "var(--color-red-default)",
-  "50-70": "var(--color-yellow-default)",
-  "70-85": "var(--color-green-default)",
+  "0-50": "var(--color-red)",
+  "50-70": "var(--color-yellow)",
+  "70-85": "var(--color-green)",
   "85-100": "var(--color-green-dark)",
 };
 

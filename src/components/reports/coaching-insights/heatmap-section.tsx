@@ -8,7 +8,7 @@ function toneForScore(score: number): string {
   if (score < 60) return "bg-red-light text-red-darker";
   if (score < 70) return "bg-yellow-light text-yellow-darker";
   if (score < 85) return "bg-green-light text-green-darker";
-  return "bg-green-default text-white";
+  return "bg-green-dark text-white";
 }
 
 type CellData = { sampleSize: number };

@@ -5,41 +5,12 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { db, schema } from "@/db/client";
-import { requireWorkspace, setActiveWorkspaceId } from "@/lib/workspace";
+import { setActiveWorkspaceId } from "@/lib/workspace";
 import { getCurrentUser } from "@/lib/auth";
 import { getLogoProvider, normalizeDomain } from "@/lib/logos";
 import { resolveTeamMember } from "@/lib/ingest/resolve-team-member";
+import { requireWorkspaceAdmin } from "@/lib/workspaces/authz";
 import type { TeamMemberResolutionRule } from "@/db/schema";
-
-/** Verifies the caller is signed in AND is an admin of the active workspace.
- *  Returns the workspaceId on success; an error result otherwise. Used by the
- *  workspace-settings mutations to keep their authz check identical. */
-async function requireWorkspaceAdmin(): Promise<
-  | { ok: true; workspaceId: string }
-  | { ok: false; error: string }
-> {
-  const [workspaceId, user] = await Promise.all([
-    requireWorkspace(),
-    getCurrentUser(),
-  ]);
-  if (!user) return { ok: false, error: "Not authenticated" };
-
-  const [membership] = await db
-    .select({ role: schema.userWorkspaces.role })
-    .from(schema.userWorkspaces)
-    .where(
-      and(
-        eq(schema.userWorkspaces.userId, user.id),
-        eq(schema.userWorkspaces.workspaceId, workspaceId),
-      ),
-    )
-    .limit(1);
-
-  if (!membership || membership.role !== "admin") {
-    return { ok: false, error: "Admin access required" };
-  }
-  return { ok: true, workspaceId };
-}
 
 const RenameWorkspaceSchema = z.object({
   name: z.string().trim().min(1, "Name is required").max(100, "Name must be 100 characters or less"),

@@ -11,6 +11,7 @@
     "db:migrate": "drizzle-kit migrate",
     "db:migrate:prod": "./scripts/db-migrate-prod.sh",
     "db:seed": "tsx --conditions=react-server src/db/seed.ts",
+    "db:seed:ai-team-members": "tsx --conditions=react-server scripts/seed-ai-team-members.ts",
     "db:studio": "drizzle-kit studio",
     "db:reset": "rm -f db/simplesat.db db/simplesat.db-shm db/simplesat.db-wal && npm run db:migrate && npm run db:seed",
     "db:backfill-topics": "tsx --conditions=react-server scripts/backfill-topics.ts",

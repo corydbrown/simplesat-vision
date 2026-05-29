@@ -225,6 +225,13 @@
       "when": 1780030114410,
       "tag": "0031_svp242_workspace_default_scorecard",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "6",
+      "when": 1780033065271,
+      "tag": "0032_svp235_drop_category_weight",
+      "breakpoints": true
     }
   ]
 }

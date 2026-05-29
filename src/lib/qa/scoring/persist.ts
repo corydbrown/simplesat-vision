@@ -247,19 +247,25 @@ export async function scoreAndPersistTicket(params: {
     bandDescriptors: scorecard.bandDescriptors,
     domainContext: scorecard.domainContext,
     toneExpectations: scorecard.toneExpectations,
-    categories: categoryRows.map((cat) => ({
-      id: cat.id,
-      name: cat.name,
-      description: cat.description,
-      weightPercent: cat.weightPercent,
-      scaleType: cat.scaleType,
-      isAutofail: cat.isAutofail,
-      criteria: (criteriaByCategoryId.get(cat.id) ?? []).map((c) => ({
-        id: c.id,
-        text: c.text,
-        weightPercent: c.weightPercent,
-      })),
-    })),
+    categories: categoryRows.map((cat) => {
+      const catCriteria = criteriaByCategoryId.get(cat.id) ?? [];
+      return {
+        id: cat.id,
+        name: cat.name,
+        description: cat.description,
+        weightPercent: catCriteria.reduce(
+          (acc, c) => acc + c.weightPercent,
+          0,
+        ),
+        scaleType: cat.scaleType,
+        isAutofail: cat.isAutofail,
+        criteria: catCriteria.map((c) => ({
+          id: c.id,
+          text: c.text,
+          weightPercent: c.weightPercent,
+        })),
+      };
+    }),
   };
 
   // Pre-resolve the scorecard version snapshot with a plain SELECT. The mint

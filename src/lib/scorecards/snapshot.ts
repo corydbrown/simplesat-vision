@@ -90,7 +90,6 @@ export async function snapshotScorecard(
         sourceCategoryId: c.id,
         name: c.name,
         description: c.description,
-        weightPercent: c.weightPercent,
         scaleType: c.scaleType,
         order: c.order,
         isAutofail: c.isAutofail,

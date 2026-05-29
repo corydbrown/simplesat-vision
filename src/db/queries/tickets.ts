@@ -468,7 +468,11 @@ export async function getTicketById(id: string): Promise<TicketDetail | null> {
           name: schema.scorecardVersionCategories.name,
           description: schema.scorecardVersionCategories.description,
           scaleType: schema.scorecardVersionCategories.scaleType,
-          weightPercent: schema.scorecardVersionCategories.weightPercent,
+          weightPercent: sql<number>`COALESCE((
+            SELECT SUM("scorecard_version_criteria"."weight_percent")
+            FROM "scorecard_version_criteria"
+            WHERE "scorecard_version_criteria"."version_category_id" = "scorecard_version_categories"."id"
+          ), 0)`,
           isAutofail: schema.scorecardVersionCategories.isAutofail,
           order: schema.scorecardVersionCategories.order,
         },

@@ -1,5 +1,5 @@
 import "server-only";
-import { and, asc, eq, inArray } from "drizzle-orm";
+import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import { db, schema } from "../client";
 import { getCurrentUser } from "@/lib/auth";
 import { requireWorkspace } from "@/lib/workspace";
@@ -311,7 +311,19 @@ export async function getCoachingDetail(
       .orderBy(asc(schema.ticketEvents.createdAt)),
     db
       .select({
-        category: schema.scorecardVersionCategories,
+        category: {
+          sourceCategoryId: schema.scorecardVersionCategories.sourceCategoryId,
+          name: schema.scorecardVersionCategories.name,
+          description: schema.scorecardVersionCategories.description,
+          scaleType: schema.scorecardVersionCategories.scaleType,
+          weightPercent: sql<number>`COALESCE((
+            SELECT SUM("scorecard_version_criteria"."weight_percent")
+            FROM "scorecard_version_criteria"
+            WHERE "scorecard_version_criteria"."version_category_id" = "scorecard_version_categories"."id"
+          ), 0)`,
+          order: schema.scorecardVersionCategories.order,
+          isAutofail: schema.scorecardVersionCategories.isAutofail,
+        },
         score: schema.evaluationCategoryScores,
       })
       .from(schema.evaluationCategoryScores)

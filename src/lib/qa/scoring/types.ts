@@ -74,9 +74,9 @@ export type ScoringCategory = {
   id: string;
   name: string;
   description: string;
-  /** Transitional / derived from `SUM(criteria.weightPercent)`. Kept on the
-   *  scoring shape for one release while existing computeOverall paths
-   *  migrate to read criterion-level weights directly (SVP-228). */
+  /** Derived from `SUM(criteria.weightPercent)`. Carried on the scoring
+   *  shape for prompt building; not persisted (the DB column was dropped in
+   *  SVP-235). Overall-score math reads criterion-level weights directly. */
   weightPercent: number;
   scaleType: ScorecardScaleType;
   isAutofail: boolean;

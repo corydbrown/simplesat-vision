@@ -57,17 +57,16 @@ The PR must be **MERGED**. If not, abort and tell Cory.
      - Tokens: 142500
      - Model: claude-opus-4-7
      ```
-   - Map to Notion:
+   - Map to Notion (**timing only** — per Cory 2026-05-29, Tokens are no longer reported and Worker model is set at **spawn** from the recommended model, so `/post-merge` does NOT touch either column):
      - `Started:` → `Worker started` (ISO 8601, `is_datetime: 1`). If the value isn't a parseable timestamp (e.g., "TBD", "unknown", "—", blank), leave null.
      - `Finished:` → `Worker finished` (ISO 8601, `is_datetime: 1`). Same null-on-unparseable rule.
-     - `Tokens:` → `Tokens used` (number; strip commas if present). **If the value is not a number** (e.g., "unknown", "TBD", "—", "n/a", blank), leave null — don't write the string. Common worker-side miss: they forget to run `/cost` and put a placeholder. Honest null beats a corrupted number column. Flag the miss in the end-of-turn output so Cory can reinforce the convention.
-     - `Model:` → `Worker model` (select). Map to Notion options: `claude-opus-4-7` → `Opus 4.7`; `claude-opus-4-7-1m` or similar → `Opus 4.7 (1M context)`; `claude-sonnet-4-6` → `Sonnet 4.6`. Per [[feedback-verify-task-status]] (null beats wrong for derived Notion data), if the name doesn't match a known option, leave null — don't guess.
+     - **Do NOT write `Tokens used`** — the column is intentionally left as-is (the metrics block no longer carries a Tokens line).
+     - **Do NOT write `Worker model`** — it was set at spawn time. Don't overwrite or null it here.
    - **If `## Worker metrics` is missing entirely**, fall back to the legacy path (and flag it to Cory as a worker-side miss to surface later):
      ```bash
      gh pr view <PR> --json commits --jq '.commits[0].committedDate'   # → Worker started (inaccurate; first commit)
      gh pr view <PR> --json createdAt --jq '.createdAt'                # → Worker finished
      ```
-     Leave `Tokens used` and `Worker model` null in the fallback case.
 
 5. **Mark Notion task Done** — single `update_properties` call with everything:
    - Resolve the Notion task page by SVP-NN (search via `mcp__claude_ai_Notion__notion-search` or use cached ID).
@@ -75,8 +74,7 @@ The PR must be **MERGED**. If not, abort and tell Cory.
    - `Completed at` → current datetime (ISO 8601 with `+07:00` offset; `is_datetime: 1`). This is the supervisor-merge time.
    - `Worker started` → first-commit datetime (from step 4), `is_datetime: 1`.
    - `Worker finished` → PR createdAt (from step 4), `is_datetime: 1`.
-   - `Tokens used` → parsed number (from step 4), or omit if null.
-   - `Worker model` → parsed select option (from step 4), or omit if null.
+   - (`Tokens used` and `Worker model` are NOT set here — see step 4. Model was set at spawn.)
    - `Repo link` → the PR URL.
    - Append a Claude Code note: `- YYYY-MM-DD: PR #N squash-merged as \`<sha>\`. <one-line of what shipped>. Worktree cleaned up.`
 
@@ -96,7 +94,7 @@ The PR must be **MERGED**. If not, abort and tell Cory.
 
 7. **End-of-turn output**:
    - Confirm cleanup with the merge commit SHA + worktree path removed + branch deleted.
-   - Note the metrics captured (worker duration + tokens, or "no /cost paste — Tokens used null").
+   - Note the worker duration captured (Started → Finished). No tokens, no model line — that's expected now.
    - Note any DECISIONS.md deferrals filed.
    - Updated worktree count + open PR count.
    - **If step 6b flagged a schema-touching merge**, end the reply with a separate, impossible-to-miss callout — bold, emoji, its own paragraph below the status block. Use this shape (adjust phrasing to fit the moment, keep the command verbatim):

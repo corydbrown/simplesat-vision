@@ -25,7 +25,7 @@ Eliminates copy-paste: instead of including the brief in the chat for Cory to pa
 6. **Update Notion**:
    - Status → `In Progress`
    - `Started at` → current ISO 8601 datetime with `+07:00` offset
-   - **Do NOT set `Worker model` at spawn.** I can't know what Cory will actually toggle to in his worker session. The brief's "Recommended model" is a suggestion; Cory may override. Worker model gets captured at **merge time** instead, from the `/model` output the worker pastes in the PR body (see brief's "Before opening the PR" section). If the worker forgets, leave it null — Cory can fix manually.
+   - **Set `Worker model` at spawn from the recommended model** (Opus 4.7 / Sonnet 4.6 / etc. — whatever the brief's "Recommended model" line says). Per Cory's call: `/cost`-token capture is too hacky to be worth it, and the model toggle can't be read programmatically, so we just record the model we *recommended*. If Cory toggles a different model in the worker session, Notion will be wrong for that task — he's explicitly fine with that. Map to the Notion select option (`Opus 4.7`, `Opus 4.7 (1M context)`, `Sonnet 4.6`).
    - Append note: `- YYYY-MM-DD: Spawned worktree feat/<branch> on port <N>. Brief written to BRIEF.md.`
 
 7. **End-of-turn output** for Cory — one sentence per worker. Nothing more.

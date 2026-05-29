@@ -46,7 +46,7 @@ type Props = {
  *
  *  The caret is hidden when only one live scorecard exists — a 1-option
  *  picker fails Simple. Both surfaces share the same `evaluateTicket` action
- *  and navigate to the resulting `/coaching/<evaluationId>` page. */
+ *  and navigate to the resulting `/evaluations/<evaluationId>` page. */
 export function RescoreWithPicker({
   ticketId,
   scorecards,
@@ -76,7 +76,7 @@ export function RescoreWithPicker({
           ticketId,
           scorecardId ? { scorecardId } : undefined,
         );
-        router.push(`/coaching/${evaluationId}`);
+        router.push(`/evaluations/${evaluationId}`);
         router.refresh();
       } catch (err) {
         toast(err instanceof Error ? err.message : "Could not re-score ticket");

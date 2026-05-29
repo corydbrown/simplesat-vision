@@ -97,7 +97,7 @@ export async function saveEvaluationFeedback(
       },
     });
 
-  revalidatePath(`/coaching/${parsed.evaluationId}`);
+  revalidatePath(`/evaluations/${parsed.evaluationId}`);
 
   // Read the resulting row's id (insert id is unused on update path).
   const [row] = await db
@@ -148,7 +148,7 @@ export async function deleteEvaluationFeedback(
       ),
     );
 
-  revalidatePath(`/coaching/${row.evaluationId}`);
+  revalidatePath(`/evaluations/${row.evaluationId}`);
   return { ok: true };
 }
 

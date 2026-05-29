@@ -262,7 +262,7 @@ async function revalidateForEvaluation(
       ),
     )
     .limit(1);
-  revalidatePath(`/coaching/${evaluationId}`);
+  revalidatePath(`/evaluations/${evaluationId}`);
   if (row) revalidatePath(`/tickets/${row.ticketId}`);
 }
 

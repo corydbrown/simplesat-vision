@@ -43,7 +43,7 @@ export function CoachingTicketHeader({
         />
         {isOlderVersion && (
           <Link
-            href={`/coaching/${latestVersion.id}`}
+            href={`/evaluations/${latestVersion.id}`}
             className="inline-flex items-center gap-1 text-blue-dark hover:underline"
           >
             <span>Newer version available · v{latestVersion.scorecardVersion}</span>

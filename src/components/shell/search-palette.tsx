@@ -89,7 +89,7 @@ const VIEW_ENTITY_META: Record<
   coaching: {
     icon: ClipboardCheck,
     iconClass: "text-icon-coaching",
-    label: "Coaching",
+    label: "Evaluations",
     basePath: ENTITY_BASE_PATH.coaching,
   },
 };

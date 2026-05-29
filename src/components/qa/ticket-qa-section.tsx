@@ -108,10 +108,10 @@ function ScoredCard({ evaluation }: { evaluation: QaEvaluationView }) {
           by {evaluation.scorer.displayName}
         </span>
         <Link
-          href={`/coaching/${evaluation.id}`}
+          href={`/evaluations/${evaluation.id}`}
           className="ml-auto inline-flex cursor-pointer items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90"
         >
-          Open in Coaching
+          Open evaluation
           <ArrowRight className="size-3.5" />
         </Link>
       </CardContent>

@@ -62,7 +62,7 @@ export function NewEvaluationDialog() {
       try {
         const { evaluationId } = await evaluateTicket(row.id);
         setOpen(false);
-        router.push(`/coaching/${evaluationId}`);
+        router.push(`/evaluations/${evaluationId}`);
       } catch (err) {
         toast(
           err instanceof Error ? err.message : "Evaluation failed — try again.",

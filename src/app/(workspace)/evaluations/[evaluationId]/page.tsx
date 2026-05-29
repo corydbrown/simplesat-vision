@@ -20,8 +20,8 @@ import { FeedbackSection } from "./feedback-section";
 // doesn't burn while a warmer second click sails through.
 export const maxDuration = 60;
 
-export default async function CoachingDetailPage(
-  props: PageProps<"/coaching/[evaluationId]">,
+export default async function EvaluationDetailPage(
+  props: PageProps<"/evaluations/[evaluationId]">,
 ) {
   const { evaluationId } = await props.params;
   const detail = await getCoachingDetail(evaluationId);
@@ -49,7 +49,7 @@ export default async function CoachingDetailPage(
     <>
       <Topbar
         crumbs={[
-          { label: "Coaching", href: "/coaching" },
+          { label: "Evaluations", href: "/evaluations" },
           { label: crumbLabel },
         ]}
         actions={
@@ -61,7 +61,7 @@ export default async function CoachingDetailPage(
               defaultScorecardId={workspace?.defaultScorecardId ?? null}
             />
             <DetailActions
-              entityHref={`/coaching/${detail.evaluation.id}`}
+              entityHref={`/evaluations/${detail.evaluation.id}`}
               extraItems={<ConfigureScorecardItem />}
             />
           </div>

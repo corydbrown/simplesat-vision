@@ -1,6 +1,6 @@
 export const dynamic = "force-dynamic";
 
-export default function CoachingLayout({
+export default function EvaluationsLayout({
   children,
 }: {
   children: React.ReactNode;

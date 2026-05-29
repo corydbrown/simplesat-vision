@@ -22,6 +22,7 @@
   --color-icon-tickets: var(--icon-tickets);
   --color-icon-reports: var(--icon-reports);
   --color-icon-coaching: var(--icon-coaching);
+  --color-icon-agents: var(--icon-agents);
   --font-sans:
     var(--font-lato), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
     Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
@@ -219,6 +220,7 @@
   --icon-tickets: var(--yellow-dark);
   --icon-reports: var(--green);
   --icon-coaching: var(--red-dark);
+  --icon-agents: var(--purple-dark);
 
   /* Chart series — point at production hues (was greyscale shadcn defaults). */
   --chart-1: var(--blue);
@@ -306,6 +308,7 @@
   --icon-tickets: var(--yellow-dark);
   --icon-reports: var(--green);
   --icon-coaching: var(--red-dark);
+  --icon-agents: var(--purple-dark);
 
   --chart-1: var(--blue);
   --chart-2: var(--green);

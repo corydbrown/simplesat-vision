@@ -343,7 +343,7 @@ export const ENTITY_BASE_PATH: Record<EntityKey, string> = {
   tickets: "/tickets",
   responses: "/responses",
   "team-members": "/team-members",
-  coaching: "/coaching",
+  coaching: "/evaluations",
 };
 
 /** Source-of-truth order for entity-bound nav sections. The sidebar

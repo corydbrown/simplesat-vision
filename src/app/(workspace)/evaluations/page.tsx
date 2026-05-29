@@ -15,7 +15,7 @@ import { listEvaluations } from "@/db/queries/evaluations";
 
 // SVP-243: NewEvaluationDialog + EvaluateTicketButton both call `evaluateTicket`
 // from this route. Lift the function ceiling so the LLM round-trip (~15-25s)
-// has cold-start headroom. Mirrors `/coaching/[evaluationId]` and `/tickets/[id]`.
+// has cold-start headroom. Mirrors `/evaluations/[evaluationId]` and `/tickets/[id]`.
 export const maxDuration = 60;
 
 const PAGE_SIZE = 50;
@@ -26,7 +26,7 @@ function parsePage(v: string | undefined): number {
   return Math.floor(n);
 }
 
-export default async function CoachingPage(props: PageProps<"/coaching">) {
+export default async function EvaluationsPage(props: PageProps<"/evaluations">) {
   const sp = await props.searchParams;
   const sorts = parseSortParam(
     typeof sp.sort === "string" ? sp.sort : undefined,
@@ -51,7 +51,7 @@ export default async function CoachingPage(props: PageProps<"/coaching">) {
     >
       <Topbar
         crumbs={[
-          { label: "Coaching", href: "/coaching" },
+          { label: "Evaluations", href: "/evaluations" },
           {
             label: "All evaluations",
             node: <ViewBreadcrumb entityKey="coaching" />,
@@ -60,7 +60,7 @@ export default async function CoachingPage(props: PageProps<"/coaching">) {
         actions={
           <div className="flex items-center gap-1.5">
             <NewEvaluationDialog />
-            <ListPageActions entityKey="coaching" basePath="/coaching" />
+            <ListPageActions entityKey="coaching" basePath="/evaluations" />
           </div>
         }
       />
@@ -69,7 +69,7 @@ export default async function CoachingPage(props: PageProps<"/coaching">) {
         searchPlaceholder="Search evaluations..."
         viewContext={{
           entityKey: "coaching",
-          basePath: "/coaching",
+          basePath: "/evaluations",
           allowedGroupIds: COACHING_GROUP_IDS,
         }}
       />
@@ -82,7 +82,7 @@ export default async function CoachingPage(props: PageProps<"/coaching">) {
         pageSize={PAGE_SIZE}
         total={total}
         groupBy={groupBy?.propertyId}
-        basePath="/coaching"
+        basePath="/evaluations"
         rowHref={coachingRowHref}
         serverSorted
       />

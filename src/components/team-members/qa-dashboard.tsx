@@ -612,7 +612,7 @@ function QaRecentEvaluationsTable({
           pageSize={Math.max(rows.length, 1)}
           total={rows.length}
           serverSorted
-          rowHref={(row) => `/coaching/${row.id}`}
+          rowHref={(row) => `/evaluations/${row.id}`}
           emptyMessage="No evaluations yet."
         />
       </ColumnStateProvider>
@@ -637,10 +637,10 @@ function QaCoachingFeed({ items }: { items: TeamMemberCoachingFeedItem[] }) {
       title="Recent coaching notes"
       trailing={
         <Link
-          href="/coaching"
+          href="/evaluations"
           className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
         >
-          Open coaching
+          Open evaluations
           <ArrowUpRight className="size-3.5" />
         </Link>
       }
@@ -649,7 +649,7 @@ function QaCoachingFeed({ items }: { items: TeamMemberCoachingFeedItem[] }) {
         {items.map((item) => (
           <li key={item.evaluationId}>
             <Link
-              href={`/coaching/${item.evaluationId}`}
+              href={`/evaluations/${item.evaluationId}`}
               className="group/note -mx-1 block rounded-md px-1 py-2.5 transition-colors hover:bg-accent/40"
             >
               <div className="mb-1 flex items-center gap-2">

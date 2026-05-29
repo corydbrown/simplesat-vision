@@ -245,5 +245,5 @@ export { STATUS_LABEL as COACHING_STATUS_LABEL };
  *  module reference instead of a closure — Next 16 RSC rejects ad-hoc
  *  functions but allows references into client modules. */
 export function coachingRowHref(row: EvaluationsRow): string {
-  return `/coaching/${row.id}`;
+  return `/evaluations/${row.id}`;
 }

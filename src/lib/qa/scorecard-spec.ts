@@ -15,10 +15,6 @@ import type {
  *  (`aprikot-scorecard.ts`) export an instance of this type. */
 export type CodeDefinedScorecardCriterion = {
   text: string;
-  /** Optional reference text (key factors / scoring-guide bullets). Stored on
-   *  the criterion description in production schemas; for now we keep it on
-   *  the spec only — surfaces consume the in-code constant directly. */
-  description?: string;
   anchor5: string;
   anchor3: string;
   anchor1: string;

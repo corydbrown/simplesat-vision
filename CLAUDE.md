@@ -160,7 +160,7 @@ Every brief I draft for a worker session — whether via `/spawn` or written man
 3. **What would change my mind** — explicit criteria where the worker should stop and re-check. Example: *"If you find that the existing pattern doesn't compose with what I'm asking, stop and surface to Cory — that changes the approach."* These catch wrong-direction work before it becomes wasted-hours work.
 4. **Parallel workers heads-up** (if any active) — list the active SVP-NNs + the surfaces they touch. Lets the worker know what to avoid.
 5. **STOP_CONDITIONS** reference — `Per [STOP_CONDITIONS.md](STOP_CONDITIONS.md): commit + push WIP if blocked 15 min, schema/auth/deps need explicit yes.` Workers should know to escalate, not improvise.
-6. **Pre-flight gates** — `npx tsc --noEmit clean, npm run lint clean, dev server boots at localhost:<N>, manual walk of the changed surface in both light + dark mode.` Workers self-validate before declaring ready.
+6. **Pre-flight gates** — `npx tsc --noEmit clean, npm run lint clean, npm test clean, dev server boots at localhost:<N>, manual walk of the changed surface in both light + dark mode.` Workers self-validate before declaring ready. New pure functions in `src/lib/**` ship with a co-located `*.test.ts` (see Testing section).
 7. **Full brief link** — Notion task URL for any deeper context.
 
 `/spawn` produces this shape automatically. Manual briefs should follow the same template.
@@ -235,7 +235,18 @@ Rules:
 | Seed | Faker, deterministic via `faker.seed(42)` |
 | Deploy target | Vercel (Turso for the hosted SQLite — already wired) |
 
-**Do not** add: state management libraries, CSS-in-JS, testing setup, auth, or Storybook (Storybook hides drift by isolating components — the audit page surfaces drift by putting everything side by side; revisit once the design system stabilizes and someone besides Cory is building UI).
+**Do not** add: state management libraries, CSS-in-JS, auth, or Storybook (Storybook hides drift by isolating components — the audit page surfaces drift by putting everything side by side; revisit once the design system stabilizes and someone besides Cory is building UI).
+
+## Testing
+
+Vitest, co-located. `npm test` runs the suite once; `npm run test:watch` for development.
+
+- **Every new pure function in `src/lib/**` requires a co-located `*.test.ts`.** That's the only coverage rule for now — narrow on purpose so it stays cheap to enforce. The seam catches money-math, scoring, filter compilation, sort, time formatting, etc.
+- A "pure function" here means: no DB, no network, no filesystem, no implicit `Date.now()` / `Math.random()` (or those are injected as params). If your function takes inputs and returns outputs, it qualifies.
+- **Out of scope** until we have a pattern someone besides Cory is iterating on: UI / component tests, server-action tests, integration tests, e2e. Don't proactively add a testing-library setup — file a Notion follow-up first.
+- **Don't re-test what the type system proves.** Tests should encode behavior at boundaries: edge cases, branch coverage, regression anchors.
+- **Server-only modules:** the `server-only` import is aliased to `server-only/empty.js` in `vitest.config.ts` so read-path files (e.g. `src/lib/filters/compile-list.ts`) can be imported under tests without throwing.
+- **No CI runner yet** — tests are a pre-merge worker pre-flight gate, not a GitHub Action. Add to CI in a follow-up once the suite has critical mass.
 
 ## Conventions
 

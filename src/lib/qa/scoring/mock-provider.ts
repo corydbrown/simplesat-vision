@@ -169,7 +169,7 @@ function likertForTarget(faker: Faker, center0to100: number): number {
   return Math.max(1, Math.min(5, Math.round(jittered)));
 }
 
-function computeOverallScore(params: {
+export function computeOverallScore(params: {
   scorecard: ScoringInput["scorecard"];
   categoryScores: ScoringCategoryResult[];
   autoFailTriggered: boolean;

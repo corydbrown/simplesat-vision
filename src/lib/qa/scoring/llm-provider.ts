@@ -350,7 +350,7 @@ function clampToScale(
   return Math.max(1, Math.min(5, rounded));
 }
 
-function computeOverall(params: {
+export function computeOverall(params: {
   scorecard: ScoringInput["scorecard"];
   categoryScores: ScoringCategoryResult[];
   autoFailTriggered: boolean;

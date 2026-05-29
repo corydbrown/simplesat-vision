@@ -3,13 +3,9 @@ import type { SortSpec } from "./url-state";
 
 type Primitive = string | number | Date | null | undefined;
 
-function compareValues(a: Primitive, b: Primitive): number {
-  // Nulls last in either direction; caller flips sign for desc.
-  const aNull = a == null;
-  const bNull = b == null;
-  if (aNull && bNull) return 0;
-  if (aNull) return 1;
-  if (bNull) return -1;
+/** Compare two non-null values. Nulls are handled at the call site so the
+ *  "nulls last" rule is applied independently of the asc/desc sign flip. */
+function compareNonNull(a: NonNullable<Primitive>, b: NonNullable<Primitive>): number {
   if (a instanceof Date || b instanceof Date) {
     const at = a instanceof Date ? a.getTime() : Number(a);
     const bt = b instanceof Date ? b.getTime() : Number(b);
@@ -44,7 +40,16 @@ export function applyMultiSort<T>(
   const tagged = rows.map((row, i) => ({ row, i }));
   tagged.sort((a, b) => {
     for (const { fn, sign } of accessors) {
-      const cmp = compareValues(fn(a.row), fn(b.row));
+      const av = fn(a.row);
+      const bv = fn(b.row);
+      const aNull = av == null;
+      const bNull = bv == null;
+      // Nulls always sort last, in either direction. Apply this OUTSIDE the
+      // sign flip so toggling asc → desc doesn't move nulls to the top.
+      if (aNull && bNull) continue;
+      if (aNull) return 1;
+      if (bNull) return -1;
+      const cmp = compareNonNull(av, bv);
       if (cmp !== 0) return cmp * sign;
     }
     return a.i - b.i;

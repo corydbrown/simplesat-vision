@@ -16,6 +16,7 @@ import {
   type TicketPickerRow,
 } from "@/lib/scorecards/actions";
 import type { ScorecardScaleType } from "@/db/schema";
+import { isBinaryPass } from "@/lib/qa/format-score";
 
 type DraftScorecard = {
   id: string;
@@ -169,7 +170,7 @@ export function TicketPreviewPanel({
                   </div>
                   <div className="shrink-0 text-right tabular-nums">
                     <div className="text-base font-medium text-foreground">
-                      {formatScore(cs.aiScore, meta.scaleType)}
+                      {formatPreviewScore(cs.aiScore, meta.scaleType)}
                     </div>
                     <div className="text-sm text-muted-foreground">
                       {scaleSummary(meta.scaleType)}
@@ -185,8 +186,12 @@ export function TicketPreviewPanel({
   );
 }
 
-function formatScore(score: number, scale: ScorecardScaleType): string {
-  if (scale === "binary") return score === 1 ? "Pass" : "Fail";
+// This panel splits the value and its denominator across two lines (value on
+// top, `scaleSummary` "of N" below), so it shows the bare number rather than
+// the combined "n / N" from the shared `formatScore`. The binary threshold,
+// however, routes through the shared `isBinaryPass` so it can't drift.
+function formatPreviewScore(score: number, scale: ScorecardScaleType): string {
+  if (scale === "binary") return isBinaryPass(score) ? "Pass" : "Fail";
   return String(score);
 }
 

@@ -12,7 +12,7 @@ import {
   Sparkles,
   UserCircle2,
 } from "lucide-react";
-import { EvaluationStatusPill } from "@/components/coaching/evaluation-status-pill";
+import { EvaluationStatusPill } from "@/components/qa/evaluation-status-pill";
 import {
   TeamMemberPill,
   TicketPill,

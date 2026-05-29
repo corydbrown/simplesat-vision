@@ -1,6 +1,7 @@
 "use client";
 
 import { cn } from "@/lib/utils";
+import { formatScore } from "@/lib/qa/format-score";
 import type { CoachingCategoryView } from "@/db/queries/coaching";
 import {
   HUE_TOKENS,
@@ -29,12 +30,7 @@ export function CategoryCard({
   onFocus: () => void;
 }) {
   const styles = HUE_TOKENS[hueForCategoryOrder(category.order)];
-  const isBinary = category.scaleType === "binary";
-  const scoreLabel = isBinary
-    ? category.effectiveScore === 1
-      ? "Pass"
-      : "Fail"
-    : `${category.effectiveScore}/5`;
+  const scoreLabel = formatScore(category.effectiveScore, category.scaleType);
 
   return (
     <button

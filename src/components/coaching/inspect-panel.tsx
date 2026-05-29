@@ -3,6 +3,7 @@
 import { useEffect, useImperativeHandle, useRef } from "react";
 import { ArrowLeft, Plus, Sparkles, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { isBinaryPass } from "@/lib/qa/format-score";
 import type {
   CoachingCategoryView,
   CoachingMessageView,
@@ -353,7 +354,7 @@ function InspectCitationRow({
         <span className="shrink-0">
           {isBinary ? (
             <span className={cn("text-sm tabular-nums", styles.textDark)}>
-              {citation.score === 1 ? "Pass" : "Fail"}
+              {isBinaryPass(citation.score) ? "Pass" : "Fail"}
             </span>
           ) : (
             <DotScale
@@ -555,7 +556,7 @@ function ScorePicker({
             )}
           >
             <span className="text-base font-medium tabular-nums">
-              {isBinary ? (n === 1 ? "Pass" : "Fail") : n}
+              {isBinary ? (isBinaryPass(n) ? "Pass" : "Fail") : n}
             </span>
           </button>
         ))}

@@ -7,6 +7,7 @@ import { TimestampTooltip } from "@/components/shared/timestamp-tooltip";
 import { QaScoreBadge } from "@/components/shared/qa-score-badge";
 import { QaStatusPill } from "@/components/qa/qa-status-pill";
 import { EvaluateTicketButton } from "@/components/qa/evaluate-ticket-button";
+import type { LiveScorecardPickerRow } from "@/db/queries/scorecards";
 import type { QaEvaluationView } from "@/db/queries/tickets";
 
 type Props = {
@@ -15,12 +16,21 @@ type Props = {
   /** Why evaluation is blocked (no assigned agent / no messages), or null if
    *  the ticket is evaluable. Surfaced as a disabled-button tooltip. */
   evaluateBlockedReason?: string | null;
+  /** SVP-242: live scorecards in the workspace, for the Evaluate/Re-evaluate
+   *  split-button's caret picker. */
+  scorecards: LiveScorecardPickerRow[];
+  /** SVP-242: workspace-default scorecard id, or null if none is set. The
+   *  main button uses this implicitly via server-side resolution; the caret
+   *  picker shows a "· default" marker on the matching row. */
+  defaultScorecardId: string | null;
 };
 
 export function TicketQaSection({
   ticketId,
   evaluation,
   evaluateBlockedReason,
+  scorecards,
+  defaultScorecardId,
 }: Props) {
   return (
     <DetailSection
@@ -29,6 +39,8 @@ export function TicketQaSection({
         evaluation == null ? null : (
           <EvaluateTicketButton
             ticketId={ticketId}
+            scorecards={scorecards}
+            defaultScorecardId={defaultScorecardId}
             reEvaluate
             disabledReason={evaluateBlockedReason ?? undefined}
           />
@@ -39,6 +51,8 @@ export function TicketQaSection({
         <NotScoredState
           ticketId={ticketId}
           blockedReason={evaluateBlockedReason ?? undefined}
+          scorecards={scorecards}
+          defaultScorecardId={defaultScorecardId}
         />
       ) : (
         <ScoredCard evaluation={evaluation} />
@@ -50,9 +64,13 @@ export function TicketQaSection({
 function NotScoredState({
   ticketId,
   blockedReason,
+  scorecards,
+  defaultScorecardId,
 }: {
   ticketId: string;
   blockedReason?: string;
+  scorecards: LiveScorecardPickerRow[];
+  defaultScorecardId: string | null;
 }) {
   return (
     <Card>
@@ -61,7 +79,12 @@ function NotScoredState({
           This conversation hasn&rsquo;t been evaluated yet. Run the scorecard
           to see a breakdown and coaching notes.
         </div>
-        <EvaluateTicketButton ticketId={ticketId} disabledReason={blockedReason} />
+        <EvaluateTicketButton
+          ticketId={ticketId}
+          scorecards={scorecards}
+          defaultScorecardId={defaultScorecardId}
+          disabledReason={blockedReason}
+        />
       </CardContent>
     </Card>
   );

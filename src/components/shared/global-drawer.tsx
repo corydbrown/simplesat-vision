@@ -15,6 +15,7 @@ import {
   type RecentEntityEntry,
 } from "@/lib/recent-pages";
 import type { CustomerDetail, CustomerListRow } from "@/db/queries/customers";
+import type { LiveScorecardPickerRow } from "@/db/queries/scorecards";
 import type { TicketDetail, TicketsRow } from "@/db/queries/tickets";
 import type {
   TeamMemberCoachingFeedItem,
@@ -101,7 +102,11 @@ type DrawerData =
     }
   | {
       entity: "ticket";
-      data: { ticket: TicketDetail };
+      data: {
+        ticket: TicketDetail;
+        scorecards: LiveScorecardPickerRow[];
+        defaultScorecardId: string | null;
+      };
     }
   | {
       entity: "team-member";
@@ -367,6 +372,8 @@ export function GlobalDrawer() {
         ) : renderPayload.entity === "ticket" ? (
           <TicketDetailBody
             ticket={renderPayload.data.ticket}
+            scorecards={renderPayload.data.scorecards}
+            defaultScorecardId={renderPayload.data.defaultScorecardId}
             inDrawer
           />
         ) : renderPayload.entity === "team-member" ? (

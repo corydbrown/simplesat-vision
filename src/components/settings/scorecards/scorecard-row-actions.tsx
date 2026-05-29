@@ -1,7 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { Copy, MoreHorizontal, Archive, ArchiveRestore } from "lucide-react";
+import {
+  Archive,
+  ArchiveRestore,
+  CheckCircle2,
+  Copy,
+  MoreHorizontal,
+  Star,
+} from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -22,8 +29,10 @@ import {
 type Props = {
   scorecardName: string;
   isArchived: boolean;
+  isDefault: boolean;
   isPending: boolean;
   onDuplicate: () => void;
+  onSetDefault: () => void;
   onArchive: () => void;
   onUnarchive: () => void;
 };
@@ -35,8 +44,10 @@ type Props = {
 export function ScorecardRowActions({
   scorecardName,
   isArchived,
+  isDefault,
   isPending,
   onDuplicate,
+  onSetDefault,
   onArchive,
   onUnarchive,
 }: Props) {
@@ -66,6 +77,24 @@ export function ScorecardRowActions({
             <Copy size={14} />
             Duplicate
           </DropdownMenuItem>
+          {!isArchived &&
+            (isDefault ? (
+              <DropdownMenuItem disabled className="cursor-default">
+                <CheckCircle2 size={14} />
+                Already default
+              </DropdownMenuItem>
+            ) : (
+              <DropdownMenuItem
+                onSelect={(e) => {
+                  e.preventDefault();
+                  onSetDefault();
+                }}
+                className="cursor-pointer"
+              >
+                <Star size={14} />
+                Set as default
+              </DropdownMenuItem>
+            ))}
           {isArchived ? (
             <DropdownMenuItem
               onSelect={(e) => {

@@ -1,4 +1,6 @@
 import "server-only";
+import { and, eq, isNull } from "drizzle-orm";
+import { db, schema } from "@/db/client";
 import { ensureDefaultAutoScoringRule } from "@/lib/qa/auto-scoring/default-rule";
 import { DEFAULT_SCORECARD } from "@/lib/qa/default-scorecard";
 import {
@@ -36,5 +38,20 @@ export async function initDefaultScorecardForWorkspace(
   // a default rule pointing at it. Idempotent — no-op when a rule already
   // exists (e.g. migration backfilled it earlier).
   await ensureDefaultAutoScoringRule(workspaceId, installed.scorecardId);
+
+  // SVP-242: if this workspace hasn't picked a workspace-default scorecard
+  // yet, point it at the freshly minted one. Idempotent — only sets the
+  // column when it's currently NULL, so a workspace that has already chosen
+  // a default never gets silently retargeted by this path.
+  await db
+    .update(schema.workspaces)
+    .set({ defaultScorecardId: installed.scorecardId })
+    .where(
+      and(
+        eq(schema.workspaces.id, workspaceId),
+        isNull(schema.workspaces.defaultScorecardId),
+      ),
+    );
+
   return installed;
 }

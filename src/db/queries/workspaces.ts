@@ -17,6 +17,9 @@ export type WorkspaceDetails = {
   workosOrganizationId: string | null;
   integrationType: WorkspaceIntegrationType;
   teamMemberResolutionRule: TeamMemberResolutionRule;
+  /** SVP-242: workspace-default scorecard. Manual Evaluate / Re-evaluate
+   *  clicks resolve to this scorecard when no explicit override is passed. */
+  defaultScorecardId: string | null;
   createdAt: number;
   createdByName: string | null;
   createdByEmail: string | null;
@@ -54,6 +57,7 @@ export async function getActiveWorkspaceDetails(): Promise<WorkspaceDetails | nu
       workosOrganizationId: schema.workspaces.workosOrganizationId,
       integrationType: schema.workspaces.integrationType,
       teamMemberResolutionRule: schema.workspaces.teamMemberResolutionRule,
+      defaultScorecardId: schema.workspaces.defaultScorecardId,
       createdAt: schema.workspaces.createdAt,
       createdBy: schema.workspaces.createdBy,
     })
@@ -85,6 +89,7 @@ export async function getActiveWorkspaceDetails(): Promise<WorkspaceDetails | nu
     workosOrganizationId: row.workosOrganizationId,
     integrationType: row.integrationType,
     teamMemberResolutionRule: row.teamMemberResolutionRule,
+    defaultScorecardId: row.defaultScorecardId,
     createdAt: row.createdAt instanceof Date ? row.createdAt.getTime() : row.createdAt,
     createdByName,
     createdByEmail,

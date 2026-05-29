@@ -3,7 +3,6 @@
 import { ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { useEffect } from "react";
-import { Topbar } from "@/components/shell/topbar";
 import { ColumnStateProvider } from "@/lib/column-prefs";
 import { recordEntityView } from "@/lib/recent-pages";
 import { TICKET_PROPERTIES } from "@/lib/properties/tickets";
@@ -15,10 +14,10 @@ import {
 } from "@/components/shared/detail-section";
 import { ResponsePill } from "@/components/shared/entity-pill";
 import { QaScoreBadge } from "@/components/shared/qa-score-badge";
-import { DetailActions } from "@/components/shared/detail-actions";
 import { TicketActivitySection } from "@/components/tickets/ticket-activity";
 import { TicketQaSection } from "@/components/qa/ticket-qa-section";
 import { QaStatusPill } from "@/components/qa/qa-status-pill";
+import type { LiveScorecardPickerRow } from "@/db/queries/scorecards";
 import type {
   QaCategoryView,
   QaEvaluationView,
@@ -29,9 +28,15 @@ import type {
 export function TicketDetailBody({
   ticket,
   inDrawer = false,
+  scorecards,
+  defaultScorecardId,
 }: {
   ticket: TicketDetail;
   inDrawer?: boolean;
+  /** SVP-242: live scorecards + workspace default. Threaded down to
+   *  TicketQaSection's split-button caret picker. */
+  scorecards: LiveScorecardPickerRow[];
+  defaultScorecardId: string | null;
 }) {
   useEffect(() => {
     // Drawer side records via global-drawer.tsx; standalone records here.
@@ -105,6 +110,8 @@ export function TicketDetailBody({
         ticketId={ticket.id}
         evaluation={null}
         evaluateBlockedReason={evaluateBlockedReason}
+        scorecards={scorecards}
+        defaultScorecardId={defaultScorecardId}
       />
     ) : (
       <div id="qa">
@@ -112,6 +119,8 @@ export function TicketDetailBody({
           ticketId={ticket.id}
           evaluation={ticket.evaluation}
           evaluateBlockedReason={evaluateBlockedReason}
+          scorecards={scorecards}
+          defaultScorecardId={defaultScorecardId}
         />
       </div>
     );
@@ -181,20 +190,6 @@ export function TicketDetailBody({
   );
 }
 
-export function TicketDetailPage({ ticket }: { ticket: TicketDetail }) {
-  return (
-    <>
-      <Topbar
-        crumbs={[
-          { label: "Tickets", href: "/tickets" },
-          { label: ticket.externalId ?? ticket.id },
-        ]}
-        actions={<DetailActions entityHref={`/tickets/${ticket.id}`} />}
-      />
-      <TicketDetailBody ticket={ticket} />
-    </>
-  );
-}
 
 /** Compact QA breakdown surface for the drawer. SVP-55 introduced this;
  *  SVP-54 keeps the drawer compact and links out to the standalone full

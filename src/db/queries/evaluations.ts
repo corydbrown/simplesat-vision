@@ -50,7 +50,8 @@ const SORT_COLUMN_MAP: Record<EvaluationSortKey, AnyColumn | SQL> = {
   scored_at: schema.evaluations.scoredAt,
   edited_at: schema.evaluations.editedAt,
   scored_team_member: schema.teamMembers.name,
-  scorecard: schema.scorecards.name,
+  // Sort by the versioned (snapshot) name so it matches what the UI displays.
+  scorecard: schema.scorecardVersions.name,
   ticket_subject: evaluationTicketSubjectExpr,
   ai_confidence: schema.evaluations.aiConfidence,
 };
@@ -104,7 +105,11 @@ export async function listEvaluations({
       },
       scorecard: {
         id: schema.scorecards.id,
-        name: schema.scorecards.name,
+        // Snapshot name (versioned), so list rows and sidebar match the
+        // version picker — every surface shows the rubric name as-of this
+        // evaluation, not the current live name. A renamed scorecard won't
+        // retroactively rebrand historical evals.
+        name: schema.scorecardVersions.name,
       },
       ticket: {
         id: schema.tickets.id,
@@ -123,6 +128,10 @@ export async function listEvaluations({
       eq(schema.scorecards.id, schema.evaluations.scorecardId),
     )
     .leftJoin(
+      schema.scorecardVersions,
+      eq(schema.scorecardVersions.id, schema.evaluations.scorecardVersionId),
+    )
+    .leftJoin(
       schema.tickets,
       eq(schema.tickets.id, schema.evaluations.ticketId),
     );
@@ -139,7 +148,10 @@ export async function listEvaluations({
   const rows: EvaluationsRow[] = rawRows.map((r) => ({
     ...r.evaluation,
     scoredTeamMember: r.scoredTeamMember?.id ? r.scoredTeamMember : null,
-    scorecard: r.scorecard?.id ? r.scorecard : null,
+    scorecard:
+      r.scorecard?.id && r.scorecard?.name
+        ? { id: r.scorecard.id, name: r.scorecard.name }
+        : null,
     ticket: r.ticket?.id ? r.ticket : null,
     autoFailed: r.autoFailed === 1,
   }));
@@ -232,7 +244,11 @@ export async function getEvaluationById(
       },
       scorecard: {
         id: schema.scorecards.id,
-        name: schema.scorecards.name,
+        // Snapshot name (versioned), so list rows and sidebar match the
+        // version picker — every surface shows the rubric name as-of this
+        // evaluation, not the current live name. A renamed scorecard won't
+        // retroactively rebrand historical evals.
+        name: schema.scorecardVersions.name,
       },
       ticket: {
         id: schema.tickets.id,
@@ -249,6 +265,10 @@ export async function getEvaluationById(
     .leftJoin(
       schema.scorecards,
       eq(schema.scorecards.id, schema.evaluations.scorecardId),
+    )
+    .leftJoin(
+      schema.scorecardVersions,
+      eq(schema.scorecardVersions.id, schema.evaluations.scorecardVersionId),
     )
     .leftJoin(
       schema.tickets,
@@ -271,7 +291,10 @@ export async function getEvaluationById(
     scoredAt: r.evaluation.scoredAt,
     editedAt: r.evaluation.editedAt,
     scoredTeamMember: r.scoredTeamMember?.id ? r.scoredTeamMember : null,
-    scorecard: r.scorecard?.id ? r.scorecard : null,
+    scorecard:
+      r.scorecard?.id && r.scorecard?.name
+        ? { id: r.scorecard.id, name: r.scorecard.name }
+        : null,
     ticket: r.ticket?.id ? r.ticket : null,
     autoFailed: r.autoFailed === 1,
   };

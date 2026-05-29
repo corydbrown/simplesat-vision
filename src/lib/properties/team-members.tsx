@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  Bot,
   Briefcase,
   FolderClosed,
   Globe,
@@ -8,6 +9,7 @@ import {
   Languages,
   Mail,
   MessageSquare,
+  Sparkles,
   Star,
   Ticket as TicketIcon,
   User,
@@ -44,6 +46,43 @@ const CORE_PROPERTIES: Property<TeamMemberListRow>[] = [
         avatarUrl={m.avatarUrl}
       />
     ),
+  },
+  {
+    id: "kind",
+    label: "Kind",
+    width: 130,
+    icon: Sparkles,
+    sourceEntity: "Team member",
+    defaultVisible: false,
+    kind: "component",
+    sortable: true,
+    sortValue: (m) => m.kind,
+    groupable: true,
+    groupValue: (m) => m.kind,
+    groupLabel: (v) =>
+      v === "ai_agent" ? (
+        <span className="inline-flex items-center gap-1 rounded-full bg-purple-lighter px-2 py-0.5 text-sm font-medium text-purple-darker">
+          <Bot size={12} />
+          AI agent
+        </span>
+      ) : (
+        <span className="inline-flex items-center gap-1 rounded-full bg-grey-lighter px-2 py-0.5 text-sm font-medium text-grey-darker">
+          <User size={12} />
+          Human
+        </span>
+      ),
+    cell: (m) =>
+      m.kind === "ai_agent" ? (
+        <span className="inline-flex items-center gap-1 rounded-full bg-purple-lighter px-2 py-0.5 text-sm font-medium text-purple-darker">
+          <Bot size={12} />
+          AI agent
+        </span>
+      ) : (
+        <span className="inline-flex items-center gap-1 rounded-full bg-grey-lighter px-2 py-0.5 text-sm font-medium text-grey-darker">
+          <User size={12} />
+          Human
+        </span>
+      ),
   },
   {
     id: "role",

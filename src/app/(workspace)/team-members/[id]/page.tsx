@@ -64,6 +64,7 @@ export default async function TeamMemberDetailPage(
     avatarColor: member.avatarColor,
     avatarUrl: member.avatarUrl,
     customProperties: member.customProperties,
+    kind: member.kind,
     totalTickets: member.stats.totalTickets,
     avgRating: member.stats.avgRating,
     totalResponses: member.stats.totalResponses,

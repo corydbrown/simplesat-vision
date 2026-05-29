@@ -11,6 +11,7 @@ const VALID_BASES: BaseEntity[] = [
   "customer",
   "team_member",
   "response",
+  "evaluation",
 ];
 
 function sanitizeSort(raw: unknown): AxisFieldSort | undefined {

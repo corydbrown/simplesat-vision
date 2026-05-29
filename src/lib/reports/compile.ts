@@ -19,6 +19,7 @@ import {
 import type {
   Aggregation,
   AxisField,
+  FormatType,
   ReportConfig,
   ValueDef,
 } from "./types";
@@ -29,6 +30,10 @@ export type CompiledQuery = {
   columnAliases: AxisAlias[];
   valueAliases: string[];
   valueDefs: ValueDef[];
+  /** Per-value render-time format override, parallel to `valueAliases`.
+   *  Resolved from each value's `PivotField.formatType` at compile time —
+   *  count-of-records (propertyId "*") has no field and resolves to undefined. */
+  valueFormatTypes: (FormatType | undefined)[];
 };
 
 export type AxisAlias = {
@@ -229,6 +234,7 @@ export async function compileReport(
   const rowAliases: AxisAlias[] = [];
   const columnAliases: AxisAlias[] = [];
   const valueAliases: string[] = [];
+  const valueFormatTypes: (FormatType | undefined)[] = [];
   const joins = new Map<string, FieldJoin>();
   const selectParts: SQL[] = [];
   const groupByParts: SQL[] = [];
@@ -278,6 +284,7 @@ export async function compileReport(
   if (config.values.length === 0) {
     selectParts.push(sql.raw(`count(*) AS val_0`));
     valueAliases.push("val_0");
+    valueFormatTypes.push(undefined);
   } else {
     config.values.forEach((v, i) => {
       const field = v.propertyId === "*" ? undefined : findField(baseFields, v.propertyId);
@@ -285,6 +292,7 @@ export async function compileReport(
       const alias = `val_${i}`;
       selectParts.push(sql.raw(`${aggExpr(v, field)} AS ${alias}`));
       valueAliases.push(alias);
+      valueFormatTypes.push(field?.formatType);
     });
   }
 
@@ -337,5 +345,6 @@ export async function compileReport(
     columnAliases,
     valueAliases,
     valueDefs: config.values.length > 0 ? config.values : [{ propertyId: "*", agg: "count" as Aggregation }],
+    valueFormatTypes,
   };
 }

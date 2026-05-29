@@ -194,6 +194,7 @@ export function PivotTable({ result, onSortChange }: PivotTableProps) {
     rowAxes,
     columnAxes,
     valueDefs,
+    valueFormatTypes,
     rowSort,
     columnSort,
   } = result;
@@ -554,7 +555,7 @@ export function PivotTable({ result, onSortChange }: PivotTableProps) {
                             )}
                           >
                             {vals && vals[vi] != null
-                              ? formatPivotValue(vals[vi], v.agg)
+                              ? formatPivotValue(vals[vi], v.agg, valueFormatTypes[vi])
                               : "·"}
                           </td>
                         ));
@@ -567,7 +568,7 @@ export function PivotTable({ result, onSortChange }: PivotTableProps) {
                             vi === 0 && "border-l border-border",
                           )}
                         >
-                          {formatPivotValue(totals[vi] ?? 0, v.agg)}
+                          {formatPivotValue(totals[vi] ?? 0, v.agg, valueFormatTypes[vi])}
                         </td>
                       ))}
 
@@ -580,7 +581,7 @@ export function PivotTable({ result, onSortChange }: PivotTableProps) {
                           vi === 0 && "border-l border-border",
                         )}
                       >
-                        {formatPivotValue(totals[vi] ?? 0, v.agg)}
+                        {formatPivotValue(totals[vi] ?? 0, v.agg, valueFormatTypes[vi])}
                       </td>
                     ))}
                 </tr>
@@ -609,7 +610,7 @@ export function PivotTable({ result, onSortChange }: PivotTableProps) {
                           vi === 0 && "border-l border-border",
                         )}
                       >
-                        {formatPivotValue(vals[vi] ?? 0, v.agg)}
+                        {formatPivotValue(vals[vi] ?? 0, v.agg, valueFormatTypes[vi])}
                       </td>
                     ));
                   })
@@ -623,7 +624,7 @@ export function PivotTable({ result, onSortChange }: PivotTableProps) {
                     hasColumns && "bg-accent/60",
                   )}
                 >
-                  {formatPivotValue(grandTotals[vi] ?? 0, v.agg)}
+                  {formatPivotValue(grandTotals[vi] ?? 0, v.agg, valueFormatTypes[vi])}
                 </td>
               ))}
             </tr>

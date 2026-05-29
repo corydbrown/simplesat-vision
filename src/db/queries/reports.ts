@@ -3,7 +3,12 @@ import { db } from "@/db/client";
 import { compileReport } from "@/lib/reports/compile";
 import { buildPivot, type PivotCellKey } from "@/lib/reports/pivot";
 import type { FieldDataType } from "@/lib/reports/pivot-fields";
-import type { AxisFieldSort, ReportConfig, ValueDef } from "@/lib/reports/types";
+import type {
+  AxisFieldSort,
+  FormatType,
+  ReportConfig,
+  ValueDef,
+} from "@/lib/reports/types";
 import { requireWorkspace } from "@/lib/workspace";
 
 export type ReportAxisMeta = {
@@ -24,6 +29,7 @@ export type ReportResult = {
   rowAxes: ReportAxisMeta[];
   columnAxes: ReportAxisMeta[];
   valueDefs: ValueDef[];
+  valueFormatTypes: (FormatType | undefined)[];
   rowSort?: AxisFieldSort;
   columnSort?: AxisFieldSort;
 };
@@ -74,6 +80,7 @@ export async function runReport(
       dataType: a.field.dataType,
     })),
     valueDefs: compiled.valueDefs,
+    valueFormatTypes: compiled.valueFormatTypes,
     rowSort,
     columnSort,
   };

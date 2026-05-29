@@ -34,7 +34,7 @@ import {
   MAX_COLUMNS,
   MAX_ROWS,
   MAX_VALUES,
-  defaultConfig,
+  defaultConfigForBase,
   type AxisField,
   type AxisFieldSort,
   type BaseEntity,
@@ -234,7 +234,7 @@ export function ReportBuilder({ initialConfig }: Props) {
     });
   };
 
-  const reset = () => setConfig(defaultConfig(config.base));
+  const reset = () => setConfig(defaultConfigForBase(config.base));
 
   // ---- base change with Dialog confirmation ----
 
@@ -247,7 +247,7 @@ export function ReportBuilder({ initialConfig }: Props) {
         config.filters.length > 0 ||
         config.values.length > 0;
       if (!hasFields) {
-        setConfig(defaultConfig(next));
+        setConfig(defaultConfigForBase(next));
         return;
       }
       setPendingBase(next);
@@ -256,7 +256,7 @@ export function ReportBuilder({ initialConfig }: Props) {
   );
 
   const confirmBaseChange = () => {
-    if (pendingBase) setConfig(defaultConfig(pendingBase));
+    if (pendingBase) setConfig(defaultConfigForBase(pendingBase));
     setPendingBase(null);
   };
 

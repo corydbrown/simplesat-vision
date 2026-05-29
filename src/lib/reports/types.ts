@@ -1,6 +1,13 @@
 import type { Filter } from "@/lib/filters/types";
 
-export type BaseEntity = "ticket" | "customer" | "team_member" | "response";
+export type BaseEntity =
+  | "ticket"
+  | "customer"
+  | "team_member"
+  | "response"
+  | "evaluation";
+
+export type FormatType = "int" | "decimal" | "currency-cents";
 
 export type DateBucket = "day" | "week" | "month" | "quarter" | "year";
 
@@ -58,9 +65,26 @@ export function defaultConfig(base: BaseEntity): ReportConfig {
   };
 }
 
+/** Smart per-base default: gives high-cardinality bases (e.g. `evaluation`)
+ *  a sensible starting pivot instead of a runaway grand-total. Bases without a
+ *  bespoke default fall through to {@link defaultConfig}. */
+export function defaultConfigForBase(base: BaseEntity): ReportConfig {
+  if (base === "evaluation") {
+    return {
+      base,
+      rows: [{ propertyId: "ai_model" }],
+      columns: [],
+      values: [{ propertyId: "cost_usd_cents", agg: "sum" }],
+      filters: [],
+    };
+  }
+  return defaultConfig(base);
+}
+
 export const BASE_ENTITY_LABEL: Record<BaseEntity, string> = {
   ticket: "Tickets",
   customer: "Customers",
   team_member: "Team members",
   response: "Responses",
+  evaluation: "Evaluations",
 };

@@ -27,8 +27,9 @@ export type CodeDefinedScorecardCriterion = {
 export type CodeDefinedScorecardCategory = {
   name: string;
   description: string;
-  /** Transitional / derived: equals `SUM(criteria.weightPercent)`. Kept until
-   *  category-weight reads swap onto the derived expression. */
+  /** Derived from `SUM(criteria.weightPercent)`. Carried on the template
+   *  shape for invariant checks; not persisted (the DB column was dropped in
+   *  SVP-235 — category weight derives from criterion sums). */
   weightPercent: number;
   scaleType: ScorecardScaleType;
   isAutofail: boolean;
@@ -129,7 +130,6 @@ export async function installCodeDefinedScorecard(
       scorecardId,
       name: category.name,
       description: category.description,
-      weightPercent: category.weightPercent,
       scaleType: category.scaleType,
       order: categoryIdx,
       isAutofail: category.isAutofail,

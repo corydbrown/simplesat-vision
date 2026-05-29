@@ -100,7 +100,11 @@ export async function getScorecardCategories(
       id: schema.scorecardCategories.id,
       name: schema.scorecardCategories.name,
       description: schema.scorecardCategories.description,
-      weightPercent: schema.scorecardCategories.weightPercent,
+      weightPercent: sql<number>`COALESCE((
+        SELECT SUM("scorecard_criteria"."weight_percent")
+        FROM "scorecard_criteria"
+        WHERE "scorecard_criteria"."category_id" = "scorecard_categories"."id"
+      ), 0)`,
       isAutofail: schema.scorecardCategories.isAutofail,
       order: schema.scorecardCategories.order,
       criteriaCount: sql<number>`(
@@ -186,7 +190,11 @@ export async function getScorecardEditorView(
       id: schema.scorecardCategories.id,
       name: schema.scorecardCategories.name,
       description: schema.scorecardCategories.description,
-      weightPercent: schema.scorecardCategories.weightPercent,
+      weightPercent: sql<number>`COALESCE((
+        SELECT SUM("scorecard_criteria"."weight_percent")
+        FROM "scorecard_criteria"
+        WHERE "scorecard_criteria"."category_id" = "scorecard_categories"."id"
+      ), 0)`,
       scaleType: schema.scorecardCategories.scaleType,
       isAutofail: schema.scorecardCategories.isAutofail,
       order: schema.scorecardCategories.order,

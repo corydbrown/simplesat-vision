@@ -496,7 +496,11 @@ export async function getTeamMemberQaRollup(
         name: schema.scorecardCategories.name,
         scaleType: schema.scorecardCategories.scaleType,
         order: schema.scorecardCategories.order,
-        weightPercent: schema.scorecardCategories.weightPercent,
+        weightPercent: sql<number>`COALESCE((
+          SELECT SUM("scorecard_criteria"."weight_percent")
+          FROM "scorecard_criteria"
+          WHERE "scorecard_criteria"."category_id" = "scorecard_categories"."id"
+        ), 0)`,
         isAutofail: schema.scorecardCategories.isAutofail,
       })
       .from(schema.scorecardCategories)

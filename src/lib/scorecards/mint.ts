@@ -83,7 +83,6 @@ export async function mintScorecardFromTemplate(params: {
       scorecardId,
       name: category.name,
       description: category.description,
-      weightPercent: category.weightPercent,
       scaleType: category.scaleType,
       order: categoryIdx,
       isAutofail: category.isAutofail,

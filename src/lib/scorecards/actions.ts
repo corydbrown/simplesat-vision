@@ -150,7 +150,6 @@ export async function saveScorecard(
         .set({
           name: cat.name,
           description: cat.description,
-          weightPercent: cat.weightPercent,
           scaleType: cat.scaleType,
           order: cat.order,
         })
@@ -594,20 +593,26 @@ export async function duplicateScorecard(input: {
     bandDescriptors: source.bandDescriptors,
     domainContext: source.domainContext,
     toneExpectations: source.toneExpectations,
-    categories: sourceCategories.map((cat) => ({
-      name: cat.name,
-      description: cat.description,
-      weightPercent: cat.weightPercent,
-      scaleType: cat.scaleType,
-      isAutofail: cat.isAutofail,
-      criteria: (criteriaByCategory.get(cat.id) ?? []).map((cr) => ({
-        text: cr.text,
-        anchor5: cr.anchor5,
-        anchor3: cr.anchor3,
-        anchor1: cr.anchor1,
-        weightPercent: cr.weightPercent,
-      })),
-    })),
+    categories: sourceCategories.map((cat) => {
+      const catCriteria = criteriaByCategory.get(cat.id) ?? [];
+      return {
+        name: cat.name,
+        description: cat.description,
+        weightPercent: catCriteria.reduce(
+          (acc, cr) => acc + cr.weightPercent,
+          0,
+        ),
+        scaleType: cat.scaleType,
+        isAutofail: cat.isAutofail,
+        criteria: catCriteria.map((cr) => ({
+          text: cr.text,
+          anchor5: cr.anchor5,
+          anchor3: cr.anchor3,
+          anchor1: cr.anchor1,
+          weightPercent: cr.weightPercent,
+        })),
+      };
+    }),
   };
 
   const minted = await mintScorecardFromTemplate({ workspaceId, template });

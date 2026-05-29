@@ -1067,13 +1067,10 @@ export const scorecards = sqliteTable(
  *  Ownership, Compliance & Safety). Auto-fail categories carry weight 0 and
  *  instead force the overall score to a floor when any of their criteria fail.
  *
- *  `weight_percent` on this row is transitional / derived: as of SVP-228 the
- *  authoritative weight lives on each `scorecard_criteria` row, and category
- *  weight is `SUM(criterion.weight_percent) WHERE category_id = …`. This
- *  column is kept in the schema for one release so existing read sites
- *  (overall-score recompute, coaching queries, ticket pivot rollups) don't
- *  break mid-flight; SVP-229 will swap them onto the derived expression and a
- *  follow-up task drops the column. */
+ *  Category weight is *derived*, not stored. Per SVP-228 the authoritative
+ *  weight lives on each `scorecard_criteria` row; a category's weight is
+ *  `SUM(criterion.weight_percent) WHERE category_id = …`. SVP-235 dropped the
+ *  transitional column once all read sites moved onto that expression. */
 export const scorecardCategories = sqliteTable(
   "scorecard_categories",
   {
@@ -1083,7 +1080,6 @@ export const scorecardCategories = sqliteTable(
       .references(() => scorecards.id, { onDelete: "cascade" }),
     name: text("name").notNull(),
     description: text("description").notNull().default(""),
-    weightPercent: integer("weight_percent").notNull().default(0),
     scaleType: text("scale_type", {
       enum: ["likert_5", "binary", "three_state"],
     })
@@ -1183,7 +1179,8 @@ export const scorecardVersions = sqliteTable(
  *  category identity (the live `scorecard_categories.id` at snapshot time) —
  *  cross-version rollups (heatmap, agent profile) aggregate evaluation
  *  category scores by this logical id, while eval-time text resolves via
- *  this row. */
+ *  this row. As with the live table (SVP-235), category weight is derived
+ *  as `SUM(scorecard_version_criteria.weight_percent)` rather than stored. */
 export const scorecardVersionCategories = sqliteTable(
   "scorecard_version_categories",
   {
@@ -1196,7 +1193,6 @@ export const scorecardVersionCategories = sqliteTable(
       .references(() => scorecardCategories.id),
     name: text("name").notNull(),
     description: text("description").notNull().default(""),
-    weightPercent: integer("weight_percent").notNull().default(0),
     scaleType: text("scale_type", {
       enum: ["likert_5", "binary", "three_state"],
     })

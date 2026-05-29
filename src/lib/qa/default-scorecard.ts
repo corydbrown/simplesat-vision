@@ -8,11 +8,10 @@
  * Five categories per PRD Part 7. Authoritative weight lives at the criterion
  * level (SVP-228); non-autofail criterion weights sum to 100. Compliance &
  * Safety criteria are binary autofails at weight 0 and force overall to the
- * floor when any of them fail. Categories are pure grouping going forward —
- * their `weightPercent` is still copied here for one release so existing read
- * sites (overall-score recompute, coaching queries, ticket pivot rollups)
- * don't break mid-flight; the column is dropped in a follow-up after SVP-229
- * swaps everything onto the derived `SUM(criterion.weightPercent)`.
+ * floor when any of them fail. Categories are pure grouping — their
+ * `weightPercent` here is `SUM(criterion.weightPercent)`, retained on the
+ * template shape for validators and prompt building. The DB column was
+ * dropped in SVP-235; read sites derive from the criterion sum.
  *
  * The four LLM-context fields (`scoringPhilosophy`, `bandDescriptors`,
  * `domainContext`, `toneExpectations`) describe how the rubric should be

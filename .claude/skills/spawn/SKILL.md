@@ -68,6 +68,7 @@ If solo, write "None.">
 
 - `npx tsc --noEmit` clean (PageProps errors are a pre-existing Next 16 issue, ignore those)
 - `npm run lint` clean
+- `npm test` clean (every test passes — and any new pure function in `src/lib/**` ships with a co-located `*.test.ts`, per CLAUDE.md → Testing)
 - Dev server boots at `localhost:<port>`
 - Manual walk of the changed surface in both light + dark mode
 - Playwright smoke for any new visible surface (see `playwright.config.ts` once SVP-Playwright lands)

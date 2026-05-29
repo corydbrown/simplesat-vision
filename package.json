@@ -13,7 +13,9 @@
     "db:seed": "tsx --conditions=react-server src/db/seed.ts",
     "db:studio": "drizzle-kit studio",
     "db:reset": "rm -f db/simplesat.db db/simplesat.db-shm db/simplesat.db-wal && npm run db:migrate && npm run db:seed",
-    "db:backfill-topics": "tsx --conditions=react-server scripts/backfill-topics.ts"
+    "db:backfill-topics": "tsx --conditions=react-server scripts/backfill-topics.ts",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.96.0",
@@ -49,12 +51,14 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@vitest/ui": "^4.1.7",
     "csv-parse": "^6.2.1",
     "drizzle-kit": "^0.31.10",
     "eslint": "^9",
     "eslint-config-next": "16.2.6",
     "tailwindcss": "^4",
     "tsx": "^4.22.1",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^4.1.7"
   }
 }

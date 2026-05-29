@@ -63,6 +63,13 @@ export const TEAM_MEMBER_RESOLUTION_RULES: readonly TeamMemberResolutionRule[] =
  *  surface — tickets, responses, evaluations, coaching all key on
  *  `team_member_id` regardless of kind. */
 export type TeamMemberKind = "human" | "ai_agent";
+/** Which kind of work a scorecard scores. Determines whether the
+ *  auto-scoring engine fan-outs an evaluation for a given ticket:
+ *  `human` fires for tickets with at least one human-agent turn, `ai`
+ *  for tickets with at least one bot turn, `resolution` ALWAYS fires
+ *  (scores the conversation outcome, not an actor). Drives the
+ *  `evaluations.scored_team_member_id` selection per assignment. */
+export type ScorecardAppliesTo = "human" | "ai" | "resolution";
 /** Provenance of a CSAT/QA response. `simplesat` is a native survey response;
  *  the others are source-imported CSAT. Free text so new sources don't gate
  *  on a schema change. */
@@ -1084,6 +1091,13 @@ export const scorecards = sqliteTable(
     /** Voice / tone expectations the LLM should weigh when judging
      *  communication (formality, warmth, brand voice). Markdown. LLM-only. */
     toneExpectations: text("tone_expectations"),
+    /** Which actor/outcome this scorecard scores; drives the auto-scoring
+     *  fan-out (see `ScorecardAppliesTo`). Default `human` preserves the
+     *  pre-Phase-2a single-scorecard behavior for every existing row. */
+    appliesTo: text("applies_to", { enum: ["human", "ai", "resolution"] })
+      .notNull()
+      .$type<ScorecardAppliesTo>()
+      .default("human"),
     createdAt: integer("created_at", { mode: "timestamp_ms" })
       .notNull()
       .default(sql`(unixepoch() * 1000)`),
@@ -1095,6 +1109,7 @@ export const scorecards = sqliteTable(
     index("scorecards_workspace_id_idx").on(t.workspaceId),
     index("scorecards_enabled_idx").on(t.enabled),
     index("scorecards_archived_at_idx").on(t.archivedAt),
+    index("scorecards_applies_to_idx").on(t.appliesTo),
   ],
 );
 
@@ -1361,12 +1376,18 @@ export const evaluations = sqliteTable(
     scorecardVersionId: text("scorecard_version_id")
       .notNull()
       .references(() => scorecardVersions.id),
-    /** The team member whose work is being scored (the assigned agent on
-     *  the ticket at scoring time). Distinct from `scored_by` (which is the
-     *  identity that produced the score — provider name + optional human). */
-    scoredTeamMemberId: text("scored_team_member_id")
-      .notNull()
-      .references(() => teamMembers.id),
+    /** The team member whose work is being scored. Distinct from `scored_by`
+     *  (which is the identity that produced the score — provider name +
+     *  optional human). NULL is valid in three cases:
+     *   - Resolution scorecards (`scorecards.appliesTo='resolution'`) ALWAYS
+     *     write NULL — they score the conversation outcome, not an actor.
+     *   - AI scorecards on tickets where the bot turn has no
+     *     `ticket_messages.team_member_id` yet (pre-SVP-269/1c bot identity).
+     *   - AI scorecards on tickets that have no AI turn at all — surface only;
+     *     the fan-out picker normally prunes these before scoring. */
+    scoredTeamMemberId: text("scored_team_member_id").references(
+      () => teamMembers.id,
+    ),
     overallScore: integer("overall_score").notNull(),
     status: text("status", {
       enum: [

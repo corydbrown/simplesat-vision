@@ -2042,9 +2042,12 @@ async function seed() {
     // Map the scored agent (still a team_member id on `evaluations`) to
     // their paired user so the agent can author self-reflection comments
     // under the new user-keyed FK.
-    const scoredAgentUserId = userIdByTeamMemberId.get(
-      evaluation.scoredTeamMemberId,
-    );
+    // SVP-273: scoredTeamMemberId is nullable. Seed-time evaluations all
+    // still pin a human (Phase 4 seeds Resolution + AI scorecards), so the
+    // null branch is a defensive skip — same outcome as "no paired user".
+    const scoredAgentUserId = evaluation.scoredTeamMemberId
+      ? userIdByTeamMemberId.get(evaluation.scoredTeamMemberId)
+      : undefined;
     if (!scoredAgentUserId) continue;
     const messagesForEval = messagesByTicketId.get(ticketId) ?? [];
     const baseAt = (evaluation.scoredAt as Date).getTime();

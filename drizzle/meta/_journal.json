@@ -239,6 +239,13 @@
       "when": 1780065276952,
       "tag": "0033_svp268_team_member_kind",
       "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "6",
+      "when": 1780067440710,
+      "tag": "0034_svp273_scorecards_applies_to",
+      "breakpoints": true
     }
   ]
 }

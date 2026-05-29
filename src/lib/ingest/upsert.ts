@@ -17,6 +17,10 @@ import {
 import { prefixedId, type IdPrefix } from "@/lib/ids";
 import { dedupeTicketResponses } from "@/lib/ingest/dedupe-responses";
 import { resolveTeamMember } from "@/lib/ingest/resolve-team-member";
+import {
+  lazyCreateAiTeamMember,
+  resolveBotProviderForMessage,
+} from "@/lib/team-members/ai-detection";
 import type {
   CustomerIngest,
   MessageIngest,
@@ -492,9 +496,19 @@ export async function upsertMessage(
   const customerId = input.customerExternalId
     ? await resolveCustomerId(workspaceId, input.customerExternalId)
     : null;
-  const teamMemberId = input.teamMemberExternalId
-    ? await resolveTeamMemberId(workspaceId, input.teamMemberExternalId)
-    : null;
+
+  // Bot turns (authorRole "agent" + authorSubtype "bot") carry no
+  // teamMemberExternalId — there's no human agent to credit. Attribute them to
+  // the workspace's AI team_member, lazy-creating it on first sight (idempotent;
+  // the first bot message in a workspace creates the row, the rest no-op). This
+  // is where Fin starts showing up attached to real messages. Human turns take
+  // the unchanged externalId-or-null path.
+  const botProvider = resolveBotProviderForMessage(input);
+  const teamMemberId = botProvider
+    ? await lazyCreateAiTeamMember(workspaceId, botProvider)
+    : input.teamMemberExternalId
+      ? await resolveTeamMemberId(workspaceId, input.teamMemberExternalId)
+      : null;
 
   const channel = input.channel ?? "email";
   const shared = {

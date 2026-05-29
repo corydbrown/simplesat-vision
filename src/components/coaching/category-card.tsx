@@ -3,6 +3,7 @@
 import { cn } from "@/lib/utils";
 import { formatScore } from "@/lib/qa/format-score";
 import type { CoachingCategoryView } from "@/db/queries/coaching";
+import { ReasoningWithMentions } from "@/components/shared/inline-mention";
 import {
   HUE_TOKENS,
   hueForCategoryOrder,
@@ -18,16 +19,20 @@ export function CategoryCard({
   active,
   dimmed,
   isFocused,
+  messageIdByNumber,
   onToggle,
   onFocus,
+  onJumpToMessage,
 }: {
   ref?: (el: HTMLButtonElement | null) => void;
   category: CoachingCategoryView;
   active: boolean;
   dimmed: boolean;
   isFocused: boolean;
+  messageIdByNumber: Map<number, string>;
   onToggle: () => void;
   onFocus: () => void;
+  onJumpToMessage: (messageId: string) => void;
 }) {
   const styles = HUE_TOKENS[hueForCategoryOrder(category.order)];
   const scoreLabel = formatScore(category.effectiveScore, category.scaleType);
@@ -87,11 +92,11 @@ export function CategoryCard({
       </div>
       {active && category.aiReasoning && (
         <p className="mt-2 pl-2 text-base text-muted-foreground animate-in fade-in slide-in-from-top-1 duration-200">
-          {category.aiReasoning.split(/(msg_\d+)/g).map((part, i) => {
-            const m = part.match(/^msg_(\d+)$/);
-            if (m) return <span key={i}>Message {m[1]}</span>;
-            return <span key={i}>{part}</span>;
-          })}
+          <ReasoningWithMentions
+            text={category.aiReasoning}
+            messageIdByNumber={messageIdByNumber}
+            onJump={onJumpToMessage}
+          />
         </p>
       )}
     </button>

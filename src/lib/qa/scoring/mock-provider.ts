@@ -35,27 +35,39 @@ export class MockScoringProvider implements ScoringProvider {
     const targetOverall = pickTargetOverall(faker, input.ticket.responseRating);
     const autoFailTriggered = targetOverall.bucket === "autofail";
 
+    // Lookup so reasoning text can refer to highlighted messages by their
+    // 1-based position in the conversation — matching what the real LLM
+    // provider produces ("Message N") so the InlineMention surface is
+    // exercised in mock seeds too.
+    const numberByMessageId = new Map<string, number>();
+    input.messages.forEach((m, i) => numberByMessageId.set(m.id, i + 1));
+
     const categoryScores: ScoringCategoryResult[] = input.scorecard.categories
       .map((category) => {
         const messageIds = pickHighlightedMessages(faker, input);
+        const refNumbers = messageIds
+          .map((id) => numberByMessageId.get(id))
+          .filter((n): n is number => n != null);
         if (category.scaleType === "binary") {
           const failed = decideBinaryFail(faker, {
             autoFailTriggered,
             categoryCount: input.scorecard.categories.length,
             criteriaCount: category.criteria.length,
           });
+          const highlights = failed ? messageIds.slice(0, 1) : [];
+          const refsForReasoning = failed ? refNumbers.slice(0, 1) : [];
           return {
             categoryId: category.id,
             aiScore: failed ? 0 : 1,
-            aiReasoning: buildBinaryReasoning(faker, failed),
-            highlightedMessageIds: failed ? messageIds.slice(0, 1) : [],
+            aiReasoning: buildBinaryReasoning(faker, failed, refsForReasoning),
+            highlightedMessageIds: highlights,
           };
         }
         const aiScore = likertForTarget(faker, targetOverall.center);
         return {
           categoryId: category.id,
           aiScore,
-          aiReasoning: buildLikertReasoning(faker, aiScore),
+          aiReasoning: buildLikertReasoning(faker, aiScore, refNumbers),
           highlightedMessageIds: messageIds,
         };
       });
@@ -218,62 +230,96 @@ function pickHighlightedMessages(faker: Faker, input: ScoringInput): string[] {
   );
 }
 
+/** Reasoning templates. `{n1}` / `{n2}` placeholders are filled with 1-based
+ *  positions of the category's highlighted messages — matching the real LLM
+ *  prompt directive ("In reasoning text, refer to messages by their position
+ *  as 'Message N'"). Templates with placeholders are only selected when at
+ *  least that many refs are available, otherwise we fall back to refless
+ *  pool members. */
 const LIKERT_REASONING_BY_SCORE: Record<number, string[]> = {
   5: [
-    "Agent acknowledged the customer's specific situation upfront and confirmed understanding before proposing a fix. Tone matched the customer's energy.",
-    "Excellent end-to-end ownership — agent paraphrased the issue, walked through the resolution clearly, and confirmed satisfaction at close.",
+    "Agent acknowledged the customer's specific situation in Message {n1} and confirmed understanding before proposing a fix. Tone matched the customer's energy.",
+    "Excellent end-to-end ownership — agent paraphrased the issue in Message {n1}, walked through the resolution clearly in Message {n2}, and confirmed satisfaction at close.",
     "Crisp, on-brand response. Clear structure, no errors, and the agent volunteered relevant next steps without prompting.",
-    "Resolution complete in one pass. Agent answered every question the customer raised and offered a proactive follow-up.",
+    "Resolution complete in one pass. Agent answered every question the customer raised in Message {n1} and offered a proactive follow-up.",
   ],
   4: [
-    "Strong handling overall — agent acknowledged the issue and resolved it cleanly, with one or two missed micro-empathy moments.",
+    "Strong handling overall — agent acknowledged the issue in Message {n1} and resolved it cleanly, with one or two missed micro-empathy moments.",
     "Solid work. Resolution was on-target; communication was clear if slightly templated in places.",
-    "Agent owned the ticket through to close. Minor process friction (a missed tag) but nothing that affected the customer.",
+    "Agent owned the ticket through to close. Minor process friction (a missed tag in Message {n1}) but nothing that affected the customer.",
   ],
   3: [
-    "Adequate. The issue got addressed but the agent kept it transactional — no real personalization, no acknowledgment of frustration.",
-    "Resolution was correct but left loose ends. Customer may or may not come back depending on whether the follow-up was actioned.",
+    "Adequate. The issue got addressed in Message {n1} but the agent kept it transactional — no real personalization, no acknowledgment of frustration.",
+    "Resolution was correct but left loose ends. Customer may or may not come back depending on whether the follow-up in Message {n1} was actioned.",
     "Communication was understandable but rough — minor errors and awkward phrasing in the longer reply.",
     "Process was followed but not cleanly. Reassignment happened mid-thread without a handoff note.",
   ],
   2: [
-    "Customer flagged frustration explicitly and the agent moved past it without acknowledgment. Tone mismatch throughout.",
-    "Partial resolution. The agent answered the first question but the customer's follow-up went unaddressed in the close.",
-    "Response was hard to parse — long block of text, jargon used without explanation, and unclear next step.",
+    "Customer flagged frustration explicitly in Message {n1} and the agent moved past it without acknowledgment. Tone mismatch throughout.",
+    "Partial resolution. The agent answered the first question but the customer's follow-up in Message {n1} went unaddressed in the close.",
+    "Response in Message {n1} was hard to parse — long block of text, jargon used without explanation, and unclear next step.",
     "Ticket bounced between two agents with no handoff note. Customer had to re-explain context twice.",
   ],
   1: [
-    "Dismissive tone. Customer raised an emotional concern; agent responded with a templated apology and moved on.",
+    "Dismissive tone. Customer raised an emotional concern in Message {n1}; agent responded with a templated apology and moved on.",
     "Wrong answer to the customer's core question. The closing message contradicts the policy stated mid-thread.",
-    "Confusing structure, multiple grammar errors, off-brand voice. Customer would need to re-read to understand.",
+    "Confusing structure in Message {n1}, multiple grammar errors, off-brand voice. Customer would need to re-read to understand.",
     "Messy ownership — three reassignments, no notes, ticket closed without confirmation.",
   ],
 };
 
-function buildLikertReasoning(faker: Faker, score: number): string {
-  // SVP-77: reasoning text is reference-free. Supporting message ids live on
-  // `highlightedMessageIds` (structured field) — the UI renders them as a
-  // chip-row, no regex over reasoning text.
+function buildLikertReasoning(
+  faker: Faker,
+  score: number,
+  refNumbers: number[],
+): string {
   const pool = LIKERT_REASONING_BY_SCORE[score] ?? LIKERT_REASONING_BY_SCORE[3];
-  return faker.helpers.arrayElement(pool);
+  return fillReasoningTemplate(faker, pool, refNumbers);
 }
 
 const BINARY_PASS_REASONS = [
   "No compliance issues observed in this conversation.",
-  "Agent handled sensitive information appropriately and verified identity before disclosure.",
+  "Agent handled sensitive information appropriately in Message {n1} and verified identity before disclosure.",
   "Language stayed customer-appropriate; no PII exposed unnecessarily.",
 ];
 
 const BINARY_FAIL_REASONS = [
-  "Agent disclosed account-level information without completing identity verification.",
-  "Customer's full payment card last-4 was repeated in a customer-facing reply.",
+  "Agent disclosed account-level information in Message {n1} without completing identity verification.",
+  "Customer's full payment card last-4 was repeated in Message {n1} (customer-facing reply).",
   "Agent promised a refund timeline the policy does not support.",
   "Conversation closed with the customer's question unanswered and no follow-up scheduled.",
 ];
 
-function buildBinaryReasoning(faker: Faker, failed: boolean): string {
+function buildBinaryReasoning(
+  faker: Faker,
+  failed: boolean,
+  refNumbers: number[],
+): string {
   const pool = failed ? BINARY_FAIL_REASONS : BINARY_PASS_REASONS;
-  return faker.helpers.arrayElement(pool);
+  return fillReasoningTemplate(faker, pool, refNumbers);
+}
+
+/** Pick a reasoning template and substitute `{n1}` / `{n2}` placeholders
+ *  with the supplied 1-based message positions. If a template needs more
+ *  refs than were supplied, filter the pool down to ones we can fill — the
+ *  refless templates always work as a fallback. */
+function fillReasoningTemplate(
+  faker: Faker,
+  pool: readonly string[],
+  refNumbers: number[],
+): string {
+  const fillable = pool.filter((t) => placeholdersIn(t) <= refNumbers.length);
+  // pool always contains at least one refless template, so fillable is never empty
+  const chosen = faker.helpers.arrayElement(fillable);
+  return chosen
+    .replace(/\{n1\}/g, String(refNumbers[0]))
+    .replace(/\{n2\}/g, String(refNumbers[1]));
+}
+
+function placeholdersIn(template: string): number {
+  if (template.includes("{n2}")) return 2;
+  if (template.includes("{n1}")) return 1;
+  return 0;
 }
 
 /** Decide whether a binary category fails. Only ever true on auto-fail

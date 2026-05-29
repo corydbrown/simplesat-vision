@@ -210,21 +210,33 @@ export async function evaluateTicket(
   ticketId: string,
   options: { scorecardId?: string } = {},
 ): Promise<{ evaluationId: string }> {
-  const workspaceId = await requireWorkspace();
-  if (typeof ticketId !== "string" || ticketId.length === 0) {
-    throw new Error("Invalid ticket id");
+  // SVP-243 instrumentation: a re-score from the picker has 500'd once on prod
+  // (first click failed, second succeeded) with no recoverable log line by the
+  // time we looked. Tag the full error here so the next occurrence leaves a
+  // single grep-able stack in Vercel logs — `[svp243]` is the marker.
+  try {
+    const workspaceId = await requireWorkspace();
+    if (typeof ticketId !== "string" || ticketId.length === 0) {
+      throw new Error("Invalid ticket id");
+    }
+
+    const { evaluationId } = await scoreAndPersistTicket({
+      ticketId,
+      workspaceId,
+      scorecardId: options.scorecardId,
+    });
+
+    revalidatePath(`/tickets/${ticketId}`);
+    revalidatePath("/coaching");
+
+    return { evaluationId };
+  } catch (err) {
+    console.error(
+      `[svp243] evaluateTicket failed ticket=${ticketId} scorecardId=${options.scorecardId ?? "(auto)"}:`,
+      err,
+    );
+    throw err;
   }
-
-  const { evaluationId } = await scoreAndPersistTicket({
-    ticketId,
-    workspaceId,
-    scorecardId: options.scorecardId,
-  });
-
-  revalidatePath(`/tickets/${ticketId}`);
-  revalidatePath("/coaching");
-
-  return { evaluationId };
 }
 
 export type ScorableTicketRow = {

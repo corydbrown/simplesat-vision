@@ -36,6 +36,7 @@ import type {
   QaEvaluationStatus,
   ScorecardScaleType,
   TeamMember,
+  TeamMemberKind,
 } from "../schema";
 
 export type TeamMemberListRow = {
@@ -51,6 +52,7 @@ export type TeamMemberListRow = {
   avatarColor: string;
   avatarUrl: string | null;
   customProperties: Record<string, unknown>;
+  kind: TeamMemberKind;
   totalTickets: number;
   avgRating: number | null;
   totalResponses: number;
@@ -138,6 +140,7 @@ export async function listTeamMembers({
       avatarColor: schema.teamMembers.avatarColor,
       avatarUrl: schema.teamMembers.avatarUrl,
       customProperties: schema.teamMembers.customProperties,
+      kind: schema.teamMembers.kind,
       totalTickets: totalTicketsExpr,
       avgRating: avgRatingExpr,
       totalResponses: totalResponsesExpr,
@@ -165,6 +168,196 @@ export async function listTeamMembers({
     })),
     total: rows.length,
   };
+}
+
+// ---------------------------------------------------------------------------
+// Agent roster (humans + AI agents) — QA-performance lens
+// ---------------------------------------------------------------------------
+
+/** Per-agent rollup powering `/agents`. Mirrors `TeamMemberListRow` for shared
+ *  display fields (name/avatar/role/team), then layers QA-performance metrics
+ *  on top. `kind`/`provider`/`model`/`deployedAt` come from the AI sidecar
+ *  columns and let the roster render the human vs AI-agent distinction in one
+ *  table. `responseScore` and `evalScore` both live on a 0-100 axis so the
+ *  `gap` column is a coherent subtraction. */
+export type AgentRosterRow = {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  team: string;
+  region: string | null;
+  language: string | null;
+  groupId: string | null;
+  groupName: string | null;
+  avatarColor: string;
+  avatarUrl: string | null;
+  kind: TeamMemberKind;
+  provider: string | null;
+  model: string | null;
+  deployedAt: Date | null;
+  /** Normalized 0-100 CSAT-equivalent across the member's live responses. Null
+   *  when the member has no live responses. */
+  responseScore: number | null;
+  /** Average `overall_score` across the member's non-invalidated evaluations
+   *  (already 0-100). Null when the member has no evaluations. */
+  evalScore: number | null;
+  /** Count of non-finalized, non-invalidated evaluations attributed to the
+   *  member — the "needs review" load. */
+  openEvals: number;
+  /** Most-recent `scored_at` across the member's non-invalidated evaluations,
+   *  ms timestamp. Null when the member has never been evaluated. */
+  lastEvaluatedAtMs: number | null;
+};
+
+// Aggregate subqueries. Per CLAUDE.md → "Aggregate subqueries in Drizzle":
+// correlated subqueries must use literal "table.column" strings, NOT
+// `${schema.table.column}` (which produces a parameter placeholder).
+const agentResponseScoreExpr = sql<number | null>`
+  (SELECT AVG((CAST(rating AS REAL) / scale) * 100.0)
+     FROM responses
+    WHERE responses.team_member_id = team_members.id
+      AND responses.superseded_by IS NULL
+      AND responses.scale > 0)
+`;
+const agentEvalScoreExpr = sql<number | null>`
+  (SELECT AVG(CAST(overall_score AS REAL))
+     FROM evaluations
+    WHERE evaluations.scored_team_member_id = team_members.id
+      AND evaluations.status != 'invalidated')
+`;
+const agentOpenEvalsExpr = sql<number>`
+  (SELECT COUNT(*)
+     FROM evaluations
+    WHERE evaluations.scored_team_member_id = team_members.id
+      AND evaluations.status NOT IN ('finalized', 'invalidated'))
+`;
+const agentLastEvaluatedAtExpr = sql<number | null>`
+  (SELECT MAX(scored_at)
+     FROM evaluations
+    WHERE evaluations.scored_team_member_id = team_members.id
+      AND evaluations.status != 'invalidated')
+`;
+
+/** Roster query for `/agents`. Same row set as `listTeamMembers` plus the AI
+ *  sidecar columns + QA aggregates. When `kind` is set, filters to humans or
+ *  AI agents only — drives the All / Humans / AI agents tab. */
+export async function listAgents({
+  kind,
+  sorts = [],
+}: {
+  kind?: TeamMemberKind;
+  sorts?: SortSpec[];
+} = {}): Promise<{
+  rows: AgentRosterRow[];
+  total: number;
+  aiAgentCount: number;
+}> {
+  const workspaceId = await requireWorkspace();
+  const workspaceWhere = eq(schema.teamMembers.workspaceId, workspaceId);
+  const where = kind
+    ? and(workspaceWhere, eq(schema.teamMembers.kind, kind))
+    : workspaceWhere;
+
+  const rawRows = await db
+    .select({
+      id: schema.teamMembers.id,
+      name: schema.teamMembers.name,
+      email: schema.teamMembers.email,
+      role: schema.teamMembers.role,
+      team: schema.teamMembers.team,
+      region: schema.teamMembers.region,
+      language: schema.teamMembers.language,
+      groupId: schema.teamMembers.groupId,
+      groupName: schema.teamMemberGroups.name,
+      avatarColor: schema.teamMembers.avatarColor,
+      avatarUrl: schema.teamMembers.avatarUrl,
+      kind: schema.teamMembers.kind,
+      provider: schema.teamMembers.provider,
+      model: schema.teamMembers.model,
+      deployedAt: schema.teamMembers.deployedAt,
+      responseScore: agentResponseScoreExpr,
+      evalScore: agentEvalScoreExpr,
+      openEvals: agentOpenEvalsExpr,
+      lastEvaluatedAtMs: agentLastEvaluatedAtExpr,
+    })
+    .from(schema.teamMembers)
+    .leftJoin(
+      schema.teamMemberGroups,
+      eq(schema.teamMemberGroups.id, schema.teamMembers.groupId),
+    )
+    .where(where)
+    .orderBy(...buildAgentOrderBy(sorts));
+
+  const rows: AgentRosterRow[] = rawRows.map((r) => ({
+    id: r.id,
+    name: r.name,
+    email: r.email,
+    role: r.role,
+    team: r.team,
+    region: r.region,
+    language: r.language,
+    groupId: r.groupId,
+    groupName: r.groupName,
+    avatarColor: r.avatarColor,
+    avatarUrl: r.avatarUrl,
+    kind: r.kind,
+    provider: r.provider,
+    model: r.model,
+    deployedAt: r.deployedAt,
+    responseScore: r.responseScore != null ? Number(r.responseScore) : null,
+    evalScore: r.evalScore != null ? Number(r.evalScore) : null,
+    openEvals: Number(r.openEvals),
+    lastEvaluatedAtMs:
+      r.lastEvaluatedAtMs != null ? Number(r.lastEvaluatedAtMs) : null,
+  }));
+
+  // Count AI agents in the FULL workspace (independent of the kind filter) so
+  // the empty-state hint can be shown when the workspace genuinely has none.
+  const [aiCountRow] = await db
+    .select({ count: sql<number>`COUNT(*)` })
+    .from(schema.teamMembers)
+    .where(
+      and(workspaceWhere, eq(schema.teamMembers.kind, "ai_agent")),
+    );
+
+  return {
+    rows,
+    total: rows.length,
+    aiAgentCount: Number(aiCountRow?.count ?? 0),
+  };
+}
+
+const AGENT_SORT_MAP: Record<string, AnyColumn | SQL> = {
+  name: schema.teamMembers.name,
+  role: schema.teamMembers.role,
+  team: schema.teamMembers.team,
+  kind: schema.teamMembers.kind,
+  provider: schema.teamMembers.provider,
+  model: schema.teamMembers.model,
+  email: schema.teamMembers.email,
+  id: schema.teamMembers.id,
+  response_score: agentResponseScoreExpr,
+  eval_score: agentEvalScoreExpr,
+  open_evals: agentOpenEvalsExpr,
+  last_evaluated_at: agentLastEvaluatedAtExpr,
+  deployed_at: schema.teamMembers.deployedAt,
+};
+
+function buildAgentOrderBy(sorts: SortSpec[]): SQL[] {
+  const out: SQL[] = [];
+  for (const s of sorts) {
+    const col = AGENT_SORT_MAP[s.key];
+    if (!col) continue;
+    out.push(s.dir === "asc" ? asc(col) : desc(col));
+  }
+  // Default: humans first (alphabetical), then AI agents alphabetical.
+  // Achieved with kind ASC ('ai_agent' < 'human' alphabetically — invert by
+  // sorting kind DESC so 'human' rows come first), then name ASC.
+  if (out.length === 0) {
+    out.push(desc(schema.teamMembers.kind), asc(schema.teamMembers.name));
+  }
+  return out;
 }
 
 export type TeamMemberDetail = TeamMember & {

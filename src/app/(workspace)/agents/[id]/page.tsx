@@ -1,7 +1,9 @@
-import { NextResponse } from "next/server";
+import { notFound } from "next/navigation";
+import { Topbar } from "@/components/shell/topbar";
+import { TeamMemberDetailBody } from "@/components/team-members/team-member-detail";
+import { DetailActions } from "@/components/shared/detail-actions";
 import { db, schema } from "@/db/client";
-import { and, eq } from "drizzle-orm";
-import { requireWorkspace } from "@/lib/workspace";
+import { eq } from "drizzle-orm";
 import {
   getRatingHistogram,
   getTeamMemberById,
@@ -11,25 +13,17 @@ import {
   getTeamMemberQaTiles,
   getTeamMemberResponses,
   getTeamMemberTickets,
-  type TeamMemberListRow,
 } from "@/db/queries/team-members";
+import type { TeamMemberListRow } from "@/db/queries/team-members";
 
-export const dynamic = "force-dynamic";
-
-export async function GET(
-  _req: Request,
-  { params }: { params: Promise<{ id: string }> },
+export default async function AgentDetailPage(
+  props: PageProps<"/agents/[id]">,
 ) {
-  const { id } = await params;
-  // getTeamMemberById is workspace-scoped — once it returns a member, we
-  // know it's in this workspace; but the group lookup below also needs
-  // workspace defense in depth (a forged groupId is otherwise an id-only
-  // SELECT into a workspace-scoped table).
-  const workspaceId = await requireWorkspace();
+  const { id } = await props.params;
+
   const member = await getTeamMemberById(id);
-  if (!member) {
-    return NextResponse.json({ error: "not found" }, { status: 404 });
-  }
+  if (!member) notFound();
+
   const [
     tickets,
     responses,
@@ -51,12 +45,7 @@ export async function GET(
       ? db
           .select({ name: schema.teamMemberGroups.name })
           .from(schema.teamMemberGroups)
-          .where(
-            and(
-              eq(schema.teamMemberGroups.id, member.groupId),
-              eq(schema.teamMemberGroups.workspaceId, workspaceId),
-            ),
-          )
+          .where(eq(schema.teamMemberGroups.id, member.groupId))
           .limit(1)
           .then((rows) => rows[0] ?? null)
       : Promise.resolve(null),
@@ -81,15 +70,26 @@ export async function GET(
     totalResponses: member.stats.totalResponses,
   };
 
-  return NextResponse.json({
-    member,
-    memberRow,
-    tickets,
-    responses,
-    histogram,
-    qaRollup,
-    qaTiles,
-    qaSparklines,
-    coachingFeed,
-  });
+  return (
+    <>
+      <Topbar
+        crumbs={[
+          { label: "Agents", href: "/agents" },
+          { label: member.name },
+        ]}
+        actions={<DetailActions entityHref={`/agents/${member.id}`} />}
+      />
+      <TeamMemberDetailBody
+        member={member}
+        memberRow={memberRow}
+        tickets={tickets}
+        responses={responses}
+        histogram={histogram}
+        qaRollup={qaRollup}
+        qaTiles={qaTiles}
+        qaSparklines={qaSparklines}
+        coachingFeed={coachingFeed}
+      />
+    </>
+  );
 }

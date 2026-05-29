@@ -1,9 +1,11 @@
 "use client";
 
-import { Star } from "lucide-react";
+import { Bot, Cpu, ShieldAlert, Star } from "lucide-react";
 import { useEffect } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Avatar } from "@/components/shared/avatar";
+import { StatCard } from "@/components/shared/stat-card";
+import { TimestampTooltip } from "@/components/shared/timestamp-tooltip";
 import { ColumnStateProvider } from "@/lib/column-prefs";
 import { useTeamMemberProperties } from "@/lib/properties/custom-fields-context";
 import { TICKET_PROPERTIES } from "@/lib/properties/tickets";
@@ -22,7 +24,8 @@ import { SortControl } from "@/components/shared/sort-control";
 import { decodeGroup } from "@/lib/group/url-state";
 import { resolveAvatar } from "@/lib/avatar";
 import { recordEntityView } from "@/lib/recent-pages";
-import { formatNumber } from "@/lib/format";
+import { formatNumber, formatRelative } from "@/lib/format";
+import { providerLabel } from "@/lib/team-members/provider-display";
 import type {
   TeamMemberCoachingFeedItem,
   TeamMemberDetail,
@@ -129,9 +132,15 @@ export function TeamMemberDetailBody({
     member.avatarColor,
   ]);
 
+  const isAiAgent = member.kind === "ai_agent";
   const avgRating = member.stats.avgRating;
+  // Low-performer flag is a human-only signal — AI agents have their own
+  // detector (Phase 3 Bullshit Detector) so we don't double-flag.
   const isLowPerformer =
-    avgRating != null && avgRating < 3.5 && member.stats.totalResponses >= 20;
+    !isAiAgent &&
+    avgRating != null &&
+    avgRating < 3.5 &&
+    member.stats.totalResponses >= 20;
 
   const header = (
     <div className="flex items-center gap-3">
@@ -145,15 +154,55 @@ export function TeamMemberDetailBody({
         size="xl"
       />
       <div className="min-w-0">
-        <h1 className="text-3xl font-semibold tracking-tight truncate">
-          {member.name}
-        </h1>
-        <div className="mt-0.5 text-base text-muted-foreground truncate">
-          {member.role}
-          <span className="mx-2 text-border">·</span>
-          {member.team}
-          <span className="mx-2 text-border">·</span>
-          {member.email}
+        <div className="flex items-center gap-2">
+          <h1 className="text-3xl font-semibold tracking-tight truncate">
+            {member.name}
+          </h1>
+          {isAiAgent && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-purple-lighter px-2 py-0.5 text-sm font-medium text-purple-darker">
+              <Bot size={12} />
+              AI agent
+            </span>
+          )}
+        </div>
+        <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-base text-muted-foreground">
+          <span className="truncate">{member.role}</span>
+          <span className="text-border">·</span>
+          <span className="truncate">{member.team}</span>
+          {isAiAgent ? (
+            <>
+              {member.provider && (
+                <>
+                  <span className="text-border">·</span>
+                  <span className="inline-flex items-center gap-1 rounded bg-muted px-1.5 py-0.5 text-sm">
+                    <Bot size={11} />
+                    {providerLabel(member.provider)}
+                  </span>
+                </>
+              )}
+              {member.model && (
+                <span className="inline-flex items-center gap-1 rounded bg-muted px-1.5 py-0.5 font-mono text-sm">
+                  <Cpu size={11} />
+                  {member.model}
+                </span>
+              )}
+              {member.deployedAt && (
+                <>
+                  <span className="text-border">·</span>
+                  <TimestampTooltip date={member.deployedAt.getTime()}>
+                    <span className="cursor-default">
+                      Deployed {formatRelative(member.deployedAt.getTime())}
+                    </span>
+                  </TimestampTooltip>
+                </>
+              )}
+            </>
+          ) : (
+            <>
+              <span className="text-border">·</span>
+              <span className="truncate">{member.email}</span>
+            </>
+          )}
         </div>
       </div>
       {isLowPerformer && (
@@ -163,6 +212,22 @@ export function TeamMemberDetailBody({
       )}
     </div>
   );
+
+  // Phase 3 lands the actual Bullshit Detector. This is the empty hero slot
+  // so the AI-agent profile already shows where that flag count will surface.
+  const bullshitDetectorSlot = isAiAgent ? (
+    <div className="mt-6 max-w-md">
+      <StatCard
+        label="Bullshit detector"
+        value={
+          <span className="inline-flex items-center gap-2 text-muted-foreground">
+            <ShieldAlert size={20} />0 flagged
+          </span>
+        }
+        hint="No bullshit flags yet — Phase 3 lands the detector."
+      />
+    </div>
+  ) : null;
 
   const properties = (
     <ColumnStateProvider
@@ -184,6 +249,8 @@ export function TeamMemberDetailBody({
 
   const content = (
     <>
+      {bullshitDetectorSlot}
+
       <DetailSection title="Rating distribution">
         <div className="rounded-md border border-border bg-background px-5 py-4 max-w-2xl">
           <RatingHistogram data={histogram} />

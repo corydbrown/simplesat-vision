@@ -52,6 +52,17 @@ export const TEAM_MEMBER_RESOLUTION_RULES: readonly TeamMemberResolutionRule[] =
   "most_time_logged",
   "opened_by",
 ] as const;
+/** What sort of agent a `team_member` row represents. `human` is the default
+ *  and covers every seeded/synced person. `ai_agent` is an AI deflection /
+ *  resolution bot (Intercom Fin, Decagon, a custom Anthropic agent, …) that
+ *  handles conversations and gets QA-scored just like a human. The discriminant
+ *  for the polymorphism the whole Quality epic reads from: each `ai_agent` row
+ *  carries the `provider` / `model` / `systemPromptUrl` / `deployedAt` sidecar
+ *  metadata below; those stay NULL on `human` rows. Kept as an enum column (not
+ *  a separate `bots` table) because the two kinds share every operational
+ *  surface — tickets, responses, evaluations, coaching all key on
+ *  `team_member_id` regardless of kind. */
+export type TeamMemberKind = "human" | "ai_agent";
 /** Provenance of a CSAT/QA response. `simplesat` is a native survey response;
  *  the others are source-imported CSAT. Free text so new sources don't gate
  *  on a schema change. */
@@ -355,6 +366,31 @@ export const teamMembers = sqliteTable(
     /** Core: canonical group assignment (FK to team_member_groups). Mirrors
      *  Zendesk Groups; the team member can belong to one primary group. */
     groupId: text("group_id").references(() => teamMemberGroups.id),
+    /** Human vs AI agent (see `TeamMemberKind`). NOT NULL with a `human`
+     *  default so existing rows and every human-only insert path (seed,
+     *  helpdesk sync) need no change. The discriminant for the AI sidecar
+     *  columns below. */
+    kind: text("kind", { enum: ["human", "ai_agent"] })
+      .notNull()
+      .$type<TeamMemberKind>()
+      .default("human"),
+    /** AI sidecar (NULL on humans). The vendor/platform powering an `ai_agent`
+     *  — e.g. `intercom_fin`, `decagon`, `anthropic_custom`. Free text, NOT an
+     *  enum: AI vendors proliferate and must never gate on a migration, same
+     *  reasoning as `TicketSource` / `ResponseSource`, and keeps the schema
+     *  platform-agnostic (no hardcoded provider list). */
+    provider: text("provider"),
+    /** AI sidecar (NULL on humans). The specific model/version the agent runs
+     *  — e.g. `claude-opus-4-7`, `fin-v2`. Free text for the same reason as
+     *  `provider`; the model axis is orthogonal to the provider/platform axis. */
+    model: text("model"),
+    /** AI sidecar (NULL on humans). Link to the agent's system prompt /
+     *  configuration doc, for auditability of how the bot was instructed. */
+    systemPromptUrl: text("system_prompt_url"),
+    /** AI sidecar (NULL on humans). When this agent went live. Stored as a ms
+     *  timestamp to match every other timestamp column in the schema
+     *  (`createdAt`, `updatedAt`, `users.lastSeenAt`) → `Date | null` in TS. */
+    deployedAt: integer("deployed_at", { mode: "timestamp_ms" }),
     /** The member's id in its source system (helpdesk / CRM). Renamed from
      *  `helpdeskExternalId`. */
     externalId: text("external_id"),
@@ -1710,8 +1746,18 @@ export type NewWorkspaceApiKey = typeof workspaceApiKeys.$inferInsert;
 
 export type Customer = typeof customers.$inferSelect;
 export type NewCustomer = typeof customers.$inferInsert;
+/** Flat DB row. `kind` is the literal union; the AI sidecar columns
+ *  (`provider` / `model` / `systemPromptUrl` / `deployedAt`) are nullable on
+ *  every row. Every `db.select().from(teamMembers)` callsite reads this shape. */
 export type TeamMember = typeof teamMembers.$inferSelect;
 export type NewTeamMember = typeof teamMembers.$inferInsert;
+/** Narrowed variants for consumers that branch on `kind` (agent cards, QA
+ *  attribution, Reports segmentation). These refine the discriminant only —
+ *  the sidecar columns stay nullable because the DB doesn't enforce
+ *  presence-by-kind (that would need a CHECK constraint + table rebuild). A
+ *  runtime type guard lands with its first consumer downstream, not here. */
+export type HumanTeamMember = TeamMember & { kind: "human" };
+export type AiAgentTeamMember = TeamMember & { kind: "ai_agent" };
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
 export type Ticket = typeof tickets.$inferSelect;

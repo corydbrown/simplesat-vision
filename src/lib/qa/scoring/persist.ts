@@ -114,32 +114,35 @@ export async function scoreAndPersistTicket(params: {
     .limit(1);
   if (!ticket) throw new ScoringPreconditionError("Ticket not found");
 
-  // SVP-273: the actor whose work is being scored is now derivable two ways.
-  //   1. Explicit param (`params.scoredTeamMemberId`) — passed by the
-  //      fan-out engine, which has the `scorecards.applies_to` context and
-  //      picks the right human/bot/null per assignment. We honor it
-  //      verbatim, INCLUDING explicit `null` (Resolution scorecards write
-  //      NULL on purpose).
-  //   2. Implicit default — the ticket's currently-assigned human. This
-  //      preserves every pre-SVP-273 caller (seed, manual "Evaluate" action,
-  //      "Run rule once", "Re-score with…" picker) whose mental model is
-  //      "this ticket's assignee is the one being scored." For those
-  //      callers we still throw `ScoringPreconditionError` if no assignee
-  //      exists, because they have no way to express "score this
-  //      conversation against a Resolution scorecard with no actor."
-  const scoredTeamMemberId: string | null =
-    params.scoredTeamMemberId !== undefined
-      ? params.scoredTeamMemberId
-      : ticket.teamMemberId;
-  if (scoredTeamMemberId === null && params.scoredTeamMemberId === undefined) {
-    throw new ScoringPreconditionError(
-      "This ticket has no assigned agent — assign it before evaluating.",
-    );
-  }
+  // SVP-273/274: the actor whose work is being scored is derived in two
+  // passes — explicit param wins; otherwise the default depends on the
+  // resolved scorecard's `applies_to`. The default-derivation runs below,
+  // after the scorecard is loaded (we need its applies_to). For now just
+  // remember whether the caller passed an explicit value so the default
+  // path can branch correctly.
+  const callerPinnedScoredTeamMemberId = params.scoredTeamMemberId !== undefined;
 
+  // SVP-274: join team_members + customers so each ScoringMessage carries
+  // enough identity for the prompt-builder to tag agent turns as
+  // `[HUMAN: name]` / `[AI: name]`. Bot detection mirrors try-auto-score.ts:
+  // primary signal is `team_members.kind='ai_agent'`; fallback for legacy /
+  // pre-SVP-269 rows is `author_subtype='bot' + team_member_id IS NULL`.
   const messageRows = await db
-    .select()
+    .select({
+      message: schema.ticketMessages,
+      teamMemberName: schema.teamMembers.name,
+      teamMemberKind: schema.teamMembers.kind,
+      customerName: schema.customers.name,
+    })
     .from(schema.ticketMessages)
+    .leftJoin(
+      schema.teamMembers,
+      eq(schema.teamMembers.id, schema.ticketMessages.teamMemberId),
+    )
+    .leftJoin(
+      schema.customers,
+      eq(schema.customers.id, schema.ticketMessages.customerId),
+    )
     .where(eq(schema.ticketMessages.ticketId, ticketId))
     .orderBy(asc(schema.ticketMessages.createdAt));
   if (messageRows.length === 0) {
@@ -147,14 +150,45 @@ export async function scoreAndPersistTicket(params: {
       "This ticket has no messages — there's nothing to evaluate.",
     );
   }
-  const messages: ScoringMessage[] = messageRows.map((m) => ({
-    id: m.id,
-    authorRole: m.authorRole,
-    authorName: null,
-    body: m.body,
-    isPublic: m.isPublic,
-    createdAt: m.createdAt,
-  }));
+  // SVP-274: snapshot the first identified bot team_member id so the
+  // default-derivation below can attribute an AI eval to Fin without
+  // re-scanning. Mirrors the actor-signature build in try-auto-score.ts.
+  let aiTeamMemberIdFromMessages: string | null = null;
+  for (const row of messageRows) {
+    if (row.message.authorRole !== "agent") continue;
+    if (
+      row.teamMemberKind === "ai_agent" &&
+      row.message.teamMemberId &&
+      aiTeamMemberIdFromMessages === null
+    ) {
+      aiTeamMemberIdFromMessages = row.message.teamMemberId;
+      break;
+    }
+  }
+
+  const messages: ScoringMessage[] = messageRows.map((row) => {
+    const m = row.message;
+    let authorSubtype: ScoringMessage["authorSubtype"] = null;
+    let authorName: string | null = null;
+    if (m.authorRole === "agent") {
+      const isBotById = row.teamMemberKind === "ai_agent";
+      const isBotByFallback =
+        m.authorSubtype === "bot" && m.teamMemberId === null;
+      authorSubtype = isBotById || isBotByFallback ? "bot" : "human";
+      authorName = row.teamMemberName ?? null;
+    } else if (m.authorRole === "customer") {
+      authorName = row.customerName ?? null;
+    }
+    return {
+      id: m.id,
+      authorRole: m.authorRole,
+      authorName,
+      authorSubtype,
+      body: m.body,
+      isPublic: m.isPublic,
+      createdAt: m.createdAt,
+    };
+  });
 
   // Customer CSAT rating projected to 1-5 (conditions the mock). Filter to
   // the live (non-superseded) response so QA scoring sees the Simplesat-native
@@ -247,11 +281,41 @@ export async function scoreAndPersistTicket(params: {
     }
   }
 
-  // SVP-273: defense-in-depth. The picker layer should never hand us a
-  // Human scorecard with a null actor (it prunes those), but a manual
-  // caller passing `scoredTeamMemberId: null` against a Human scorecard
-  // would otherwise silently write a meaningless eval. Catch it here so
-  // the failure surfaces with a clear precondition error instead.
+  // SVP-273/274: derive the actor whose work is being scored.
+  //   - Explicit caller param wins (the fan-out engine passes it). We honor
+  //     it verbatim, including explicit `null` (Resolution writes NULL).
+  //   - Otherwise default from `scorecard.appliesTo`:
+  //       human      → ticket.teamMemberId (the assignee; throw if null —
+  //                    this is the historical "Re-score with…" semantics).
+  //       ai         → the bot team_member_id from messages (Fin's id);
+  //                    null is OK if no bot turn has a team_member yet
+  //                    (legacy / pre-SVP-269 rows).
+  //       resolution → always null (no actor — the customer outcome is the
+  //                    subject of evaluation).
+  let scoredTeamMemberId: string | null;
+  if (callerPinnedScoredTeamMemberId) {
+    scoredTeamMemberId = params.scoredTeamMemberId ?? null;
+  } else {
+    switch (scorecard.appliesTo) {
+      case "human":
+        scoredTeamMemberId = ticket.teamMemberId;
+        if (scoredTeamMemberId === null) {
+          throw new ScoringPreconditionError(
+            "This ticket has no assigned agent — assign it before evaluating.",
+          );
+        }
+        break;
+      case "ai":
+        scoredTeamMemberId = aiTeamMemberIdFromMessages;
+        break;
+      case "resolution":
+        scoredTeamMemberId = null;
+        break;
+    }
+  }
+
+  // Defense-in-depth: a caller that passed `scoredTeamMemberId: null` against
+  // a Human scorecard would otherwise silently write a meaningless eval.
   if (scorecard.appliesTo === "human" && scoredTeamMemberId === null) {
     throw new ScoringPreconditionError(
       "Human scorecards require a non-null scored_team_member_id.",
@@ -344,6 +408,9 @@ export async function scoreAndPersistTicket(params: {
     },
     messages,
     scorecard: scoringScorecard,
+    // SVP-274: target mirrors the scorecard's applies_to. Drives prompt
+    // segmentation (which agent turns are in scope) inside buildSystemPrompt.
+    target: scorecard.appliesTo,
   };
   const output = await provider.scoreConversation(input);
 

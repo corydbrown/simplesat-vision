@@ -1,5 +1,3 @@
-import Link from "next/link";
-import { ArrowUpRight } from "lucide-react";
 import {
   CustomerPill,
   TeamMemberPill,
@@ -7,26 +5,22 @@ import {
 } from "@/components/shared/entity-pill";
 import { EvaluationStatusPill } from "@/components/qa/evaluation-status-pill";
 import { QaScoreBadge } from "@/components/shared/qa-score-badge";
-import { VersionPicker } from "@/components/coaching/version-picker";
 import type { CoachingDetail } from "@/db/queries/coaching";
-import type { EvaluationVersionRow } from "@/db/queries/evaluations";
 
 /** Server-rendered header block for the coaching detail page — ticket
  *  metadata + evaluation status. Sits above the interactive CoachingTicket
- *  client component. */
+ *  client component.
+ *
+ *  SVP-274: version picker + "newer version available" link were removed
+ *  from this header. With the tri-card switcher above, each target owns
+ *  its own VersionPicker filtered to that target's history — a single
+ *  header-level picker across all targets reads confusingly. */
 export function CoachingTicketHeader({
   detail,
-  versions,
 }: {
   detail: CoachingDetail;
-  versions: EvaluationVersionRow[];
 }) {
   const { ticket, evaluation } = detail;
-  const latestVersion = versions[0];
-  const isOlderVersion =
-    versions.length > 1 &&
-    latestVersion !== undefined &&
-    latestVersion.id !== evaluation.id;
 
   return (
     <header className="mb-4 space-y-3">
@@ -36,20 +30,6 @@ export function CoachingTicketHeader({
           externalId={ticket.externalId}
           size="sm"
         />
-        <VersionPicker
-          currentEvaluationId={evaluation.id}
-          versions={versions}
-          size="sm"
-        />
-        {isOlderVersion && (
-          <Link
-            href={`/evaluations/${latestVersion.id}`}
-            className="inline-flex items-center gap-1 text-blue-dark hover:underline"
-          >
-            <span>Newer version available · v{latestVersion.scorecardVersion}</span>
-            <ArrowUpRight size={12} />
-          </Link>
-        )}
         <span>·</span>
         <span className="capitalize">{ticket.channel}</span>
         <span>·</span>

@@ -2,7 +2,7 @@ import "server-only";
 import { and, asc, eq, isNull, sql } from "drizzle-orm";
 import { db, schema } from "../client";
 import { requireWorkspace } from "@/lib/workspace";
-import type { ScorecardScaleType } from "@/db/schema";
+import type { ScorecardAppliesTo, ScorecardScaleType } from "@/db/schema";
 
 export type ScorecardSummary = {
   id: string;
@@ -55,6 +55,9 @@ export type LiveScorecardPickerRow = {
   id: string;
   name: string;
   version: number;
+  /** SVP-274: lets per-card RescoreWithPicker on the tri-card eval surface
+   *  filter to scorecards matching its card's target. */
+  appliesTo: ScorecardAppliesTo;
 };
 
 /** Live (non-archived) scorecards for this workspace, ordered by name. Cheap
@@ -67,6 +70,7 @@ export async function listLiveScorecardsForPicker(): Promise<LiveScorecardPicker
       id: schema.scorecards.id,
       name: schema.scorecards.name,
       version: schema.scorecards.version,
+      appliesTo: schema.scorecards.appliesTo,
     })
     .from(schema.scorecards)
     .where(

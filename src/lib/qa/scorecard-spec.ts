@@ -6,6 +6,7 @@ import type {
   NewScorecard,
   NewScorecardCategory,
   NewScorecardCriterion,
+  ScorecardAppliesTo,
   ScorecardScaleType,
 } from "@/db/schema";
 
@@ -40,6 +41,10 @@ export type CodeDefinedScorecard = {
   name: string;
   enabled: true;
   version: number;
+  /** SVP-274: which actor this rubric scores. Maps to `scorecards.applies_to`.
+   *  Optional in the spec for backward-compat — defaults to 'human' (the
+   *  pre-SVP-274 behavior) at install time. */
+  appliesTo?: ScorecardAppliesTo;
   /** Auto-fail floor: when any binary auto-fail criterion fails, the
    *  evaluation's overall score is clamped to this value. */
   autoFailFloor: number;
@@ -108,6 +113,7 @@ export async function installCodeDefinedScorecard(
     name: spec.name,
     enabled: spec.enabled,
     version: spec.version,
+    appliesTo: spec.appliesTo ?? "human",
     archivedAt: null,
     scoringPhilosophy: spec.scoringPhilosophy,
     bandDescriptors: spec.bandDescriptors,

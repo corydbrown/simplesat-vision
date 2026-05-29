@@ -303,6 +303,11 @@ export async function previewScoreWithDraft(
     id: m.id,
     authorRole: m.authorRole,
     authorName: null,
+    // SVP-274: the editor preview path doesn't join team_members; bot
+    // detection isn't load-bearing here (preview is human-rubric only —
+    // see the appliesTo lookup below). Treat agent turns as human, others
+    // as null.
+    authorSubtype: m.authorRole === "agent" ? "human" : null,
     body: m.body,
     isPublic: m.isPublic,
     createdAt: m.createdAt,
@@ -322,6 +327,7 @@ export async function previewScoreWithDraft(
       bandDescriptors: schema.scorecards.bandDescriptors,
       domainContext: schema.scorecards.domainContext,
       toneExpectations: schema.scorecards.toneExpectations,
+      appliesTo: schema.scorecards.appliesTo,
     })
     .from(schema.scorecards)
     .where(
@@ -387,6 +393,9 @@ export async function previewScoreWithDraft(
     },
     messages,
     scorecard: scoringScorecard,
+    // SVP-274: editor preview mirrors the live scorecard's applies_to so
+    // the rendered prompt matches what a real Re-evaluate would send.
+    target: liveScorecardContext?.appliesTo ?? "human",
   };
 
   const provider = new MockScoringProvider();

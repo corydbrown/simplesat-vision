@@ -13,7 +13,11 @@ import { compileGroupOrderBy } from "@/lib/group/compile";
 import { COACHING_GROUP_FIELDS } from "@/lib/group/fields/coaching";
 import type { GroupSpec } from "@/lib/group/types";
 import type { SortSpec } from "@/lib/sort/url-state";
-import type { Evaluation, QaEvaluationStatus } from "../schema";
+import type {
+  Evaluation,
+  QaEvaluationStatus,
+  ScorecardAppliesTo,
+} from "../schema";
 
 export type EvaluationSortKey =
   | "overall_score"
@@ -181,13 +185,29 @@ export type EvaluationSummary = {
 
 export type EvaluationVersionRow = {
   id: string;
+  scorecardId: string;
   scorecardVersion: number;
   /** Scorecard name as-of this evaluation's version (snapshot, not live).
    *  A renamed scorecard won't retroactively rebrand historical evals. */
   scorecardName: string;
+  /** SVP-274: target this row evaluates. Drives the tri-card grouping on
+   *  the evaluation detail page (AI / Human / Resolution). */
+  appliesTo: ScorecardAppliesTo;
   overallScore: number;
   scoredAt: Date;
   status: QaEvaluationStatus;
+  /** Model snapshot — written at score time. Surfaced on each tri-card so
+   *  the user can see which model produced each target's eval. Null when
+   *  the row predates the column (unlikely on a fresh DB). */
+  aiModel: string;
+  /** The actor whose work this row evaluates. Null for Resolution scorecards
+   *  by design (no actor — the customer outcome is the subject); also null
+   *  for AI rows pre-SVP-269/1c that didn't backfill `aiTeamMemberId`. */
+  scoredTeamMember: {
+    id: string;
+    name: string;
+    avatarColor: string;
+  } | null;
 };
 
 /** Returns every evaluation for a given ticket, ordered newest-version-first.
@@ -200,11 +220,19 @@ export async function listEvaluationsForTicket(
   const rows = await db
     .select({
       id: schema.evaluations.id,
+      scorecardId: schema.evaluations.scorecardId,
       scorecardVersion: schema.scorecardVersions.version,
       scorecardName: schema.scorecardVersions.name,
+      appliesTo: schema.scorecards.appliesTo,
       overallScore: schema.evaluations.overallScore,
       scoredAt: schema.evaluations.scoredAt,
       status: schema.evaluations.status,
+      aiModel: schema.evaluations.aiModel,
+      scoredTeamMember: {
+        id: schema.teamMembers.id,
+        name: schema.teamMembers.name,
+        avatarColor: schema.teamMembers.avatarColor,
+      },
     })
     .from(schema.evaluations)
     .innerJoin(
@@ -213,6 +241,14 @@ export async function listEvaluationsForTicket(
         schema.scorecardVersions.id,
         schema.evaluations.scorecardVersionId,
       ),
+    )
+    .innerJoin(
+      schema.scorecards,
+      eq(schema.scorecards.id, schema.evaluations.scorecardId),
+    )
+    .leftJoin(
+      schema.teamMembers,
+      eq(schema.teamMembers.id, schema.evaluations.scoredTeamMemberId),
     )
     .where(
       and(
@@ -224,7 +260,10 @@ export async function listEvaluationsForTicket(
       desc(schema.scorecardVersions.version),
       desc(schema.evaluations.scoredAt),
     );
-  return rows;
+  return rows.map((r) => ({
+    ...r,
+    scoredTeamMember: r.scoredTeamMember?.id ? r.scoredTeamMember : null,
+  }));
 }
 
 /** Minimal evaluation lookup for the placeholder detail route. The rich

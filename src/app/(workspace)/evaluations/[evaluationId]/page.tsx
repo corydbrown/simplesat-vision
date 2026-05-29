@@ -5,7 +5,7 @@ import { CoachingEvalFooter } from "@/components/coaching/coaching-eval-footer";
 import { CoachingTicket } from "@/components/coaching/coaching-ticket";
 import { CoachingTicketHeader } from "@/components/coaching/coaching-ticket-header";
 import { ConfigureScorecardItem } from "@/components/coaching/configure-scorecard-item";
-import { RescoreWithPicker } from "@/components/coaching/rescore-with-picker";
+import { EvalTargetCards } from "@/components/coaching/eval-target-cards";
 import { getCoachingDetail } from "@/db/queries/coaching";
 import { listEvaluationsForTicket } from "@/db/queries/evaluations";
 import { listLiveScorecardsForPicker } from "@/db/queries/scorecards";
@@ -53,22 +53,21 @@ export default async function EvaluationDetailPage(
           { label: crumbLabel },
         ]}
         actions={
-          <div className="flex items-center gap-2">
-            <RescoreWithPicker
-              ticketId={detail.ticket.id}
-              scorecards={liveScorecards}
-              currentScorecardId={detail.evaluation.scorecard.id}
-              defaultScorecardId={workspace?.defaultScorecardId ?? null}
-            />
-            <DetailActions
-              entityHref={`/evaluations/${detail.evaluation.id}`}
-              extraItems={<ConfigureScorecardItem />}
-            />
-          </div>
+          <DetailActions
+            entityHref={`/evaluations/${detail.evaluation.id}`}
+            extraItems={<ConfigureScorecardItem />}
+          />
         }
       />
       <main className="px-14 py-10">
-        <CoachingTicketHeader detail={detail} versions={versions} />
+        <EvalTargetCards
+          ticketId={detail.ticket.id}
+          activeEvaluationId={detail.evaluation.id}
+          versions={versions}
+          liveScorecards={liveScorecards}
+          defaultScorecardId={workspace?.defaultScorecardId ?? null}
+        />
+        <CoachingTicketHeader detail={detail} />
         <CoachingTicket detail={detail} />
         {currentUser && (
           <FeedbackSection

@@ -20,6 +20,7 @@ function makeInput(overrides?: Partial<ScoringInput>): ScoringInput {
         id: "msg_1",
         authorRole: "customer",
         authorName: "Dana",
+        authorSubtype: null,
         body: "Where is my refund?",
         isPublic: true,
         createdAt: new Date("2026-01-01T00:00:00Z"),
@@ -28,11 +29,13 @@ function makeInput(overrides?: Partial<ScoringInput>): ScoringInput {
         id: "msg_2",
         authorRole: "agent",
         authorName: null,
+        authorSubtype: "human",
         body: "Internal: checking with billing.",
         isPublic: false,
         createdAt: new Date("2026-01-01T01:00:00Z"),
       },
     ],
+    target: "human",
     scorecard: {
       id: "sc_1",
       name: "IQS",
@@ -117,14 +120,76 @@ describe("buildUserPrompt", () => {
     const out = buildUserPrompt(makeInput());
     expect(out).toContain("Ticket id: tic_1");
     expect(out).toContain("Message 1 (id: msg_1, customer (Dana)):");
-    // null authorName → role only, and isPublic:false → [internal]
-    expect(out).toContain("Message 2 (id: msg_2, agent [internal]):");
+    // SVP-274: agent turns get a `[HUMAN]` / `[AI]` tag; null name + human
+    // subtype renders bare `[HUMAN]`; isPublic:false still adds ` [internal]`.
+    expect(out).toContain("Message 2 (id: msg_2, [HUMAN] [internal]):");
   });
 
   it("renders (none) when the ticket has no tags", () => {
     const input = makeInput();
     input.ticket.tags = [];
     expect(buildUserPrompt(input)).toContain("Tags: (none)");
+  });
+
+  it("tags agent turns by authorSubtype: [HUMAN: name] and [AI: name]", () => {
+    const input = makeInput({
+      messages: [
+        {
+          id: "m1",
+          authorRole: "customer",
+          authorName: "Dana",
+          authorSubtype: null,
+          body: "Where is my refund?",
+          isPublic: true,
+          createdAt: new Date("2026-01-01T00:00:00Z"),
+        },
+        {
+          id: "m2",
+          authorRole: "agent",
+          authorName: "Maya",
+          authorSubtype: "human",
+          body: "Looking now.",
+          isPublic: true,
+          createdAt: new Date("2026-01-01T01:00:00Z"),
+        },
+        {
+          id: "m3",
+          authorRole: "agent",
+          authorName: "Fin",
+          authorSubtype: "bot",
+          body: "Your order #ABC-123 shipped yesterday.",
+          isPublic: true,
+          createdAt: new Date("2026-01-01T02:00:00Z"),
+        },
+      ],
+    });
+    const out = buildUserPrompt(input);
+    expect(out).toContain("customer (Dana)");
+    expect(out).toContain("[HUMAN: Maya]");
+    expect(out).toContain("[AI: Fin]");
+  });
+});
+
+describe("target instruction in system prompt", () => {
+  it("target=human → scores only HUMAN-tagged turns", () => {
+    const out = buildSystemPrompt(makeInput({ target: "human" }));
+    expect(out).toContain("Score only the HUMAN-tagged agent turns");
+    expect(out).not.toContain("Score only the AI-tagged");
+    expect(out).not.toContain("customer outcome");
+  });
+
+  it("target=ai → scores only AI-tagged turns", () => {
+    const out = buildSystemPrompt(makeInput({ target: "ai" }));
+    expect(out).toContain("Score only the AI-tagged agent turns");
+    expect(out).not.toContain("Score only the HUMAN-tagged");
+  });
+
+  it("target=resolution → scores the customer outcome", () => {
+    const out = buildSystemPrompt(makeInput({ target: "resolution" }));
+    expect(out).toContain("customer outcome");
+    expect(out).toContain("both are responsible for the outcome");
+    expect(out).not.toContain("Score only the HUMAN-tagged");
+    expect(out).not.toContain("Score only the AI-tagged");
   });
 });
 

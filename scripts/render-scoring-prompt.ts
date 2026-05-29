@@ -12,10 +12,15 @@
  *   set -a && source .env.local && set +a && \
  *     npx tsx --conditions=react-server scripts/render-scoring-prompt.ts <ticketId> [--scorecard <id>] [--json]
  *
- *   --scorecard <id>  Score against a specific scorecard (defaults to the
- *                     workspace's resolution chain, same as the live app).
- *   --json            Emit the raw `client.messages.create(...)` payload
- *                     instead of the human-readable blocks.
+ *   --scorecard <id>      Score against a specific scorecard (defaults to the
+ *                         workspace's resolution chain, same as the live app).
+ *   --target <h|a|r>      SVP-274: override the prompt's evaluation target
+ *                         (`human` | `ai` | `resolution`) without picking a
+ *                         differently-typed scorecard. Errors when it conflicts
+ *                         with the resolved scorecard's `applies_to` — the
+ *                         mismatch is almost always a mistake worth surfacing.
+ *   --json                Emit the raw `client.messages.create(...)` payload
+ *                         instead of the human-readable blocks.
  */
 import { eq } from "drizzle-orm";
 import { db, schema } from "@/db/client";
@@ -30,6 +35,7 @@ import type {
   ScoringOutput,
   ScoringProvider,
 } from "@/lib/qa/scoring/types";
+import type { ScorecardAppliesTo } from "@/db/schema";
 
 const MODEL = process.env.LLM_MODEL ?? "claude-opus-4-7";
 const MAX_TOKENS = 4096;
@@ -55,15 +61,28 @@ function parseArgs(argv: string[]) {
   const ticketId = argv.find((a) => !a.startsWith("--"));
   const scIdx = argv.indexOf("--scorecard");
   const scorecardId = scIdx >= 0 ? argv[scIdx + 1] : undefined;
+  const tgtIdx = argv.indexOf("--target");
+  const targetRaw = tgtIdx >= 0 ? argv[tgtIdx + 1] : undefined;
+  let target: ScorecardAppliesTo | undefined;
+  if (targetRaw !== undefined) {
+    if (targetRaw === "human" || targetRaw === "ai" || targetRaw === "resolution") {
+      target = targetRaw;
+    } else {
+      console.error(`Invalid --target "${targetRaw}". Expected human|ai|resolution.`);
+      process.exit(1);
+    }
+  }
   const asJson = argv.includes("--json");
-  return { ticketId, scorecardId, asJson };
+  return { ticketId, scorecardId, target, asJson };
 }
 
 async function main() {
-  const { ticketId, scorecardId, asJson } = parseArgs(process.argv.slice(2));
+  const { ticketId, scorecardId, target, asJson } = parseArgs(
+    process.argv.slice(2),
+  );
   if (!ticketId) {
     console.error(
-      "Usage: tsx --conditions=react-server scripts/render-scoring-prompt.ts <ticketId> [--scorecard <id>] [--json]",
+      "Usage: tsx --conditions=react-server scripts/render-scoring-prompt.ts <ticketId> [--scorecard <id>] [--target human|ai|resolution] [--json]",
     );
     process.exit(1);
   }
@@ -95,6 +114,18 @@ async function main() {
   } catch (err) {
     if (!(err instanceof CapturedInput)) throw err; // surfaces precondition errors verbatim
     input = err.input;
+  }
+
+  // SVP-274: honor `--target` override, but only when it agrees with the
+  // resolved scorecard's applies_to — a mismatch (e.g. `--target=ai` against
+  // an IQS/human scorecard) almost always means the user picked the wrong
+  // scorecard, and silently honoring the flag would mask the bug.
+  if (target && target !== input.target) {
+    console.error(
+      `--target=${target} conflicts with scorecard "${input.scorecard.name}" (applies_to=${input.target}). ` +
+        `Pick a scorecard whose applies_to matches the target, or omit --target.`,
+    );
+    process.exit(1);
   }
 
   const system = buildSystemPrompt(input);
@@ -131,7 +162,7 @@ async function main() {
     [
       rule,
       `RENDERED SCORING PROMPT`,
-      `ticket=${input.ticket.id}  scorecard=${input.scorecard.name} (v${input.scorecard.version})  model=${MODEL}`,
+      `ticket=${input.ticket.id}  scorecard=${input.scorecard.name} (v${input.scorecard.version})  target=${input.target}  model=${MODEL}`,
       rule,
       "",
       "########## SYSTEM ##########",

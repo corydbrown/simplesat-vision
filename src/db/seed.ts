@@ -1967,6 +1967,9 @@ async function seed() {
       id: m.id!,
       authorRole: m.authorRole,
       authorName: null,
+      // SVP-274: this map only feeds coaching-comment anchoring, not the
+      // scoring prompt, so subtype isn't load-bearing here. Set to null.
+      authorSubtype: null,
       body: m.body,
       isPublic: m.isPublic === false ? false : true,
       createdAt: m.createdAt as Date,

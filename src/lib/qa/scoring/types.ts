@@ -11,7 +11,7 @@
  * LLM swap painless (and keeps the provider unit-testable without a DB).
  */
 
-import type { ScorecardScaleType } from "@/db/schema";
+import type { ScorecardAppliesTo, ScorecardScaleType } from "@/db/schema";
 
 /** Inputs to scoreConversation — everything the provider needs to score one
  *  ticket end-to-end. Resolved by the caller from DB rows (in seed) or from
@@ -39,12 +39,23 @@ export type ScoringInput = {
   /** The scorecard to score against, in resolved shape (no DB roundtrips
    *  inside the provider). */
   scorecard: ScoringScorecard;
+  /** SVP-274: which actor the scorecard is evaluating. Drives prompt
+   *  segmentation: `human` scores only HUMAN-tagged agent turns, `ai` only
+   *  AI-tagged turns, `resolution` judges the customer outcome (both turn
+   *  kinds are evidence). Mirrors `scorecard.appliesTo` — pulled up onto
+   *  the input so the render-prompt script can override it at debug time
+   *  without forging a whole scorecard row. */
+  target: ScorecardAppliesTo;
 };
 
 export type ScoringMessage = {
   id: string;
   authorRole: "customer" | "agent" | "system";
   authorName: string | null;
+  /** SVP-274: for `authorRole='agent'` turns, distinguishes a human teammate
+   *  from a bot (e.g. Fin) so the prompt-builder can tag the turn as
+   *  `[HUMAN: name]` or `[AI: name]`. Null on customer/system turns. */
+  authorSubtype: "human" | "bot" | null;
   body: string;
   isPublic: boolean;
   createdAt: Date;

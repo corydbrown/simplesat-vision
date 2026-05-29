@@ -17,10 +17,23 @@
 import type {
   ScoringCategory,
   ScoringInput,
+  ScoringMessage,
 } from "./types";
 
+/** SVP-274: build the per-turn author tag rendered in the user prompt. Agent
+ *  turns carry an explicit `[HUMAN]` / `[AI]` tag so the model can resolve
+ *  the system-prompt's target instruction back to a specific subset of
+ *  messages. Customer/system turns keep the original role-shaped label. */
+function formatAuthor(m: ScoringMessage): string {
+  if (m.authorRole === "agent") {
+    const tag = m.authorSubtype === "bot" ? "AI" : "HUMAN";
+    return m.authorName ? `[${tag}: ${m.authorName}]` : `[${tag}]`;
+  }
+  return m.authorName ? `${m.authorRole} (${m.authorName})` : m.authorRole;
+}
+
 export function buildSystemPrompt(input: ScoringInput): string {
-  const { scorecard } = input;
+  const { scorecard, target } = input;
   const categoryBlock = scorecard.categories
     .map((cat) => {
       const criteria = cat.criteria
@@ -90,7 +103,25 @@ export function buildSystemPrompt(input: ScoringInput): string {
     "- coachingNote.strengthPoints and growthPoints: each capped at 3 items, written as direct, specific guidance.",
     "- aiConfidence: float 0-1 reflecting your confidence in the scoring.",
     "- autoFailTriggered: true only if a binary auto-fail category was failed.",
+    "",
+    "Evaluation target:",
+    targetInstruction(target),
   ].join("\n");
+}
+
+/** SVP-274: target-specific instruction. Tells the model which turns are the
+ *  subject of evaluation vs context. Agent turns in the user prompt are
+ *  tagged `[HUMAN: name]` / `[AI: name]`; this block names which tag is
+ *  in-scope for THIS evaluation. */
+function targetInstruction(target: ScoringInput["target"]): string {
+  switch (target) {
+    case "human":
+      return "- Score only the HUMAN-tagged agent turns. AI-tagged turns are context, not subjects of evaluation.";
+    case "ai":
+      return "- Score only the AI-tagged agent turns. HUMAN-tagged turns are context, not subjects of evaluation.";
+    case "resolution":
+      return "- Score the customer outcome — was the customer's problem actually solved with reasonable effort? Both HUMAN and AI turns are evidence; both are responsible for the outcome.";
+  }
 }
 
 export function describeScale(scale: ScoringCategory["scaleType"]): string {
@@ -113,9 +144,7 @@ export function buildUserPrompt(input: ScoringInput): string {
 
   const conversation = messages
     .map((m, idx) => {
-      const author = m.authorName
-        ? `${m.authorRole} (${m.authorName})`
-        : m.authorRole;
+      const author = formatAuthor(m);
       const visibility = m.isPublic ? "" : " [internal]";
       return `Message ${idx + 1} (id: ${m.id}, ${author}${visibility}):\n${m.body}`;
     })

@@ -1,4 +1,4 @@
-import type { Aggregation, BaseEntity, DateBucket } from "./types";
+import type { Aggregation, BaseEntity, DateBucket, FormatType } from "./types";
 import type { DrawerEntity } from "@/components/shared/global-drawer";
 import type { CustomFieldDef } from "@/lib/properties/custom-fields";
 
@@ -32,6 +32,11 @@ export type PivotField = {
    *  display name). Tells the pivot renderer to render the cell as the
    *  matching entity pill — hover popover + click-to-drawer. */
   entity?: DrawerEntity;
+  /** Optional render-time format override for value cells. Threads through
+   *  the compile pipeline as `valueFormatTypes` so the renderer can pick
+   *  it up. Undefined falls back to agg-based defaults (int for sum/count,
+   *  decimal for avg). */
+  formatType?: FormatType;
 };
 
 const COUNT_ONLY: Aggregation[] = ["count"];
@@ -118,6 +123,31 @@ const JOIN_SURVEYS: FieldJoin = {
   alias: "surveys",
   sql: "LEFT JOIN surveys s ON s.id = responses.survey_id",
 };
+
+const JOIN_SCORECARDS: FieldJoin = {
+  alias: "scorecards",
+  sql: "LEFT JOIN scorecards sc ON sc.id = evaluations.scorecard_id",
+};
+
+const JOIN_SCORECARD_VERSIONS: FieldJoin = {
+  alias: "scorecard_versions",
+  sql: "LEFT JOIN scorecard_versions sv ON sv.id = evaluations.scorecard_version_id",
+};
+
+const JOIN_SCORED_TEAM_MEMBERS: FieldJoin = {
+  alias: "scored_team_members",
+  sql: "LEFT JOIN team_members scored_tm ON scored_tm.id = evaluations.scored_team_member_id",
+};
+
+const EVALUATION_STATUS = [
+  "ai_scored",
+  "edited",
+  "contested",
+  "invalidated",
+  "finalized",
+];
+
+const AI_PROVIDER = ["anthropic", "openai", "google", "mock"];
 
 // ---------------------------------------------------------------------------
 // Custom-property pivot fields. Each CustomFieldDef becomes a filterable +
@@ -926,6 +956,154 @@ export function buildPivotFields(
     // are pre-aggregated formulas, so they can only appear in Values.
     ...directMetricFields(),
   ],
+  evaluation: [
+    // Evaluation's own properties
+    {
+      id: "overall_score",
+      label: "Overall score",
+      group: "Evaluation",
+      dataType: "number",
+      aggregations: NUMERIC_AGGS,
+      filterOps: NUMERIC_OPS,
+      groupExpr: "evaluations.overall_score",
+    },
+    {
+      id: "status",
+      label: "Status",
+      group: "Evaluation",
+      dataType: "enum",
+      aggregations: COUNT_ONLY,
+      filterOps: ENUM_OPS,
+      enumValues: EVALUATION_STATUS,
+      groupExpr: "evaluations.status",
+    },
+    {
+      id: "ai_confidence",
+      label: "AI confidence",
+      group: "Evaluation",
+      dataType: "number",
+      aggregations: NUMERIC_AGGS,
+      filterOps: NUMERIC_OPS,
+      groupExpr: "evaluations.ai_confidence",
+    },
+    {
+      id: "scored_at",
+      label: "Scored at",
+      group: "Evaluation",
+      dataType: "date",
+      aggregations: COUNT_ONLY,
+      filterOps: DATE_OPS,
+      bucketable: true,
+      groupExpr: "evaluations.scored_at",
+    },
+    // AI-related properties (the SVP-233 columns)
+    {
+      id: "ai_provider",
+      label: "Provider",
+      group: "AI",
+      dataType: "enum",
+      aggregations: COUNT_ONLY,
+      filterOps: ENUM_OPS,
+      enumValues: AI_PROVIDER,
+      groupExpr: "evaluations.ai_provider",
+    },
+    {
+      id: "ai_model",
+      label: "Model",
+      group: "AI",
+      dataType: "string",
+      aggregations: COUNT_ONLY,
+      filterOps: STRING_OPS,
+      groupExpr: "evaluations.ai_model",
+    },
+    {
+      id: "input_tokens",
+      label: "Input tokens",
+      group: "AI",
+      dataType: "number",
+      aggregations: NUMERIC_AGGS,
+      filterOps: NUMERIC_OPS,
+      groupExpr: "evaluations.input_tokens",
+    },
+    {
+      id: "output_tokens",
+      label: "Output tokens",
+      group: "AI",
+      dataType: "number",
+      aggregations: NUMERIC_AGGS,
+      filterOps: NUMERIC_OPS,
+      groupExpr: "evaluations.output_tokens",
+    },
+    {
+      id: "total_tokens",
+      label: "Total tokens",
+      group: "AI",
+      dataType: "number",
+      aggregations: NUMERIC_AGGS,
+      filterOps: NUMERIC_OPS,
+      groupExpr:
+        "(COALESCE(evaluations.input_tokens, 0) + COALESCE(evaluations.output_tokens, 0))",
+    },
+    {
+      id: "cost_usd_cents",
+      label: "Cost",
+      group: "AI",
+      dataType: "number",
+      aggregations: NUMERIC_AGGS,
+      filterOps: NUMERIC_OPS,
+      groupExpr: "evaluations.cost_usd_cents",
+      formatType: "currency-cents",
+    },
+    // Scorecard (joined)
+    {
+      id: "scorecard",
+      label: "Scorecard",
+      group: "Scorecard",
+      dataType: "relation",
+      aggregations: COUNT_ONLY,
+      filterOps: RELATION_OPS,
+      groupExpr: "evaluations.scorecard_id",
+      labelExpr: "sc.name",
+      joins: [JOIN_SCORECARDS],
+    },
+    {
+      id: "scorecard_version",
+      label: "Scorecard version",
+      group: "Scorecard",
+      dataType: "string",
+      aggregations: COUNT_ONLY,
+      filterOps: STRING_OPS,
+      groupExpr: "sv.version",
+      joins: [JOIN_SCORECARD_VERSIONS],
+    },
+    // Scored agent (joined team_members under a distinct alias so it never
+    // collides with other team_member joins in the same query).
+    {
+      id: "scored_agent",
+      label: "Scored agent",
+      group: "Team member",
+      dataType: "relation",
+      aggregations: COUNT_ONLY,
+      filterOps: RELATION_OPS,
+      groupExpr: "evaluations.scored_team_member_id",
+      labelExpr: "scored_tm.name",
+      joins: [JOIN_SCORED_TEAM_MEMBERS],
+      entity: "team-member",
+    },
+    // Ticket (joined) — falls back to text in the renderer; no ticket pill
+    // in EntityCell yet.
+    {
+      id: "ticket",
+      label: "Ticket",
+      group: "Ticket",
+      dataType: "relation",
+      aggregations: COUNT_ONLY,
+      filterOps: RELATION_OPS,
+      groupExpr: "evaluations.ticket_id",
+      labelExpr: "t.subject",
+      joins: [JOIN_TICKETS("evaluations.ticket_id")],
+    },
+  ],
   };
 
   // Loyalty tier is Bloom-only. Outside Bloom, drop it from every base — the
@@ -950,6 +1128,7 @@ export const GROUP_ORDER: Record<BaseEntity, string[]> = {
   customer: ["Customer", "Activity", "Metrics", "Custom"],
   team_member: ["Team member", "Activity", "Metrics", "Custom"],
   ticket: ["Ticket", "Customer", "Assignee", "Response", "Metrics"],
+  evaluation: ["Evaluation", "AI", "Scorecard", "Team member", "Ticket"],
 };
 
 export const BASE_TABLE: Record<BaseEntity, string> = {
@@ -957,6 +1136,7 @@ export const BASE_TABLE: Record<BaseEntity, string> = {
   customer: "customers",
   team_member: "team_members",
   response: "responses",
+  evaluation: "evaluations",
 };
 
 /** Look up a field by id within an already-built per-base field list. Callers

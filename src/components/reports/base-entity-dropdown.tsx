@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronDown, Inbox, Star, User, Users } from "lucide-react";
+import { ChevronDown, Inbox, Sparkles, Star, User, Users } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -9,10 +9,17 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { BASE_ENTITY_LABEL, type BaseEntity } from "@/lib/reports/types";
 
-const ORDER: BaseEntity[] = ["response", "customer", "team_member", "ticket"];
+const ORDER: BaseEntity[] = [
+  "response",
+  "evaluation",
+  "customer",
+  "team_member",
+  "ticket",
+];
 
 const ICON: Record<BaseEntity, typeof Inbox> = {
   response: Star,
+  evaluation: Sparkles,
   customer: User,
   team_member: Users,
   ticket: Inbox,

@@ -5,7 +5,7 @@ import { DetailSection } from "@/components/shared/detail-section";
 import { formatRelative } from "@/lib/format";
 import { TimestampTooltip } from "@/components/shared/timestamp-tooltip";
 import { QaScoreBadge } from "@/components/shared/qa-score-badge";
-import { QaStatusPill } from "@/components/qa/qa-status-pill";
+import { EvaluationStatusPill } from "@/components/qa/evaluation-status-pill";
 import { EvaluateTicketButton } from "@/components/qa/evaluate-ticket-button";
 import type { LiveScorecardPickerRow } from "@/db/queries/scorecards";
 import type { QaEvaluationView } from "@/db/queries/tickets";
@@ -99,7 +99,7 @@ function ScoredCard({ evaluation }: { evaluation: QaEvaluationView }) {
           status={evaluation.status}
           size="md"
         />
-        <QaStatusPill status={evaluation.status} />
+        <EvaluationStatusPill status={evaluation.status} />
         <span className="text-base text-muted-foreground">
           Scored{" "}
           <TimestampTooltip date={evaluation.scoredAt}>

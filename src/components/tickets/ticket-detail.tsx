@@ -16,7 +16,8 @@ import { ResponsePill } from "@/components/shared/entity-pill";
 import { QaScoreBadge } from "@/components/shared/qa-score-badge";
 import { TicketActivitySection } from "@/components/tickets/ticket-activity";
 import { TicketQaSection } from "@/components/qa/ticket-qa-section";
-import { QaStatusPill } from "@/components/qa/qa-status-pill";
+import { EvaluationStatusPill } from "@/components/qa/evaluation-status-pill";
+import { formatScore } from "@/lib/qa/format-score";
 import type { LiveScorecardPickerRow } from "@/db/queries/scorecards";
 import type {
   QaCategoryView,
@@ -212,7 +213,7 @@ function QaBreakdownSection({
             status={evaluation.status}
             size="md"
           />
-          <QaStatusPill status={evaluation.status} />
+          <EvaluationStatusPill status={evaluation.status} />
           {inDrawer && (
             <Link
               href={`/tickets/${ticketId}#qa`}
@@ -239,7 +240,7 @@ function QaBreakdownSection({
 }
 
 function QaCategoryCard({ category }: { category: QaCategoryView }) {
-  const scoreLabel = formatCategoryScore(category);
+  const scoreLabel = formatScore(category.effectiveScore, category.scaleType);
   return (
     <div className="bg-background px-4 py-3">
       <div className="flex items-baseline justify-between gap-2">
@@ -259,12 +260,3 @@ function QaCategoryCard({ category }: { category: QaCategoryView }) {
   );
 }
 
-function formatCategoryScore(c: QaCategoryView): string {
-  if (c.scaleType === "binary") {
-    return c.effectiveScore >= 1 ? "Pass" : "Fail";
-  }
-  if (c.scaleType === "three_state") {
-    return `${c.effectiveScore} / 2`;
-  }
-  return `${c.effectiveScore} / 5`;
-}

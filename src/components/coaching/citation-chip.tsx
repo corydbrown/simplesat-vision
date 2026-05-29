@@ -2,6 +2,7 @@
 
 import { Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { isBinaryPass } from "@/lib/qa/format-score";
 import {
   HUE_TOKENS,
   hueForCategoryOrder,
@@ -38,7 +39,7 @@ export function CitationChip({
         onClick();
       }}
       aria-label={`${category.name}, ${
-        isBinary ? (score === 1 ? "pass" : "fail") : `${score} out of 5`
+        isBinary ? (isBinaryPass(score) ? "pass" : "fail") : `${score} out of 5`
       }`}
       className={cn(
         "inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-l-2 bg-card/60 px-2 py-0.5 text-sm font-medium shadow-sm transition-all hover:-translate-y-px hover:shadow-md",
@@ -54,7 +55,7 @@ export function CitationChip({
       <span className="inline-flex items-center gap-0.5" aria-hidden>
         {isBinary ? (
           <span className={cn("text-sm tabular-nums", styles.textDark)}>
-            {score === 1 ? "Pass" : "Fail"}
+            {isBinaryPass(score) ? "Pass" : "Fail"}
           </span>
         ) : (
           <DotScale value={score} hue={hue} />

@@ -5,7 +5,7 @@ import {
   TeamMemberPill,
   TicketPill,
 } from "@/components/shared/entity-pill";
-import { EvaluationStatusPill } from "@/components/coaching/evaluation-status-pill";
+import { EvaluationStatusPill } from "@/components/qa/evaluation-status-pill";
 import { QaScoreBadge } from "@/components/shared/qa-score-badge";
 import { VersionPicker } from "@/components/coaching/version-picker";
 import type { CoachingDetail } from "@/db/queries/coaching";

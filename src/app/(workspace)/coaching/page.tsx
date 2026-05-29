@@ -13,6 +13,11 @@ import { COACHING_PROPERTIES, coachingRowHref } from "@/lib/properties/coaching"
 import { parseSortParam } from "@/lib/sort/url-state";
 import { listEvaluations } from "@/db/queries/evaluations";
 
+// SVP-243: NewEvaluationDialog + EvaluateTicketButton both call `evaluateTicket`
+// from this route. Lift the function ceiling so the LLM round-trip (~15-25s)
+// has cold-start headroom. Mirrors `/coaching/[evaluationId]` and `/tickets/[id]`.
+export const maxDuration = 60;
+
 const PAGE_SIZE = 50;
 
 function parsePage(v: string | undefined): number {

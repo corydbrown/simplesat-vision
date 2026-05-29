@@ -13,6 +13,12 @@ import { getCurrentUser } from "@/lib/auth";
 import { listEvaluationFeedback } from "@/lib/qa/feedback/actions";
 import { FeedbackSection } from "./feedback-section";
 
+// SVP-243: the `evaluateTicket` action invoked from RescoreWithPicker makes a
+// real LLM call (~15-25s) before persisting. Vercel's default function budget
+// can cold-start past that; bump the page+action ceiling so the first click
+// doesn't burn while a warmer second click sails through.
+export const maxDuration = 60;
+
 export default async function CoachingDetailPage(
   props: PageProps<"/coaching/[evaluationId]">,
 ) {

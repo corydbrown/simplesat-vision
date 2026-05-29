@@ -62,6 +62,28 @@ export function resolveProviderFromAuthor(authorRaw: unknown): AiProvider {
   return "unknown";
 }
 
+/** Pure. Decide AI attribution for an *ingested* message: returns the provider a
+ *  bot turn should be attributed to, or `null` when the turn is not a bot (human
+ *  agent / customer / system). Drives `team_member_id` resolution in
+ *  `upsertMessage`.
+ *
+ *  Why `intercom_fin` is hardcoded rather than running `resolveProviderFromAuthor`:
+ *  by the time a message reaches ingest, n8n has already coerced Intercom's
+ *  `author` object into `authorRole + authorSubtype` (see `messageIngestSchema`),
+ *  so the raw payload `resolveProviderFromAuthor` needs is gone. Both workspaces
+ *  with bot traffic today (Simplesat + Pronto) run Intercom Fin, so this is
+ *  correct now. Follow-up: plumb the raw `author` through ingest so this can
+ *  call `resolveProviderFromAuthor` for multi-provider attribution. */
+export function resolveBotProviderForMessage(input: {
+  authorRole: string;
+  authorSubtype?: string | null;
+}): AiProvider | null {
+  if (input.authorRole === "agent" && input.authorSubtype === "bot") {
+    return "intercom_fin";
+  }
+  return null;
+}
+
 /** Idempotent. Returns the `team_member.id` for `(workspaceId, kind='ai_agent',
  *  provider)`. Creates the row with default name + DiceBear bottts avatar on
  *  first call; subsequent calls return the existing id without touching the

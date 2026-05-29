@@ -232,6 +232,13 @@
       "when": 1780033065271,
       "tag": "0032_svp235_drop_category_weight",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "6",
+      "when": 1780065276952,
+      "tag": "0033_svp268_team_member_kind",
+      "breakpoints": true
     }
   ]
 }

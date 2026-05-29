@@ -74,6 +74,16 @@ export async function scoreAndPersistTicket(params: {
    *  (SVP-232). NULL = manual / re-score / seed-time. Lets reports group
    *  evals by rule and count cap hits. */
   autoScoringRuleId?: string | null;
+  /** Override the actor whose work is being scored (SVP-273 fan-out). When
+   *  omitted, defaults to `ticket.teamMemberId` — preserving every pre-
+   *  SVP-273 caller's behavior. Pass an explicit value (including `null`)
+   *  for AI/Resolution scorecards: AI evals pin the bot's `team_members.id`
+   *  (or `null` pre-SVP-269/1c); Resolution evals always pin `null`. The
+   *  `scorecards.applies_to` discriminant gates which combinations are
+   *  legal — Human scorecards still require a non-null actor and will
+   *  throw a `ScoringPreconditionError` if neither this param nor the
+   *  ticket's assignee resolves one. */
+  scoredTeamMemberId?: string | null;
 }): Promise<PersistedEvaluation> {
   const provider = params.provider ?? getScoringProvider();
   const { ticketId, workspaceId } = params;
@@ -103,14 +113,29 @@ export async function scoreAndPersistTicket(params: {
     )
     .limit(1);
   if (!ticket) throw new ScoringPreconditionError("Ticket not found");
-  if (!ticket.teamMemberId) {
+
+  // SVP-273: the actor whose work is being scored is now derivable two ways.
+  //   1. Explicit param (`params.scoredTeamMemberId`) — passed by the
+  //      fan-out engine, which has the `scorecards.applies_to` context and
+  //      picks the right human/bot/null per assignment. We honor it
+  //      verbatim, INCLUDING explicit `null` (Resolution scorecards write
+  //      NULL on purpose).
+  //   2. Implicit default — the ticket's currently-assigned human. This
+  //      preserves every pre-SVP-273 caller (seed, manual "Evaluate" action,
+  //      "Run rule once", "Re-score with…" picker) whose mental model is
+  //      "this ticket's assignee is the one being scored." For those
+  //      callers we still throw `ScoringPreconditionError` if no assignee
+  //      exists, because they have no way to express "score this
+  //      conversation against a Resolution scorecard with no actor."
+  const scoredTeamMemberId: string | null =
+    params.scoredTeamMemberId !== undefined
+      ? params.scoredTeamMemberId
+      : ticket.teamMemberId;
+  if (scoredTeamMemberId === null && params.scoredTeamMemberId === undefined) {
     throw new ScoringPreconditionError(
       "This ticket has no assigned agent — assign it before evaluating.",
     );
   }
-  // Pin the narrowed non-null id; the writer closure below loses the
-  // type narrow across its callback boundary.
-  const scoredTeamMemberId: string = ticket.teamMemberId;
 
   const messageRows = await db
     .select()
@@ -220,6 +245,17 @@ export async function scoreAndPersistTicket(params: {
         }
       }
     }
+  }
+
+  // SVP-273: defense-in-depth. The picker layer should never hand us a
+  // Human scorecard with a null actor (it prunes those), but a manual
+  // caller passing `scoredTeamMemberId: null` against a Human scorecard
+  // would otherwise silently write a meaningless eval. Catch it here so
+  // the failure surfaces with a clear precondition error instead.
+  if (scorecard.appliesTo === "human" && scoredTeamMemberId === null) {
+    throw new ScoringPreconditionError(
+      "Human scorecards require a non-null scored_team_member_id.",
+    );
   }
 
   const categoryRows = await db

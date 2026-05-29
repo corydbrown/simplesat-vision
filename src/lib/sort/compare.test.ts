@@ -1,4 +1,3 @@
-import { Hash } from "lucide-react";
 import { describe, expect, it } from "vitest";
 import { applyMultiSort } from "./compare";
 import type { Property } from "@/lib/properties/types";
@@ -18,13 +17,12 @@ function prop<K extends keyof Row>(
     id: id as string,
     label: id as string,
     width: 100,
-    icon: Hash,
     sourceEntity: "row",
     sortable: true,
-    sortValue: (row) =>
+    sortValue: (row: Row) =>
       accessor(row) as string | number | Date | null,
     cell: () => null,
-  };
+  } as unknown as Property<Row>;
 }
 
 const NAME = prop("name", (r) => r.name);

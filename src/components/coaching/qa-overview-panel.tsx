@@ -34,8 +34,10 @@ export function QaOverviewPanel({
       <div className="flex items-center gap-3 p-4">
         <ScoreRing value={evaluation.overallScore} hue={hue} />
         <div className="min-w-0 flex-1">
-          <div className="text-sm text-muted-foreground">QA evaluation</div>
-          <div className="text-base font-medium text-foreground">
+          <div className="truncate text-base font-medium text-foreground">
+            {evaluation.scorecard.name}
+          </div>
+          <div className="text-sm text-muted-foreground">
             {evaluation.status === "edited"
               ? "Edited by reviewer"
               : `AI scored · ${evaluation.aiConfidence}% confidence`}

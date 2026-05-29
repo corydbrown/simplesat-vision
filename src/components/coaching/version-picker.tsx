@@ -97,6 +97,10 @@ export function VersionPicker({
                   <span className="tabular-nums text-foreground">
                     {v.overallScore}/100
                   </span>
+                  <span className="text-muted-foreground">·</span>
+                  <span className="min-w-0 truncate text-muted-foreground">
+                    {v.scorecardName}
+                  </span>
                   {isCurrent && (
                     <span className="ml-auto inline-flex items-center gap-1 text-muted-foreground">
                       <Check size={12} />

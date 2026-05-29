@@ -147,7 +147,7 @@ export async function runAutoScoringRuleNowAction(input: unknown): Promise<{
   const workspaceId = await requireWorkspace();
   const parsed = RunNowSchema.parse(input);
   const result = await runRuleOnce(workspaceId, parsed.id);
-  revalidatePath("/coaching");
+  revalidatePath("/evaluations");
   revalidatePath("/settings/auto-scoring");
   revalidatePath(`/settings/auto-scoring/${parsed.id}`);
   return result;

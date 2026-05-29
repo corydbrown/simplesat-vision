@@ -1,5 +1,6 @@
 import {
   BarChart3,
+  Bot,
   ClipboardCheck,
   Home,
   Inbox,
@@ -71,10 +72,17 @@ const SECTIONS: {
   },
   {
     id: "coaching",
-    label: "Coaching",
+    label: "Evaluations",
     icon: ClipboardCheck,
-    href: "/coaching",
-    keywords: ["qa", "quality", "evaluation", "scoring", "review"],
+    href: "/evaluations",
+    keywords: ["qa", "quality", "coaching", "scoring", "review"],
+  },
+  {
+    id: "agents",
+    label: "Agents",
+    icon: Bot,
+    href: "/agents",
+    keywords: ["bot", "ai", "assistant", "roster"],
   },
   {
     id: "reports",

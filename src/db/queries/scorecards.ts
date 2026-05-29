@@ -58,7 +58,7 @@ export type LiveScorecardPickerRow = {
 };
 
 /** Live (non-archived) scorecards for this workspace, ordered by name. Cheap
- *  read used by the "Re-score with…" picker on `/coaching/[evaluationId]` and
+ *  read used by the "Re-score with…" picker on `/evaluations/[evaluationId]` and
  *  the duplicate-source list in the scorecards settings UI. */
 export async function listLiveScorecardsForPicker(): Promise<LiveScorecardPickerRow[]> {
   const workspaceId = await requireWorkspace();

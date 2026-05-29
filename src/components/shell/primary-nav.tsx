@@ -48,16 +48,23 @@ const ENTITY_SECTIONS: Record<EntityKey, NavSection> = {
   },
   coaching: {
     id: "coaching",
-    label: "Coaching",
+    label: "Evaluations",
     icon: "ClipboardCheck",
     iconClass: "text-icon-coaching",
-    href: "/coaching",
+    href: "/evaluations",
     entityKey: "coaching",
   },
 };
 
 const SECTIONS: NavSection[] = [
   ...NAV_SECTION_ORDER.map((key) => ENTITY_SECTIONS[key]),
+  {
+    id: "agents",
+    label: "Agents",
+    icon: "Bot",
+    iconClass: "text-icon-agents",
+    href: "/agents",
+  },
   {
     id: "reports",
     label: "Reports",

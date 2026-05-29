@@ -201,7 +201,7 @@ export async function editCategoryScore(
  *
  *  Provider is env-selected (`mock` by default; `llm` when configured on the
  *  deploy). Returns the new evaluation id so the client can navigate to
- *  `/coaching/[evaluationId]`.
+ *  `/evaluations/[evaluationId]`.
  *
  *  `scorecardId` (SVP-229) pins which scorecard scores the ticket — passed by
  *  the "Re-score with…" picker on the coaching detail page. When omitted, the
@@ -227,7 +227,7 @@ export async function evaluateTicket(
     });
 
     revalidatePath(`/tickets/${ticketId}`);
-    revalidatePath("/coaching");
+    revalidatePath("/evaluations");
 
     return { evaluationId };
   } catch (err) {

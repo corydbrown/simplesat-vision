@@ -74,7 +74,7 @@ export function VersionPicker({
             return (
               <li key={v.id}>
                 <Link
-                  href={`/coaching/${v.id}`}
+                  href={`/evaluations/${v.id}`}
                   onClick={() => setOpen(false)}
                   aria-current={isCurrent ? "page" : undefined}
                   className={`flex cursor-pointer items-center gap-2 px-3 py-2 text-sm hover:bg-accent ${

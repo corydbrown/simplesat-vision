@@ -668,7 +668,69 @@ export async function archiveScorecard(input: {
     })
     .where(eq(schema.scorecards.id, scorecardId));
 
+  // SVP-242: archiving the workspace default scorecard nulls the FK so the
+  // resolution path falls through cleanly to "oldest live scorecard" rather
+  // than silently pointing at an archived row. Safe to run unconditionally —
+  // the WHERE constrains to the workspace + this specific scorecard.
+  if (input.archived) {
+    await db
+      .update(schema.workspaces)
+      .set({ defaultScorecardId: null })
+      .where(
+        and(
+          eq(schema.workspaces.id, workspaceId),
+          eq(schema.workspaces.defaultScorecardId, scorecardId),
+        ),
+      );
+  }
+
   revalidatePath("/settings/scorecards");
   revalidatePath(`/settings/scorecards/${scorecardId}`);
+  return { ok: true };
+}
+
+// ---------------------------------------------------------------------------
+// SVP-242 — workspace default scorecard
+// ---------------------------------------------------------------------------
+
+const SetDefaultScorecardSchema = z.object({
+  scorecardId: z.string().min(1).nullable(),
+});
+
+/** Set (or clear, when `scorecardId` is null) the workspace's default
+ *  scorecard. Manual Evaluate / Re-evaluate clicks on a ticket use this
+ *  scorecard as the main-face action when no explicit override is passed
+ *  (see `scoreAndPersistTicket`'s resolution path). Validates that the
+ *  scorecard is live (not archived) and workspace-scoped before persisting. */
+export async function setDefaultScorecard(
+  input: unknown,
+): Promise<{ ok: true }> {
+  const workspaceId = await requireWorkspace();
+  const { scorecardId } = SetDefaultScorecardSchema.parse(input);
+
+  if (scorecardId) {
+    const [existing] = await db
+      .select({ id: schema.scorecards.id })
+      .from(schema.scorecards)
+      .where(
+        and(
+          eq(schema.scorecards.id, scorecardId),
+          eq(schema.scorecards.workspaceId, workspaceId),
+          isNull(schema.scorecards.archivedAt),
+        ),
+      )
+      .limit(1);
+    if (!existing) {
+      throw new Error("Scorecard not found or archived");
+    }
+  }
+
+  await db
+    .update(schema.workspaces)
+    .set({ defaultScorecardId: scorecardId })
+    .where(eq(schema.workspaces.id, workspaceId));
+
+  revalidatePath("/settings/scorecards");
+  revalidatePath("/", "layout");
   return { ok: true };
 }

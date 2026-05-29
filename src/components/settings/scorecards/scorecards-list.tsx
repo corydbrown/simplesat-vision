@@ -3,18 +3,23 @@
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowUpRight, Plus, Sparkles } from "lucide-react";
+import { ArrowUpRight, Plus, Sparkles, Star } from "lucide-react";
 import type { ScorecardSummary } from "@/db/queries/scorecards";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/components/shared/toast";
-import { archiveScorecard } from "@/lib/scorecards/actions";
+import { archiveScorecard, setDefaultScorecard } from "@/lib/scorecards/actions";
 import { formatRelative } from "@/lib/format";
 import { NewScorecardDialog } from "./new-scorecard-dialog";
 import { ScorecardRowActions } from "./scorecard-row-actions";
 
 type Props = {
   scorecards: ScorecardSummary[];
+  /** SVP-242: workspace-default scorecard id, or null if none is set. Drives
+   *  the "Default" badge on the matching row and disables the "Set as default"
+   *  menu item on that row. */
+  defaultScorecardId: string | null;
 };
 
 type DialogState =
@@ -22,11 +27,13 @@ type DialogState =
   | { kind: "create" }
   | { kind: "duplicate"; sourceId: string; sourceName: string };
 
-export function ScorecardsList({ scorecards }: Props) {
+export function ScorecardsList({ scorecards, defaultScorecardId }: Props) {
   const [showArchived, setShowArchived] = useState(false);
   const [dialog, setDialog] = useState<DialogState>({ kind: "closed" });
   const [pendingArchiveId, setPendingArchiveId] = useState<string | null>(null);
+  const [pendingDefaultId, setPendingDefaultId] = useState<string | null>(null);
   const [isArchiving, startArchiving] = useTransition();
+  const [isSettingDefault, startSettingDefault] = useTransition();
   const toast = useToast();
   const router = useRouter();
 
@@ -50,6 +57,24 @@ export function ScorecardsList({ scorecards }: Props) {
         toast(err instanceof Error ? err.message : "Could not update scorecard");
       } finally {
         setPendingArchiveId(null);
+      }
+    });
+  };
+
+  const onSetDefault = (id: string) => {
+    if (isSettingDefault) return;
+    setPendingDefaultId(id);
+    startSettingDefault(async () => {
+      try {
+        await setDefaultScorecard({ scorecardId: id });
+        toast("Default scorecard updated");
+        router.refresh();
+      } catch (err) {
+        toast(
+          err instanceof Error ? err.message : "Could not update default",
+        );
+      } finally {
+        setPendingDefaultId(null);
       }
     });
   };
@@ -98,7 +123,11 @@ export function ScorecardsList({ scorecards }: Props) {
             <ScorecardRow
               key={s.id}
               scorecard={s}
-              isArchivePending={pendingArchiveId === s.id && isArchiving}
+              isDefault={s.id === defaultScorecardId}
+              isRowPending={
+                (pendingArchiveId === s.id && isArchiving) ||
+                (pendingDefaultId === s.id && isSettingDefault)
+              }
               onDuplicate={() =>
                 setDialog({
                   kind: "duplicate",
@@ -106,6 +135,7 @@ export function ScorecardsList({ scorecards }: Props) {
                   sourceName: s.name,
                 })
               }
+              onSetDefault={() => onSetDefault(s.id)}
               onArchive={() => onArchive(s.id, true)}
               onUnarchive={() => onArchive(s.id, false)}
             />
@@ -134,14 +164,18 @@ export function ScorecardsList({ scorecards }: Props) {
 
 function ScorecardRow({
   scorecard,
-  isArchivePending,
+  isDefault,
+  isRowPending,
   onDuplicate,
+  onSetDefault,
   onArchive,
   onUnarchive,
 }: {
   scorecard: ScorecardSummary;
-  isArchivePending: boolean;
+  isDefault: boolean;
+  isRowPending: boolean;
   onDuplicate: () => void;
+  onSetDefault: () => void;
   onArchive: () => void;
   onUnarchive: () => void;
 }) {
@@ -161,6 +195,12 @@ function ScorecardRow({
             <span className="text-base font-medium text-foreground">
               {scorecard.name}
             </span>
+            {isDefault && (
+              <Badge variant="secondary">
+                <Star />
+                Default
+              </Badge>
+            )}
             {isArchived && (
               <span className="rounded-full bg-muted px-2 py-0.5 text-sm text-muted-foreground">
                 Archived
@@ -183,8 +223,10 @@ function ScorecardRow({
       <ScorecardRowActions
         scorecardName={scorecard.name}
         isArchived={isArchived}
-        isPending={isArchivePending}
+        isDefault={isDefault}
+        isPending={isRowPending}
         onDuplicate={onDuplicate}
+        onSetDefault={onSetDefault}
         onArchive={onArchive}
         onUnarchive={onUnarchive}
       />

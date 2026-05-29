@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import {
+  type AnySQLiteColumn,
   index,
   integer,
   primaryKey,
@@ -458,6 +459,18 @@ export const workspaces = sqliteTable(
       .notNull()
       .$type<TeamMemberResolutionRule>()
       .default("assignee"),
+    /** Workspace's default scorecard. When set, manual Evaluate / Re-evaluate
+     *  clicks (no explicit `scorecardId` override) resolve to this scorecard
+     *  before falling back to "oldest live scorecard." Nullable: a workspace
+     *  with multiple scorecards starts with no default until the user picks
+     *  one in /settings/scorecards. Forward-reference to `scorecards` requires
+     *  the thunk + AnySQLiteColumn annotation pattern. `onDelete: set null`
+     *  isn't load-bearing today (scorecards soft-delete via `archived_at`)
+     *  but documents the right cleanup if hard-delete is ever added. */
+    defaultScorecardId: text("default_scorecard_id").references(
+      (): AnySQLiteColumn => scorecards.id,
+      { onDelete: "set null" },
+    ),
     createdAt: integer("created_at", { mode: "timestamp_ms" })
       .notNull()
       .default(sql`(unixepoch() * 1000)`),

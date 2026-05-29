@@ -20,7 +20,10 @@ export default async function ScorecardsSettingsPage() {
         ]}
       />
       <SettingsBody>
-        <ScorecardsList scorecards={scorecards} />
+        <ScorecardsList
+          scorecards={scorecards}
+          defaultScorecardId={workspace?.defaultScorecardId ?? null}
+        />
       </SettingsBody>
     </>
   );

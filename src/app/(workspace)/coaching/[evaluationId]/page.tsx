@@ -9,6 +9,7 @@ import { RescoreWithPicker } from "@/components/coaching/rescore-with-picker";
 import { getCoachingDetail } from "@/db/queries/coaching";
 import { listEvaluationsForTicket } from "@/db/queries/evaluations";
 import { listLiveScorecardsForPicker } from "@/db/queries/scorecards";
+import { getActiveWorkspaceDetails } from "@/db/queries/workspaces";
 import { getCurrentUser } from "@/lib/auth";
 import { listEvaluationFeedback } from "@/lib/qa/feedback/actions";
 import { FeedbackSection } from "./feedback-section";
@@ -26,10 +27,11 @@ export default async function CoachingDetailPage(
   const detail = await getCoachingDetail(evaluationId);
   if (!detail) notFound();
 
-  const [versions, liveScorecards, allFeedback, currentUser] =
+  const [versions, liveScorecards, workspace, allFeedback, currentUser] =
     await Promise.all([
       listEvaluationsForTicket(detail.ticket.id),
       listLiveScorecardsForPicker(),
+      getActiveWorkspaceDetails(),
       listEvaluationFeedback({ evaluationId }),
       getCurrentUser(),
     ]);
@@ -56,6 +58,7 @@ export default async function CoachingDetailPage(
               ticketId={detail.ticket.id}
               scorecards={liveScorecards}
               currentScorecardId={detail.evaluation.scorecard.id}
+              defaultScorecardId={workspace?.defaultScorecardId ?? null}
             />
             <DetailActions
               entityHref={`/coaching/${detail.evaluation.id}`}

@@ -149,11 +149,12 @@ export async function scoreAndPersistTicket(params: {
     : null;
 
   // Scorecard resolution. SVP-229 added the manual `scorecardId` override
-  // (the "Re-score with…" picker on /coaching). When omitted, fall back to the
-  // pre-multi-scorecard behavior: any live scorecard, oldest first — auto-
-  // initing IQS for fresh workspaces (WorkOS signup) that don't have one yet.
-  // SVP-232 adds the rules engine that selects *which* scorecard a new ticket
-  // runs against automatically.
+  // (the "Re-score with…" picker on /coaching). When omitted, SVP-242 checks
+  // the workspace's chosen default scorecard before falling back to "any live
+  // scorecard, oldest first" — auto-initing IQS for fresh workspaces (WorkOS
+  // signup) that don't have one yet. SVP-232 adds the rules engine that
+  // selects *which* scorecard a new ticket runs against automatically; rules
+  // pass an explicit `scorecardId` so they bypass this fallback chain.
   let scorecard;
   if (params.scorecardId) {
     [scorecard] = await db
@@ -173,26 +174,50 @@ export async function scoreAndPersistTicket(params: {
       );
     }
   } else {
-    const selectAnyScorecard = () =>
-      db
+    // SVP-242: try the workspace default first. If it points at an archived
+    // (or missing) scorecard, fall through silently rather than throwing —
+    // the /settings/scorecards "Default" badge stops showing when the row is
+    // null, which is the user-visible signal that the default needs re-picking.
+    const [workspaceRow] = await db
+      .select({ defaultScorecardId: schema.workspaces.defaultScorecardId })
+      .from(schema.workspaces)
+      .where(eq(schema.workspaces.id, workspaceId))
+      .limit(1);
+    if (workspaceRow?.defaultScorecardId) {
+      [scorecard] = await db
         .select()
         .from(schema.scorecards)
         .where(
           and(
+            eq(schema.scorecards.id, workspaceRow.defaultScorecardId),
             eq(schema.scorecards.workspaceId, workspaceId),
             isNull(schema.scorecards.archivedAt),
           ),
         )
-        .orderBy(asc(schema.scorecards.createdAt))
         .limit(1);
-    [scorecard] = await selectAnyScorecard();
+    }
     if (!scorecard) {
-      await initDefaultScorecardForWorkspace(workspaceId);
+      const selectAnyScorecard = () =>
+        db
+          .select()
+          .from(schema.scorecards)
+          .where(
+            and(
+              eq(schema.scorecards.workspaceId, workspaceId),
+              isNull(schema.scorecards.archivedAt),
+            ),
+          )
+          .orderBy(asc(schema.scorecards.createdAt))
+          .limit(1);
       [scorecard] = await selectAnyScorecard();
       if (!scorecard) {
-        throw new ScoringPreconditionError(
-          "Failed to initialize a scorecard for this workspace.",
-        );
+        await initDefaultScorecardForWorkspace(workspaceId);
+        [scorecard] = await selectAnyScorecard();
+        if (!scorecard) {
+          throw new ScoringPreconditionError(
+            "Failed to initialize a scorecard for this workspace.",
+          );
+        }
       }
     }
   }

@@ -218,6 +218,13 @@
       "when": 1779981014961,
       "tag": "0030_svp211_users_as_authors",
       "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "6",
+      "when": 1780030114410,
+      "tag": "0031_svp242_workspace_default_scorecard",
+      "breakpoints": true
     }
   ]
 }

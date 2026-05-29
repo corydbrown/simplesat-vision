@@ -170,6 +170,9 @@ export type EvaluationSummary = {
 export type EvaluationVersionRow = {
   id: string;
   scorecardVersion: number;
+  /** Scorecard name as-of this evaluation's version (snapshot, not live).
+   *  A renamed scorecard won't retroactively rebrand historical evals. */
+  scorecardName: string;
   overallScore: number;
   scoredAt: Date;
   status: QaEvaluationStatus;
@@ -186,6 +189,7 @@ export async function listEvaluationsForTicket(
     .select({
       id: schema.evaluations.id,
       scorecardVersion: schema.scorecardVersions.version,
+      scorecardName: schema.scorecardVersions.name,
       overallScore: schema.evaluations.overallScore,
       scoredAt: schema.evaluations.scoredAt,
       status: schema.evaluations.status,

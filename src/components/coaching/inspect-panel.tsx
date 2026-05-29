@@ -16,6 +16,7 @@ import type {
 import { CommentRow } from "./comment-row";
 import { CommentComposer, type CommentComposerHandle } from "./comment-composer";
 import { DotScale } from "./citation-chip";
+import { ReasoningWithMentions } from "@/components/shared/inline-mention";
 import {
   HUE_TOKENS,
   hueForCategoryOrder,
@@ -49,7 +50,7 @@ export function InspectPanel({
   ref,
   message,
   messageNumber,
-  messageNumberById,
+  messageIdByNumber,
   citations,
   comments,
   reactionsByCommentId,
@@ -79,7 +80,7 @@ export function InspectPanel({
   ref?: React.Ref<InspectPanelHandle>;
   message: CoachingMessageView;
   messageNumber: number;
-  messageNumberById: Map<string, number>;
+  messageIdByNumber: Map<number, string>;
   citations: CitationRowInput[];
   comments: CommentRowData[];
   reactionsByCommentId: Map<string, ReactionAggregate[]>;
@@ -200,7 +201,7 @@ export function InspectPanel({
                       focus.kind === "citation" &&
                       focus.categoryId === c.category.id
                     }
-                    messageNumberById={messageNumberById}
+                    messageIdByNumber={messageIdByNumber}
                     onFocus={() =>
                       onFocusChange({
                         kind: "citation",
@@ -307,7 +308,7 @@ function InspectCitationRow({
   buttonRef,
   citation,
   focused,
-  messageNumberById,
+  messageIdByNumber,
   onFocus,
   onSetScore,
   onRemove,
@@ -316,7 +317,7 @@ function InspectCitationRow({
   buttonRef?: (el: HTMLButtonElement | null) => void;
   citation: CitationRowInput;
   focused: boolean;
-  messageNumberById: Map<string, number>;
+  messageIdByNumber: Map<number, string>;
   onFocus: () => void;
   onSetScore: (s: number) => void;
   onRemove: () => void;
@@ -408,9 +409,9 @@ function InspectCitationRow({
           )}
           {citation.category.aiReasoning && (
             <p className="text-sm italic text-muted-foreground">
-              <ReasoningText
+              <ReasoningWithMentions
                 text={citation.category.aiReasoning}
-                messageNumberById={messageNumberById}
+                messageIdByNumber={messageIdByNumber}
                 onJump={onJumpToMessage}
               />
             </p>
@@ -419,43 +420,6 @@ function InspectCitationRow({
       )}
     </div>
   );
-}
-
-function ReasoningText({
-  text,
-  messageNumberById,
-  onJump,
-}: {
-  text: string;
-  messageNumberById: Map<string, number>;
-  onJump: (messageId: string) => void;
-}) {
-  const parts: React.ReactNode[] = [];
-  const re = /msg_(\w+)/g;
-  let lastIndex = 0;
-  let m: RegExpExecArray | null;
-  let i = 0;
-  while ((m = re.exec(text)) !== null) {
-    if (m.index > lastIndex) parts.push(text.slice(lastIndex, m.index));
-    const msgId = m[0];
-    const num = messageNumberById.get(msgId);
-    parts.push(
-      <button
-        key={`r${i++}`}
-        type="button"
-        onClick={(e) => {
-          e.stopPropagation();
-          onJump(msgId);
-        }}
-        className="cursor-pointer rounded-sm bg-accent/60 px-1 not-italic text-foreground transition-colors hover:bg-accent"
-      >
-        Message {num ?? m[1]}
-      </button>,
-    );
-    lastIndex = m.index + m[0].length;
-  }
-  if (lastIndex < text.length) parts.push(text.slice(lastIndex));
-  return <>{parts}</>;
 }
 
 function CategoryPicker({

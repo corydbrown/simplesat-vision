@@ -15,8 +15,10 @@ export function QaOverviewPanel({
   activeCategoryId,
   focusedCategoryId,
   categoryRefs,
+  messageIdByNumber,
   onToggleCategory,
   onFocusCategory,
+  onJumpToMessage,
 }: {
   evaluation: CoachingEvaluationView;
   activeCategoryId: string | null;
@@ -24,8 +26,10 @@ export function QaOverviewPanel({
   categoryRefs: React.MutableRefObject<
     Map<string, HTMLButtonElement | null>
   >;
+  messageIdByNumber: Map<number, string>;
   onToggleCategory: (categoryId: string) => void;
   onFocusCategory: (categoryId: string) => void;
+  onJumpToMessage: (messageId: string) => void;
 }) {
   const hue = hueForOverallScore(evaluation.overallScore);
 
@@ -64,8 +68,10 @@ export function QaOverviewPanel({
                   activeCategoryId !== null && activeCategoryId !== cat.id
                 }
                 isFocused={focusedCategoryId === cat.id}
+                messageIdByNumber={messageIdByNumber}
                 onToggle={() => onToggleCategory(cat.id)}
                 onFocus={() => onFocusCategory(cat.id)}
+                onJumpToMessage={onJumpToMessage}
               />
             </li>
           ))}

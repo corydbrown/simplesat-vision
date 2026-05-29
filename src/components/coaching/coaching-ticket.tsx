@@ -114,6 +114,16 @@ export function CoachingTicket({ detail }: { detail: CoachingDetail }) {
     return m;
   }, [messages]);
 
+  /** Inverse of messageNumberById — looks up the message id for the 1-based
+   *  position the LLM uses in reasoning ("Message 3" → tkm_...). The prompt
+   *  numbers messages by their order in the conversation (incl. internal
+   *  notes); the UI renders that same order, so position is stable. */
+  const messageIdByNumber = useMemo(() => {
+    const m = new Map<number, string>();
+    messages.forEach((msg, i) => m.set(i + 1, msg.id));
+    return m;
+  }, [messages]);
+
   const activitiesByAfter = useMemo(() => {
     const m = new Map<string, CoachingActivityView[]>();
     for (const a of activities) {
@@ -897,7 +907,7 @@ export function CoachingTicket({ detail }: { detail: CoachingDetail }) {
                 messageNumber={
                   messageNumberById.get(inspectMessage.id) ?? 0
                 }
-                messageNumberById={messageNumberById}
+                messageIdByNumber={messageIdByNumber}
                 citations={citationsByMessage.get(inspectMessage.id) ?? []}
                 comments={commentsByMessage.get(inspectMessage.id) ?? []}
                 reactionsByCommentId={commentReactionAggregates}
@@ -950,11 +960,13 @@ export function CoachingTicket({ detail }: { detail: CoachingDetail }) {
                   focusedSurface === "overview" ? focusedCategoryId : null
                 }
                 categoryRefs={categoryRefs}
+                messageIdByNumber={messageIdByNumber}
                 onToggleCategory={toggleCategoryMute}
                 onFocusCategory={(id) => {
                   setFocusedCategoryId(id);
                   setFocusedSurface("overview");
                 }}
+                onJumpToMessage={flashMessage}
               />
             )}
           </div>

@@ -1,0 +1,789 @@
+{
+  "generatedFor": "SVP-248 design audit · Review #1",
+  "dimensions": [
+    {
+      "dimension": "Raw Tailwind hue classes",
+      "severity": "low",
+      "summary": "Production UI is clean on this dimension. A full grep of src/components/** and src/app/(workspace)/** (excluding mockups, *.test.ts, and src/components/ui/ shadcn primitives) for any bg-/text-/border-/ring-/from-/to-/fill-/stroke- prefix followed by a default Tailwind color name + numeric shade returned ZERO live className usages. The only 9 matches are descriptive English string literals inside the two /design audit pages (e.g. \"all stateful pills hardcode bg-red-50 instead\"), which document prior drift that has since been remediated — the audit page itself states the raw classes were removed and stateful pills now use bg-{hue}-lighter text-{hue}-darker, and notes any remaining src/ matches are its own string literals. I separately verified the formerly-flagged StarRating (fill-amber-400/fill-zinc-200) and AvgRating ratingTone() helper (text-red-600/text-amber-600/text-emerald-600) are now clean. No action needed; severity is low only because the audit-page prose still contains the literal strings, which is intentional documentation, not a violation.",
+      "approxTotalCount": 0,
+      "findings": [],
+      "systemicRecommendation": "Add a CI/pre-merge lint guard (ESLint no-restricted-syntax rule or a simple grep gate) that fails on any JSX className containing a default Tailwind hue + shade (the regex (bg|text|border|ring|from|to|fill|stroke)-(red|orange|amber|...|stone)-\\d), scoped to exclude src/components/ui/, *.test.ts, src/app/mockups/**, and the /design audit pages. The codebase is already at zero — a guard converts that hard-won clean state into a permanent invariant so the class of drift cannot silently return as new pills/components get added. Pair it with the existing pre-merge worker pre-flight gates so it runs without a CI runner."
+    },
+    {
+      "dimension": "Typography ladder",
+      "severity": "medium",
+      "summary": "Two of the three sub-dimensions are clean: there are ZERO arbitrary text sizes (text-[Npx]) and ZERO forced-uppercase labels in production code. Every text-[...] and `uppercase tracking-*` hit lives in the /design audit pages as documentation string literals describing drift, not as actual className styling. The `tracking-tight` instances are all on large h1 display headings (text-2xl/text-3xl), which is correct usage, not the forbidden `uppercase tracking-wide` on labels. The real and only drift is sub-dimension (2): text-xs (12px) used for labels, dropdown group-headings, dashboard body copy, and small action-button chrome — where the ladder says these should be body/sm size with muted color doing the de-emphasis. The dominant systemic offender is a repeated dropdown/picker group-heading pattern (`text-xs font-medium text-muted-foreground/80`) duplicated across at least 7 controls. Roughly 32 of ~41 production text-xs occurrences are genuine violations; the remainder (avatar initials, tabular-nums count badges/chips) are within the \"rare tight chrome\" allowance.",
+      "approxTotalCount": 32,
+      "findings": [
+        {
+          "file": "src/components/shared/sort-control.tsx",
+          "line": 264,
+          "issue": "Picker group-heading label rendered at text-xs (12px). Group/section labels should be body size with muted color, not a smaller step.",
+          "snippet": "<div className=\"px-2 py-1 text-xs font-medium text-muted-foreground/80\">{label}</div>",
+          "recommendation": "Drop text-xs; let text-muted-foreground at body size carry the de-emphasis. This is the same group-heading pattern repeated across pickers — fix once via a shared GroupHeading component."
+        },
+        {
+          "file": "src/components/shared/sort-control.tsx",
+          "line": 347,
+          "issue": "DropdownMenuLabel for a sort group heading at text-xs (12px) — a label, not kbd/chrome.",
+          "snippet": "<DropdownMenuLabel className=\"text-xs font-medium text-muted-foreground/80\">",
+          "recommendation": "Remove text-xs; rely on muted color at body size. Also at line 421 in the same file (same pattern)."
+        },
+        {
+          "file": "src/components/shared/group-control.tsx",
+          "line": 99,
+          "issue": "Picker group-heading label at text-xs (12px).",
+          "snippet": "<div className=\"px-2 py-1 text-xs font-medium text-muted-foreground/80\">",
+          "recommendation": "Remove text-xs; muted color at body size. Consolidate with the identical pattern in sort-control/filter-row/axis-zone/property-rail."
+        },
+        {
+          "file": "src/components/shared/filter-row.tsx",
+          "line": 629,
+          "issue": "Filter-property group-heading label at text-xs (12px).",
+          "snippet": "<div className=\"px-2 pt-1 text-xs font-medium text-muted-foreground/80\">{group}</div>",
+          "recommendation": "Remove text-xs; muted color does the de-emphasis at body size."
+        },
+        {
+          "file": "src/components/reports/axis-zone.tsx",
+          "line": 97,
+          "issue": "Reports axis-zone group-heading label at text-xs (12px).",
+          "snippet": "<div className=\"px-2 pt-1 text-xs font-medium text-muted-foreground/80\">",
+          "recommendation": "Remove text-xs; adopt the shared GroupHeading component once it exists."
+        },
+        {
+          "file": "src/components/reports/property-rail.tsx",
+          "line": 39,
+          "issue": "Reports property-rail group-heading label at text-xs (12px).",
+          "snippet": "<div className=\"px-2 text-xs font-medium text-muted-foreground/80\">",
+          "recommendation": "Remove text-xs; muted color at body size."
+        },
+        {
+          "file": "src/app/(workspace)/page.tsx",
+          "line": 126,
+          "issue": "Workspace-home insight-card body copy ('N responses' + rating) rendered at text-xs — primary dashboard content de-emphasized by size rather than color.",
+          "snippet": "<div className=\"flex items-center gap-4 text-xs\">",
+          "recommendation": "Bump to body size; use text-muted-foreground (already present) for the secondary count. Same issue at lines 155 (team label) and 159 in this file."
+        },
+        {
+          "file": "src/components/surveys/survey-detail.tsx",
+          "line": 104,
+          "issue": "Question metadata line at text-xs (12px); note the adjacent question body at line 103 uses text-sm (14px) where a primary answer/question value should be text-base.",
+          "snippet": "<div className=\"mt-1 text-xs text-muted-foreground\">",
+          "recommendation": "Move metadata to body size with muted color; promote the line-103 question text from text-sm to text-base (it is a primary content value)."
+        },
+        {
+          "file": "src/components/reports/ai-prompt-dialog.tsx",
+          "line": 106,
+          "issue": "'Try one of' helper label at text-xs (12px) and suggestion buttons (line 116) at text-xs — interactive body chrome below the sm chrome step.",
+          "snippet": "<div className=\"text-xs text-muted-foreground\">Try one of</div>",
+          "recommendation": "Label -> body size muted; suggestion chips -> text-sm (toolbar/chip chrome rung)."
+        },
+        {
+          "file": "src/components/shared/columns-control.tsx",
+          "line": 146,
+          "issue": "'Show all' / 'Hide all' action-button labels at text-xs (12px) — action chrome should be at least text-sm per the ladder.",
+          "snippet": "className=\"h-7 cursor-pointer px-2 text-xs\"",
+          "recommendation": "Bump to text-sm. Same at line 155 (Hide all) and line 231 ('always' label) in this file."
+        },
+        {
+          "file": "src/components/shared/sort-control.tsx",
+          "line": 208,
+          "issue": "Sort-control action/trigger buttons at text-xs (12px) — chrome below the documented text-sm chrome rung.",
+          "snippet": "className=\"h-7 cursor-pointer px-2 text-xs text-muted-foreground hover:text-foreground\"",
+          "recommendation": "Bump to text-sm. Same at line 408 in this file."
+        },
+        {
+          "file": "src/components/shell/search-palette.tsx",
+          "line": 364,
+          "issue": "Search-palette footer hint row at text-xs (12px) — borderline tight chrome but reads as a labeled hint strip.",
+          "snippet": "<div className=\"grid grid-cols-3 items-center border-t border-border px-3 py-1.5 text-xs text-muted-foreground/80\">",
+          "recommendation": "If keyboard-hint chrome, acceptable as rare tight chrome; otherwise bump to body/sm. Line 487 (result-path truncation) is the same call — keep consistent."
+        },
+        {
+          "file": "src/components/shell/workspace-switcher.tsx",
+          "line": 72,
+          "issue": "DropdownMenuLabel at text-xs (12px) — a menu section label.",
+          "snippet": "<DropdownMenuLabel className=\"text-xs font-normal text-muted-foreground\">",
+          "recommendation": "Remove text-xs; muted color at body size carries the de-emphasis."
+        },
+        {
+          "file": "src/components/shared/tag.tsx",
+          "line": 3,
+          "issue": "Tag component renders its content at text-xs (12px); since Tag is reused widely, this propagates a sub-body size to many call sites.",
+          "snippet": "<span className=\"rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground\">",
+          "recommendation": "Decide deliberately: if Tag is a stateful pill it should be text-sm (pill rung); 12px is only justified if it is genuinely chip-sized. Document the chosen rung in the component."
+        },
+        {
+          "file": "src/components/shared/layout-toggle.tsx",
+          "line": 33,
+          "issue": "Layout-toggle segment labels at text-xs (12px) — interactive toggle chrome below the sm rung.",
+          "snippet": "className={`px-2 py-1 text-xs rounded ${",
+          "recommendation": "Bump to text-sm to match toolbar/filter chrome."
+        }
+      ],
+      "systemicRecommendation": "Extract one shared `GroupHeading` (and a matching small-action-button size default) component and route every picker/dropdown/rail through it. The single largest source of drift is the hand-rolled `text-xs font-medium text-muted-foreground/80` group-heading div copy-pasted across sort-control, group-control, filter-row, axis-zone, property-rail, search-palette, and workspace-switcher — each worker re-derived the same off-ladder size independently. Centralizing it (a) deletes ~10 of the violations in one edit and sets them to body-size-with-muted-color, and (b) gives future controls a correct primitive to reach for instead of re-inventing the 12px label. Pair this with a lint guard: an eslint rule (or a grep-based pre-flight gate) that flags `text-xs` outside an allowlist of files (avatar.tsx, kbd, tabular-nums count badges) so new 12px labels can't land silently — text-xs is correct rarely enough that gating it by exception is cheaper than re-auditing."
+    },
+    {
+      "dimension": "Hand-rolled inline visuals that recreate an existing component (pill / badge / kbd / tag / chip / avatar / rating)",
+      "severity": "medium",
+      "summary": "Production UI is mostly disciplined about component reuse — list pages, ticket/customer/team detail pages, and the settings scorecards/auto-scoring flows all consume the real shared pills (TierPill, TeamPill, QaScoreBadge, AvgRating, StarRating, Tag). The drift is concentrated in a few specific files. The worst offender is entity-popover.tsx, which hand-rolls inline equivalents of TierPill, TeamPill, AND AvgRating — including a private copy of the TEAM_TONES map that already lives in team-pill.tsx. The workspace home page (page.tsx) defines a local RatingValue helper that duplicates both the AvgRating star+toFixed shape and the ratingTone() thresholds from avg-rating.tsx. settings/users/page.tsx hand-rolls a UserAvatar that recreates the shared Avatar's image-or-initials-on-color shape instead of using Avatar + resolveAvatar. Separately, a small count-chip visual (rounded bg-muted px-1.5 py-0.5 text-xs tabular-nums) is independently re-implemented in relation-tabs, entity-toolbar, and the entity-pill survey tag with no shared primitive. None of these are arbitrary-text-size DEMO-style badges (that exact anti-pattern is absent from production), so severity is medium not high — but the popover and home-page rating duplications are genuine maintenance hazards because the tone/threshold logic now lives in two places and can silently diverge.",
+      "approxTotalCount": 9,
+      "findings": [
+        {
+          "file": "src/components/shared/entity-popover.tsx",
+          "line": 208,
+          "issue": "Inline span recreates the TierPill component. It renders the customer tier label as a rounded-full bg-muted chip instead of using the existing TierPill (src/components/shared/tier-pill.tsx), so it also loses TierPill's tier-specific tone colors (gold/elite/insider).",
+          "recommendation": "Replace the span with <TierPill tier={data.tier} />. The popover already has the tier value; importing TierPill gives the correct per-tier color and one source of truth for the label map.",
+          "snippet": "<span className=\"ml-1 rounded-full bg-muted px-1.5 py-0.5 text-xs\">{tierLabel}</span>"
+        },
+        {
+          "file": "src/components/shared/entity-popover.tsx",
+          "line": 270,
+          "issue": "Inline span recreates the TeamPill component, AND duplicates its tone map. A private TEAM_TONES constant (lines 244-248) is a byte-for-byte copy of the TONES map in team-pill.tsx, and the span re-implements TeamPill's rounded-full px-1.5 py-0.5 tone-class shape.",
+          "recommendation": "Delete the local TEAM_TONES map and replace the span with <TeamPill team={data.team} />. Eliminates the duplicated tone map that will drift when a team tone changes in only one place.",
+          "snippet": "const TEAM_TONES: Record<string, string> = { \"Front line\": \"bg-blue-lighter text-blue-darker\", ... };\n<span className={`rounded-full px-1.5 py-0.5 text-xs ${teamTone}`}>{data.team}</span>"
+        },
+        {
+          "file": "src/components/shared/entity-popover.tsx",
+          "line": 224,
+          "issue": "Inline Star icon + value.toFixed(2) recreates the AvgRating component's visual (star glyph + 2-decimal tabular-nums). AvgRating (src/components/shared/avg-rating.tsx) renders exactly this and also applies ratingTone color, which the inline version drops.",
+          "recommendation": "Use <AvgRating value={data.avgRating} /> in place of the hand-rolled Star + toFixed(2) span so the rating tone coloring and em-dash empty state come from the shared component.",
+          "snippet": "<span className=\"inline-flex items-baseline gap-0.5\"><Star size={11} className=\"fill-current self-center\" />{data.avgRating.toFixed(2)}</span>"
+        },
+        {
+          "file": "src/app/(workspace)/page.tsx",
+          "line": 82,
+          "issue": "A local RatingValue helper (lines 71-89) recreates the AvgRating component: it re-implements the Star + value.toFixed(2) + tabular-nums shape AND inlines the ratingTone() threshold logic (<3 red, <4 yellow, else green) that already exists in avg-rating.tsx.",
+          "recommendation": "Delete the local helper and use <AvgRating value={value} /> from src/components/shared/avg-rating.tsx. This removes a second copy of the rating thresholds, which will silently diverge from the canonical ratingTone if the bar ever changes.",
+          "snippet": "<span className={`inline-flex items-center gap-1 text-sm ${tone}`}><Star size={12} className=\"fill-current\" /><span className=\"tabular-nums font-medium\">{value.toFixed(2)}</span></span>"
+        },
+        {
+          "file": "src/app/(workspace)/settings/users/page.tsx",
+          "line": 142,
+          "issue": "A local UserAvatar component (lines ~115-145) hand-rolls the image-or-initials-on-color avatar that the shared Avatar component already provides, including its own initials computation and rounded-full bg fallback. Bypasses Avatar's resolveAvatar cascade (stored URL -> Gravatar -> DiceBear -> initials).",
+          "recommendation": "Replace UserAvatar with <Avatar {...resolveAvatar({ avatarUrl, email, name })} size=\"md\" />. The shared Avatar handles the img-failure fallback chain that this inline div cannot.",
+          "snippet": "<div className=\"flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-accent text-sm font-medium text-foreground\">{initials}</div>"
+        },
+        {
+          "file": "src/components/shared/relation-tabs.tsx",
+          "line": 65,
+          "issue": "Inline count-chip span (rounded px-1.5 py-0.5 text-xs tabular-nums with active/inactive bg tones). The same count-chip visual is independently re-implemented in entity-toolbar.tsx (line 84) and entity-pill.tsx (line 284) with no shared primitive — three near-identical recreations of a count/tag chip.",
+          "recommendation": "Extract a single CountChip (or reuse Badge variant=\"secondary\") shared component and consume it in relation-tabs, entity-toolbar, and the entity-pill survey tag. Two-or-more identical shapes is the codebase's own 'twice = it's a component' threshold.",
+          "snippet": "<span className={`rounded px-1.5 py-0.5 text-xs tabular-nums ${active ? \"bg-foreground/10 text-foreground\" : \"bg-muted text-muted-foreground\"}`}>{t.count}</span>"
+        },
+        {
+          "file": "src/components/shared/entity-toolbar.tsx",
+          "line": 84,
+          "issue": "Inline count-badge span (rounded bg-muted px-1 py-0.5 text-xs tabular-nums) on a toolbar button. Same count-chip shape as relation-tabs.tsx:65 and the entity-pill survey tag — a Badge/CountChip recreation.",
+          "recommendation": "Use the shared CountChip extracted from relation-tabs (or Badge variant=\"secondary\" with tabular-nums) so toolbar counts, tab counts, and pill tags share one chip primitive.",
+          "snippet": "<span className=\"rounded bg-muted px-1 py-0.5 text-xs tabular-nums\">{badge}</span>"
+        },
+        {
+          "file": "src/components/shared/entity-pill.tsx",
+          "line": 284,
+          "issue": "Inline span for a survey's leading tag (rounded bg-muted px-1 text-xs font-medium text-muted-foreground) recreates the Tag component (src/components/shared/tag.tsx), which is the same rounded bg-muted px text-xs muted chip.",
+          "recommendation": "Use <Tag>{tag}</Tag> from src/components/shared/tag.tsx, or the extracted CountChip if the survey tag is conceptually a code/count. Either way, stop re-deriving the muted chip shape inline.",
+          "snippet": "<span className=\"inline-flex items-center justify-center rounded bg-muted px-1 text-xs font-medium text-muted-foreground\">{tag}</span>"
+        }
+      ],
+      "systemicRecommendation": "Stand up a tiny inventory of low-level visual primitives the codebase keeps re-deriving — specifically a CountChip (or a documented Badge variant) for count/code chips and a hard rule that all star+rating renders go through AvgRating/StarRating and all tier/team labels through TierPill/TeamPill. Then enforce it the same way the palette rule is enforced: add an ESLint restriction that flags JSX with the recurring shape signatures (rounded-full + px-* + a tone class; Star icon + .toFixed adjacent; rounded bg-muted px-* text-xs). The deeper fix is to treat duplicated *logic* (the TEAM_TONES map in entity-popover, the ratingTone thresholds in page.tsx) as the real hazard, not just the markup — co-locate tone maps and threshold functions next to their component and never let a consumer re-declare them. This kills the divergence risk at the source rather than catching pixels after the fact."
+    },
+    {
+      "dimension": "Dark-mode / theme drift",
+      "severity": "medium",
+      "summary": "Production UI is overwhelmingly clean on theme drift: no raw Tailwind hue classes (bg-red-50 etc.), no hex/rgb/oklch literals in classNames or inline styles, and every style={{ background }} prop traces to a token var(). The one real defect is a tight cluster in the recently-added Reports \"coaching-insights\" component family, which references an invented `-default` shade suffix that does not exist in the palette (the palette is bare-name base + -light/-dark/-lighter/-darker, with only -lighter/-darker flipping per mode). `bg-green-default`/`text-red-default`/`text-blue-default` generate no Tailwind utility at all, and `var(--color-*-default)` in chart fills resolves to nothing — so these surfaces neither render the intended color nor theme-flip. This is both a theme-drift issue and a live rendering bug (chart bars/cells with no fill). The few text-white uses are legitimate (white foreground on saturated chromatic backgrounds reads correctly in both themes). Severity is medium: the blast radius is one feature family, but within it the failure is total and ships broken color in both light and dark.",
+      "approxTotalCount": 6,
+      "findings": [
+        {
+          "file": "src/components/reports/coaching-insights/heatmap-section.tsx",
+          "line": 11,
+          "issue": "`bg-green-default` is not a valid token — the palette has no `-default` shade (base is bare `green`). Tailwind v4 generates no utility for it, so the highest-scoring heatmap cells get no background fill and the class is a no-op in both light and dark mode.",
+          "recommendation": "Use the bare base shade: `return \"bg-green text-white\";` (or `bg-green-dark` if a deeper top-of-ladder cell is wanted, matching line 20's valid `green-dark` usage in correlation-panel).",
+          "snippet": "return \"bg-green-default text-white\";"
+        },
+        {
+          "file": "src/components/reports/coaching-insights/correlation-panel.tsx",
+          "line": 17,
+          "issue": "`var(--color-red-default)` is undefined — no `--color-red-default` exists in globals.css. This string is fed to Recharts as a bar/cell fill, so the 0-50 correlation bucket renders with no fill (browser default), failing to theme-flip and likely rendering black on the dark canvas.",
+          "recommendation": "Reference the real token: `\"var(--color-red)\"` (base shade). The same file already uses the valid `var(--color-green-dark)` on line 20 — mirror that naming.",
+          "snippet": "\"0-50\": \"var(--color-red-default)\","
+        },
+        {
+          "file": "src/components/reports/coaching-insights/correlation-panel.tsx",
+          "line": 18,
+          "issue": "`var(--color-yellow-default)` is undefined; the 50-70 correlation bucket bar renders with no fill and cannot theme-flip.",
+          "recommendation": "Change to `\"var(--color-yellow)\"` (base shade).",
+          "snippet": "\"50-70\": \"var(--color-yellow-default)\","
+        },
+        {
+          "file": "src/components/reports/coaching-insights/correlation-panel.tsx",
+          "line": 19,
+          "issue": "`var(--color-green-default)` is undefined; the 70-85 correlation bucket bar renders with no fill and cannot theme-flip.",
+          "recommendation": "Change to `\"var(--color-green)\"` (base shade).",
+          "snippet": "\"70-85\": \"var(--color-green-default)\","
+        },
+        {
+          "file": "src/components/reports/coaching-insights/signals-panel.tsx",
+          "line": 16,
+          "issue": "`text-red-default` (and `text-blue-default` on line 18) are invalid tokens — no `-default` shade exists. The escalated/ai_handoff signal-row icons get no color applied and inherit the surrounding text color, so the intended red/blue semantics are lost and there is no theme handling.",
+          "recommendation": "Use base shades: `escalated: \"text-red\"` and `ai_handoff: \"text-blue\"`. (`text-yellow-dark` on lines 17/19 is already a valid token — leave those.)",
+          "snippet": "escalated: \"text-red-default\","
+        },
+        {
+          "file": "src/components/reports/coaching-insights/insight-line.tsx",
+          "line": 12,
+          "issue": "`text-blue-default` is invalid — the Sparkles insight icon gets no color and inherits surrounding text color instead of the intended blue accent; no theme-flip behavior.",
+          "recommendation": "Change to `text-blue` (base shade).",
+          "snippet": "<Sparkles size={16} className=\"mt-1 shrink-0 text-blue-default\" />"
+        }
+      ],
+      "systemicRecommendation": "The entire defect class is one cause: the coaching-insights worker invented a `-default` shade suffix that the token system never defined (the convention is bare-name base + -light/-dark/-lighter/-darker). It went undetected because invalid Tailwind utilities and undefined CSS vars fail silently — no tsc error, no lint error, no runtime throw, just absent color. Add a CI/pre-merge lint guard that greps for the closed set of valid hue+shade combinations and fails on any `(bg|text|border|ring|fill|stroke)-(red|green|blue|yellow|purple|teal|grey)-` token (or `var(--color-*-)`) whose shade is not one of {base|light|dark|lighter|darker}. A ~15-line regex check in the test suite or a Tailwind safelist-diff would have caught all six instances at author time and will catch the next invented shade for free."
+    },
+    {
+      "dimension": "Primitive bypass (custom code where a shadcn/Radix/dnd-kit primitive already exists)",
+      "severity": "low",
+      "summary": "Production UI is broadly disciplined about composing primitives: DropdownMenu, Popover, Tooltip, AlertDialog, ButtonGroup, HoverCard, and dnd-kit's useSortable are all used correctly throughout (see rescore-with-picker.tsx, version-picker.tsx, message-popup.tsx, sort-control.tsx as model citizens). The drawer's hand-rolled open/close animation in global-drawer.tsx is NOT drift — it is an explicitly sanctioned pattern documented in CLAUDE.md. The coaching-ticket.tsx global keydown handler is legitimate app-level spatial navigation (j/k/arrow movement across panes, single-letter action keys) that Radix does not provide and should not be flagged. Real drift is narrow and concentrated in two classes: (1) native HTML title= tooltips on interactive controls where the Tooltip primitive exists, and (2) one fully hand-rolled Toast system. Pointer-based resize handlers (column/rail/drawer width) are acceptable since dnd-kit only covers reorder, not resize.",
+      "approxTotalCount": 12,
+      "findings": [
+        {
+          "file": "src/components/settings/auto-scoring/rule-editor.tsx",
+          "line": 428,
+          "issue": "Native HTML title= attribute used as a tooltip on the \"Run now\" Button. This is a rich explanatory sentence (the exact case the Tooltip primitive exists for): browser title tooltips are unstyled, untheme-able, have inconsistent ~500ms+ OS-controlled delay, don't work on touch, and don't match the design system. The Tooltip primitive is already imported and used elsewhere in this same feature area.",
+          "recommendation": "Wrap the Button in <Tooltip><TooltipTrigger asChild>...</TooltipTrigger><TooltipContent>...</TooltipContent></Tooltip>, matching the pattern in rescore-with-picker.tsx lines 109-118.",
+          "snippet": "title=\"Score every currently-eligible ticket against this rule's scorecard, up to the cap. Sampling is bypassed for this action.\""
+        },
+        {
+          "file": "src/components/shared/view-actions.tsx",
+          "line": 163,
+          "issue": "Native title= tooltip on the Reset Button conveying load-bearing context (\"Clear filters and return to ...\" / \"Discard changes to ...\"). Same file imports nothing from ui/tooltip yet hand-rolls hover hints via title.",
+          "recommendation": "Replace title= with the Tooltip primitive. Since several buttons in this toolbar need hints, wrap them in a shared TooltipProvider once at the toolbar root.",
+          "snippet": "title={treatAsAll ? `Clear filters and return to ${ALL_VIEW_LABEL[entityKey]}` : `Discard changes to \"${savedView?.name ?? \"\"}\"`}"
+        },
+        {
+          "file": "src/components/shared/view-actions.tsx",
+          "line": 217,
+          "issue": "Native title= tooltip (saveTitle) on the \"Save current view\" Button inside SaveSplitButton. Note the irony: this very component's docstring praises using shadcn's ButtonGroup \"instead of getting hand-rolled\" — yet its tooltip is hand-rolled via title.",
+          "recommendation": "Wrap the save Button's trigger in Tooltip/TooltipContent rather than passing title=.",
+          "snippet": "title={saveTitle}"
+        },
+        {
+          "file": "src/components/shared/sort-control.tsx",
+          "line": 371,
+          "issue": "Native title= duplicating aria-label on the sort-direction toggle Button. The Tooltip primitive would give a themed, consistent hover hint; title gives the unstyled OS tooltip.",
+          "recommendation": "Either drop title= (aria-label already covers a11y and the arrow icon is self-evident) or promote to a Tooltip for a visible themed hint.",
+          "snippet": "aria-label={spec.dir === \"asc\" ? \"Ascending\" : \"Descending\"}\n        title={spec.dir === \"asc\" ? \"Ascending\" : \"Descending\"}"
+        },
+        {
+          "file": "src/components/shared/list-page-actions.tsx",
+          "line": 46,
+          "issue": "Native title=\"View actions\" on the MoreHorizontal trigger button, duplicating its aria-label. Bypasses the Tooltip primitive for the visible hint.",
+          "recommendation": "Drop the redundant title= (aria-label suffices for a11y) or wrap in Tooltip if a visible hint is desired.",
+          "snippet": "aria-label=\"View actions\"\n        title=\"View actions\""
+        },
+        {
+          "file": "src/components/team-members/qa-dashboard.tsx",
+          "line": 875,
+          "issue": "Native title=\"Clear category filter\" on the Clear filter Link. Bypasses Tooltip primitive.",
+          "recommendation": "The visible \"Clear\" text label already explains the action; drop title=, or use Tooltip if a hint is genuinely needed.",
+          "snippet": "title=\"Clear category filter\""
+        },
+        {
+          "file": "src/components/shared/heatmap.tsx",
+          "line": 141,
+          "issue": "Native title= used for per-cell hover tooltips on heatmap cells (lines 120, 141, 152). This is the most defensible title= usage (a Radix Tooltip per grid cell is heavy), but it is still a primitive bypass: the hint is unstyled, untheme-able, and slow. The data tooltip is genuinely informative content the design system should own.",
+          "recommendation": "Accept as-is for now given per-cell tooltip volume, but file a follow-up: a single delegated Tooltip driven by hovered-cell state would give themed hints without N primitives. Lowest-priority of the title= class.",
+          "snippet": "<Link key={col.id} href={href} title={title} className={className}>"
+        },
+        {
+          "file": "src/components/shared/toast.tsx",
+          "line": 24,
+          "issue": "A fully hand-rolled toast system (ToastProvider, ToastViewport, ToastRow with its own fixed positioning, z-[60] layer, setTimeout-based auto-dismiss, and animate-in classes). No toast primitive currently exists in src/components/ui/, so this is a gray-area bypass rather than ignoring an installed primitive — but it reimplements overlay/portal/timing behavior that shadcn's sonner toast would provide off the shelf, and it hand-rolls a z-index layer and dismissal timing the stack lock-in would otherwise standardize.",
+          "recommendation": "Don't rewrite now (no primitive is installed to defer to), but file a Notion follow-up to evaluate adding shadcn's sonner toast and migrating useToast() to it, so toast styling/positioning/stacking comes from the design system rather than this bespoke file.",
+          "snippet": "const TOAST_DURATION_MS = 2500; ... <div className=\"pointer-events-none fixed bottom-6 left-1/2 z-[60] ...\">"
+        },
+        {
+          "file": "src/components/coaching/coaching-ticket.tsx",
+          "line": 718,
+          "issue": "NOT drift, documented for the reviewer: the global keydown handler (lines 567-731) is legitimate app-level spatial keyboard navigation across panes (arrows/j/k between convo/overview/inspect surfaces, single-letter c/t/r action keys, ? cheat sheet). Radix primitives only handle keyboard within a single widget, not cross-pane app nav, so this is correctly hand-rolled. The 'r' handler reaching into the DOM to .click() a child reaction trigger (line 726) is a minor smell but pragmatically keeps reaction-picker logic in one place.",
+          "recommendation": "No change required. Leaving the DOM-querySelector-and-click for reaction as the one watch-item: if it grows, lift reaction-open state to a ref/callback instead of a DOM click. Not worth touching now.",
+          "snippet": "const trigger = el?.querySelector<HTMLButtonElement>('[aria-label=\"Add reaction\"]'); trigger?.click();"
+        }
+      ],
+      "systemicRecommendation": "Eliminate the native `title=`-as-tooltip class (the dominant, recurring form of this drift) with a lint rule plus a small wrapper. Add an ESLint rule banning the `title` JSX attribute on interactive elements (button, a, [role=button], [role=cell] with hrefs) under src/components/** and src/app/(workspace)/**, with the error message pointing to the Tooltip primitive. Pair it with a thin `IconButton`/`HintButton` shared component that takes a `tooltip` prop and renders the shadcn Tooltip wrapper internally, so authors get themed hints by default instead of reaching for `title`. Most offenders are icon-only or short-label buttons that are the exact use case for that wrapper. Separately, file one Notion follow-up to install shadcn's sonner toast and retire the hand-rolled toast.tsx so the design system owns overlay/timing/stacking. These two moves convert the whole class from \"reviewer catches it case by case\" to \"the build catches it.\""
+    },
+    {
+      "dimension": "Cursor affordance (cursor-pointer on interactive elements)",
+      "severity": "low",
+      "summary": "The convention is well-adopted, not drifting badly. 43 of 53 production `<Button>` call sites (81%) and the vast majority of raw `<button>`/`<Link>` elements already carry an explicit `cursor-pointer`. The shadcn `Button` base variant in `src/components/ui/button.tsx` does NOT include any cursor utility (it sets `select-none` but no `cursor-`), so every Button/button defaults to `cursor: default` unless overridden — which is why the explicit-class convention exists. Genuine drift is a small, scattered tail of ~20 interactive elements missing the class. The highest-leverage gap is the shared `DrawerLink` primitive in entity-pill.tsx, which relies on each call site to pass cursor-pointer rather than baking it in. Note: an initial naive regex scan over-reported ~63 hits, but most were false positives where an `onClick={() => ...}` arrow function's `>` truncated the matched tag before its className; a brace-aware re-parse confirmed the true count is ~20. Raw `<button>` and `<Button>` are the defensible findings (shadcn base = cursor:default); plain text `<Link href>` get the browser's default anchor pointer for free, so those are lower priority and only matter where the Link is styled as a block row/control that doesn't read as a link.",
+      "approxTotalCount": 20,
+      "findings": [
+        {
+          "file": "src/components/shared/entity-pill.tsx",
+          "line": 70,
+          "issue": "DrawerLink — the shared primitive every interactive entity pill (CustomerPill, TicketPill, ResponsePill, etc.) renders through — does not set cursor-pointer itself. It spreads {...rest} and uses onClick={handleClick} + router.push to open a drawer, so the pointer affordance depends entirely on each call site remembering to pass the class. Highest-leverage finding: one fix here covers every pill.",
+          "recommendation": "Add cursor-pointer to DrawerLink's own className (merge via cn() with incoming className) so every pill is clickable-looking by default, independent of call sites.",
+          "snippet": "<Link {...rest} ref={ref} href={href} onClick={handleClick} data-drawer-link>"
+        },
+        {
+          "file": "src/components/settings/workspace/logo-form.tsx",
+          "line": 108,
+          "issue": "<Button type=\"submit\"> (Fetch from Brandfetch / Update logo) has no cursor-pointer. shadcn Button base has cursor:default, so this primary action shows the arrow cursor.",
+          "recommendation": "Add cursor-pointer to className.",
+          "snippet": "<Button type=\"submit\" size=\"sm\" disabled={isPending || !domain.trim()}>"
+        },
+        {
+          "file": "src/components/settings/workspace/logo-form.tsx",
+          "line": 116,
+          "issue": "<Button variant=\"ghost\"> Remove-logo button missing cursor-pointer.",
+          "recommendation": "Add cursor-pointer to className.",
+          "snippet": "<Button type=\"button\" variant=\"ghost\" size=\"sm\" onClick={handleClear} disabled={isPending}>"
+        },
+        {
+          "file": "src/components/settings/scorecards/ticket-preview-panel.tsx",
+          "line": 237,
+          "issue": "Raw <button> used as a PopoverTrigger (ticket picker) styled like a select/combobox, with hover:bg-muted/50 but no cursor-pointer — reads as a control but shows the default cursor.",
+          "recommendation": "Add cursor-pointer to the button className.",
+          "snippet": "<button type=\"button\" className=\"flex h-8 min-w-0 flex-1 items-center justify-between gap-2 rounded-md border ... hover:bg-muted/50\" aria-label=\"Pick a ticket to preview\">"
+        },
+        {
+          "file": "src/components/qa/evaluate-ticket-button.tsx",
+          "line": 87,
+          "issue": "Evaluate/Re-evaluate split-button main action (<Button onClick={run}>) has no cursor-pointer. High-visibility QA action surface.",
+          "recommendation": "Add cursor-pointer to the Button className.",
+          "snippet": "<Button type=\"button\" onClick={() => run()} disabled={isBlocked} variant={reEvaluate ? \"ghost\" : \"default\"} size=\"sm\">"
+        },
+        {
+          "file": "src/components/coaching/rescore-with-picker.tsx",
+          "line": 88,
+          "issue": "<Button onClick> in the coaching rescore control missing cursor-pointer. Coaching is the current active focus surface.",
+          "recommendation": "Add cursor-pointer to className.",
+          "snippet": "<Button type=\"button\" onClick={() => ...}>"
+        },
+        {
+          "file": "src/components/shared/view-actions.tsx",
+          "line": 282,
+          "issue": "<Button variant=\"secondary\" onClick> in the shared view-actions toolbar missing cursor-pointer; appears on every list page.",
+          "recommendation": "Add cursor-pointer to className.",
+          "snippet": "<Button type=\"button\" variant=\"secondary\" onClick={() => ...}>"
+        },
+        {
+          "file": "src/components/shared/view-actions-menu.tsx",
+          "line": 161,
+          "issue": "<Button variant=\"outline\" onClick> in the view-actions menu missing cursor-pointer.",
+          "recommendation": "Add cursor-pointer to className.",
+          "snippet": "<Button type=\"button\" variant=\"outline\" onClick={() => ...}>"
+        },
+        {
+          "file": "src/components/reports/report-builder.tsx",
+          "line": 516,
+          "issue": "<Button variant=\"ghost\" size=\"sm\" onClick> in the report builder missing cursor-pointer.",
+          "recommendation": "Add cursor-pointer to className.",
+          "snippet": "<Button variant=\"ghost\" size=\"sm\" onClick={() => ...}>"
+        },
+        {
+          "file": "src/components/reports/ai-prompt-dialog.tsx",
+          "line": 133,
+          "issue": "<Button onClick> (submit/generate action) in the AI prompt dialog missing cursor-pointer.",
+          "recommendation": "Add cursor-pointer to className.",
+          "snippet": "<Button onClick={() => ...}>"
+        },
+        {
+          "file": "src/components/settings/scorecards/new-scorecard-dialog.tsx",
+          "line": 97,
+          "issue": "<Button variant=\"outline\" onClick> in the new-scorecard dialog missing cursor-pointer.",
+          "recommendation": "Add cursor-pointer to className.",
+          "snippet": "<Button type=\"button\" variant=\"outline\" onClick={() => ...}>"
+        },
+        {
+          "file": "src/components/settings/scorecards/scorecards-list.tsx",
+          "line": 94,
+          "issue": "<Button type=\"button\" onClick> in the scorecards list missing cursor-pointer.",
+          "recommendation": "Add cursor-pointer to className.",
+          "snippet": "<Button type=\"button\" onClick={() => ...}>"
+        },
+        {
+          "file": "src/components/settings/auto-scoring/rules-list.tsx",
+          "line": 221,
+          "issue": "<Link> rendering a full clickable rule row (className flex min-w-0 flex-1 items-center gap-3, no underline/link styling) to a detail page. Because it's styled as a block row, not visible link text, it does not read as clickable and has no cursor-pointer.",
+          "recommendation": "Add cursor-pointer to the row Link's className so the whole row reads as clickable.",
+          "snippet": "<Link href={`/settings/auto-scoring/${rule.id}`} className=\"flex min-w-0 flex-1 items-center gap-3\">"
+        },
+        {
+          "file": "src/components/settings/scorecards/scorecards-list.tsx",
+          "line": 189,
+          "issue": "<Link> rendering a clickable scorecard row (className flex min-w-0 flex-1 items-center gap-3), styled as a block not link text, missing cursor-pointer.",
+          "recommendation": "Add cursor-pointer to the row Link's className.",
+          "snippet": "<Link href={`/settings/scorecards/${scorecard.id}`} className=\"flex min-w-0 flex-1 items-center gap-3\">"
+        },
+        {
+          "file": "src/components/shared/layout-toggle.tsx",
+          "line": 30,
+          "issue": "Segmented layout-toggle control built from <Link> items styled as buttons (bg-accent active state, rounded) but with no cursor-pointer — reads as a toggle control, not a link.",
+          "recommendation": "Add cursor-pointer to the option Link className. (Separately: this uses text-xs for labels, a typography-ladder violation outside this dimension.)",
+          "snippet": "<Link key={o.value} href={buildHref(o.value)} className={`px-2 py-1 text-xs rounded ${...}`}>"
+        }
+      ],
+      "systemicRecommendation": "Bake cursor-pointer into the base layer so call sites can't forget it. (1) Add `cursor-pointer` to the shadcn `Button` base variant in src/components/ui/button.tsx (the cva base string) — shadcn ships it as cursor:default, and CLAUDE.md already mandates pointer on every Button, so the per-call-site `cursor-pointer` sprinkling (currently 43 hand-applied instances) is pure boilerplate that the base class should own. This single change makes all ~10 bare `<Button>` findings disappear and lets the 43 existing redundant ones be cleaned up. (2) For drawer/pill links, add `cursor-pointer` to the shared `DrawerLink` in entity-pill.tsx so every interactive pill inherits it. (3) Add an ESLint rule (jsx-a11y or a small custom rule) that flags raw `<button>` / `[role=\"button\"]` / `<div onClick>` elements lacking a `cursor-` utility, run in the pre-flight lint gate — this catches the long tail (segmented controls, clickable rows) the base-class fix doesn't cover. Net effect: cursor affordance becomes a property of the primitive, not a thing each worker must remember, and the lint rule prevents regression on raw elements."
+    },
+    {
+      "dimension": "Spacing rhythm",
+      "severity": "medium",
+      "summary": "Page-level spacing rhythm is clean: every page-edge surface uses the px-gutter token, detail pages use the documented px-14 py-10 / px-10 py-7 spec, card/drawer/section spacing is on-scale. There are ZERO arbitrary bracket spacing values (p-[Npx], gap-[...], etc.) in production UI. The entire drift is off-scale half-step micro-gaps inside pills, rows, toolbars, and chrome — tokens like gap-1.5 (=6px), py-0.5 (=2px), px-1.5 (=6px), px-2.5 (=10px), py-2.5 (=10px), mt-0.5 (=2px). DESIGN.md allows only 4,8,12,16,20,24,32,40,48,64; 6/10/14px are explicitly disallowed. ~314 such occurrences span the codebase. The design audit page (design/page.tsx:1272) already self-documents this exact conclusion: 'The drift is entirely in micro-gaps, not in page rhythm.' The half-steps are individually harmless and often deliberate (tight pill chrome reads fine at 6px), but they are unenforced and proliferating — a half-step gets copied into every new pill/badge/row variant, so the count grows with each feature. The right fix is to either bless a small set of half-step values as named tokens or batch-snap them to the nearest allowed step.",
+      "approxTotalCount": 314,
+      "findings": [
+        {
+          "file": "src/components/shared/entity-pill.tsx",
+          "line": 184,
+          "issue": "Core interactive pill uses off-scale gap-1.5 (6px) and py-0.5 (2px). As the most-reused pill primitive, this seeds the 6px micro-gap pattern across every pill instance in the app.",
+          "recommendation": "Snap to gap-1 (4px) + py-1 (4px), or bless a --gap-pill half-step token. Fixing the primitive eliminates dozens of downstream copies.",
+          "snippet": "className={`group inline-flex cursor-pointer items-center gap-1.5 rounded -mx-1 px-1 py-0.5 ${"
+        },
+        {
+          "file": "src/components/shared/entity-pill.tsx",
+          "line": 300,
+          "issue": "Second copy of the same off-scale gap-1.5 / py-0.5 pill chrome in the static-pill branch of the same file. Two divergent-but-identical spacing strings in one primitive.",
+          "recommendation": "Extract the shared pill-chrome class string to one constant so both interactive and static pills stay in lockstep, then snap to on-scale values.",
+          "snippet": "return `group inline-flex cursor-pointer items-center gap-1.5 rounded -mx-1 px-1 py-0.5 ${"
+        },
+        {
+          "file": "src/components/shared/qa-score-badge.tsx",
+          "line": 10,
+          "issue": "Score-badge size map uses off-scale px-1.5 py-0.5 (sm) and px-2.5 py-1 (md). Three other badge components (version-picker, evaluation-status-pill, coaching/category-card) ship the identical off-scale size map, confirming copy-paste propagation.",
+          "recommendation": "Define one shared badge size-scale constant (e.g. in a badge-sizes.ts) consumed by qa-score-badge, version-picker, and evaluation-status-pill instead of each re-declaring px-1.5/px-2.5 maps.",
+          "snippet": "sm: \"px-1.5 py-0.5 text-sm\",\n  md: \"px-2.5 py-1 text-base\","
+        },
+        {
+          "file": "src/components/coaching/version-picker.tsx",
+          "line": 17,
+          "issue": "Duplicate of the qa-score-badge size map (px-1.5 py-0.5 / px-2.5 py-1). Same off-scale values declared independently — guaranteed to drift apart over time.",
+          "recommendation": "Consume a shared badge size-scale constant rather than re-declaring the off-scale map.",
+          "snippet": "sm: \"px-1.5 py-0.5 text-sm\",\n  md: \"px-2.5 py-1 text-base\","
+        },
+        {
+          "file": "src/components/coaching/evaluation-status-pill.tsx",
+          "line": 23,
+          "issue": "Third independent copy of the same off-scale badge size map (px-1.5 py-0.5 / px-2.5 py-1).",
+          "recommendation": "Collapse all three badge size maps into one shared constant; snap px-1.5→px-1/px-2 and px-2.5→px-2/px-3 if standardizing on-scale.",
+          "snippet": "sm: \"px-1.5 py-0.5 text-sm\",\n  md: \"px-2.5 py-1 text-base\","
+        },
+        {
+          "file": "src/components/shared/filter-row.tsx",
+          "line": 1025,
+          "issue": "filter-row.tsx is the single largest concentration of off-scale spacing — the py-1.5 (6px) input/control padding string is repeated across ~15 callsites (lines 184, 207, 274, 539, 621, 638, 858, 1025, 1040, 1087, 1117, 1124, 1168, 1239, 1252). The same input-chrome class is hand-typed each time.",
+          "recommendation": "Extract the repeated 'rounded-md border border-border bg-background px-2 py-1.5 text-sm' input class into one shared constant (or a small Input variant) used by every filter control, then decide py-1.5 vs py-1 once.",
+          "snippet": "\"w-1/2 rounded-md border border-border bg-background px-2 py-1.5 text-sm outline-none focus:border-primary\","
+        },
+        {
+          "file": "src/components/shared/group-control.tsx",
+          "line": 110,
+          "issue": "Dropdown menu-item rows use off-scale px-2 py-1.5 (6px). The same py-1.5 menu-row padding recurs in sort-control, view-actions, columns-control, multi-select-input, reports/axis-zone, and reports/property-rail — a cross-cutting menu-row pattern with no shared primitive.",
+          "recommendation": "Standardize all popover/dropdown menu rows on one MenuRow class or shadcn DropdownMenuItem padding; snap py-1.5→py-1 (4px) or py-2 (8px).",
+          "snippet": "className={`flex cursor-pointer items-center justify-between gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent ${"
+        },
+        {
+          "file": "src/components/shared/entity-toolbar.tsx",
+          "line": 58,
+          "issue": "Toolbar buttons use h-8 + gap-1.5 (6px). The h-8 ... gap-1.5 control string repeats across sort-control, view-actions, columns-control, group-control — the toolbar button family carries an unenforced 6px gap.",
+          "recommendation": "Standardize toolbar-control buttons on a single size token (h-8 gap-2) so all toolbar siblings share one gap; remove the 6px half-step.",
+          "snippet": "<Button size=\"sm\" className=\"h-8 cursor-pointer gap-1.5\">"
+        },
+        {
+          "file": "src/components/team-members/qa-dashboard.tsx",
+          "line": 653,
+          "issue": "Note row uses py-2.5 (10px) while a sibling summary row at line 867 uses py-2.5 too but adjacent rows mix py-1.5 / gap-1.5 / mt-0.5 — within one component the vertical rhythm hops between 2/4/6/10px with no system.",
+          "recommendation": "Pick one row vertical-padding step for the dashboard (py-2=8px) and one inter-element gap (gap-2=8px); the mixed half-steps here are the inconsistent-sibling-rhythm smell DESIGN.md warns about.",
+          "snippet": "className=\"group/note -mx-1 block rounded-md px-1 py-2.5 transition-colors hover:bg-accent/40\""
+        },
+        {
+          "file": "src/components/shell/search-palette.tsx",
+          "line": 238,
+          "issue": "Search palette mixes py-2.5 (header, 10px), py-1.5 (list + footer, 6px), and gap-2 (8px) across sibling sections of the same overlay — three different off-scale vertical rhythms in one component.",
+          "recommendation": "Align palette header/list/footer on one vertical step (py-2=8px) for consistent rhythm; reserve a single half-step only if a named token is introduced.",
+          "snippet": "<div className=\"flex items-center gap-2 px-3 py-2.5 border-b border-border\">"
+        },
+        {
+          "file": "src/components/coaching/inspect-panel.tsx",
+          "line": 388,
+          "issue": "Single element stacks four off-scale half-steps at once: px-3 (ok) pb-2.5 (10px) pt-0.5 (2px) plus space-y-2. Mixing pt-0.5 against pb-2.5 produces visibly asymmetric, off-grid padding.",
+          "recommendation": "Replace with a symmetric on-scale pair (e.g. py-2 or pt-1 pb-2); avoid stacking multiple half-steps on one node.",
+          "snippet": "<div className=\"space-y-2 px-3 pb-2.5 pt-0.5 animate-in fade-in slide-in-from-top-1 duration-150\">"
+        },
+        {
+          "file": "src/components/tickets/ticket-activity.tsx",
+          "line": 808,
+          "issue": "Timeline inter-item spacing is computed in JS returning off-scale mt-2.5 (10px) and mt-1.5 (6px) depending on adjacent item kinds — the rhythm logic itself is built on disallowed values, so every timeline gap is off-grid.",
+          "recommendation": "Map the spacing function to allowed steps (mt-2=8px / mt-3=12px) so the computed timeline rhythm lands on the scale.",
+          "snippet": "return \"mt-2.5\"; ... if (prev.kind === \"event\" && curr.kind === \"event\") return \"mt-1.5\";"
+        },
+        {
+          "file": "src/components/coaching/comment-row.tsx",
+          "line": 87,
+          "issue": "Comment list rows use gap-2.5 (10px) for the avatar/body gap while sibling coaching rows use gap-2 / gap-1.5 — inconsistent gap between comparable list rows.",
+          "recommendation": "Standardize coaching list-row gaps on gap-2 (8px); gap-2.5 here is an unexplained one-off.",
+          "snippet": "<li className=\"group flex gap-2.5\">"
+        },
+        {
+          "file": "src/components/shared/entity-table.tsx",
+          "line": 249,
+          "issue": "Table footer/control bar uses px-gutter (correct) but py-1.5 (6px) off-scale; table-skeleton.tsx:6 and list-filter-row.tsx:62 repeat the same px-gutter py-1.5 band. The page-edge horizontal rhythm is tokenized but the vertical band height is an off-scale half-step copied across three table-chrome files.",
+          "recommendation": "Introduce a band-height step (py-2=8px) used by table footer, skeleton, and filter band so all horizontal bands share one vertical rhythm.",
+          "snippet": "<div className=\"flex items-center justify-between border-b border-border bg-background px-gutter py-1.5\">"
+        },
+        {
+          "file": "src/components/reports/pivot-table.tsx",
+          "line": 366,
+          "issue": "Pivot table cells use px-3 py-1.5 (6px) repeated across header, total, and data-cell rows (lines 366, 376, 393). Cell vertical padding off-scale and re-declared per cell type rather than driven by one cell-padding constant.",
+          "recommendation": "Drive all pivot cell padding from a single cellClass constant on an allowed step (py-2=8px); aligns pivot cells with EntityTable cell rhythm.",
+          "snippet": "\"bg-muted/20 px-3 py-1.5 text-right text-base text-muted-foreground\","
+        }
+      ],
+      "systemicRecommendation": "The page-rhythm layer is already solved by the --spacing-gutter token; the failure mode is that no equivalent token exists for the micro-scale, so 6px/2px/10px gaps get hand-typed into every pill, badge, menu row, and table band. Do two things: (1) Decide once whether half-steps are legal. If yes, promote the three that actually carry their weight (gap-1.5, py-0.5, px-2.5 for tight pill/badge chrome) into named utilities/tokens (e.g. gap-pill, py-pill) and amend DESIGN.md's allowed-values list to bless exactly those — then a lint rule can reject every other half-step. If no, run a single codemod snapping gap-1.5→gap-1, py-0.5/mt-0.5→py-1/mt-1, px-1.5→px-1/px-2, px-2.5/py-2.5→px-2/py-2. (2) Eliminate the copy-paste vectors that multiply the count: extract the three duplicated badge size-maps (qa-score-badge / version-picker / evaluation-status-pill) into one shared constant, extract the ~15-callsite filter-row input class, and standardize the menu-row and toolbar-button padding into shared shadcn-variant wrappers. Most of the 314 occurrences collapse to a handful of source definitions once the primitives own their spacing. Add an ESLint rule (no off-scale spacing utilities outside the blessed set) so the next feature can't reintroduce the drift — that's the same enforcement gap that let it accumulate."
+    },
+    {
+      "dimension": "Component reuse / duplication",
+      "severity": "medium",
+      "summary": "Production UI has a recurring pattern: a layout/format pattern is implemented once, then copy-pasted into 2-6 sibling files instead of being extracted to src/components/shared/ or src/lib/, violating CLAUDE.md's \"anything reused twice becomes its own file in shared/.\" Several of these have already drifted in ways users will notice. The single most consequential case is two divergent status pills (EvaluationStatusPill vs QaStatusPill) that render the SAME QaEvaluationStatus enum with the SAME labels but DIFFERENT colors — ai_scored is blue in one and grey in the other, invalidated is grey in one and red in the other. Other clusters: a settings page header repeated across 6 files, a settings \"EmptyState\" card duplicated near-verbatim, scale-aware Pass/Fail score formatting reinvented in 6 files with no shared helper, formatScore/formatPercent copied verbatim between two files, an inline avatar that bypasses the shared Avatar component, and a dashed-border empty-box pattern hand-rolled in 6 places (already drifting text-sm vs text-base). Most are settings/coaching-era code; the core entity surfaces (EntityTable, pills, PropertyList) are well-consolidated, which keeps this at medium not high.",
+      "approxTotalCount": 22,
+      "findings": [
+        {
+          "file": "src/components/coaching/evaluation-status-pill.tsx",
+          "line": 5,
+          "issue": "EvaluationStatusPill and qa/qa-status-pill.tsx's QaStatusPill both render the same QaEvaluationStatus enum with identical labels but DIVERGENT color maps. ai_scored: bg-blue-lighter here vs bg-grey-lighter in QaStatusPill. edited: purple here vs blue there. invalidated: grey here vs red there. Two copy-pasted pills that drifted apart — a user sees the same status colored differently on different screens.",
+          "snippet": "ai_scored: \"bg-blue-lighter text-blue-darker\", ... invalidated: \"bg-grey-lighter text-grey-darker\",",
+          "recommendation": "Merge into one shared src/components/shared/qa-status-pill.tsx (it already claims to be 'Shared' in its doc comment). Keep the size prop from EvaluationStatusPill, pick ONE authoritative color map, delete the coaching copy, update both import sites."
+        },
+        {
+          "file": "src/components/qa/qa-status-pill.tsx",
+          "line": 11,
+          "issue": "Second of the divergent QaEvaluationStatus pills. Its doc comment already says 'Shared QA evaluation status pill' yet a parallel implementation lives in coaching/evaluation-status-pill.tsx — the consolidation it claims never happened.",
+          "snippet": "const QA_STATUS_CLASSES: Record<QaEvaluationStatus, string> = { ai_scored: \"bg-grey-lighter text-grey-darker\", ...",
+          "recommendation": "Make this the single source of truth, add the optional size prop, and route coaching's usage through it. Delete evaluation-status-pill.tsx."
+        },
+        {
+          "file": "src/components/settings/auto-scoring/rules-list.tsx",
+          "line": 274,
+          "issue": "EmptyState card (rounded-xl bg-card px-6 py-10 text-center ring-1 ring-foreground/10 + Sparkles icon + h2 + p + Button) is near-identical to scorecards-list.tsx's EmptyState. Same chrome, same Sparkles, same typography — only the copy and the button action differ.",
+          "snippet": "<div className=\"rounded-xl bg-card px-6 py-10 text-center ring-1 ring-foreground/10\"><Sparkles size={20} className=\"mx-auto text-blue-dark\" .../>",
+          "recommendation": "Extract a shared src/components/shared/empty-state.tsx accepting { icon, title, description, action } slots. Replace both settings EmptyStates with it; reuse on future empty lists."
+        },
+        {
+          "file": "src/components/settings/scorecards/scorecards-list.tsx",
+          "line": 237,
+          "issue": "Duplicate of the auto-scoring EmptyState card. Byte-for-byte identical container + icon styling; copy-pasted then lightly edited.",
+          "snippet": "<div className=\"rounded-xl bg-card px-6 py-10 text-center ring-1 ring-foreground/10\"><Sparkles size={20} className=\"mx-auto text-blue-dark\" aria-hidden />",
+          "recommendation": "Consume the shared EmptyState component from the previous finding."
+        },
+        {
+          "file": "src/app/(workspace)/settings/users/page.tsx",
+          "line": 141,
+          "issue": "Hand-rolled avatar: a div with rounded-full + items-center justify-center + initials, plus an adjacent <img> fallback path. This re-implements exactly what the shared Avatar component (src/components/shared/avatar.tsx) already does — image-with-fallback-to-initials-on-color. CLAUDE.md: don't hand-roll a visual that exists as a component.",
+          "snippet": "<div className=\"flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-accent text-sm font-medium text-foreground\">{initials}</div>",
+          "recommendation": "Replace the img/initials branch with <Avatar size=... initials={initials} bg={...} imageUrl={avatarUrl} />. Deletes ~10 lines and gets the load-error fallback cascade for free."
+        },
+        {
+          "file": "src/components/settings/scorecards/ticket-preview-panel.tsx",
+          "line": 188,
+          "issue": "Scale-aware score formatting (binary->Pass/Fail, likert->of 5) is reinvented here as private formatScore/scaleSummary, and the same Pass/Fail + score/5 logic is independently re-implemented in ticket-detail.tsx (formatCategoryScore), inspect-panel.tsx (x2), coaching/category-card.tsx, citation-chip.tsx, and coaching-ticket.tsx. No shared helper despite ScorecardScaleType being a stable enum.",
+          "snippet": "function formatScore(score, scale) { if (scale === \"binary\") return score === 1 ? \"Pass\" : \"Fail\"; ... }",
+          "recommendation": "Add src/lib/qa/format-score.ts exporting formatCategoryScore(score, scaleType) (pure fn — gets a co-located test per the testing rule). Replace all 6+ private copies. Removes the risk of one surface saying 'Pass' at >=1 and another at ===1 (which already differs: ticket-detail uses >=1, citation-chip uses ===1)."
+        },
+        {
+          "file": "src/components/tickets/ticket-detail.tsx",
+          "line": 262,
+          "issue": "formatCategoryScore duplicates the scale-aware Pass/Fail/score-over-N logic. Note it uses effectiveScore >= 1 for binary Pass, whereas citation-chip.tsx and inspect-panel.tsx use score === 1 — a real behavioral drift hidden inside copy-pasted formatters.",
+          "snippet": "if (c.scaleType === \"binary\") { return c.effectiveScore >= 1 ? \"Pass\" : \"Fail\"; } if (c.scaleType === \"three_state\") { return `${c.effectiveScore} / 2`; }",
+          "recommendation": "Route through the shared format-score helper; pick one binary threshold and encode it once."
+        },
+        {
+          "file": "src/components/team-members/qa-dashboard.tsx",
+          "line": 221,
+          "issue": "formatScore(value: number|null) and formatPercent(value: number|null) are duplicated VERBATIM in reports/coaching-insights/tiles-row.tsx. Identical bodies, identical em-dash null fallback.",
+          "snippet": "function formatScore(value: number | null): string { if (value == null) return \"—\"; return value.toFixed(1); }",
+          "recommendation": "Move both to src/lib/format.ts (or a qa-format module) as exported pure functions with a co-located test. Import in both files."
+        },
+        {
+          "file": "src/components/reports/coaching-insights/tiles-row.tsx",
+          "line": 39,
+          "issue": "Verbatim copy of formatScore/formatPercent from qa-dashboard.tsx. Two divergent definitions of the same trivial formatters guarantee they'll drift (e.g. one switches to 'N/A' instead of em-dash).",
+          "snippet": "function formatScore(value: number | null): string { if (value == null) return \"—\"; return value.toFixed(1); }",
+          "recommendation": "Consume the shared format helpers; delete the local copies."
+        },
+        {
+          "file": "src/components/settings/auto-scoring/rules-list.tsx",
+          "line": 120,
+          "issue": "Settings page header (h1 text-2xl font-semibold tracking-tight text-foreground + p mt-2 text-base text-muted-foreground description, often with a trailing 'New X' button in a flex justify-between row) is repeated across 6 settings files: rules-list, scorecard-editor, scorecards-list, rule-editor, settings/workspace/page, settings/users/page.",
+          "snippet": "<h1 className=\"text-2xl font-semibold tracking-tight text-foreground\">Auto-scoring</h1><p className=\"mt-2 text-base text-muted-foreground\">...",
+          "recommendation": "Extract src/components/settings/settings-page-header.tsx with { title, description, action } slots. Replace all 6. Guarantees consistent spacing/typography and a single place to evolve the settings shell."
+        },
+        {
+          "file": "src/components/responses/response-detail.tsx",
+          "line": 162,
+          "issue": "Inline 'empty content' dashed box (rounded-md border border-dashed border-border ... text-muted-foreground) is hand-rolled here and in survey-detail.tsx, ticket-detail.tsx, qa-dashboard.tsx, shell/coming-soon.tsx, and coaching/[evaluationId]/feedback-section.tsx. Already drifting: this one and ticket-detail use text-base; survey-detail uses text-sm for the same visual.",
+          "snippet": "<div className=\"rounded-md border border-dashed border-border px-5 py-4 text-base text-muted-foreground\">No structured answers.</div>",
+          "recommendation": "Add a lightweight shared InlineEmpty / Placeholder component (or a variant of the EmptyState above) taking children + optional bg. Standardizes on text-base (the body ladder step) and kills the text-sm drift."
+        },
+        {
+          "file": "src/components/surveys/survey-detail.tsx",
+          "line": 94,
+          "issue": "Dashed-border empty box duplicated from the detail-body cluster, but at text-sm instead of text-base — a typography drift introduced by copy-paste (CLAUDE.md: text-sm is not for body copy/labels).",
+          "snippet": "<div className=\"rounded-md border border-dashed border-border px-5 py-4 text-sm text-muted-foreground\">No questions configured.</div>",
+          "recommendation": "Replace with the shared inline-empty component at text-base; fixes both the duplication and the font-size rule violation in one move."
+        },
+        {
+          "file": "src/components/team-members/team-member-detail.tsx",
+          "line": 51,
+          "issue": "Rating(1-5)-to-color mapping is inlined here (r >= 4 green / r === 3 yellow / red) and independently in entity-popover.tsx (r < 3 red / r < 4 yellow / green). Two different threshold encodings of the same conceptual rating-color scale; a score-color helper exists for the 0-100 QA scale but not for the 1-5 rating scale.",
+          "snippet": "r >= 4 ? \"bg-green\" : r === 3 ? \"bg-yellow\" : \"bg-red-light\";",
+          "recommendation": "Add ratingColor(r) (or extend src/lib/qa/score-color.ts with a rating variant) as a pure tested helper; consume in both files so the buckets can't diverge."
+        },
+        {
+          "file": "src/components/settings/scorecards/category-card.tsx",
+          "line": 21,
+          "issue": "SCALE_LABEL map (likert_5/binary/three_state -> human label) is local to this editor, while scale->summary strings are independently encoded in ticket-preview-panel.tsx (scaleSummary). Same enum, two label vocabularies.",
+          "snippet": "const SCALE_LABEL: Record<ScorecardScaleType, string> = { likert_5: \"1–5 Likert\", binary: \"Binary (pass/fail)\", three_state: \"Three-state (0/1/2)\" };",
+          "recommendation": "Centralize scale labels alongside the format-score helper in src/lib/qa so the same scale always reads the same across editor and preview surfaces."
+        }
+      ],
+      "systemicRecommendation": "Establish a \"second use triggers extraction\" tripwire and apply it to two layers, because the drift splits cleanly: (1) presentational chrome — empty states, page headers, status pills, inline placeholders, avatars — belongs in src/components/shared/; (2) pure label/format/color logic — scale-aware score formatting, formatScore/formatPercent, rating-to-color, scale labels — belongs in src/lib (where the existing testing rule forces a co-located *.test.ts, which is exactly what keeps two copies from silently diverging). The mechanism: when a worker is about to write JSX or a helper that matches something already on screen, the brief's pre-flight should require a grep for the literal class string / function name before defining a new one. Most of this cluster is settings/coaching-era code shipped by parallel workers who never saw each other's PRs — the divergent status-pill colors and the >=1-vs-===1 Pass threshold are the textbook \"sibling task drift\" failure CLAUDE.md already warns about. A single consolidation PR ('extract shared EmptyState + SettingsPageHeader + qa format/label/color helpers, route all call sites through them') would clear ~80% of this dimension and, more importantly, eliminate the user-visible color/label inconsistencies, not just the code smell."
+    }
+  ],
+  "synthesis": {
+    "executiveSummary": "The production UI of Simplesat Vision is structurally healthy on the load-bearing dimensions: zero raw Tailwind hue classes, zero arbitrary text sizes, zero forced-uppercase labels, zero arbitrary bracket spacing, and broadly disciplined primitive composition (DropdownMenu, Popover, Tooltip, HoverCard, dnd-kit all used correctly). The core entity surfaces — EntityTable, pills, PropertyList, detail pages — are well-consolidated. Drift is real but bounded, and it clusters in a recognizable signature: it is concentrated in the recently-added settings, coaching, and reports/coaching-insights feature families shipped by parallel workers, and it takes the form of copy-paste duplication that has begun to diverge rather than novel one-off violations. The two findings that actually ship wrong behavior to users are (1) the coaching-insights \"-default\" shade bug — an invented token suffix that generates no color at all, so heatmap cells and chart bars render with no fill in both themes (dark-mode dimension), and (2) two divergent status pills (EvaluationStatusPill vs QaStatusPill) that color the same QaEvaluationStatus enum differently on different screens (component-reuse dimension), plus a related Pass/Fail threshold that differs (>=1 vs ===1) across copy-pasted score formatters. Everything else is maintainability debt: ~314 off-scale micro-gaps, ~32 text-xs label violations, a duplicated text-xs group-heading div copied across 7 controls, native title= tooltips bypassing the Tooltip primitive, missing cursor-pointer on ~20 controls, and ~22 copy-paste duplication clusters. The unifying root cause is an enforcement gap: the conventions are written down in CLAUDE.md/DESIGN.md but nothing in the build catches violations, so each parallel worker independently re-derives the same off-ladder value or re-implements the same chip/header/formatter. The fix is twofold and cheap relative to the payoff: bake conventions into shared primitives (Button base cursor, DrawerLink cursor, shared GroupHeading/EmptyState/SettingsPageHeader/CountChip, qa format/color helpers in src/lib) and add a small set of pre-merge lint guards so the hard-won clean state on the strong dimensions becomes a permanent invariant.",
+    "overallHealth": "B — strong fundamentals and clean core surfaces, dragged down by two user-visible defects (invalid -default color tokens, divergent status-pill colors) and an enforcement gap that lets copy-paste drift accumulate in newer feature areas.",
+    "healthGrade": "B",
+    "crossCuttingThemes": [
+      "Enforcement gap is the single root cause across all 8 dimensions: the conventions exist in CLAUDE.md/DESIGN.md but nothing in the build catches violations. Every dimension's systemic recommendation independently lands on the same fix — an ESLint/grep pre-merge guard. The strong dimensions (zero raw hue classes, zero arbitrary text sizes, zero bracket spacing) are clean by discipline alone and will silently regress without a guard.",
+      "Sibling-task drift from parallel workers: the drift is concentrated in settings/coaching/reports-coaching-insights code shipped by parallel workers who never saw each other's PRs. This is the exact failure mode CLAUDE.md already names — workers re-derive the same value (text-xs group-heading, badge size maps, EmptyState card) or worse, divergent values (status-pill colors, Pass/Fail threshold, -default vs base shade). Core surfaces built earlier and consolidated are clean.",
+      "Duplicated LOGIC is more dangerous than duplicated MARKUP: the genuinely user-visible defects all stem from copy-pasted logic that diverged — TEAM_TONES map in two places, ratingTone thresholds in two places, Pass/Fail at >=1 vs ===1, status colors blue-vs-grey. Co-locating tone maps and threshold functions next to their component (or in src/lib where the testing rule forces a co-located test) kills the divergence at the source.",
+      "Primitives should own conventions so call sites can't forget: cursor-pointer is hand-applied 43 times and forgotten ~20 times; pill spacing is re-typed per pill; group-heading size re-derived per control. Baking the convention into the base primitive (Button base cursor, DrawerLink cursor, shared GroupHeading/CountChip) converts boilerplate-plus-drift into a property of the primitive.",
+      "Silent-failure tokens: invalid Tailwind utilities and undefined CSS vars (the -default shade) produce no tsc error, no lint error, no runtime throw — just absent color. A closed-set token validator catches this entire class at author time."
+    ],
+    "topRecommendations": [
+      {
+        "priority": "P1",
+        "recommendation": "Fix the coaching-insights '-default' shade bug immediately — replace every bg/text/var(--color-*)-default with the bare base shade across heatmap-section.tsx, correlation-panel.tsx, signals-panel.tsx, and insight-line.tsx (6 instances).",
+        "rationale": "This is a live rendering bug, not just drift: '-default' is not a valid token, so highest-scoring heatmap cells, the red/yellow/green correlation chart bars, and the escalated/ai_handoff/insight icons render with NO color in both light and dark mode. It fails silently (no tsc/lint/runtime error) and ships broken color on a brand-new feature surface. Smallest effort, highest user impact. (Dark-mode/theme dimension.)",
+        "affectedDimensions": [
+          "Dark-mode / theme drift"
+        ]
+      },
+      {
+        "priority": "P1",
+        "recommendation": "Consolidate the two divergent QA status pills (EvaluationStatusPill + QaStatusPill) into one authoritative shared pill, and extract scale-aware score formatting (Pass/Fail/score-over-N) into a single tested src/lib/qa/format-score.ts.",
+        "rationale": "Both are user-visible correctness bugs hiding in copy-paste: the same QaEvaluationStatus enum is colored differently on different screens (ai_scored blue vs grey, invalidated grey vs red), and binary Pass is computed at >=1 in one file and ===1 in another, so the same ticket can read Pass on one surface and Fail on another. These are the textbook sibling-task-drift failures. One consolidation PR fixes the inconsistency and prevents future divergence via the co-located test rule. (Component-reuse dimension.)",
+        "affectedDimensions": [
+          "Component reuse / duplication",
+          "Hand-rolled inline visuals"
+        ]
+      },
+      {
+        "priority": "P2",
+        "recommendation": "Add a small set of pre-merge lint guards (ESLint no-restricted-syntax or grep gates wired into the existing worker pre-flight): (a) closed-set token validator rejecting any hue+shade outside {base|light|dark|lighter|darker} and any var(--color-*) with an invalid shade; (b) ban raw default Tailwind hue+shade classes; (c) ban the title= attribute on interactive elements; (d) flag text-xs outside an allowlist; (e) flag raw button/[role=button]/div-onClick lacking a cursor- utility.",
+        "rationale": "Every dimension's systemic recommendation independently converges on this. The strong dimensions are at zero today purely by discipline — a guard converts that hard-won state into a permanent invariant and would have caught the P1 '-default' bug at author time for free. No CI runner is needed; these run in the same pre-flight gate workers already execute. (Cross-cutting; touches all 8 dimensions.)",
+        "affectedDimensions": [
+          "Raw Tailwind hue classes",
+          "Typography ladder",
+          "Dark-mode / theme drift",
+          "Primitive bypass",
+          "Cursor affordance",
+          "Spacing rhythm"
+        ]
+      },
+      {
+        "priority": "P2",
+        "recommendation": "Bake conventions into shared primitives: add cursor-pointer to the shadcn Button base variant and to DrawerLink; extract a shared GroupHeading (kills ~10 text-xs label violations in one edit), CountChip, EmptyState, SettingsPageHeader, and a single badge size-scale constant.",
+        "rationale": "The largest sources of drift are hand-rolled patterns re-derived per worker: the text-xs group-heading div across 7 controls, three independent badge size maps, six EmptyState/dashed-box recreations, the count-chip in three files, and cursor-pointer applied 43 times / forgotten 20. Centralizing each makes the convention a property of the primitive — future controls reach for the correct primitive instead of re-inventing. Most of the ~314 spacing occurrences and ~32 typography violations collapse to a handful of source definitions. (Typography, Spacing, Component-reuse, Hand-rolled-visuals, Cursor dimensions.)",
+        "affectedDimensions": [
+          "Typography ladder",
+          "Spacing rhythm",
+          "Component reuse / duplication",
+          "Hand-rolled inline visuals",
+          "Cursor affordance"
+        ]
+      },
+      {
+        "priority": "P3",
+        "recommendation": "Decide once whether spacing half-steps are legal: either bless gap-1.5/py-0.5/px-2.5 as named tight-chrome tokens in DESIGN.md, or run a single codemod snapping them to the nearest allowed step — then let the spacing lint guard enforce the decision.",
+        "rationale": "~314 off-scale micro-gaps are individually harmless and often deliberate tight pill chrome, but they are unenforced and proliferating — each half-step gets copied into every new pill/badge/row. This is pure maintainability debt with no user-visible defect, so it ranks below the correctness fixes, but it needs a one-time policy decision to stop the count growing with every feature. (Spacing-rhythm dimension.)",
+        "affectedDimensions": [
+          "Spacing rhythm"
+        ]
+      },
+      {
+        "priority": "P3",
+        "recommendation": "File a Notion follow-up to install shadcn's sonner toast and migrate the hand-rolled toast.tsx (custom portal, z-[60] layer, setTimeout dismissal) onto it.",
+        "rationale": "Gray-area bypass rather than active drift — no toast primitive is currently installed to defer to, so this is not urgent and should not be rewritten now. But the bespoke file reimplements overlay/portal/timing/stacking the design system should own; capture the seam cleanly per the prototype-to-production posture. (Primitive-bypass dimension.)",
+        "affectedDimensions": [
+          "Primitive bypass"
+        ]
+      }
+    ],
+    "suggestedRemediationTasks": [
+      {
+        "title": "Fix invalid '-default' color tokens in coaching-insights (6 instances)",
+        "scope": "Replace bg-green-default/text-red-default/text-blue-default/text-yellow-default class strings and var(--color-*-default) chart fills with bare base shades across heatmap-section.tsx:11, correlation-panel.tsx:17-19, signals-panel.tsx:16/18, insight-line.tsx:12. Visually verify heatmap cells, correlation bars, and signal/insight icons render with color in both light and dark mode.",
+        "effort": "XS"
+      },
+      {
+        "title": "Consolidate EvaluationStatusPill + QaStatusPill into one shared status pill",
+        "scope": "Pick one authoritative color map for the QaEvaluationStatus enum, keep the size prop from EvaluationStatusPill, make qa/qa-status-pill.tsx the single source, delete coaching/evaluation-status-pill.tsx, update both import sites. Resolves the blue-vs-grey / grey-vs-red divergence.",
+        "effort": "S"
+      },
+      {
+        "title": "Extract qa format/color/label helpers into src/lib/qa with co-located tests",
+        "scope": "Create format-score.ts (scale-aware Pass/Fail/score-over-N — pick ONE binary threshold, killing the >=1 vs ===1 divergence), move formatScore/formatPercent out of qa-dashboard.tsx and tiles-row.tsx, add ratingColor(r) for the 1-5 scale, centralize SCALE_LABEL. Route all ~6+ private copies through them. Each pure fn ships a *.test.ts per the testing rule.",
+        "effort": "M"
+      },
+      {
+        "title": "Add closed-set color-token lint guard to pre-merge pre-flight",
+        "scope": "ESLint no-restricted-syntax rule (or grep gate) failing on any (bg|text|border|ring|fill|stroke)-(red|green|blue|yellow|purple|teal|grey|...) whose shade is not in {base|light|dark|lighter|darker}, plus any default-Tailwind hue+shade, plus var(--color-*) with an invalid shade. Exclude src/components/ui/, *.test.ts, mockups, and /design pages. Would have caught the -default bug.",
+        "effort": "S"
+      },
+      {
+        "title": "Bake cursor-pointer into Button base + DrawerLink, add raw-element cursor lint rule",
+        "scope": "Add cursor-pointer to the cva base string in src/components/ui/button.tsx and merge it into DrawerLink's className in entity-pill.tsx (covers every pill). Add an ESLint rule flagging raw <button>/[role=button]/<div onClick> lacking a cursor- utility for the long tail (segmented controls, clickable rows). Optionally clean up the 43 now-redundant hand-applied instances.",
+        "effort": "S"
+      },
+      {
+        "title": "Extract shared GroupHeading and route all pickers/dropdowns through it",
+        "scope": "Create one GroupHeading component at body size with text-muted-foreground (no text-xs). Replace the hand-rolled 'text-xs font-medium text-muted-foreground/80' div in sort-control, group-control, filter-row, axis-zone, property-rail, search-palette, workspace-switcher. Deletes ~10 typography violations in one edit. Add a text-xs lint guard with an avatar/kbd/count-badge allowlist.",
+        "effort": "S"
+      },
+      {
+        "title": "De-duplicate entity-popover inline visuals against shared components",
+        "scope": "In entity-popover.tsx replace the inline tier chip with <TierPill>, the inline team chip + local TEAM_TONES copy with <TeamPill>, and the inline Star+toFixed with <AvgRating>. Delete the local RatingValue helper in (workspace)/page.tsx in favor of <AvgRating>. Removes duplicated tone maps and rating thresholds that can silently diverge.",
+        "effort": "S"
+      },
+      {
+        "title": "Extract shared CountChip and route count/tag chips through it",
+        "scope": "Create a CountChip (or document a Badge variant) for the rounded bg-muted px-* text-xs tabular-nums shape re-implemented in relation-tabs.tsx:65, entity-toolbar.tsx:84, and entity-pill.tsx:284 (survey tag). Consume in all three; use Tag where the chip is conceptually a tag.",
+        "effort": "S"
+      },
+      {
+        "title": "Extract shared EmptyState + SettingsPageHeader components",
+        "scope": "Create src/components/shared/empty-state.tsx ({icon,title,description,action} slots) replacing the near-identical cards in rules-list.tsx and scorecards-list.tsx and the six dashed-border inline-empty boxes (standardizing on text-base, fixing the survey-detail text-sm drift). Create settings/settings-page-header.tsx ({title,description,action}) replacing the header repeated across 6 settings files.",
+        "effort": "M"
+      },
+      {
+        "title": "Replace hand-rolled UserAvatar with shared Avatar + resolveAvatar",
+        "scope": "In (workspace)/settings/users/page.tsx delete the local UserAvatar (~115-145) and use <Avatar {...resolveAvatar({avatarUrl,email,name})} />, gaining the stored-URL → Gravatar → DiceBear → initials fallback cascade.",
+        "effort": "XS"
+      },
+      {
+        "title": "Replace native title= tooltips with the Tooltip primitive + add lint ban",
+        "scope": "Convert title= on interactive controls in rule-editor.tsx:428, view-actions.tsx:163/217, sort-control.tsx:371, list-page-actions.tsx:46, qa-dashboard.tsx:875 to the shadcn Tooltip pattern (or drop where aria-label suffices). Add an optional thin HintButton wrapper. Add an ESLint rule banning title= on button/a/[role=button] under src/components and (workspace). Leave heatmap per-cell title= as a noted lower-priority follow-up.",
+        "effort": "S"
+      },
+      {
+        "title": "Resolve the spacing half-step policy and enforce it",
+        "scope": "DESIGN.md decision: bless gap-1.5/py-0.5/px-2.5 as named tight-chrome tokens OR codemod-snap all ~314 off-scale half-steps (gap-1.5→gap-1, py-0.5/mt-0.5→py-1, px-1.5→px-1/2, px-2.5/py-2.5→px-2) to allowed steps. Extract the three duplicated badge size-maps (qa-score-badge/version-picker/evaluation-status-pill) into one constant, the ~15-callsite filter-row input class, and standardize menu-row/toolbar-button padding. Add an off-scale-spacing lint guard.",
+        "effort": "L"
+      },
+      {
+        "title": "File follow-up to adopt shadcn sonner toast and retire toast.tsx",
+        "scope": "Notion backlog task only (do not rewrite now — no primitive installed to defer to): evaluate installing shadcn sonner, migrate useToast() call sites, delete the bespoke ToastProvider/ToastViewport/ToastRow and its z-[60] layer + setTimeout dismissal so the design system owns overlay/timing/stacking.",
+        "effort": "S"
+      }
+    ]
+  }
+}

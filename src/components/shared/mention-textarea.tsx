@@ -5,6 +5,7 @@ import {
   useEffect,
   useImperativeHandle,
   useLayoutEffect,
+  useMemo,
   useRef,
   useState,
 } from "react";
@@ -87,7 +88,10 @@ export function MentionTextarea({
   // Caret to restore after a programmatic value change (token insert).
   const pendingCaret = useRef<number | null>(null);
 
-  const triggers = sources.map((s) => s.trigger);
+  // Stable across renders unless `sources` actually changes. Without this,
+  // the `sync` useCallback would be a fresh function each render, and the
+  // scroll/resize listeners below would rebind on every render.
+  const triggers = useMemo(() => sources.map((s) => s.trigger), [sources]);
   const source = active ? sources.find((s) => s.trigger === active.trigger) : null;
   const matches: MentionItem[] =
     active && source ? filterMentions(source.items, active.query) : [];

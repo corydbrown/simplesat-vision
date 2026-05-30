@@ -1,6 +1,7 @@
 "use client";
 
 import { Bot, Cpu, ShieldAlert, Star } from "lucide-react";
+import { Line, LineChart } from "recharts";
 import { useEffect } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Avatar } from "@/components/shared/avatar";
@@ -27,6 +28,7 @@ import { recordEntityView } from "@/lib/recent-pages";
 import { formatNumber, formatRelative } from "@/lib/format";
 import { providerLabel } from "@/lib/team-members/provider-display";
 import type {
+  TeamMemberBullshitStats,
   TeamMemberCoachingFeedItem,
   TeamMemberDetail,
   TeamMemberListRow,
@@ -37,6 +39,55 @@ import type {
 import type { TicketsRow } from "@/db/queries/tickets";
 import type { ResponseListRow } from "@/db/queries/responses";
 import { QaDashboard } from "@/components/team-members/qa-dashboard";
+
+function BullshitDetectorCard({
+  stats,
+}: {
+  stats: TeamMemberBullshitStats | null;
+}) {
+  // Pre-install state: no v2 evaluations exist yet for this agent.
+  if (!stats || stats.total === 0) {
+    return (
+      <StatCard
+        label="Bullshit detector"
+        value={
+          <span className="inline-flex items-center gap-2 text-muted-foreground">
+            <ShieldAlert size={20} />0 flagged
+          </span>
+        }
+        hint="Bullshit flag fires when answer directness, recognition of limits, and customer time respect all score ≤ 2 on an AI evaluation."
+      />
+    );
+  }
+  const hasTrendData = stats.sparkline.some((p) => p.value != null);
+  return (
+    <StatCard
+      label="Bullshit detector"
+      value={
+        <div className="flex w-full items-center justify-between gap-2">
+          <span className="inline-flex items-center gap-2 text-red-darker">
+            <ShieldAlert size={20} />
+            {formatNumber(stats.total)} flagged
+          </span>
+          {hasTrendData ? (
+            <LineChart width={80} height={28} data={stats.sparkline}>
+              <Line
+                type="monotone"
+                dataKey="value"
+                stroke="var(--red)"
+                strokeWidth={1.5}
+                dot={false}
+                connectNulls
+                isAnimationActive={false}
+              />
+            </LineChart>
+          ) : null}
+        </div>
+      }
+      hint={`${formatNumber(stats.last30Days)} in the last 30 days · trips when answer directness + recognition of limits + customer time respect all fail`}
+    />
+  );
+}
 
 function RatingHistogram({
   data,
@@ -84,6 +135,7 @@ export function TeamMemberDetailBody({
   qaTiles,
   qaSparklines,
   coachingFeed,
+  bullshitStats = null,
   inDrawer = false,
 }: {
   member: TeamMemberDetail;
@@ -95,6 +147,7 @@ export function TeamMemberDetailBody({
   qaTiles: TeamMemberQaTiles;
   qaSparklines: TeamMemberQaSparklines;
   coachingFeed: TeamMemberCoachingFeedItem[];
+  bullshitStats?: TeamMemberBullshitStats | null;
   inDrawer?: boolean;
 }) {
   const router = useRouter();
@@ -213,19 +266,9 @@ export function TeamMemberDetailBody({
     </div>
   );
 
-  // Phase 3 lands the actual Bullshit Detector. This is the empty hero slot
-  // so the AI-agent profile already shows where that flag count will surface.
   const bullshitDetectorSlot = isAiAgent ? (
     <div className="mt-6 max-w-md">
-      <StatCard
-        label="Bullshit detector"
-        value={
-          <span className="inline-flex items-center gap-2 text-muted-foreground">
-            <ShieldAlert size={20} />0 flagged
-          </span>
-        }
-        hint="No bullshit flags yet — Phase 3 lands the detector."
-      />
+      <BullshitDetectorCard stats={bullshitStats} />
     </div>
   ) : null;
 

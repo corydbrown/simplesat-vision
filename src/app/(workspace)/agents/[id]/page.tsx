@@ -6,6 +6,7 @@ import { db, schema } from "@/db/client";
 import { eq } from "drizzle-orm";
 import {
   getRatingHistogram,
+  getTeamMemberBullshitStats,
   getTeamMemberById,
   getTeamMemberCoachingFeed,
   getTeamMemberQaRollup,
@@ -14,7 +15,10 @@ import {
   getTeamMemberResponses,
   getTeamMemberTickets,
 } from "@/db/queries/team-members";
-import type { TeamMemberListRow } from "@/db/queries/team-members";
+import type {
+  TeamMemberBullshitStats,
+  TeamMemberListRow,
+} from "@/db/queries/team-members";
 
 export default async function AgentDetailPage(
   props: PageProps<"/agents/[id]">,
@@ -24,6 +28,8 @@ export default async function AgentDetailPage(
   const member = await getTeamMemberById(id);
   if (!member) notFound();
 
+  const isAiAgent = member.kind === "ai_agent";
+
   const [
     tickets,
     responses,
@@ -32,6 +38,7 @@ export default async function AgentDetailPage(
     qaTiles,
     qaSparklines,
     coachingFeed,
+    bullshitStats,
     group,
   ] = await Promise.all([
     getTeamMemberTickets(id, 50),
@@ -41,6 +48,9 @@ export default async function AgentDetailPage(
     getTeamMemberQaTiles(id),
     getTeamMemberQaSparklines(id),
     getTeamMemberCoachingFeed(id, 8),
+    isAiAgent
+      ? getTeamMemberBullshitStats(id)
+      : (Promise.resolve(null) as Promise<TeamMemberBullshitStats | null>),
     member.groupId
       ? db
           .select({ name: schema.teamMemberGroups.name })
@@ -89,6 +99,7 @@ export default async function AgentDetailPage(
         qaTiles={qaTiles}
         qaSparklines={qaSparklines}
         coachingFeed={coachingFeed}
+        bullshitStats={bullshitStats}
       />
     </>
   );

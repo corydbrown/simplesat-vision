@@ -32,6 +32,11 @@ import { RESPONSE_GROUP_FIELDS } from "@/lib/group/fields/responses";
 import type { GroupSpec } from "@/lib/group/types";
 import type { SortSpec } from "@/lib/sort/url-state";
 import { TEAM_MEMBER_CUSTOM_FIELDS_BY_ID } from "@/lib/properties/custom-fields";
+import {
+  BULLSHIT_DETECTOR_CRITERIA,
+  BULLSHIT_DETECTOR_FAIL_AT_OR_BELOW,
+  BULLSHIT_DETECTOR_SCORECARD_NAME,
+} from "@/lib/qa/bullshit-detector";
 import type {
   QaEvaluationStatus,
   ScorecardScaleType,
@@ -1265,6 +1270,84 @@ export async function getTeamMemberQaSparklines(
       }));
 
   return { score: toPoints(scoreByDay), csat: toPoints(csatByDay) };
+}
+
+// ---------------------------------------------------------------------------
+// Bullshit Detector — counts evaluations where the three trigger criteria
+// of AI Scorecard v2 (Answer directness, Recognition of limits, Customer
+// time respect) ALL score ≤ the fail threshold against the same evaluation.
+// Derived at query time so we don't denormalise a stored boolean that the
+// scorecard's criterion text changes could silently invalidate.
+// ---------------------------------------------------------------------------
+
+export type TeamMemberBullshitStats = {
+  /** Total bullshit-flagged evaluations all-time (excludes invalidated). */
+  total: number;
+  /** Bullshit-flagged evaluation count within the last 30 days. */
+  last30Days: number;
+  /** Daily buckets matching the QA sparkline window. `value` is the bullshit
+   *  count for that day, or null on days with no qualifying evaluations. */
+  sparkline: SparklinePoint[];
+};
+
+export async function getTeamMemberBullshitStats(
+  memberId: string,
+): Promise<TeamMemberBullshitStats> {
+  const workspaceId = await requireWorkspace();
+  const today = dayStartUtcMs(Date.now());
+  const sparklineCutoff = today - (SPARKLINE_DAYS - 1) * MS_PER_DAY;
+  const triggerCount = BULLSHIT_DETECTOR_CRITERIA.length;
+
+  // One row per evaluation that trips the detector. SQLite handles the
+  // `IN (...)` placeholder list fine via drizzle's sql.placeholder-friendly
+  // tagged template — we inline the names because they're static + curated
+  // in code (no user input).
+  const rows = await db.all<{
+    scored_at: number;
+  }>(sql`
+    SELECT e.scored_at AS scored_at
+    FROM evaluations e
+    INNER JOIN scorecards s ON s.id = e.scorecard_id
+    INNER JOIN evaluation_category_scores ecs ON ecs.evaluation_id = e.id
+    INNER JOIN scorecard_categories sc ON sc.id = ecs.category_id
+    WHERE e.workspace_id = ${workspaceId}
+      AND e.scored_team_member_id = ${memberId}
+      AND e.status != 'invalidated'
+      AND s.name = ${BULLSHIT_DETECTOR_SCORECARD_NAME}
+      AND sc.name IN (
+        ${sql.join(
+          BULLSHIT_DETECTOR_CRITERIA.map((name: string) => sql`${name}`),
+          sql`, `,
+        )}
+      )
+      AND ecs.effective_score <= ${BULLSHIT_DETECTOR_FAIL_AT_OR_BELOW}
+    GROUP BY e.id, e.scored_at
+    HAVING COUNT(DISTINCT sc.name) = ${triggerCount}
+  `);
+
+  const dayBuckets = new Map<number, number>();
+  for (let i = 0; i < SPARKLINE_DAYS; i += 1) {
+    dayBuckets.set(today - i * MS_PER_DAY, 0);
+  }
+
+  let total = 0;
+  let last30Days = 0;
+  for (const row of rows) {
+    total += 1;
+    const ms = Number(row.scored_at);
+    if (ms < sparklineCutoff) continue;
+    const bucket = dayStartUtcMs(ms);
+    const current = dayBuckets.get(bucket);
+    if (current == null) continue;
+    dayBuckets.set(bucket, current + 1);
+    last30Days += 1;
+  }
+
+  const sparkline: SparklinePoint[] = Array.from(dayBuckets.entries())
+    .sort((a, b) => a[0] - b[0])
+    .map(([ts, count]) => ({ ts, value: count > 0 ? count : null }));
+
+  return { total, last30Days, sparkline };
 }
 
 export async function getTeamMemberCoachingFeed(

@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, eq } from "drizzle-orm";
+import { and, eq, or, sql } from "drizzle-orm";
 
 import { db } from "@/db/client";
 import { teamMembers } from "@/db/schema";
@@ -62,6 +62,94 @@ export function resolveProviderFromAuthor(authorRaw: unknown): AiProvider {
   return "unknown";
 }
 
+/** SVP-281. SQL `LIKE` patterns that identify a helpdesk-synced AI agent row
+ *  that predates the `kind` discriminator added in [Phase 1a /
+ *  drizzle/0033_svp268_team_member_kind.sql]. The Phase 1a migration
+ *  backfilled every existing row to `kind='human'`, so an Intercom Fin admin
+ *  synced before that point sits in the DB as `kind='human'` and the original
+ *  `lazyCreateAiTeamMember` (only matching `kind='ai_agent'`) created a
+ *  duplicate. The upgrade path uses these patterns to find the existing row
+ *  and flip its kind instead.
+ *
+ *  Only providers with stable, vendor-emitted identifier shapes ship a
+ *  pattern. Name-substring matching is intentionally OUT — false-positive
+ *  risk on legitimate humans named "Bot Smith" / "AI Anderson" / etc.
+ *
+ *  Add a new entry only after seeing live data from that provider confirming
+ *  the shape. */
+const VENDOR_MATCH_PATTERNS: Partial<
+  Record<AiProvider, { email?: string; externalId?: string }>
+> = {
+  intercom_fin: {
+    // Intercom synthesizes `operator+<workspaceId>@intercom.io` for Fin's
+    // admin record. n8n may route that string to either `email` or
+    // `external_id` (or both) depending on how the helpdesk-sync flow is
+    // wired — match either column.
+    email: "operator+%@intercom.io",
+    externalId: "operator+%@intercom.io",
+  },
+  // decagon / sierra / openai_assistant / anthropic_custom: no stable
+  // vendor-emitted identifier observed yet. Add when we see live data.
+};
+
+/** Pure. Does a candidate team_member row match the vendor's known
+ *  identifier shape? Mirrors the SQL `LIKE` semantics the upgrade query uses
+ *  (single-`%` wildcard, single-`_` wildcard, otherwise literal). Testing
+ *  this helper IS coverage of the DB filter. */
+export function rowMatchesVendor(
+  row: { email: string | null; externalId: string | null },
+  patterns: { email?: string; externalId?: string } | undefined,
+): boolean {
+  if (!patterns) return false;
+  if (patterns.email && row.email && sqlLike(row.email, patterns.email)) {
+    return true;
+  }
+  if (
+    patterns.externalId &&
+    row.externalId &&
+    sqlLike(row.externalId, patterns.externalId)
+  ) {
+    return true;
+  }
+  return false;
+}
+
+/** Pure. SQL `LIKE` matcher with `%` (any sequence) and `_` (any single char)
+ *  wildcards. Case-insensitive — the columns we check (`email`, `external_id`)
+ *  are not case-sensitive in practice. */
+function sqlLike(input: string, pattern: string): boolean {
+  const escaped = pattern.replace(/[.+^${}()|[\]\\]/g, "\\$&");
+  const regex = escaped.replace(/%/g, ".*").replace(/_/g, ".");
+  return new RegExp(`^${regex}$`, "i").test(input);
+}
+
+/** Pure. Choose the AI team_member's display name from the brief's three-step
+ *  fallback chain:
+ *
+ *  1. `callerName` — set when the ingest payload carries the bot's brand
+ *     directly. Today no caller passes this; the API seam is preserved for
+ *     when raw author payloads are plumbed through ingest.
+ *  2. `upgradeFromName` — when upgrading an existing `kind='human'` row to
+ *     `kind='ai_agent'`, keep its name. That row was helpdesk-synced and
+ *     already carries the workspace's customer-facing brand (e.g. "Sim" for
+ *     Simplesat's Fin deployment).
+ *  3. `providerDefault` — vendor-default name from
+ *     `DEFAULT_AI_TEAM_MEMBER_DEFAULTS` (e.g. "Fin", "Decagon agent").
+ *
+ *  Whitespace-only `callerName` is treated as absent so a trimmed-empty
+ *  payload field falls through cleanly. */
+export function pickAiTeamMemberName(opts: {
+  callerName?: string;
+  upgradeFromName?: string;
+  providerDefault: string;
+}): string {
+  const trimmed = opts.callerName?.trim();
+  if (trimmed) return trimmed;
+  const upgrade = opts.upgradeFromName?.trim();
+  if (upgrade) return upgrade;
+  return opts.providerDefault;
+}
+
 /** Pure. Decide AI attribution for an *ingested* message: returns the provider a
  *  bot turn should be attributed to, or `null` when the turn is not a bot (human
  *  agent / customer / system). Drives `team_member_id` resolution in
@@ -84,16 +172,27 @@ export function resolveBotProviderForMessage(input: {
   return null;
 }
 
-/** Idempotent. Returns the `team_member.id` for `(workspaceId, kind='ai_agent',
- *  provider)`. Creates the row with default name + DiceBear bottts avatar on
- *  first call; subsequent calls return the existing id without touching the
- *  row. Safe to call from the Phase 1c ingest hook on every bot message —
- *  first message creates, the rest no-op. */
+/** Idempotent. Returns the `team_member.id` for the workspace's AI agent of a
+ *  given provider. Three-step match-or-upgrade-or-insert (see SVP-281):
+ *
+ *  1. **Fast path.** Existing `kind='ai_agent' AND provider=?` row → return id.
+ *  2. **Upgrade path.** If the provider has a `VENDOR_MATCH_PATTERNS` entry
+ *     and a `kind='human'` row matches the vendor's identifier shape, flip
+ *     its kind to `ai_agent` (and stamp the provider / `role` / `team`). The
+ *     existing `name`, `email`, `externalId`, `avatarUrl` are preserved — the
+ *     row was helpdesk-synced and already carries the workspace's
+ *     customer-facing brand. This path closes the duplicate-Fin bug.
+ *  3. **Insert path.** No match → create a fresh row with the vendor default
+ *     name + DiceBear bottts avatar (or `opts.name` if the caller passes one).
+ *
+ *  Safe to call from the Phase 1c ingest hook on every bot message — first
+ *  message creates or upgrades, the rest hit the fast path. */
 export async function lazyCreateAiTeamMember(
   workspaceId: string,
   provider: AiProvider,
-  opts?: { model?: string; deployedAt?: Date | null },
+  opts?: { model?: string; deployedAt?: Date | null; name?: string },
 ): Promise<string> {
+  // Step 1 — fast path.
   const existing = await db
     .select({ id: teamMembers.id })
     .from(teamMembers)
@@ -107,12 +206,56 @@ export async function lazyCreateAiTeamMember(
     .limit(1);
   if (existing.length > 0) return existing[0].id;
 
+  // Step 2 — upgrade path. Find a helpdesk-synced row matching the vendor's
+  // known identifier shape (regardless of current `kind`) and flip it to
+  // `ai_agent`. The SQL filter is the same `LIKE` semantics as
+  // `rowMatchesVendor`, which is what the unit tests cover.
+  const patterns = VENDOR_MATCH_PATTERNS[provider];
+  if (patterns) {
+    const orClauses = [
+      patterns.email
+        ? sql`${teamMembers.email} LIKE ${patterns.email}`
+        : null,
+      patterns.externalId
+        ? sql`${teamMembers.externalId} LIKE ${patterns.externalId}`
+        : null,
+    ].filter((c): c is NonNullable<typeof c> => c !== null);
+    if (orClauses.length > 0) {
+      const candidate = await db
+        .select({ id: teamMembers.id })
+        .from(teamMembers)
+        .where(and(eq(teamMembers.workspaceId, workspaceId), or(...orClauses)))
+        .limit(1);
+      if (candidate.length > 0) {
+        const id = candidate[0].id;
+        await db
+          .update(teamMembers)
+          .set({
+            kind: "ai_agent",
+            provider,
+            role: "AI agent",
+            team: "AI",
+            model: opts?.model ?? null,
+            deployedAt: opts?.deployedAt ?? null,
+            updatedAt: new Date(),
+          })
+          .where(eq(teamMembers.id, id));
+        return id;
+      }
+    }
+  }
+
+  // Step 3 — insert path.
   const defaults = DEFAULT_AI_TEAM_MEMBER_DEFAULTS[provider];
+  const name = pickAiTeamMemberName({
+    callerName: opts?.name,
+    providerDefault: defaults.name,
+  });
   const id = prefixedId("tm");
   await db.insert(teamMembers).values({
     id,
     workspaceId,
-    name: defaults.name,
+    name,
     // Synthetic placeholder — `team_members.email` is NOT NULL and some
     // resolution fallbacks key off email. Stable per-provider so re-seeding
     // never violates a uniqueness expectation downstream.
@@ -123,8 +266,8 @@ export async function lazyCreateAiTeamMember(
     provider,
     model: opts?.model ?? null,
     deployedAt: opts?.deployedAt ?? null,
-    avatarColor: colorFromName(defaults.name),
-    avatarUrl: dicebearUrl(defaults.name, defaults.dicebearStyle),
+    avatarColor: colorFromName(name),
+    avatarUrl: dicebearUrl(name, defaults.dicebearStyle),
     avatarSource: "helpdesk",
   });
   return id;

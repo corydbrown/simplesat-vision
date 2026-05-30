@@ -20,6 +20,11 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { useToast } from "@/components/shared/toast";
 import { removeUser, updateUserRole } from "@/lib/users/actions";
 import type { WorkspaceRole } from "@/lib/users/validate";
@@ -78,15 +83,23 @@ export function UserRowActions({
 
   if (isSelf) {
     return (
-      <button
-        type="button"
-        title="You can't change your own role or remove yourself"
-        aria-label={`Actions for ${email} (disabled — that's you)`}
-        className="flex h-8 w-8 cursor-not-allowed items-center justify-center rounded-md text-muted-foreground/40"
-        disabled
-      >
-        <MoreHorizontal size={16} />
-      </button>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span className="inline-flex">
+            <button
+              type="button"
+              aria-label={`Actions for ${email} (disabled — that's you)`}
+              className="flex h-8 w-8 cursor-not-allowed items-center justify-center rounded-md text-muted-foreground/40"
+              disabled
+            >
+              <MoreHorizontal size={16} />
+            </button>
+          </span>
+        </TooltipTrigger>
+        <TooltipContent>
+          You can&apos;t change your own role or remove yourself
+        </TooltipContent>
+      </Tooltip>
     );
   }
 

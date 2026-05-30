@@ -362,7 +362,6 @@ function SortRow<T>({
         className="h-7 w-7 cursor-pointer p-0"
         onClick={onToggleDir}
         aria-label={spec.dir === "asc" ? "Ascending" : "Descending"}
-        title={spec.dir === "asc" ? "Ascending" : "Descending"}
       >
         {spec.dir === "asc" ? (
           <ArrowUp size={13} />

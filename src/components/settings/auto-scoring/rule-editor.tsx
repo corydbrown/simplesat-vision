@@ -28,6 +28,11 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/components/shared/toast";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { FilterRow } from "@/components/shared/filter-row";
 import { propertiesToDescriptors } from "@/lib/filters/adapters";
 import { TICKET_PROPERTIES } from "@/lib/properties/tickets";
@@ -419,21 +424,28 @@ function ConfigPane({
           <Link href="/settings/auto-scoring">Cancel</Link>
         </Button>
         {mode === "edit" && onRunNow ? (
-          <Button
-            type="button"
-            variant="outline"
-            onClick={onRunNow}
-            disabled={isRunningNow}
-            className="cursor-pointer"
-            title="Score every currently-eligible ticket against this rule's scorecard, up to the cap. Sampling is bypassed for this action."
-          >
-            {isRunningNow ? (
-              <Loader2 size={14} className="animate-spin" />
-            ) : (
-              <Play size={14} />
-            )}
-            Run now
-          </Button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={onRunNow}
+                disabled={isRunningNow}
+                className="cursor-pointer"
+              >
+                {isRunningNow ? (
+                  <Loader2 size={14} className="animate-spin" />
+                ) : (
+                  <Play size={14} />
+                )}
+                Run now
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              Score every currently-eligible ticket against this rule&apos;s
+              scorecard, up to the cap. Sampling is bypassed for this action.
+            </TooltipContent>
+          </Tooltip>
         ) : null}
         {mode === "edit" && onDelete ? (
           <AlertDialog>

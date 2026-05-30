@@ -43,7 +43,6 @@ export function ListPageActions({
       <button
         type="button"
         aria-label="View actions"
-        title="View actions"
         className="cursor-pointer rounded p-1 text-muted-foreground hover:bg-accent hover:text-foreground"
       >
         <MoreHorizontal size={16} />

@@ -43,7 +43,9 @@ export const RESOLUTION_SCORECARD_V1: CodeDefinedScorecard = {
   enabled: true,
   version: 1,
   appliesTo: "resolution",
-  autoFailFloor: 30,
+  // Resolution has no autofail criteria (every category isAutofail=false), so
+  // the floor never triggers. Explicit 0 over an inert 30 — signals intent.
+  autoFailFloor: 0,
   scoringPhilosophy:
     "Score the customer's outcome, not the actors. The question is one thing: did the customer actually win? A clean answer from the AI does not redeem a customer who had to fight for a human; a heroic recovery from the human does not redeem a customer who left with their trust in the brand dented. The actors are sequential and possibly adversarial — AI wants containment, human wants to wrap, customer wants their answer. Resolution measures the result. Default to the band that best describes whether the customer left this conversation in a place they'd describe as 'handled'; one strong recovery moment cannot lift a ticket that ended with the customer restating the original question, and one ugly back-and-forth cannot sink a ticket whose final turn fully resolved the issue. Score every criterion independently — a clean problem-solve does not redeem turn-economy bloat or a routing failure earlier in the thread.",
   bandDescriptors: [

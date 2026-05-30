@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
+import { CountChip } from "./count-chip";
 
 export type Tab = {
   id: string;
@@ -61,15 +62,7 @@ export function RelationTabs({
           >
             <span>{t.label}</span>
             {t.count !== undefined && (
-              <span
-                className={`rounded px-1.5 py-0.5 text-xs tabular-nums ${
-                  active
-                    ? "bg-foreground/10 text-foreground"
-                    : "bg-muted text-muted-foreground"
-                }`}
-              >
-                {t.count}
-              </span>
+              <CountChip active={active}>{t.count}</CountChip>
             )}
           </Link>
         );

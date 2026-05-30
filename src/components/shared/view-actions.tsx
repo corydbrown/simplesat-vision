@@ -21,6 +21,11 @@ import {
 import { Input } from "@/components/ui/input";
 import { useColumnStateMaybe } from "@/lib/column-prefs";
 import { useToast } from "./toast";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { viewStateEquals } from "@/lib/views/equals";
 import { ALL_VIEW_LABEL } from "@/lib/views/seed";
 import { useViews } from "@/lib/views/provider";
@@ -155,20 +160,24 @@ export function ViewActions({
   return (
     <>
       <div className="flex items-center gap-1">
-        <Button
-          variant="ghost"
-          size="sm"
-          className="h-8 cursor-pointer gap-1.5 text-sm text-muted-foreground hover:text-foreground"
-          onClick={handleReset}
-          title={
-            treatAsAll
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 cursor-pointer gap-1.5 text-sm text-muted-foreground hover:text-foreground"
+              onClick={handleReset}
+            >
+              <RotateCcw size={13} />
+              Reset
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>
+            {treatAsAll
               ? `Clear filters and return to ${ALL_VIEW_LABEL[entityKey]}`
-              : `Discard changes to "${savedView?.name ?? ""}"`
-          }
-        >
-          <RotateCcw size={13} />
-          Reset
-        </Button>
+              : `Discard changes to "${savedView?.name ?? ""}"`}
+          </TooltipContent>
+        </Tooltip>
         {!treatAsAll && savedView ? (
           <SaveSplitButton
             onSave={handleSave}
@@ -210,15 +219,19 @@ function SaveSplitButton({
 }) {
   return (
     <ButtonGroup>
-      <Button
-        size="sm"
-        className="h-8 cursor-pointer gap-1.5 text-sm"
-        onClick={onSave}
-        title={saveTitle}
-      >
-        <Bookmark size={13} />
-        Save current view
-      </Button>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button
+            size="sm"
+            className="h-8 cursor-pointer gap-1.5 text-sm"
+            onClick={onSave}
+          >
+            <Bookmark size={13} />
+            Save current view
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent>{saveTitle}</TooltipContent>
+      </Tooltip>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button

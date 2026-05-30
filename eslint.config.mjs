@@ -50,6 +50,32 @@ const eslintConfig = defineConfig([
       ],
     },
   },
+  // SVP-264: ban native `title=` on interactive elements under first-party
+  // source. Native tooltip rendering is inconsistent across browsers/OS and
+  // inaccessible on touch devices. Use shadcn <Tooltip> for hover content or
+  // aria-label alone when the text is a pure a11y hint. Heatmap cells
+  // (heatmap.tsx) are explicitly exempted — they use title= on <Link> cells
+  // as a data annotation, not a standalone tooltip surface.
+  {
+    files: [
+      "src/components/**/*.{ts,tsx}",
+      "src/app/(workspace)/**/*.{ts,tsx}",
+    ],
+    ignores: ["src/components/shared/heatmap.tsx"],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector:
+            "JSXOpeningElement[name.name=/^(button|Button|a|Link)$/] > JSXAttribute[name.name='title']",
+          message:
+            "Use shadcn <Tooltip> instead of native title= on interactive elements. " +
+            "Native tooltips are inaccessible on touch and inconsistent across browsers. " +
+            "If the text is a pure a11y hint with no visible-hover value, use aria-label alone.",
+        },
+      ],
+    },
+  },
   // Override default ignores of eslint-config-next.
   globalIgnores([
     // Default ignores of eslint-config-next:

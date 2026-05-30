@@ -872,7 +872,6 @@ function CategoryFocusBanner({ categoryName }: { categoryName: string }) {
       <Link
         href="?"
         className="inline-flex items-center gap-1 text-muted-foreground hover:text-foreground"
-        title="Clear category filter"
       >
         <X className="size-3.5" />
         Clear

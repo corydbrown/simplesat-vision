@@ -17,13 +17,11 @@ export function InlineMention({
   label,
   onClick,
   glyph,
-  title,
   className,
 }: {
   label: string;
   onClick: () => void;
   glyph?: React.ReactNode;
-  title?: string;
   className?: string;
 }) {
   function activate(e: React.SyntheticEvent) {
@@ -41,7 +39,6 @@ export function InlineMention({
           activate(e);
         }
       }}
-      title={title}
       className={cn(
         "inline-flex cursor-pointer items-baseline gap-0.5 -mx-0.5 rounded-sm px-1 font-medium not-italic text-blue-dark transition-colors hover:bg-accent/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
         className,

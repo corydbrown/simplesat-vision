@@ -3,6 +3,7 @@
 import { Download, Plus, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { CountChip } from "./count-chip";
 import { ColumnsControl } from "./columns-control";
 import { GroupControl } from "./group-control";
 import { SortControl } from "./sort-control";
@@ -80,11 +81,7 @@ function ToolbarButton({
     >
       {icon}
       {label}
-      {badge !== undefined && (
-        <span className="rounded bg-muted px-1 py-0.5 text-xs tabular-nums">
-          {badge}
-        </span>
-      )}
+      {badge !== undefined && <CountChip>{badge}</CountChip>}
     </Button>
   );
 }

@@ -10,6 +10,7 @@ import {
   HoverCardTrigger,
 } from "@/components/ui/hover-card";
 import { Avatar } from "@/components/shared/avatar";
+import { CountChip } from "./count-chip";
 import { EntityPopoverBody } from "./entity-popover";
 import { type DrawerEntity, fullPagePath } from "./global-drawer";
 import { resolveAvatar } from "@/lib/avatar";
@@ -280,11 +281,7 @@ export function SurveyPill({
           id={id}
           className={basePillClass(size, className)}
         >
-          {tag && (
-            <span className="inline-flex items-center justify-center rounded bg-muted px-1 text-xs font-medium text-muted-foreground">
-              {tag}
-            </span>
-          )}
+          {tag && <CountChip>{tag}</CountChip>}
           <span className="truncate">{name}</span>
           <ArrowUpRight size={10} className={arrowClass} />
         </DrawerLink>

@@ -2,6 +2,7 @@
 
 import { useDraggable } from "@dnd-kit/core";
 import { Plus } from "lucide-react";
+import { GroupHeading } from "@/components/shared/group-heading";
 import { GROUP_ORDER, type PivotField } from "@/lib/reports/pivot-fields";
 import { usePivotFields } from "@/lib/reports/use-pivot-fields";
 import type { BaseEntity } from "@/lib/reports/types";
@@ -36,9 +37,7 @@ export function PropertyRail({
     <div className="flex flex-col gap-4 pr-2">
       {ordered.map((group) => (
         <div key={group} className="flex flex-col gap-1">
-          <div className="px-2 text-xs font-medium text-muted-foreground/80">
-            {group}
-          </div>
+          <GroupHeading className="px-2 py-0">{group}</GroupHeading>
           {groups[group].map((field) => (
             <RailChip
               key={field.id}

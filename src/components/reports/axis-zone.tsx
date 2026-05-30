@@ -7,6 +7,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { GroupHeading } from "@/components/shared/group-heading";
 import { GROUP_ORDER, type PivotField } from "@/lib/reports/pivot-fields";
 import { usePivotFields } from "@/lib/reports/use-pivot-fields";
 import type { BaseEntity } from "@/lib/reports/types";
@@ -94,9 +95,7 @@ function AddFieldPopover({
         <div className="flex flex-col gap-2 p-2">
           {orderedGroupKeys.map((group) => (
             <div key={group} className="flex flex-col gap-0.5">
-              <div className="px-2 pt-1 text-xs font-medium text-muted-foreground/80">
-                {group}
-              </div>
+              <GroupHeading className="px-2 py-0 pt-1">{group}</GroupHeading>
               {groups[group].map((f) => (
                 <button
                   key={f.id}

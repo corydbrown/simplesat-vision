@@ -136,6 +136,51 @@ const cursorAffordancePlugin = {
   },
 };
 
+// SVP-258: text-xs guard. CLAUDE.md: body / labels / table cells / drawer
+// body all live at text-base (15px). `text-xs` (12px) is reserved for `kbd`
+// and rare tight chrome (avatar initials, count badges). De-emphasis is via
+// muted color, not smaller size — so a new `text-xs` outside that allowlist
+// is almost always a typography-ladder violation.
+// Note: the trailing `\\/` matches Tailwind opacity modifiers (e.g.
+// `text-xs/80`) — escaped so esquery's `/.../`-delimited selector parses.
+const TEXT_XS_TOKEN = "(?:^|\\s)text-xs(?:$|\\s|\\/)";
+const TEXT_XS_MESSAGE =
+  "Avoid text-xs (12px). De-emphasize via text-muted-foreground at body size. " +
+  "text-xs is only allowed in tight chrome (kbd, avatar initials, count badges, font-mono IDs); " +
+  "if you genuinely need it, add the file to the text-xs allowlist in eslint.config.mjs.";
+
+// STOP — text-xs allowlist drift. Per CLAUDE.md the allowlist should be ~5
+// files (avatar, kbd, count-badge). Today it is ~15: legitimate tight chrome
+// PLUS files whose text-xs uses are known violations awaiting other-task
+// fixes (workspace home, entity-popover, columns-control, layout-toggle, the
+// Add-sort buttons in sort-control, etc — see design-reviews/2026-05-29-review-1.md).
+// As those tasks land, prune their files from the allowlist so the guard
+// becomes strict. New files added here should be tight-chrome only.
+const TEXT_XS_ALLOWLIST = [
+  // Legitimate tight chrome — keep these.
+  "src/components/shared/avatar.tsx", // avatar initials
+  "src/components/shared/tag.tsx", // tag chip
+  "src/components/shared/entity-pill.tsx", // count badge (SVP-261 → CountChip)
+  "src/components/shared/entity-toolbar.tsx", // count chip (SVP-261)
+  "src/components/shared/relation-tabs.tsx", // count chip (SVP-261)
+  "src/components/responses/response-feed-card.tsx", // notification count badge
+  "src/components/coaching/message-bubble.tsx", // timestamp tabular-nums chrome
+  "src/components/tickets/ticket-activity.tsx", // hover timestamp chrome
+  "src/lib/properties/**", // font-mono ID display across property registries
+
+  // Pending fix by other tasks — prune as those PRs land.
+  "src/app/(workspace)/page.tsx", // workspace home body copy — design review
+  "src/components/shell/search-palette.tsx", // keyboard hint bar + loading dots + result metadata
+  "src/components/shell/workspace-switcher.tsx", // safety net; lint hot-path is the GroupHeading swap
+  "src/components/shared/columns-control.tsx", // Show all / Hide all action buttons — design review
+  "src/components/shared/sort-control.tsx", // Add-sort button chrome (lines 208/408) — design review
+  "src/components/shared/layout-toggle.tsx", // toggle button chrome — design review
+  "src/components/shared/entity-popover.tsx", // popover metadata — SVP-260
+  "src/components/reports/ai-prompt-dialog.tsx", // helper label + suggestion chips — design review
+  "src/components/surveys/survey-detail.tsx", // metadata — design review
+  "src/lib/properties/response-answers.tsx", // inline chip (line 66) — pending de-dup
+];
+
 const eslintConfig = defineConfig([
   ...nextVitals,
   ...nextTs,
@@ -169,6 +214,34 @@ const eslintConfig = defineConfig([
         },
       ],
       "cursor-affordance/require-cursor": "error",
+    },
+  },
+  // SVP-258: text-xs typography guard. Same file scoping as the color guard,
+  // plus the allowlist above for legitimate tight-chrome (and the
+  // pending-fix files until the other tasks land).
+  {
+    files: ["src/**/*.{ts,tsx}"],
+    ignores: [
+      "src/components/ui/**",
+      "**/*.test.ts",
+      "**/*.test.tsx",
+      "src/app/mockups/**",
+      "src/app/(workspace)/design/**",
+      "src/lib/design-reviews/**",
+      ...TEXT_XS_ALLOWLIST,
+    ],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector: `Literal[value=/${TEXT_XS_TOKEN}/]`,
+          message: TEXT_XS_MESSAGE,
+        },
+        {
+          selector: `TemplateElement[value.raw=/${TEXT_XS_TOKEN}/]`,
+          message: TEXT_XS_MESSAGE,
+        },
+      ],
     },
   },
   // Override default ignores of eslint-config-next.

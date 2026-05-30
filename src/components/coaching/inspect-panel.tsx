@@ -159,6 +159,7 @@ export function InspectPanel({
   }, [focus, isActiveSurface]);
 
   return (
+    // eslint-disable-next-line cursor-affordance/require-cursor -- onClick is a bubbling guard, not a clickable surface
     <div
       className="flex max-h-[calc(100vh-2rem)] flex-col overflow-hidden rounded-xl border border-border bg-card/95 shadow-xl backdrop-blur-md animate-in fade-in slide-in-from-right-2 duration-200"
       onClick={(e) => e.stopPropagation()}

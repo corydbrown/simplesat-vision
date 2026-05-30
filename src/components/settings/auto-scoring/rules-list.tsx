@@ -245,6 +245,7 @@ function SortableRuleRow({
         />
       </Link>
 
+      {/* eslint-disable-next-line cursor-affordance/require-cursor -- onClick is a bubbling guard, not a clickable surface */}
       <div
         className="flex items-center gap-2"
         onClick={(e) => e.preventDefault()}

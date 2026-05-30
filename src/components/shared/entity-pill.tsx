@@ -14,6 +14,7 @@ import { CountChip } from "./count-chip";
 import { EntityPopoverBody } from "./entity-popover";
 import { type DrawerEntity, fullPagePath } from "./global-drawer";
 import { resolveAvatar } from "@/lib/avatar";
+import { cn } from "@/lib/utils";
 
 type CommonProps = {
   size?: "sm" | "md";
@@ -39,7 +40,7 @@ type DrawerLinkProps = Omit<
 
 const DrawerLink = forwardRef<HTMLAnchorElement, DrawerLinkProps>(
   function DrawerLink(
-    { entity, id, onClick: passedOnClick, children, ...rest },
+    { entity, id, onClick: passedOnClick, children, className, ...rest },
     ref,
   ) {
     const router = useRouter();
@@ -74,6 +75,7 @@ const DrawerLink = forwardRef<HTMLAnchorElement, DrawerLinkProps>(
         href={href}
         onClick={handleClick}
         data-drawer-link
+        className={cn("cursor-pointer", className)}
       >
         {children}
       </Link>

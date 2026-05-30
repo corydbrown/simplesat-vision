@@ -1,7 +1,7 @@
 import { PrimaryNav } from "@/components/shell/primary-nav";
 import { GlobalDrawer } from "@/components/shared/global-drawer";
 import { RecentPageTracker } from "@/components/shared/recent-page-tracker";
-import { ToastProvider } from "@/components/shared/toast";
+import { Toaster } from "@/components/ui/sonner";
 import { SidebarProvider } from "@/components/shell/sidebar-context";
 import { SearchProvider } from "@/components/shell/search-context";
 import { ViewsProvider } from "@/lib/views/provider";
@@ -39,14 +39,13 @@ export default async function WorkspaceLayout({
         <CustomFieldsProvider value={{ customer, teamMember, showTier }}>
           <ViewsProvider showTier={showTier}>
             <SearchProvider>
-              <ToastProvider>
-                <div className="flex min-h-screen">
-                  <PrimaryNav />
-                  <div className="flex-1 flex min-w-0">{children}</div>
-                  <GlobalDrawer />
-                  <RecentPageTracker />
-                </div>
-              </ToastProvider>
+              <div className="flex min-h-screen">
+                <PrimaryNav />
+                <div className="flex-1 flex min-w-0">{children}</div>
+                <GlobalDrawer />
+                <RecentPageTracker />
+              </div>
+              <Toaster />
             </SearchProvider>
           </ViewsProvider>
         </CustomFieldsProvider>

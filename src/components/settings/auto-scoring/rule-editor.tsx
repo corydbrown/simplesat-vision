@@ -27,7 +27,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { useToast } from "@/components/shared/toast";
+import { toast } from "sonner";
 import {
   Tooltip,
   TooltipContent,
@@ -92,7 +92,6 @@ function initialDraft(props: Props): Draft {
 
 export function RuleEditor(props: Props) {
   const router = useRouter();
-  const toast = useToast();
   const mode: Mode = props.mode;
   const ruleId = props.rule?.id;
   const [draft, setDraft] = useState<Draft>(() => initialDraft(props));

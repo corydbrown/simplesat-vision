@@ -30,7 +30,7 @@ import { CSS } from "@dnd-kit/utilities";
 
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
-import { useToast } from "@/components/shared/toast";
+import { toast } from "sonner";
 import {
   reorderAutoScoringRulesAction,
   toggleAutoScoringRuleAction,
@@ -46,7 +46,6 @@ type Props = {
 
 export function RulesList({ rules, scorecards, scoredLast24h }: Props) {
   const router = useRouter();
-  const toast = useToast();
   const [order, setOrder] = useState<AutoScoringRuleListRow[]>(rules);
   const [, startReordering] = useTransition();
   const [pendingToggleId, setPendingToggleId] = useState<string | null>(null);
@@ -89,7 +88,7 @@ export function RulesList({ rules, scorecards, scoredLast24h }: Props) {
         }
       });
     },
-    [order, router, toast],
+    [order, router],
   );
 
   const onToggle = (id: string, enabled: boolean) => {

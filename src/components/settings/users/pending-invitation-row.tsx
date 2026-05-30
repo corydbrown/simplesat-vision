@@ -20,7 +20,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useToast } from "@/components/shared/toast";
+import { toast } from "sonner";
 import { resendInvitation, revokeInvitation } from "@/lib/users/actions";
 import { formatRelative } from "@/lib/format";
 import type { WorkspaceRole } from "@/lib/users/validate";
@@ -42,7 +42,6 @@ export function PendingInvitationRow({
 }: Props) {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
-  const toast = useToast();
   const router = useRouter();
 
   const onResend = () => {

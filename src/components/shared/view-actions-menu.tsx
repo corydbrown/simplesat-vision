@@ -27,7 +27,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
-import { useToast } from "./toast";
+import { toast } from "sonner";
 import { useViews } from "@/lib/views/provider";
 import type { EntityKey, SavedView } from "@/lib/views/types";
 
@@ -53,7 +53,6 @@ export function ViewActionsMenu({
   children: React.ReactNode;
 }) {
   const { renameView, deleteView } = useViews();
-  const toast = useToast();
   const [renameOpen, setRenameOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   // Bumps on every "open rename" click. The dialog's `key` is bound to

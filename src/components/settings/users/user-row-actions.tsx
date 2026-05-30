@@ -25,7 +25,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { useToast } from "@/components/shared/toast";
+import { toast } from "sonner";
 import { removeUser, updateUserRole } from "@/lib/users/actions";
 import type { WorkspaceRole } from "@/lib/users/validate";
 
@@ -48,7 +48,6 @@ export function UserRowActions({
 }: Props) {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
-  const toast = useToast();
   const router = useRouter();
 
   const onChangeRole = (next: WorkspaceRole) => {

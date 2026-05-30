@@ -8,7 +8,7 @@ import type { ScorecardSummary } from "@/db/queries/scorecards";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
-import { useToast } from "@/components/shared/toast";
+import { toast } from "sonner";
 import { archiveScorecard, setDefaultScorecard } from "@/lib/scorecards/actions";
 import { formatRelative } from "@/lib/format";
 import { NewScorecardDialog } from "./new-scorecard-dialog";
@@ -34,7 +34,6 @@ export function ScorecardsList({ scorecards, defaultScorecardId }: Props) {
   const [pendingDefaultId, setPendingDefaultId] = useState<string | null>(null);
   const [isArchiving, startArchiving] = useTransition();
   const [isSettingDefault, startSettingDefault] = useTransition();
-  const toast = useToast();
   const router = useRouter();
 
   const visible = useMemo(

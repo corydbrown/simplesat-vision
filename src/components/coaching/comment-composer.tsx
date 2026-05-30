@@ -1,7 +1,11 @@
 "use client";
 
 import { useEffect, useImperativeHandle, useRef, useState } from "react";
-import { Textarea } from "@/components/ui/textarea";
+import {
+  MentionTextarea,
+  type MentionTextareaHandle,
+} from "@/components/shared/mention-textarea";
+import type { MentionSource } from "@/lib/mentions/types";
 import { cn } from "@/lib/utils";
 
 export type CommentComposerHandle = {
@@ -16,11 +20,17 @@ export type CommentComposerHandle = {
  *
  * `onUpArrowEmpty` fires when the user presses Up Arrow inside an empty
  * textarea — that's the "edit last own comment" affordance.
+ *
+ * Typing `@` opens a mention dropdown over `mentionSources` (the ticket's
+ * messages); selecting one inserts a "Message N" ref that renders identically
+ * to an AI-generated mention. When the dropdown is open it owns ↑/↓/Enter/Esc,
+ * so Enter selects a mention rather than submitting.
  */
 export function CommentComposer({
   ref,
   initialValue = "",
   placeholder = "Add a coaching note…",
+  mentionSources,
   onSubmit,
   onUpArrowEmpty,
   onFocus,
@@ -31,6 +41,7 @@ export function CommentComposer({
   ref?: React.Ref<CommentComposerHandle>;
   initialValue?: string;
   placeholder?: string;
+  mentionSources: MentionSource[];
   onSubmit: (body: string) => void;
   onUpArrowEmpty?: () => void;
   onFocus?: () => void;
@@ -39,17 +50,17 @@ export function CommentComposer({
   rows?: number;
 }) {
   const [value, setValue] = useState(initialValue);
-  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const mentionRef = useRef<MentionTextareaHandle | null>(null);
   const focusedRef = useRef(false);
 
   useImperativeHandle(ref, () => ({
-    focus: () => textareaRef.current?.focus(),
-    blur: () => textareaRef.current?.blur(),
+    focus: () => mentionRef.current?.focus(),
+    blur: () => mentionRef.current?.blur(),
     isFocused: () => focusedRef.current,
   }));
 
   useEffect(() => {
-    if (autoFocus) textareaRef.current?.focus();
+    if (autoFocus) mentionRef.current?.focus();
   }, [autoFocus]);
 
   function submit() {
@@ -61,11 +72,14 @@ export function CommentComposer({
 
   return (
     <div>
-      <Textarea
-        ref={textareaRef}
+      <MentionTextarea
+        ref={mentionRef}
         value={value}
+        onChange={setValue}
+        sources={mentionSources}
         rows={rows}
-        onChange={(e) => setValue(e.target.value)}
+        placeholder={placeholder}
+        className="min-h-16 resize-none text-base"
         onFocus={() => {
           focusedRef.current = true;
           onFocus?.();
@@ -74,8 +88,6 @@ export function CommentComposer({
           focusedRef.current = false;
           onBlur?.();
         }}
-        placeholder={placeholder}
-        className="min-h-16 resize-none text-base"
         onKeyDown={(e) => {
           if (e.key === "Enter" && !e.shiftKey) {
             e.preventDefault();

@@ -19,6 +19,123 @@ const COLOR_TOKEN_MESSAGE =
   "No raw Tailwind numeric shades (bg-red-50) and no invalid shades like -default. " +
   "Valid shades: base | light | lighter | dark | darker. See DESIGN.md.";
 
+// SVP-257: cursor-affordance guard. shadcn's <Button> base + DrawerLink now
+// bake `cursor-pointer` into the primitive, so any UI that wants a pointer
+// affordance should route through them. This rule catches raw interactive
+// elements that bypass the primitives without setting a cursor utility:
+// raw `<button>`, `[role="button"]`, and `<div onClick>`. False positives are
+// rare and addressable with `// eslint-disable-next-line cursor-affordance/require-cursor`
+// + a one-line reason — but the first instinct should be "use the primitive".
+//
+// Implemented as a small inline plugin rather than `no-restricted-syntax`
+// because the equivalent esquery selector (`:has(... :matches(Literal,
+// TemplateElement))` + `:not(...)`) is O(descendants × matchers) and pushed
+// `npm run lint` over 12 minutes on this codebase. The plugin visits each
+// JSXOpeningElement once and walks its own attributes — sub-second.
+const CURSOR_MESSAGE =
+  "Interactive element missing a `cursor-` utility. Prefer the <Button> or " +
+  "DrawerLink primitive (they bake in cursor-pointer). If you must hand-roll, " +
+  "add cursor-pointer to the className. See CLAUDE.md → Conventions.";
+
+function classNameHasCursor(attrValue) {
+  if (!attrValue) return false;
+  if (attrValue.type === "Literal") {
+    return typeof attrValue.value === "string" && attrValue.value.includes("cursor-");
+  }
+  if (attrValue.type === "JSXExpressionContainer") {
+    return expressionContainsCursor(attrValue.expression);
+  }
+  return false;
+}
+
+function expressionContainsCursor(node) {
+  if (!node) return false;
+  switch (node.type) {
+    case "Literal":
+      return typeof node.value === "string" && node.value.includes("cursor-");
+    case "TemplateLiteral":
+      return (
+        node.quasis.some((q) => q.value.raw.includes("cursor-")) ||
+        node.expressions.some(expressionContainsCursor)
+      );
+    case "BinaryExpression":
+    case "LogicalExpression":
+      return (
+        expressionContainsCursor(node.left) ||
+        expressionContainsCursor(node.right)
+      );
+    case "ConditionalExpression":
+      return (
+        expressionContainsCursor(node.consequent) ||
+        expressionContainsCursor(node.alternate)
+      );
+    case "CallExpression":
+      // cn("cursor-pointer", ...), clsx(...), twMerge(...), etc.
+      return node.arguments.some(expressionContainsCursor);
+    case "ArrayExpression":
+      return node.elements.some(expressionContainsCursor);
+    case "ObjectExpression":
+      return node.properties.some(
+        (p) => p.type === "Property" && expressionContainsCursor(p.key),
+      );
+    case "TemplateElement":
+      return node.value.raw.includes("cursor-");
+    default:
+      return false;
+  }
+}
+
+const cursorAffordancePlugin = {
+  rules: {
+    "require-cursor": {
+      meta: {
+        type: "problem",
+        docs: { description: CURSOR_MESSAGE },
+        schema: [],
+        messages: { missing: CURSOR_MESSAGE },
+      },
+      create(context) {
+        return {
+          JSXOpeningElement(node) {
+            // Only check intrinsic JSX (lowercase): <button>, <div>, <span>, …
+            // Custom components (<Button>, <DrawerLink>) own their own cursor.
+            if (node.name.type !== "JSXIdentifier") return;
+            const tag = node.name.name;
+            if (tag[0] !== tag[0].toLowerCase()) return;
+
+            let className = null;
+            let roleIsButton = false;
+            let hasOnClick = false;
+            for (const attr of node.attributes) {
+              if (attr.type !== "JSXAttribute" || !attr.name) continue;
+              const attrName = attr.name.name;
+              if (attrName === "className") className = attr.value;
+              else if (attrName === "onClick") hasOnClick = true;
+              else if (
+                attrName === "role" &&
+                attr.value &&
+                attr.value.type === "Literal" &&
+                attr.value.value === "button"
+              ) {
+                roleIsButton = true;
+              }
+            }
+
+            const isTriggered =
+              tag === "button" ||
+              roleIsButton ||
+              (tag === "div" && hasOnClick);
+            if (!isTriggered) return;
+            if (classNameHasCursor(className)) return;
+
+            context.report({ node, messageId: "missing" });
+          },
+        };
+      },
+    },
+  },
+};
+
 const eslintConfig = defineConfig([
   ...nextVitals,
   ...nextTs,
@@ -36,6 +153,9 @@ const eslintConfig = defineConfig([
       "src/app/(workspace)/design/**",
       "src/lib/design-reviews/**",
     ],
+    plugins: {
+      "cursor-affordance": cursorAffordancePlugin,
+    },
     rules: {
       "no-restricted-syntax": [
         "error",
@@ -48,6 +168,7 @@ const eslintConfig = defineConfig([
           message: COLOR_TOKEN_MESSAGE,
         },
       ],
+      "cursor-affordance/require-cursor": "error",
     },
   },
   // Override default ignores of eslint-config-next.

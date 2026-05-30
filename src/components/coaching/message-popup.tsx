@@ -55,6 +55,7 @@ export function MessagePopup({
   onInspect: () => void;
 }) {
   return (
+    // eslint-disable-next-line cursor-affordance/require-cursor -- onClick is a bubbling guard, not a clickable surface
     <div
       onClick={(e) => e.stopPropagation()}
       className={cn(

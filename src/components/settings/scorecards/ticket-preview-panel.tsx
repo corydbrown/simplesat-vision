@@ -241,7 +241,7 @@ function TicketPicker({
       <PopoverTrigger asChild>
         <button
           type="button"
-          className="flex h-8 min-w-0 flex-1 items-center justify-between gap-2 rounded-md border border-border bg-background px-3 text-base hover:bg-muted/50"
+          className="flex h-8 min-w-0 flex-1 cursor-pointer items-center justify-between gap-2 rounded-md border border-border bg-background px-3 text-base hover:bg-muted/50"
           aria-label="Pick a ticket to preview"
         >
           <span className="truncate text-left">

@@ -15,9 +15,16 @@ import { DashboardCard } from "@/components/shared/dashboard-card";
 import { DetailSection } from "@/components/shared/detail-section";
 import { EntityTable } from "@/components/shared/entity-table";
 import { ColumnStateProvider } from "@/lib/column-prefs";
-import { StatCard, type StatCardDelta } from "@/components/shared/stat-card";
+import { StatCard } from "@/components/shared/stat-card";
 import { EVALUATION_PROPERTIES } from "@/lib/properties/evaluations";
 import { formatNumber, formatTimelineDay } from "@/lib/format";
+import {
+  csatDelta,
+  formatCsatAverage,
+  formatRolledPercent,
+  formatRolledScore,
+  scoreDelta,
+} from "@/lib/qa/dashboard-format";
 import { TimestampTooltip } from "@/components/shared/timestamp-tooltip";
 import { QaScoreBadge } from "@/components/shared/qa-score-badge";
 import type {
@@ -163,18 +170,18 @@ function QaTilesRow({
       />
       <StatCard
         label="Avg QA score (30d)"
-        value={<TileValueWithSparkline value={formatScore(tiles.avgScore.current)} points={sparklines.score} />}
+        value={<TileValueWithSparkline value={formatRolledScore(tiles.avgScore.current)} points={sparklines.score} />}
         delta={scoreDelta(tiles.avgScore.delta)}
       />
       <StatCard
         label="Avg CSAT (30d)"
-        value={<TileValueWithSparkline value={formatCsat(tiles.avgCsat.current)} points={sparklines.csat} />}
+        value={<TileValueWithSparkline value={formatCsatAverage(tiles.avgCsat.current)} points={sparklines.csat} />}
         delta={csatDelta(tiles.avgCsat.delta)}
       />
       <StatCard
         label="AI-acceptance rate"
         value={
-          tiles.aiAcceptance.pct == null ? "—" : formatPercent(tiles.aiAcceptance.pct)
+          tiles.aiAcceptance.pct == null ? "—" : formatRolledPercent(tiles.aiAcceptance.pct)
         }
         hint={
           tiles.aiAcceptance.totalScores === 0
@@ -216,49 +223,6 @@ function TileValueWithSparkline({
       ) : null}
     </div>
   );
-}
-
-function formatScore(value: number | null): string {
-  if (value == null) return "—";
-  return value.toFixed(1);
-}
-
-function formatPercent(value: number | null): string {
-  if (value == null) return "—";
-  return `${value.toFixed(1)}%`;
-}
-
-function formatCsat(value: number | null): string {
-  if (value == null) return "—";
-  return `${value.toFixed(2)} / 5`;
-}
-
-function scoreDelta(delta: number | null): StatCardDelta | undefined {
-  if (delta == null) return undefined;
-  const sign = delta >= 0 ? "+" : "";
-  return {
-    label: `${sign}${delta.toFixed(1)}`,
-    direction: deltaDirection(delta, 0.5),
-    hint: "vs. prior 30 days",
-  };
-}
-
-function csatDelta(delta: number | null): StatCardDelta | undefined {
-  if (delta == null) return undefined;
-  const sign = delta >= 0 ? "+" : "";
-  return {
-    label: `${sign}${delta.toFixed(2)} stars`,
-    direction: deltaDirection(delta, 0.05),
-    hint: "vs. prior 30 days",
-  };
-}
-
-function deltaDirection(
-  delta: number,
-  neutralThreshold: number,
-): StatCardDelta["direction"] {
-  if (Math.abs(delta) < neutralThreshold) return "neutral";
-  return delta > 0 ? "good" : "bad";
 }
 
 // ---------------------------------------------------------------------------

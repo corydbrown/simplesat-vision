@@ -5,9 +5,13 @@ import { useEffect, useState } from "react";
 import { ChannelPill } from "@/components/tickets/channel-pill";
 import { StatusPill } from "@/components/tickets/status-pill";
 import { Avatar } from "@/components/shared/avatar";
+import { AvgRating, ratingTone } from "@/components/shared/avg-rating";
+import { TeamPill } from "@/components/shared/team-pill";
+import { TierPill } from "@/components/shared/tier-pill";
 import { Skeleton } from "@/components/ui/skeleton";
 import { resolveAvatar } from "@/lib/avatar";
 import { formatDate, formatDuration, formatNumber } from "@/lib/format";
+import type { CustomerTier } from "@/db/schema";
 
 type Entity = "customer" | "team-member" | "ticket" | "response" | "survey";
 
@@ -17,7 +21,7 @@ type CustomerData = {
   email: string;
   avatarUrl: string | null;
   organization: string | null;
-  tier: string;
+  tier: CustomerTier;
   totalTickets: number;
   avgRating: number | null;
   totalResponses: number;
@@ -176,13 +180,7 @@ function StatBlock({
   );
 }
 
-function ratingTone(r: number | null): string | undefined {
-  if (r == null) return undefined;
-  return r < 3 ? "text-red-dark" : r < 4 ? "text-yellow-dark" : "text-green-dark";
-}
-
 function CustomerPopover({ data }: { data: CustomerData }) {
-  const tierLabel = data.tier.charAt(0).toUpperCase() + data.tier.slice(1);
   return (
     <div>
       <div className="px-4 py-3 flex items-start gap-3">
@@ -196,18 +194,16 @@ function CustomerPopover({ data }: { data: CustomerData }) {
         />
         <div className="min-w-0 flex-1">
           <div className="font-medium truncate">{data.name}</div>
-          <div className="text-xs text-muted-foreground truncate">
+          <div className="text-sm text-muted-foreground truncate">
             {data.email}
           </div>
-          <div className="mt-1 flex items-center gap-1.5 text-xs">
+          <div className="mt-1 flex items-center gap-1.5">
             {data.organization ? (
-              <span className="text-muted-foreground truncate">
+              <span className="text-sm text-muted-foreground truncate">
                 {data.organization}
               </span>
             ) : null}
-            <span className="ml-1 rounded-full bg-muted px-1.5 py-0.5 text-xs">
-              {tierLabel}
-            </span>
+            <TierPill tier={data.tier} />
           </div>
         </div>
       </div>
@@ -219,17 +215,7 @@ function CustomerPopover({ data }: { data: CustomerData }) {
         />
         <StatBlock
           label="Avg rating"
-          tone={ratingTone(data.avgRating)}
-          value={
-            data.avgRating != null ? (
-              <span className="inline-flex items-baseline gap-0.5">
-                <Star size={11} className="fill-current self-center" />
-                {data.avgRating.toFixed(2)}
-              </span>
-            ) : (
-              <span className="text-muted-foreground/40">—</span>
-            )
-          }
+          value={<AvgRating value={data.avgRating} threshold="customer" />}
         />
       </div>
       {data.lastSeen && (
@@ -241,14 +227,7 @@ function CustomerPopover({ data }: { data: CustomerData }) {
   );
 }
 
-const TEAM_TONES: Record<string, string> = {
-  "Front line": "bg-blue-lighter text-blue-darker",
-  Senior: "bg-purple-lighter text-purple-darker",
-  Specialist: "bg-green-lighter text-green-darker",
-};
-
 function TeamMemberPopover({ data }: { data: TeamMemberData }) {
-  const teamTone = TEAM_TONES[data.team] ?? "bg-grey-lighter text-grey-darker";
   return (
     <div>
       <div className="px-4 py-3 flex items-start gap-3">
@@ -263,13 +242,11 @@ function TeamMemberPopover({ data }: { data: TeamMemberData }) {
         />
         <div className="min-w-0 flex-1">
           <div className="font-medium truncate">{data.name}</div>
-          <div className="text-xs text-muted-foreground truncate">
+          <div className="text-sm text-muted-foreground truncate">
             {data.email}
           </div>
-          <div className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
-            <span className={`rounded-full px-1.5 py-0.5 text-xs ${teamTone}`}>
-              {data.team}
-            </span>
+          <div className="mt-1 flex items-center gap-1.5 text-sm text-muted-foreground">
+            <TeamPill team={data.team} />
             <span>{data.role}</span>
           </div>
         </div>
@@ -282,17 +259,7 @@ function TeamMemberPopover({ data }: { data: TeamMemberData }) {
         />
         <StatBlock
           label="Avg rating"
-          tone={ratingTone(data.avgRating)}
-          value={
-            data.avgRating != null ? (
-              <span className="inline-flex items-baseline gap-0.5">
-                <Star size={11} className="fill-current self-center" />
-                {data.avgRating.toFixed(2)}
-              </span>
-            ) : (
-              <span className="text-muted-foreground/40">—</span>
-            )
-          }
+          value={<AvgRating value={data.avgRating} threshold="team-member" />}
         />
       </div>
     </div>

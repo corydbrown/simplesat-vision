@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { useColumnStateMaybe } from "@/lib/column-prefs";
-import { useToast } from "./toast";
+import { toast } from "sonner";
 import {
   Tooltip,
   TooltipContent,
@@ -57,7 +57,6 @@ export function ViewActions({
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const toast = useToast();
   const { getView, updateViewState, createView } = useViews();
   const columnCtx = useColumnStateMaybe();
   const [createOpen, setCreateOpen] = useState(false);
@@ -127,7 +126,6 @@ export function ViewActions({
     entityKey,
     currentState,
     columnCtx,
-    toast,
   ]);
 
   const handleCreate = useCallback(
@@ -151,7 +149,6 @@ export function ViewActions({
       searchParams,
       router,
       basePath,
-      toast,
     ],
   );
 

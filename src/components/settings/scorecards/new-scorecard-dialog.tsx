@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { useToast } from "@/components/shared/toast";
+import { toast } from "sonner";
 import {
   createScorecard,
   duplicateScorecard,
@@ -35,7 +35,6 @@ export function NewScorecardDialog({ open, mode, onOpenChange }: Props) {
     mode.kind === "duplicate" ? `${mode.sourceName} copy` : "",
   );
   const [isSaving, startSaving] = useTransition();
-  const toast = useToast();
   const router = useRouter();
 
   const onSubmit = (e: React.FormEvent) => {

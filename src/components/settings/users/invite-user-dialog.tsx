@@ -21,7 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useToast } from "@/components/shared/toast";
+import { toast } from "sonner";
 import { inviteUser } from "@/lib/users/actions";
 import type { WorkspaceRole } from "@/lib/users/validate";
 
@@ -31,7 +31,6 @@ export function InviteUserDialog() {
   const [role, setRole] = useState<WorkspaceRole>("member");
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
-  const toast = useToast();
   const router = useRouter();
 
   const reset = () => {

@@ -18,7 +18,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { useToast } from "@/components/shared/toast";
+import { toast } from "sonner";
 import { evaluateTicket } from "@/lib/qa/actions";
 
 type Props = {
@@ -54,7 +54,6 @@ export function RescoreWithPicker({
   defaultScorecardId,
 }: Props) {
   const router = useRouter();
-  const toast = useToast();
   const [isPending, startPending] = useTransition();
 
   if (scorecards.length === 0) {

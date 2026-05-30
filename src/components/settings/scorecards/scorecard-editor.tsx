@@ -29,7 +29,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { useToast } from "@/components/shared/toast";
+import { toast } from "sonner";
 import {
   saveScorecard,
   type SaveScorecardInput,
@@ -69,7 +69,6 @@ export function ScorecardEditor({ scorecard }: Props) {
     toneExpectations: scorecard.toneExpectations ?? "",
   }));
   const [isSaving, startSaving] = useTransition();
-  const toast = useToast();
 
   // Auto-fail categories are pinned at the bottom and not part of the
   // sortable list. Anything that opts in to auto-fail (binary scale,
@@ -241,7 +240,6 @@ export function ScorecardEditor({ scorecard }: Props) {
     isSaving,
     llmContext,
     scorecard.id,
-    toast,
     weightValid,
   ]);
 

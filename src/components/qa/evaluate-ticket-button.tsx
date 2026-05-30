@@ -18,7 +18,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { useToast } from "@/components/shared/toast";
+import { toast } from "sonner";
 import { evaluateTicket } from "@/lib/qa/actions";
 
 /** Manual "Evaluate" trigger for a ticket. Runs the provider-driven QA
@@ -60,7 +60,6 @@ export function EvaluateTicketButton({
   disabledReason?: string;
 }) {
   const router = useRouter();
-  const toast = useToast();
   const [isPending, startTransition] = useTransition();
 
   const showCaret = scorecards.length > 1;

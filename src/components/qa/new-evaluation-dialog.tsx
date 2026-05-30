@@ -13,7 +13,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { useToast } from "@/components/shared/toast";
+import { toast } from "sonner";
 import {
   evaluateTicket,
   searchScorableTickets,
@@ -27,7 +27,6 @@ import {
  *  (the two preconditions `scoreAndPersistTicket` enforces). */
 export function NewEvaluationDialog() {
   const router = useRouter();
-  const toast = useToast();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [rows, setRows] = useState<ScorableTicketRow[]>([]);

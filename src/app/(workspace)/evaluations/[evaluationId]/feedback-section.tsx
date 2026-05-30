@@ -3,7 +3,9 @@
 import { useState, useTransition } from "react";
 import { Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
+import { MentionTextarea } from "@/components/shared/mention-textarea";
+import { ReasoningWithMentions } from "@/components/shared/inline-mention";
+import type { MentionSource } from "@/lib/mentions/types";
 import { formatRelative } from "@/lib/format";
 import {
   deleteEvaluationFeedback,
@@ -17,12 +19,21 @@ type Props = {
   evaluationId: string;
   myFeedback: FeedbackEntry | null;
   otherFeedback: FeedbackEntry[];
+  /** `@` mention source — the evaluated ticket's messages. */
+  mentionSources: MentionSource[];
+  /** Maps "Message N" → message id so rendered refs are clickable. */
+  messageIdByNumber: Map<number, string>;
+  /** Scrolls + flashes the referenced message in the conversation above. */
+  onJumpToMessage: (messageId: string) => void;
 };
 
 export function FeedbackSection({
   evaluationId,
   myFeedback,
   otherFeedback,
+  mentionSources,
+  messageIdByNumber,
+  onJumpToMessage,
 }: Props) {
   const [draft, setDraft] = useState(myFeedback?.feedbackText ?? "");
   const [error, setError] = useState<string | null>(null);
@@ -74,13 +85,14 @@ export function FeedbackSection({
       </header>
 
       <div className="max-w-3xl space-y-3">
-        <Textarea
+        <MentionTextarea
           value={draft}
-          onChange={(e) => setDraft(e.target.value)}
+          onChange={setDraft}
+          sources={mentionSources}
           placeholder={
             hasExisting
               ? "Edit your feedback..."
-              : "e.g. The empathy score should have been a 3 — the agent did acknowledge the frustration in message 4, but the model missed it because..."
+              : "e.g. The empathy score should have been a 3 — @Message 4 the agent did acknowledge the frustration, but the model missed it because..."
           }
           maxLength={MAX_CHARS}
           rows={5}
@@ -133,7 +145,12 @@ export function FeedbackSection({
           </h3>
           <ul className="space-y-4">
             {otherFeedback.map((f) => (
-              <FeedbackCard key={f.id} entry={f} />
+              <FeedbackCard
+                key={f.id}
+                entry={f}
+                messageIdByNumber={messageIdByNumber}
+                onJumpToMessage={onJumpToMessage}
+              />
             ))}
           </ul>
         </div>
@@ -146,7 +163,15 @@ export function FeedbackSection({
   );
 }
 
-function FeedbackCard({ entry }: { entry: FeedbackEntry }) {
+function FeedbackCard({
+  entry,
+  messageIdByNumber,
+  onJumpToMessage,
+}: {
+  entry: FeedbackEntry;
+  messageIdByNumber: Map<number, string>;
+  onJumpToMessage: (messageId: string) => void;
+}) {
   const displayName = entry.authorName?.trim() || entry.authorEmail;
   return (
     <li className="rounded-lg border border-border bg-card px-4 py-3">
@@ -159,7 +184,11 @@ function FeedbackCard({ entry }: { entry: FeedbackEntry }) {
         </span>
       </div>
       <p className="mt-2 whitespace-pre-wrap text-base text-foreground">
-        {entry.feedbackText}
+        <ReasoningWithMentions
+          text={entry.feedbackText}
+          messageIdByNumber={messageIdByNumber}
+          onJump={onJumpToMessage}
+        />
       </p>
     </li>
   );

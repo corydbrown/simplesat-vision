@@ -13,7 +13,9 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Textarea } from "@/components/ui/textarea";
+import { MentionTextarea } from "@/components/shared/mention-textarea";
+import { ReasoningWithMentions } from "@/components/shared/inline-mention";
+import type { MentionSource } from "@/lib/mentions/types";
 import { formatRelative } from "@/lib/format";
 import { TimestampTooltip } from "@/components/shared/timestamp-tooltip";
 import { colorFromName, dicebearUrl, initialsFromName } from "@/lib/color-from-name";
@@ -35,6 +37,9 @@ export function CommentRow({
   author,
   isOwn,
   reactions,
+  mentionSources,
+  messageIdByNumber,
+  onJumpToMessage,
   onToggleReaction,
   onSaveEdit,
   onDelete,
@@ -45,6 +50,11 @@ export function CommentRow({
   author: CoachingUserView | null;
   isOwn: boolean;
   reactions: ReactionAggregate[];
+  /** Mention sources for the edit composer (the ticket's messages). */
+  mentionSources: MentionSource[];
+  /** Maps "Message N" → message id so the rendered body's refs are clickable. */
+  messageIdByNumber: Map<number, string>;
+  onJumpToMessage: (messageId: string) => void;
   onToggleReaction: (emoji: CoachingReaction) => void;
   onSaveEdit: (body: string) => void;
   onDelete: () => void;
@@ -137,9 +147,10 @@ export function CommentRow({
 
         {editing ? (
           <div>
-            <Textarea
+            <MentionTextarea
               value={draft}
-              onChange={(e) => setDraft(e.target.value)}
+              onChange={setDraft}
+              sources={mentionSources}
               autoFocus
               className="min-h-16 resize-none text-base"
               onKeyDown={(e) => {
@@ -176,7 +187,11 @@ export function CommentRow({
           </div>
         ) : (
           <p className="whitespace-pre-wrap text-left text-base text-foreground">
-            {comment.body}
+            <ReasoningWithMentions
+              text={comment.body}
+              messageIdByNumber={messageIdByNumber}
+              onJump={onJumpToMessage}
+            />
           </p>
         )}
 

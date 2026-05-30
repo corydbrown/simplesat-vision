@@ -17,6 +17,7 @@ import { CommentRow } from "./comment-row";
 import { CommentComposer, type CommentComposerHandle } from "./comment-composer";
 import { DotScale } from "./citation-chip";
 import { ReasoningWithMentions } from "@/components/shared/inline-mention";
+import type { MentionSource } from "@/lib/mentions/types";
 import {
   HUE_TOKENS,
   hueForCategoryOrder,
@@ -51,6 +52,7 @@ export function InspectPanel({
   message,
   messageNumber,
   messageIdByNumber,
+  mentionSources,
   citations,
   comments,
   reactionsByCommentId,
@@ -81,6 +83,8 @@ export function InspectPanel({
   message: CoachingMessageView;
   messageNumber: number;
   messageIdByNumber: Map<number, string>;
+  /** Mention sources for the comment composer + edit (the ticket's messages). */
+  mentionSources: MentionSource[];
   citations: CitationRowInput[];
   comments: CommentRowData[];
   reactionsByCommentId: Map<string, ReactionAggregate[]>;
@@ -277,6 +281,9 @@ export function InspectPanel({
                     author={commentAuthorsById[c.authorId] ?? null}
                     isOwn={c.authorId === currentUserId}
                     reactions={reactionsByCommentId.get(c.id) ?? []}
+                    mentionSources={mentionSources}
+                    messageIdByNumber={messageIdByNumber}
+                    onJumpToMessage={onJumpToMessage}
                     onToggleReaction={(emoji) =>
                       onToggleCommentReaction(c.id, emoji)
                     }
@@ -293,6 +300,7 @@ export function InspectPanel({
           <section>
             <CommentComposer
               ref={composerRef}
+              mentionSources={mentionSources}
               onSubmit={onSubmitComment}
               onUpArrowEmpty={onUpArrowEmptyComposer}
               onFocus={() => onFocusChange({ kind: "composer" })}

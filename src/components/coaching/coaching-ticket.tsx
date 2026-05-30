@@ -3,6 +3,7 @@
 import {
   useCallback,
   useEffect,
+  useImperativeHandle,
   useMemo,
   useRef,
   useState,
@@ -44,10 +45,23 @@ import {
 } from "./inspect-panel";
 import { KeyboardShortcutsDialog } from "./keyboard-shortcuts-dialog";
 import type { ReactionAggregate } from "./reaction-row";
+import { buildMessageMentionSource } from "@/lib/mentions/message-source";
 
 type FocusSurface = "convo" | "overview" | "inspect";
 
-export function CoachingTicket({ detail }: { detail: CoachingDetail }) {
+/** Imperative surface so siblings on the same page (e.g. the reviewer-feedback
+ *  section) can scroll-and-flash a message the user clicked in a mention. */
+export type CoachingTicketHandle = {
+  jumpToMessage: (messageId: string) => void;
+};
+
+export function CoachingTicket({
+  ref,
+  detail,
+}: {
+  ref?: React.Ref<CoachingTicketHandle>;
+  detail: CoachingDetail;
+}) {
   const { evaluation, messages, activities } = detail;
   // `detail.currentUserId` is `string | null` (null = unauthenticated RSC
   // preview, which the proxy redirects before reaching this surface). Use a
@@ -193,6 +207,17 @@ export function CoachingTicket({ detail }: { detail: CoachingDetail }) {
       1400,
     );
   }, []);
+
+  useImperativeHandle(ref, () => ({ jumpToMessage: flashMessage }), [
+    flashMessage,
+  ]);
+
+  /** `@` mention source for the comment composer — the ticket's messages,
+   *  tokenized as "Message N" to match the read-side parser. */
+  const mentionSources = useMemo(
+    () => [buildMessageMentionSource(messages)],
+    [messages],
+  );
 
   const openInspect = useCallback((
     messageId: string,
@@ -908,6 +933,7 @@ export function CoachingTicket({ detail }: { detail: CoachingDetail }) {
                   messageNumberById.get(inspectMessage.id) ?? 0
                 }
                 messageIdByNumber={messageIdByNumber}
+                mentionSources={mentionSources}
                 citations={citationsByMessage.get(inspectMessage.id) ?? []}
                 comments={commentsByMessage.get(inspectMessage.id) ?? []}
                 reactionsByCommentId={commentReactionAggregates}

@@ -2,7 +2,6 @@ import { notFound } from "next/navigation";
 import { Topbar } from "@/components/shell/topbar";
 import { DetailActions } from "@/components/shared/detail-actions";
 import { CoachingEvalFooter } from "@/components/coaching/coaching-eval-footer";
-import { CoachingTicket } from "@/components/coaching/coaching-ticket";
 import { CoachingTicketHeader } from "@/components/coaching/coaching-ticket-header";
 import { ConfigureScorecardItem } from "@/components/coaching/configure-scorecard-item";
 import { EvalTargetCards } from "@/components/coaching/eval-target-cards";
@@ -12,7 +11,7 @@ import { listLiveScorecardsForPicker } from "@/db/queries/scorecards";
 import { getActiveWorkspaceDetails } from "@/db/queries/workspaces";
 import { getCurrentUser } from "@/lib/auth";
 import { listEvaluationFeedback } from "@/lib/qa/feedback/actions";
-import { FeedbackSection } from "./feedback-section";
+import { EvaluationBody } from "./evaluation-body";
 
 // SVP-243: the `evaluateTicket` action invoked from RescoreWithPicker makes a
 // real LLM call (~15-25s) before persisting. Vercel's default function budget
@@ -68,14 +67,13 @@ export default async function EvaluationDetailPage(
           defaultScorecardId={workspace?.defaultScorecardId ?? null}
         />
         <CoachingTicketHeader detail={detail} />
-        <CoachingTicket detail={detail} />
-        {currentUser && (
-          <FeedbackSection
-            evaluationId={evaluationId}
-            myFeedback={myFeedback}
-            otherFeedback={otherFeedback}
-          />
-        )}
+        <EvaluationBody
+          detail={detail}
+          showFeedback={currentUser != null}
+          evaluationId={evaluationId}
+          myFeedback={myFeedback}
+          otherFeedback={otherFeedback}
+        />
         <CoachingEvalFooter evaluation={detail.evaluation} />
       </main>
     </>

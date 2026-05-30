@@ -28,11 +28,11 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { GroupHeading } from "@/components/shared/group-heading";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
@@ -260,11 +260,7 @@ function PropertyPicker<T>({
     <div className="max-h-[60vh] overflow-y-auto">
       <GroupedPropertyList
         properties={available}
-        renderLabel={(label) => (
-          <div className="px-2 py-1 text-xs font-medium text-muted-foreground/80">
-            {label}
-          </div>
-        )}
+        renderLabel={(label) => <GroupHeading>{label}</GroupHeading>}
         renderItem={(p) => (
           <button
             key={p.id}
@@ -344,9 +340,7 @@ function SortRow<T>({
             renderLabel={(groupLabel, i) => (
               <>
                 {i > 0 && <DropdownMenuSeparator />}
-                <DropdownMenuLabel className="text-xs font-medium text-muted-foreground/80">
-                  {groupLabel}
-                </DropdownMenuLabel>
+                <GroupHeading>{groupLabel}</GroupHeading>
               </>
             )}
             renderItem={(p) => (
@@ -418,9 +412,7 @@ function AddSortMenu<T>({
           renderLabel={(groupLabel, i) => (
             <>
               {i > 0 && <DropdownMenuSeparator />}
-              <DropdownMenuLabel className="text-xs font-medium text-muted-foreground/80">
-                {groupLabel}
-              </DropdownMenuLabel>
+              <GroupHeading>{groupLabel}</GroupHeading>
             </>
           )}
           renderItem={(p) => (

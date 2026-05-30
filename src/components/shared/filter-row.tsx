@@ -23,6 +23,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Avatar } from "@/components/shared/avatar";
+import { GroupHeading } from "@/components/shared/group-heading";
 import {
   MultiSelectInput,
   MultiSelectPill,
@@ -626,9 +627,7 @@ function FieldPicker({
         {Object.keys(groups).map((group) => (
           <div key={group} className="flex flex-col gap-0.5">
             {group && (
-              <div className="px-2 pt-1 text-xs font-medium text-muted-foreground/80">
-                {group}
-              </div>
+              <GroupHeading className="px-2 py-0 pt-1">{group}</GroupHeading>
             )}
             {groups[group].map((f) => (
               <button

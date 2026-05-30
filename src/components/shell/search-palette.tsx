@@ -102,8 +102,11 @@ type ViewEntry = {
   entity: EntityKey;
 };
 
+// Body-size muted heading per CLAUDE.md typography ladder and the shared
+// GroupHeading primitive. Styled via attribute selector because cmdk owns
+// the heading element — we can't wrap with <GroupHeading> directly.
 const GROUP_HEADING_CLS =
-  "[&_[cmdk-group-heading]]:px-3 [&_[cmdk-group-heading]]:pt-2 [&_[cmdk-group-heading]]:pb-1 [&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:text-muted-foreground/70";
+  "[&_[cmdk-group-heading]]:px-3 [&_[cmdk-group-heading]]:pt-2 [&_[cmdk-group-heading]]:pb-1 [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:text-muted-foreground";
 
 type Props = {
   open: boolean;

@@ -8,10 +8,10 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { GroupHeading } from "@/components/shared/group-heading";
 import type { WorkspaceSummary } from "@/db/queries/workspaces";
 import { setActiveWorkspace } from "@/lib/workspaces/actions";
 
@@ -69,9 +69,7 @@ export function WorkspaceSwitcher({
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-64">
-        <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">
-          Switch workspace
-        </DropdownMenuLabel>
+        <GroupHeading className="font-normal">Switch workspace</GroupHeading>
         {workspaces.map((w) => {
           const isActive = w.id === active.id;
           return (

@@ -4,6 +4,7 @@ import { ArrowDown, ArrowUp, Check, Group as GroupIcon, X } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useMemo } from "react";
 import { Button } from "@/components/ui/button";
+import { GroupHeading } from "@/components/shared/group-heading";
 import {
   Popover,
   PopoverContent,
@@ -96,9 +97,7 @@ export function GroupControl<T>({
         </Button>
       </PopoverTrigger>
       <PopoverContent align="start" className="w-56 p-1">
-        <div className="px-2 py-1 text-xs font-medium text-muted-foreground/80">
-          Group by
-        </div>
+        <GroupHeading>Group by</GroupHeading>
         <div className="flex flex-col">
           {groupable.map((p) => {
             const active = spec?.propertyId === p.id;

@@ -3,11 +3,13 @@ import { SettingsBody } from "@/components/settings/settings-body";
 import { InviteUserDialog } from "@/components/settings/users/invite-user-dialog";
 import { UserRowActions } from "@/components/settings/users/user-row-actions";
 import { PendingInvitationRow } from "@/components/settings/users/pending-invitation-row";
+import { Avatar } from "@/components/shared/avatar";
 import {
   getActiveWorkspaceDetails,
   getCurrentUserRole,
 } from "@/db/queries/workspaces";
 import { getCurrentUser } from "@/lib/auth";
+import { resolveAvatar } from "@/lib/avatar";
 import { formatDate } from "@/lib/format";
 import {
   listOrgMembers,
@@ -126,9 +128,12 @@ export default async function WorkspaceUsersPage() {
                           <td className="px-5 py-3">
                             <div className="flex items-center gap-3">
                               <Avatar
-                                name={member.name}
-                                email={member.email}
-                                avatarUrl={member.avatarUrl}
+                                {...resolveAvatar({
+                                  avatarUrl: member.avatarUrl,
+                                  email: member.email,
+                                  name: member.name ?? member.email,
+                                })}
+                                size="lg"
                               />
                               <div className="min-w-0">
                                 {member.name && (
@@ -251,38 +256,3 @@ function StatusBadge({ status }: { status: "active" | "pending" | "inactive" }) 
   );
 }
 
-function Avatar({
-  name,
-  email,
-  avatarUrl,
-}: {
-  name: string | null;
-  email: string;
-  avatarUrl: string | null;
-}) {
-  const initials = name
-    ? name
-        .split(" ")
-        .map((p) => p[0])
-        .join("")
-        .slice(0, 2)
-        .toUpperCase()
-    : email[0]?.toUpperCase() ?? "?";
-
-  if (avatarUrl) {
-    return (
-      // eslint-disable-next-line @next/next/no-img-element
-      <img
-        src={avatarUrl}
-        alt={name ?? email}
-        className="h-8 w-8 shrink-0 rounded-full object-cover"
-      />
-    );
-  }
-
-  return (
-    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-accent text-sm font-medium text-foreground">
-      {initials}
-    </div>
-  );
-}

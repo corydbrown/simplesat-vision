@@ -5,6 +5,7 @@ import { Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { MentionTextarea } from "@/components/shared/mention-textarea";
 import { ReasoningWithMentions } from "@/components/shared/inline-mention";
+import { EmptyState as SharedEmptyState } from "@/components/shared/empty-state";
 import type { MentionSource } from "@/lib/mentions/types";
 import { formatRelative } from "@/lib/format";
 import {
@@ -196,16 +197,10 @@ function FeedbackCard({
 
 function EmptyState() {
   return (
-    <div className="mt-6 flex items-start gap-3 rounded-lg border border-dashed border-border bg-muted/30 px-4 py-3">
-      <Sparkles
-        size={16}
-        className="mt-0.5 shrink-0 text-muted-foreground"
-        aria-hidden
-      />
-      <p className="text-base text-muted-foreground">
-        Be the first to flag what the AI got wrong. Even a one-liner helps
-        sharpen the next round of scoring.
-      </p>
-    </div>
+    <SharedEmptyState
+      icon={Sparkles}
+      description="Be the first to flag what the AI got wrong. Even a one-liner helps sharpen the next round of scoring."
+      className="mt-6"
+    />
   );
 }

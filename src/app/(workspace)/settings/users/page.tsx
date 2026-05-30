@@ -1,5 +1,6 @@
 import { Topbar } from "@/components/shell/topbar";
 import { SettingsBody } from "@/components/settings/settings-body";
+import { SettingsPageHeader } from "@/components/settings/settings-page-header";
 import { InviteUserDialog } from "@/components/settings/users/invite-user-dialog";
 import { UserRowActions } from "@/components/settings/users/user-row-actions";
 import { PendingInvitationRow } from "@/components/settings/users/pending-invitation-row";
@@ -82,19 +83,15 @@ export default async function WorkspaceUsersPage() {
       <Topbar crumbs={crumbs} />
       <SettingsBody>
         <div className="max-w-3xl">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <h1 className="text-2xl font-semibold tracking-tight text-foreground">
-                Users
-              </h1>
-              <p className="mt-2 text-base text-muted-foreground">
-                {isAdmin
-                  ? `Manage who has access to ${workspace.name}.`
-                  : `People with access to ${workspace.name}.`}
-              </p>
-            </div>
-            {isAdmin && loaded.ok && <InviteUserDialog />}
-          </div>
+          <SettingsPageHeader
+            title="Users"
+            description={
+              isAdmin
+                ? `Manage who has access to ${workspace.name}.`
+                : `People with access to ${workspace.name}.`
+            }
+            action={isAdmin && loaded.ok ? <InviteUserDialog /> : undefined}
+          />
 
           {!loaded.ok ? (
             <p className="mt-8 rounded-lg bg-red-lighter px-4 py-3 text-base text-red-dark">

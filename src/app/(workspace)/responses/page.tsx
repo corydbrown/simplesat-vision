@@ -6,6 +6,7 @@ import { ListFilterRow } from "@/components/shared/list-filter-row";
 import { ListPageActions } from "@/components/shared/list-page-actions";
 import { ViewBreadcrumb } from "@/components/shared/view-breadcrumb";
 import { ResponseFeedCard } from "@/components/responses/response-feed-card";
+import { EmptyState } from "@/components/shared/empty-state";
 import { ColumnStateProvider } from "@/lib/column-prefs";
 import { filtersFromSearchParam } from "@/lib/filters/url-state";
 import { RESPONSE_GROUP_IDS } from "@/lib/group/fields/responses";
@@ -101,9 +102,10 @@ export default async function ResponsesPage(props: PageProps<"/responses">) {
         <main className="mx-auto w-full max-w-3xl px-6 py-6">
           <div className="space-y-3">
             {rows.length === 0 ? (
-              <div className="rounded-lg border border-dashed border-border bg-muted/20 px-6 py-12 text-center text-sm text-muted-foreground">
-                No responses match this view.
-              </div>
+              <EmptyState
+                description="No responses match this view."
+                className="px-6 py-12 text-center"
+              />
             ) : (
               rows.map((r) => <ResponseFeedCard key={r.id} row={r} />)
             )}

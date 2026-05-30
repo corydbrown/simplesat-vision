@@ -12,6 +12,7 @@ import {
   PropertiesSidebar,
 } from "@/components/shared/detail-section";
 import { StarRating } from "@/components/shared/star-rating";
+import { EmptyState } from "@/components/shared/empty-state";
 import type { ResponseDetail } from "@/db/queries/responses";
 import type { ResponseListRow } from "@/db/queries/responses";
 import { formatDateTime } from "@/lib/format";
@@ -159,9 +160,7 @@ export function ResponseDetailBody({
     <DetailSection title="Survey answers">
       <div className="space-y-3">
         {response.answers.length === 0 ? (
-          <div className="rounded-md border border-dashed border-border px-5 py-4 text-base text-muted-foreground">
-            No structured answers.
-          </div>
+          <EmptyState description="No structured answers." />
         ) : (
           response.answers.map((a, i) => <AnswerBlock key={i} answer={a} />)
         )}

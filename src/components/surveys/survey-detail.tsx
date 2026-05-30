@@ -14,6 +14,7 @@ import {
   PropertiesSidebar,
 } from "@/components/shared/detail-section";
 import { EntityTable } from "@/components/shared/entity-table";
+import { EmptyState } from "@/components/shared/empty-state";
 import { GroupControl } from "@/components/shared/group-control";
 import { SortControl } from "@/components/shared/sort-control";
 import type { SurveyDetail, SurveyRow } from "@/db/queries/surveys";
@@ -91,9 +92,7 @@ export function SurveyDetailBody({
     <DetailSection title="Questions">
       <ol className="space-y-2">
         {survey.questions.length === 0 ? (
-          <div className="rounded-md border border-dashed border-border px-5 py-4 text-sm text-muted-foreground">
-            No questions configured.
-          </div>
+          <EmptyState description="No questions configured." />
         ) : (
           survey.questions.map((q, i) => (
             <li

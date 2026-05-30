@@ -149,36 +149,38 @@ const TEXT_XS_MESSAGE =
   "text-xs is only allowed in tight chrome (kbd, avatar initials, count badges, font-mono IDs); " +
   "if you genuinely need it, add the file to the text-xs allowlist in eslint.config.mjs.";
 
-// STOP — text-xs allowlist drift. Per CLAUDE.md the allowlist should be ~5
-// files (avatar, kbd, count-badge). Today it is ~15: legitimate tight chrome
-// PLUS files whose text-xs uses are known violations awaiting other-task
-// fixes (workspace home, entity-popover, columns-control, layout-toggle, the
-// Add-sort buttons in sort-control, etc — see design-reviews/2026-05-29-review-1.md).
-// As those tasks land, prune their files from the allowlist so the guard
-// becomes strict. New files added here should be tight-chrome only.
+// SVP-280: text-xs allowlist, post-prune. Two groups:
+//   1. Legitimate tight chrome — text-xs is the right call here forever.
+//      Avatar initials, kbd, count badges, font-mono IDs, h-7 action buttons
+//      (tighter than the default Button h-8/text-sm pairing).
+//   2. Pending fix — these still use text-xs in places that should be
+//      text-base + text-muted-foreground per CLAUDE.md. Each entry names
+//      the design-review task that will fix it. Prune as those land.
+// New entries should default to (1) only if they're truly tight chrome.
 const TEXT_XS_ALLOWLIST = [
-  // Legitimate tight chrome — keep these.
+  // ---- Legitimate tight chrome ----
   "src/components/shared/avatar.tsx", // avatar initials
   "src/components/shared/tag.tsx", // tag chip
-  "src/components/shared/entity-pill.tsx", // count badge (SVP-261 → CountChip)
-  "src/components/shared/entity-toolbar.tsx", // count chip (SVP-261)
-  "src/components/shared/relation-tabs.tsx", // count chip (SVP-261)
+  "src/components/shared/count-chip.tsx", // count chip primitive (SVP-261)
+  "src/components/shared/entity-pill.tsx", // remaining tight chip chrome
+  "src/components/shared/entity-toolbar.tsx", // toolbar chip chrome
+  "src/components/shared/relation-tabs.tsx", // tab count chrome
   "src/components/responses/response-feed-card.tsx", // notification count badge
   "src/components/coaching/message-bubble.tsx", // timestamp tabular-nums chrome
   "src/components/tickets/ticket-activity.tsx", // hover timestamp chrome
   "src/lib/properties/**", // font-mono ID display across property registries
+  // Tighter-than-sm action buttons (h-7) — intentionally below Button's
+  // default text-sm to fit the smaller hit target. Treat as tight chrome.
+  "src/components/shared/sort-control.tsx", // h-7 Add-sort + sort-dir buttons
+  "src/components/shared/columns-control.tsx", // h-7 Show all / Hide all
+  "src/components/shared/layout-toggle.tsx", // segmented control chrome
 
-  // Pending fix by other tasks — prune as those PRs land.
-  "src/app/(workspace)/page.tsx", // workspace home body copy — design review
-  "src/components/shell/search-palette.tsx", // keyboard hint bar + loading dots + result metadata
-  "src/components/shell/workspace-switcher.tsx", // safety net; lint hot-path is the GroupHeading swap
-  "src/components/shared/columns-control.tsx", // Show all / Hide all action buttons — design review
-  "src/components/shared/sort-control.tsx", // Add-sort button chrome (lines 208/408) — design review
-  "src/components/shared/layout-toggle.tsx", // toggle button chrome — design review
-  "src/components/shared/entity-popover.tsx", // popover metadata — SVP-260
-  "src/components/reports/ai-prompt-dialog.tsx", // helper label + suggestion chips — design review
-  "src/components/surveys/survey-detail.tsx", // metadata — design review
-  "src/lib/properties/response-answers.tsx", // inline chip (line 66) — pending de-dup
+  // ---- Pending fix (design-review queue) ----
+  "src/app/(workspace)/page.tsx", // workspace home body copy
+  "src/components/shell/search-palette.tsx", // keyboard hint + result metadata
+  "src/components/shared/entity-popover.tsx", // popover footer metadata — SVP-260 partial
+  "src/components/reports/ai-prompt-dialog.tsx", // helper label + suggestion chips
+  "src/components/surveys/survey-detail.tsx", // metadata
 ];
 
 const eslintConfig = defineConfig([

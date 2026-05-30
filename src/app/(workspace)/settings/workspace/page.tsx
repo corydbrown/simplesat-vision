@@ -1,5 +1,6 @@
 import { Topbar } from "@/components/shell/topbar";
 import { SettingsBody } from "@/components/settings/settings-body";
+import { SettingsPageHeader } from "@/components/settings/settings-page-header";
 import { LogoForm } from "@/components/settings/workspace/logo-form";
 import { RenameForm } from "@/components/settings/workspace/rename-form";
 import { TeamMemberRuleForm } from "@/components/settings/workspace/team-member-rule-form";
@@ -39,12 +40,10 @@ export default async function WorkspaceSettingsPage() {
       />
       <SettingsBody>
         <div className="max-w-2xl">
-          <h1 className="text-2xl font-semibold tracking-tight text-foreground">
-            Workspace
-          </h1>
-          <p className="mt-2 text-base text-muted-foreground">
-            Settings for this workspace.
-          </p>
+          <SettingsPageHeader
+            title="Workspace"
+            description="Settings for this workspace."
+          />
 
           <section className="mt-8">
             <h2 className="text-base font-medium text-foreground">Logo</h2>

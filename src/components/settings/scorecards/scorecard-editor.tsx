@@ -29,6 +29,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { SettingsPageHeader } from "@/components/settings/settings-page-header";
 import { toast } from "sonner";
 import {
   saveScorecard,
@@ -281,28 +282,21 @@ export function ScorecardEditor({ scorecard }: Props) {
 
   return (
     <div className="max-w-3xl">
-      <div className="flex items-baseline justify-between gap-4">
-        <div>
-          <div className="flex items-baseline gap-3">
-            <h1 className="text-2xl font-semibold tracking-tight text-foreground">
-              {scorecard.name}
-            </h1>
-            <span className="text-base text-muted-foreground">
-              v{version}
-            </span>
-          </div>
-          <p className="mt-2 text-base text-muted-foreground">
-            Rubric edits bump the scorecard version. Existing evaluations stay
-            pinned to the version that produced them.
-          </p>
-        </div>
-        <SaveButton
-          weightSum={weightSum}
-          weightValid={weightValid}
-          isSaving={isSaving}
-          onSave={onSave}
-        />
-      </div>
+      <SettingsPageHeader
+        title={scorecard.name}
+        titleSuffix={
+          <span className="text-base text-muted-foreground">v{version}</span>
+        }
+        description="Rubric edits bump the scorecard version. Existing evaluations stay pinned to the version that produced them."
+        action={
+          <SaveButton
+            weightSum={weightSum}
+            weightValid={weightValid}
+            isSaving={isSaving}
+            onSave={onSave}
+          />
+        }
+      />
 
       <WeightSumIndicator sum={weightSum} valid={weightValid} />
 

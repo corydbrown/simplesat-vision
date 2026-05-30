@@ -34,6 +34,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { FilterRow } from "@/components/shared/filter-row";
+import { SettingsPageHeader } from "@/components/settings/settings-page-header";
 import { propertiesToDescriptors } from "@/lib/filters/adapters";
 import { TICKET_PROPERTIES } from "@/lib/properties/tickets";
 import {
@@ -274,15 +275,10 @@ function ConfigPane({
 }) {
   return (
     <div className="flex flex-col gap-5">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">
-          {mode === "create" ? "New rule" : "Edit rule"}
-        </h1>
-        <p className="mt-2 text-base text-muted-foreground">
-          Rules score resolved tickets automatically. Priority decides which
-          one wins when more than one matches.
-        </p>
-      </div>
+      <SettingsPageHeader
+        title={mode === "create" ? "New rule" : "Edit rule"}
+        description="Rules score resolved tickets automatically. Priority decides which one wins when more than one matches."
+      />
 
       <Field label="Name">
         <Input

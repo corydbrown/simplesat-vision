@@ -14,6 +14,7 @@ import {
 } from "@/components/shared/detail-section";
 import { ResponsePill } from "@/components/shared/entity-pill";
 import { QaScoreBadge } from "@/components/shared/qa-score-badge";
+import { EmptyState } from "@/components/shared/empty-state";
 import { TicketActivitySection } from "@/components/tickets/ticket-activity";
 import { TicketQaSection } from "@/components/qa/ticket-qa-section";
 import { EvaluationStatusPill } from "@/components/qa/evaluation-status-pill";
@@ -154,13 +155,15 @@ export function TicketDetailBody({
             )}
           </div>
         ) : (
-          <div className="rounded-md border border-dashed border-border bg-muted/30 px-5 py-4 text-base text-muted-foreground">
-            {ticket.surveyNotSentReason
-              ? `Survey not fired (reason: ${ticket.surveyNotSentReason.replace(/_/g, " ")})`
-              : ticket.surveySentAt
-                ? "Survey sent, no response yet"
-                : "Not yet eligible"}
-          </div>
+          <EmptyState
+            description={
+              ticket.surveyNotSentReason
+                ? `Survey not fired (reason: ${ticket.surveyNotSentReason.replace(/_/g, " ")})`
+                : ticket.surveySentAt
+                  ? "Survey sent, no response yet"
+                  : "Not yet eligible"
+            }
+          />
         )}
       </DetailSection>
     </>

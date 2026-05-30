@@ -11,6 +11,8 @@ import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { archiveScorecard, setDefaultScorecard } from "@/lib/scorecards/actions";
 import { formatRelative } from "@/lib/format";
+import { EmptyState as SharedEmptyState } from "@/components/shared/empty-state";
+import { SettingsPageHeader } from "@/components/settings/settings-page-header";
 import { NewScorecardDialog } from "./new-scorecard-dialog";
 import { ScorecardRowActions } from "./scorecard-row-actions";
 
@@ -80,25 +82,25 @@ export function ScorecardsList({ scorecards, defaultScorecardId }: Props) {
 
   return (
     <div className="max-w-3xl">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-foreground">
-            Scorecards
-          </h1>
-          <p className="mt-2 text-base text-muted-foreground">
+      <SettingsPageHeader
+        title="Scorecards"
+        description={
+          <>
             Rubrics used to evaluate ticket quality. Existing evaluations stay
             pinned to the version of the scorecard that produced them.
-          </p>
-        </div>
-        <Button
-          type="button"
-          onClick={() => setDialog({ kind: "create" })}
-          className="shrink-0 cursor-pointer"
-        >
-          <Plus size={14} />
-          New scorecard
-        </Button>
-      </div>
+          </>
+        }
+        action={
+          <Button
+            type="button"
+            onClick={() => setDialog({ kind: "create" })}
+            className="cursor-pointer"
+          >
+            <Plus size={14} />
+            New scorecard
+          </Button>
+        }
+      />
 
       <div className="mt-6 flex items-center gap-2">
         <Switch
@@ -235,29 +237,22 @@ function ScorecardRow({
 
 function EmptyState({ onCreate }: { onCreate: () => void }) {
   return (
-    <div className="rounded-xl bg-card px-6 py-10 text-center ring-1 ring-foreground/10">
-      <Sparkles
-        size={20}
-        className="mx-auto text-blue-dark"
-        aria-hidden
-      />
-      <h2 className="mt-3 text-base font-medium text-foreground">
-        No scorecards yet
-      </h2>
-      <p className="mx-auto mt-1 max-w-sm text-base text-muted-foreground">
-        Create your first scorecard to start evaluating conversations. We&apos;ll
-        seed it with the IQS rubric so you have something to tune.
-      </p>
-      <div className="mt-4">
-        <Button
-          type="button"
-          onClick={onCreate}
-          className="cursor-pointer"
-        >
+    <SharedEmptyState
+      variant="card"
+      icon={Sparkles}
+      title="No scorecards yet"
+      description={
+        <>
+          Create your first scorecard to start evaluating conversations. We&apos;ll
+          seed it with the IQS rubric so you have something to tune.
+        </>
+      }
+      action={
+        <Button type="button" onClick={onCreate} className="cursor-pointer">
           <Plus size={14} />
           New scorecard
         </Button>
-      </div>
-    </div>
+      }
+    />
   );
 }

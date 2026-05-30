@@ -30,6 +30,8 @@ import { CSS } from "@dnd-kit/utilities";
 
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
+import { EmptyState as SharedEmptyState } from "@/components/shared/empty-state";
+import { SettingsPageHeader } from "@/components/settings/settings-page-header";
 import { toast } from "sonner";
 import {
   reorderAutoScoringRulesAction,
@@ -114,24 +116,24 @@ export function RulesList({ rules, scorecards, scoredLast24h }: Props) {
 
   return (
     <div className="max-w-3xl">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-foreground">
-            Auto-scoring
-          </h1>
-          <p className="mt-2 text-base text-muted-foreground">
+      <SettingsPageHeader
+        title="Auto-scoring"
+        description={
+          <>
             Rules that route resolved tickets to scorecards automatically.
             Higher up the list means higher priority — the first rule that
             matches a ticket scores it.
-          </p>
-        </div>
-        <Button asChild className="shrink-0 cursor-pointer">
-          <Link href="/settings/auto-scoring/new">
-            <Plus size={14} />
-            New rule
-          </Link>
-        </Button>
-      </div>
+          </>
+        }
+        action={
+          <Button asChild className="cursor-pointer">
+            <Link href="/settings/auto-scoring/new">
+              <Plus size={14} />
+              New rule
+            </Link>
+          </Button>
+        }
+      />
 
       <div className="mt-6 flex flex-col gap-2">
         {order.length === 0 ? (
@@ -273,24 +275,25 @@ function RoutingPill({ scorecardName }: { scorecardName: string }) {
 
 function EmptyState() {
   return (
-    <div className="rounded-xl bg-card px-6 py-10 text-center ring-1 ring-foreground/10">
-      <Sparkles size={20} className="mx-auto text-blue-dark" aria-hidden />
-      <h2 className="mt-3 text-base font-medium text-foreground">
-        No auto-scoring yet
-      </h2>
-      <p className="mx-auto mt-1 max-w-sm text-base text-muted-foreground">
-        Without a rule, tickets only get scored when someone clicks &ldquo;Score
-        this ticket.&rdquo; Add a rule to start scoring resolved tickets
-        automatically.
-      </p>
-      <div className="mt-4">
+    <SharedEmptyState
+      variant="card"
+      icon={Sparkles}
+      title="No auto-scoring yet"
+      description={
+        <>
+          Without a rule, tickets only get scored when someone clicks &ldquo;Score
+          this ticket.&rdquo; Add a rule to start scoring resolved tickets
+          automatically.
+        </>
+      }
+      action={
         <Button asChild className="cursor-pointer">
           <Link href="/settings/auto-scoring/new">
             <Plus size={14} />
             New rule
           </Link>
         </Button>
-      </div>
-    </div>
+      }
+    />
   );
 }

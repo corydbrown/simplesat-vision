@@ -27,6 +27,7 @@ import {
 } from "@/lib/qa/dashboard-format";
 import { TimestampTooltip } from "@/components/shared/timestamp-tooltip";
 import { QaScoreBadge } from "@/components/shared/qa-score-badge";
+import { EmptyState } from "@/components/shared/empty-state";
 import type {
   QaCategoryAverage,
   QaCsatCorrelationRow,
@@ -866,9 +867,5 @@ function EmptyCard({
 }
 
 function EmptyHint({ message }: { message: string }) {
-  return (
-    <div className="rounded-md border border-dashed border-border bg-background px-4 py-6 text-center text-base text-muted-foreground">
-      {message}
-    </div>
-  );
+  return <EmptyState description={message} className="text-center" />;
 }

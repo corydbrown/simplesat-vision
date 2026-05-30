@@ -1,9 +1,10 @@
 export const dynamic = "force-dynamic";
 
 import Link from "next/link";
-import { ArrowRight, ShieldCheck, Star, TrendingDown } from "lucide-react";
+import { ArrowRight, ShieldCheck, TrendingDown } from "lucide-react";
 import { Topbar } from "@/components/shell/topbar";
 import { Badge } from "@/components/ui/badge";
+import { AvgRating } from "@/components/shared/avg-rating";
 import {
   CompanyPill,
   CustomerPill,
@@ -71,21 +72,6 @@ function InsightCard({
   );
 }
 
-function RatingBadge({ value }: { value: number }) {
-  const tone =
-    value < 3
-      ? "text-red-dark"
-      : value < 4
-        ? "text-yellow-dark"
-        : "text-green-dark";
-  return (
-    <span className={`inline-flex items-center gap-1 text-sm ${tone}`}>
-      <Star size={12} className="fill-current" />
-      <span className="tabular-nums font-medium">{value.toFixed(2)}</span>
-    </span>
-  );
-}
-
 export default async function HomePage() {
   const [declining, lowAgents, notFired] = await Promise.all([
     getDecliningCustomers(5),
@@ -127,7 +113,7 @@ export default async function HomePage() {
                   <span className="text-muted-foreground tabular-nums">
                     {formatNumber(c.responseCount)} responses
                   </span>
-                  <RatingBadge value={c.avgRating} />
+                  <AvgRating value={c.avgRating} threshold="customer" />
                 </div>
               </li>
             ))}
@@ -160,7 +146,7 @@ export default async function HomePage() {
                   <span className="text-muted-foreground tabular-nums">
                     {formatNumber(a.responseCount)} responses
                   </span>
-                  <RatingBadge value={a.avgRating} />
+                  <AvgRating value={a.avgRating} threshold="team-member" />
                 </div>
               </li>
             ))}

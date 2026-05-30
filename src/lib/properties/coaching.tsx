@@ -8,7 +8,6 @@ import {
   Gauge,
   Hash,
   Inbox,
-  MessageSquare,
   ShieldAlert,
   Sparkles,
   UserCircle2,
@@ -41,35 +40,22 @@ const STATUS_LABEL: Record<QaEvaluationStatus, string> = {
 
 export const COACHING_PROPERTIES: Property<EvaluationsRow>[] = [
   {
-    id: "subject",
-    label: "Subject",
-    width: 360,
-    icon: MessageSquare,
-    sourceEntity: "Ticket",
-    alwaysVisible: true,
-    kind: "text",
-    sortable: true,
-    sortValue: (e) => e.ticket?.subject ?? null,
-    cell: (e) =>
-      e.ticket?.subject ? (
-        <span className="truncate text-foreground">{e.ticket.subject}</span>
-      ) : (
-        <span className="text-muted-foreground/40">—</span>
-      ),
-  },
-  {
     id: "ticket",
     label: "Ticket",
-    width: 180,
+    width: 320,
     icon: Inbox,
     sourceEntity: "Ticket",
     alwaysVisible: true,
     kind: "component",
     sortable: true,
-    sortValue: (e) => e.ticket?.externalId ?? e.ticket?.id ?? null,
+    sortValue: (e) => e.ticket?.subject ?? null,
     cell: (e) =>
       e.ticket ? (
-        <TicketPill id={e.ticket.id} externalId={e.ticket.externalId} />
+        <TicketPill
+          id={e.ticket.id}
+          externalId={e.ticket.externalId}
+          subject={e.ticket.subject}
+        />
       ) : (
         <span className="text-muted-foreground/40">—</span>
       ),

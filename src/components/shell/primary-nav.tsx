@@ -64,6 +64,11 @@ const SECTIONS: NavSection[] = [
     icon: "Bot",
     iconClass: "text-icon-agents",
     href: "/agents",
+    views: [
+      { id: "all", label: "All agents", href: "/agents" },
+      { id: "humans", label: "Humans", href: "/agents?kind=human" },
+      { id: "ai", label: "AI agents", href: "/agents?kind=ai_agent" },
+    ],
   },
   {
     id: "reports",
